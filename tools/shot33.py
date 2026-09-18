@@ -1,11 +1,12 @@
 import asyncio
 from playwright.async_api import async_playwright
 import os, pathlib
-# game file: GAME_HTML env var, else ../index.html next to this script
+from _serve import game_url
 # chromium: CHROMIUM_PATH env var when playwright's own download is unavailable
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
-GAME_HTML = 'file://' + os.environ.get('GAME_HTML', str(pathlib.Path(__file__).resolve().parent.parent / 'index.html'))
+# bgm needs fetch, which file:// blocks, so this one goes through a local server
 async def main():
+  with game_url() as GAME_HTML:
     async with async_playwright() as p:
         b = await p.chromium.launch(**LAUNCH, args=['--autoplay-policy=no-user-gesture-required'])
         pg = await b.new_page(viewport={'width':375,'height':667})
