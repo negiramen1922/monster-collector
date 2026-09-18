@@ -2898,6 +2898,7 @@ const DEFAULT_STATE = () => ({
   beginnerStep: 0,
   beginnerBonusClaimed: false,
   beginnerLogin: null,     // { day, key, claimed } — see ensureBeginnerLogin
+  dailyLogin: null,        // { day, key, claimed } — see ensureDailyLogin (repeats forever)
   clearedStages: [],
   stageStars: {},          // stage id → best clear rank (1–3)
   totalPulls: 0,
@@ -3698,6 +3699,33 @@ function claimBeginnerLoginDay(day){
   if(bl.claimed.includes(day) || day > bl.day) return;
   bl.claimed.push(day);
   const reward = BEGINNER_LOGIN_REWARDS[day - 1];
+  grantRewards(reward);
+  saveState();
+  showRewardModal([{ reward, label: `ログインボーナス ${day}日目` }]);
+  render();
+}
+
+/* ---- ongoing 10-day login bonus: everyone gets this, forever, cycling
+   day 1→10→1→…. Unlike the beginner track it doesn't let you catch up on a
+   missed day - only the current day's box is claimable. ---- */
+const DAILY_LOGIN_REWARDS = [50, 50, 50, 50, 100, 50, 50, 50, 50, 200];
+function ensureDailyLogin(){
+  if(!STATE.dailyLogin) STATE.dailyLogin = { day: 0, key: null, claimed: [] };
+  const dl = STATE.dailyLogin;
+  const key = currentDayKey();
+  if(dl.key !== key){
+    const nextDay = dl.day % DAILY_LOGIN_REWARDS.length + 1;
+    if(nextDay === 1) dl.claimed = []; // a new 10-day cycle just started
+    dl.day = nextDay;
+    dl.key = key;
+  }
+  return dl;
+}
+function claimDailyLoginDay(day){
+  const dl = ensureDailyLogin();
+  if(dl.claimed.includes(day) || day !== dl.day) return; // only today's box
+  dl.claimed.push(day);
+  const reward = [{ type:'crystal', n: DAILY_LOGIN_REWARDS[day - 1] }];
   grantRewards(reward);
   saveState();
   showRewardModal([{ reward, label: `ログインボーナス ${day}日目` }]);
@@ -4619,7 +4647,7 @@ function renderBeginnerCard(){
 }
 // home: a one-time 7-day login track for new players. One calendar day advances
 // it (see ensureBeginnerLogin) regardless of whether the previous day was claimed.
-function renderLoginBonusCard(){
+function renderBeginnerLoginCard(){
   const bl = ensureBeginnerLogin();
   if(bl.claimed.length >= BEGINNER_LOGIN_REWARDS.length) return '';
   return `
@@ -4631,9 +4659,30 @@ function renderLoginBonusCard(){
           const claimed = bl.claimed.includes(day);
           const ready = !claimed && day <= bl.day;
           return `
-            <button class="login-day ${claimed ? 'done' : ''} ${ready ? 'ready' : ''}" data-login-day="${day}" ${ready ? '' : 'disabled'}>
+            <button class="login-day ${claimed ? 'done' : ''} ${ready ? 'ready' : ''}" data-beginner-login-day="${day}" ${ready ? '' : 'disabled'}>
               <span class="ld-no">${day}日目</span>
               <span class="ld-rw">${claimed ? '✓' : rewardHtml(r.slice(0, 1))}</span>
+            </button>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+// home: the ongoing 10-day login bonus, always shown (see ensureDailyLogin).
+// only the current day's box is claimable; a missed day is simply skipped.
+function renderDailyLoginCard(){
+  const dl = ensureDailyLogin();
+  return `
+    <div class="panel login-bonus-card">
+      <div class="mc-head" style="margin-bottom:10px;">📅 ログインボーナス</div>
+      <div class="login-days">
+        ${DAILY_LOGIN_REWARDS.map((n, i) => {
+          const day = i + 1;
+          const claimed = dl.claimed.includes(day);
+          const ready = !claimed && day === dl.day;
+          return `
+            <button class="login-day ${claimed ? 'done' : ''} ${ready ? 'ready' : ''}" data-daily-login-day="${day}" ${ready ? '' : 'disabled'}>
+              <span class="ld-no">${day}日目</span>
+              <span class="ld-rw">${claimed ? '✓' : `💎${n}`}</span>
             </button>`;
         }).join('')}
       </div>
@@ -4655,7 +4704,8 @@ function renderHome(){
 
   return `
     ${renderBeginnerCard()}
-    ${renderLoginBonusCard()}
+    ${renderBeginnerLoginCard()}
+    ${renderDailyLoginCard()}
 
     <div class="next-card">
       <div class="next-head"><span class="pixel next-tag">NEXT</span><span class="next-eyebrow">${act.eyebrow}</span></div>
@@ -9311,8 +9361,10 @@ function handlePhoneClick(ev){
     closeModal(); startBattle(stageEl.dataset.stage); return; }
   const claimEl = t.closest('[data-claim]');
   if(claimEl){ const key = claimEl.dataset.claim; claimMissions(x => x.key === key); return; }
-  const loginDayEl = t.closest('[data-login-day]');
-  if(loginDayEl){ claimBeginnerLoginDay(Number(loginDayEl.dataset.loginDay)); return; }
+  const beginnerLoginEl = t.closest('[data-beginner-login-day]');
+  if(beginnerLoginEl){ claimBeginnerLoginDay(Number(beginnerLoginEl.dataset.beginnerLoginDay)); return; }
+  const dailyLoginEl = t.closest('[data-daily-login-day]');
+  if(dailyLoginEl){ claimDailyLoginDay(Number(dailyLoginEl.dataset.dailyLoginDay)); return; }
   const claimAllEl = t.closest('[data-claim-all]');
   if(claimAllEl){ const sec = claimAllEl.dataset.claimAll; claimMissions(x => x.section === sec); return; }
   const mTabEl = t.closest('[data-mission-tab]');
