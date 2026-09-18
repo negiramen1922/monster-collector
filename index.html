@@ -2326,6 +2326,7 @@ const EVENTS = [
   {
     key: 'ev_kyubi',
     name: '紅蓮の九尾',
+    icon: '🔥',
     startAt: '2026-09-18T00:00:00+09:00',
     endAt: '2026-10-02T23:59:59+09:00',
     pickup: 'm116',
@@ -2344,15 +2345,41 @@ const EVENTS = [
       { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
     ],
   },
+  {
+    key: 'ev_titan',
+    name: '黄金の巨神',
+    icon: '🗿',
+    startAt: '2026-09-18T00:00:00+09:00',
+    endAt: '2026-10-02T23:59:59+09:00',
+    pickup: 'm54',
+    featured: ['m54'],
+    stageName: '巨神の遺跡',
+    terrain: 'ruins',
+    element: 'earth',
+    escorts: ['m13', 'm45', 'm47', 'm51', 'm123'],
+    tiers: [
+      { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+      { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+      { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+      { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+      { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+      { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
+    ],
+  },
 ];
 function activeEvents(){
   const now = Date.now();
   return EVENTS.filter(ev => now >= new Date(ev.startAt).getTime() && now <= new Date(ev.endAt).getTime());
 }
 function eventActive(){ return activeEvents().length > 0; }
+// when several events overlap, the most recently started one is the gacha's featured pickup
+// (ties go to whichever is later in EVENTS, i.e. the one added most recently)
 function currentBanner(){
-  const ev = activeEvents()[0];
-  return ev ? { name: ev.name, pickup: ev.pickup, featured: ev.featured } : DEFAULT_BANNER;
+  const evs = activeEvents();
+  if(!evs.length) return DEFAULT_BANNER;
+  const ev = evs.reduce((a, b) => new Date(b.startAt) >= new Date(a.startAt) ? b : a);
+  return { name: ev.name, pickup: ev.pickup, featured: ev.featured };
 }
 
 
@@ -4239,7 +4266,7 @@ function buildEventStages(ev){
       id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, name: `${ev.stageName}・${n}層`,
       terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(10, 2 + n),
       firstClear: 100 * n, boss: true,
-      desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る祭壇に挑む。`,
+      desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。`,
       waves,
       gold: 1500 * n, pots: { exp2: Math.max(1, n) },
       bossReward: [{ type: 'item', key: n >= 6 ? 'box_sel_4' : 'box_sel_3', n: 1 }],
@@ -6083,10 +6110,10 @@ function renderEventCard(ev){
   return `
     <div class="panel event-card">
       <div class="row-between" style="margin-bottom:6px;">
-        <div class="mc-head">🔥 ${ev.name}</div>
+        <div class="mc-head">${ev.icon || '✨'} ${ev.name}</div>
         <div class="mc-reset">残り ${formatDuration(Math.max(0, msLeft))}</div>
       </div>
-      <div class="screen-sub" style="margin:0 0 8px;">「${MON_BY_ID[ev.pickup].name}」が守る祭壇に挑む。層が上がるほど仲間になる確率も上がる。</div>
+      <div class="screen-sub" style="margin:0 0 8px;">「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。層が上がるほど仲間になる確率も上がる。</div>
       ${ev.stages.map(renderStageRow).join('')}
     </div>`;
 }
