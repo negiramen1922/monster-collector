@@ -101,7 +101,8 @@ body{
 .tb-profile{ display:flex; align-items:center; gap:7px; background:var(--panel2); border:1px solid rgba(232,180,85,.2);
   border-radius:999px; padding:4px 10px 4px 4px; cursor:pointer; font-family:inherit; color:var(--text); min-width:0; }
 .tb-avatar{ width:28px; height:28px; border-radius:50%; background:#3a2f5e; display:flex; align-items:center;
-  justify-content:center; font-size:14px; flex:none; }
+  justify-content:center; font-size:14px; flex:none; overflow:hidden; }
+.tb-avatar img{ width:100%; height:100%; object-fit:contain; image-rendering:pixelated; }
 .tb-name{ font-size:11px; font-weight:800; line-height:1.35; text-align:left; white-space:nowrap; overflow:hidden;
   text-overflow:ellipsis; max-width:84px; }
 .tb-name small{ display:block; font-size:9px; color:var(--dim); font-weight:700; }
@@ -1564,6 +1565,96 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .skill-upgrade .cost-list{ display:flex; gap:6px; flex-wrap:wrap; }
 .skill-upgrade .btn{ flex:none; }
 
+/* ---------- full-screen overlays (profile / settings / notices) ---------- */
+#overlay{ position:absolute; inset:0; z-index:20; display:none; }
+#overlay.show{ display:block; }
+.ov-screen{ position:absolute; inset:0; background:var(--bg); display:flex; flex-direction:column; animation:ov-in .22s ease; }
+@keyframes ov-in{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+.ov-head{ display:flex; align-items:center; gap:10px; padding:14px 13px; background:var(--nav); border-bottom:1px solid var(--line); }
+.ov-back{ font-family:inherit; font-size:13px; font-weight:800; padding:7px 10px; border:1px solid rgba(232,180,85,.25);
+  border-radius:9px; background:var(--panel); color:var(--dim); cursor:pointer; }
+.ov-title{ font-size:14px; font-weight:800; }
+.ov-body{ flex:1; min-height:0; overflow-y:auto; padding:13px 13px 20px; display:grid; grid-auto-rows:min-content;
+  align-content:start; gap:10px; }
+.ov-links{ display:flex; flex-direction:column; gap:7px; }
+.ov-link{ font-family:inherit; font-size:12.5px; font-weight:800; text-align:left; padding:13px;
+  border:1px solid var(--line); border-radius:13px; background:var(--panel); color:var(--text); cursor:pointer; width:100%; }
+.ov-ver{ text-align:center; font-size:10.5px; color:var(--dim2); padding:4px 0 2px; }
+.ov-more{ width:100%; font-family:inherit; font-size:11.5px; font-weight:800; padding:9px 0; margin-top:11px;
+  border:1px solid rgba(232,180,85,.3); border-radius:10px; background:transparent; color:var(--gold); cursor:pointer; }
+
+/* profile */
+.pf-card{ background:linear-gradient(135deg,#2c2549,#1d1830); border:1px solid rgba(232,180,85,.25); border-radius:18px;
+  padding:14px; display:flex; gap:12px; align-items:center; }
+.pf-avatar{ position:relative; width:74px; height:74px; flex:none; border-radius:20px; background:#3a2f5e;
+  border:1px solid rgba(232,180,85,.3); display:flex; align-items:center; justify-content:center; overflow:hidden;
+  cursor:pointer; padding:0; font-size:26px; color:var(--text); }
+.pf-avatar img{ width:100%; height:100%; object-fit:contain; image-rendering:pixelated; }
+.pf-avatar-tag{ position:absolute; bottom:0; left:0; right:0; text-align:center; font-size:8.5px; font-weight:800;
+  background:rgba(10,8,18,.8); color:var(--gold); padding:2px 0; }
+.pf-main{ flex:1; min-width:0; }
+.pf-name-row{ display:flex; align-items:center; gap:7px; }
+.pf-name{ font-size:18px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pf-rename{ font-family:inherit; font-size:10px; font-weight:800; color:var(--gold); border:1px solid rgba(232,180,85,.4);
+  border-radius:7px; padding:2px 6px; background:none; cursor:pointer; flex:none; }
+.pf-id{ font-size:11px; color:var(--dim); margin-top:4px; }
+.pf-lv{ display:flex; align-items:center; gap:7px; margin-top:8px; }
+.pf-lv-num{ font-size:11px; font-weight:800; color:#5fd0c0; }
+.pf-lv-bar{ flex:1; height:5px; border-radius:999px; background:var(--groove); overflow:hidden; }
+.pf-lv-bar > span{ display:block; height:100%; background:#5fd0c0; }
+.pf-lv-next{ font-size:10px; color:var(--dim); white-space:nowrap; }
+.pf-stats{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.pf-stat{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:11px; }
+.pf-stat[data-nav]{ cursor:pointer; }
+.pf-stat-k{ font-size:10.5px; color:var(--dim); font-weight:800; }
+.pf-stat-v{ font-size:19px; font-weight:800; margin-top:3px; }
+.pf-stat-v.gold{ color:var(--gold); }
+.pf-stat-v small{ font-size:11px; color:var(--dim); font-weight:700; }
+.pf-favs{ display:flex; gap:7px; }
+.pf-fav{ flex:1; border-radius:12px; background:var(--panel2); border:1px solid rgba(232,180,85,.2); padding:6px;
+  text-align:center; cursor:pointer; min-width:0; }
+.pf-fav img{ width:100%; height:52px; object-fit:contain; image-rendering:pixelated; }
+.pf-fav-name{ font-size:9.5px; font-weight:800; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pf-fav-sub{ font-size:9px; color:var(--gold); }
+.pf-fav.empty{ border-style:dashed; display:flex; align-items:center; justify-content:center; color:var(--dim);
+  font-size:18px; min-height:80px; }
+.pf-titles{ display:flex; flex-wrap:wrap; gap:6px; }
+.pf-title{ font-size:11px; font-weight:800; padding:5px 9px; border-radius:9px; background:var(--panel2);
+  border:1px solid var(--line); color:var(--dim); }
+.pf-title.on{ background:#3a2a1a; border-color:var(--gold); color:var(--gold); }
+
+/* notices + settings rows */
+.notice-card{ border-color:var(--gold); box-shadow:0 0 16px -8px rgba(232,180,85,.6); }
+.nt-list{ display:flex; flex-direction:column; gap:8px; }
+.nt-row{ display:flex; gap:9px; align-items:flex-start; }
+.nt-dot{ width:7px; height:7px; border-radius:50%; background:#3f3a55; margin-top:5px; flex:none; }
+.nt-dot.new{ background:var(--danger); }
+.nt-body{ flex:1; min-width:0; }
+.nt-title{ font-size:12px; font-weight:800; }
+.nt-sub{ font-size:10.5px; color:var(--dim); margin-top:2px; line-height:1.7; }
+.nt-date{ font-size:9.5px; color:var(--dim2); white-space:nowrap; }
+.nt-full .nt-title{ font-size:13px; }
+.set-row{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.set-row:last-child{ margin-bottom:0; }
+.set-k{ width:58px; font-size:11.5px; color:var(--dim); font-weight:800; }
+.set-k.wide{ flex:1; width:auto; color:var(--text); }
+.set-row input[type=range]{ flex:1; accent-color:var(--gold); min-width:0; }
+.set-v{ width:30px; text-align:right; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
+.set-speeds{ display:flex; gap:4px; }
+.spd{ font-family:inherit; font-size:11px; font-weight:800; padding:7px 11px; border-radius:9px; cursor:pointer;
+  border:1px solid var(--line); background:var(--panel2); color:var(--dim); }
+.spd.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
+.sw{ width:44px; height:25px; flex:none; border-radius:999px; padding:2px; cursor:pointer; display:flex; align-items:center;
+  justify-content:flex-start; background:#3f3a55; border:none; }
+.sw.on{ background:var(--gold); justify-content:flex-end; }
+.sw > span{ width:21px; height:21px; border-radius:50%; background:var(--text); display:block; }
+.set-list{ padding:0 !important; overflow:hidden; }
+.set-item{ display:flex; align-items:center; gap:8px; padding:13px 12px; border-bottom:1px solid rgba(232,180,85,.12); cursor:pointer; }
+.set-item:last-child{ border-bottom:none; }
+.set-val{ font-size:11px; color:var(--dim); }
+.set-val.ok{ color:#5cab52; font-weight:800; }
+.set-go{ font-size:16px; color:var(--dim); }
+
 /* ---------- home: next card, missions, banner ---------- */
 #screen{ padding-bottom:84px; }
 .next-card{ background:linear-gradient(135deg,#2c2549,#1d1830); border:1px solid var(--gold); border-radius:18px;
@@ -1669,6 +1760,7 @@ const SPRITES = JSON.parse(document.getElementById('sprite-data').textContent);
 const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent);
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
+const GAME_VERSION = 'ver 0.9 (prototype)';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2436,6 +2528,9 @@ const DEFAULT_STATE = () => ({
   stageStars: {},          // stage id → best clear rank (1–3)
   totalPulls: 0,
   savedAt: 0,       // when this save was last written (cloud sync compares it)
+  profile: null,    // { avatar, favorites:[id] }
+  noticeSeen: 0,    // highest notice id the player has seen
+  showDamage: true, // damage numbers over the units
   autoUlt: false,   // false: tap a unit with full SP to reserve its ultimate
   battleSpeed: 1,   // 1 / 2 / 3
   vip: false,
@@ -3776,6 +3871,7 @@ function canPromoteNow(id){
 }
 
 function goto(screen){
+  if(overlayView){ overlayView = null; pickTarget = null; }
   if(screen !== currentScreen) logEvent('screen_view', { screen_name: screen });
   currentScreen = screen;
   formationPick = null;
@@ -3809,6 +3905,7 @@ function render(){
 
   const screenEl = document.getElementById('screen');
   screenEl.innerHTML = renderScreen(currentScreen);
+  renderOverlay();
 
   const activeKey = currentScreen === 'battle-fight' ? 'battle' : currentScreen === 'missions' ? 'home' : currentScreen;
   document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -7883,7 +7980,7 @@ function renderBattleFight(){
     const isAggro = side === 'ally' && u === aggroAlly;
     const warn = u.penalty && u.alive;
     const events = b.fxEvents.filter(e => e.unit === u);
-    const popups = events.map((e, i) => renderDmgPopup(e, i)).join('');
+    const popups = STATE.showDamage === false ? '' : events.map((e, i) => renderDmgPopup(e, i)).join('');
     // hit effects (at most 3 per unit, staggered like the numbers)
     const hitFx = events.map((e, i) => ({ e, i })).filter(x => x.e.fx && HIT_FX_SVG[x.e.fx]).slice(0, 3)
       .map(x => `<div class="hit-fx fx-${x.e.fx}" style="--pop-i:${x.i};">${HIT_FX_SVG[x.e.fx]}</div>`).join('');
@@ -8118,22 +8215,16 @@ function handlePhonePointerDown(ev){
 function handlePhoneClick(ev){
   if(appPhase !== 'game') return;      // the title screen has its own handler
   const t = ev.target;
-  if(t.closest('#sound-btn')){ renderSoundSettings(); playSfx('open'); return; }
   if(t.closest('[data-open-account]')){ acctView = 'main'; renderAccountModal(); playSfx('open'); return; }
+  const ovEl = t.closest('[data-overlay]');
+  if(ovEl){ openOverlay(ovEl.dataset.overlay); playSfx('open'); return; }
+  if(t.closest('[data-overlay-close]')){ closeOverlay(); return; }
+  const ovAct = t.closest('[data-setting], [data-set-speed], [data-pick], [data-picked], [data-share-id], [data-clear-cache], [data-logout]');
+  if(ovAct){ handleOverlayAction(ovAct); return; }
   if(t.closest('[data-install]')){ installToHome(); return; }
   const acctEl = t.closest('[data-account]');
   if(acctEl){ handleAccountAction(acctEl.dataset.account); return; }
   if(gachaPending && t.closest('.gacha-eggs')){ finishGachaEggs(); return; }
-  if(t.closest('[data-bgm-toggle]')){
-    const bg = bgmSettings(); bg.on = !bg.on; saveState(); renderSoundSettings();
-    if(bg.on) updateBgm(); else stopBgm();
-    return;
-  }
-  if(t.closest('[data-sfx-toggle]')){
-    const st = sfxSettings(); st.on = !st.on; saveState(); renderSoundSettings(); updateSoundButton();
-    if(st.on) playSfx('tap');
-    return;
-  }
   const testEl = t.closest('[data-sfx-test]');
   if(testEl){ playSfx(testEl.dataset.sfxTest); return; }
   // battle controls make their sound on pointerdown instead
@@ -8509,49 +8600,15 @@ function uiSfxFor(t){
   return 'tap';
 }
 
-function renderSoundSettings(){
-  const st = sfxSettings();
-  const bg = bgmSettings();
-  const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
-    <div class="result-modal sound-modal" role="dialog" aria-label="サウンド設定">
-      <h3>サウンド設定</h3>
-      <div class="snd-row">
-        <span>効果音</span>
-        <button class="btn btn-sm ${st.on ? '' : 'btn-ghost'}" data-sfx-toggle="1" aria-pressed="${st.on}">${st.on ? 'ON' : 'OFF'}</button>
-      </div>
-      <div class="snd-row">
-        <label for="sfx-volume">音量</label>
-        <input id="sfx-volume" type="range" min="0" max="100" step="5" value="${Math.round(st.vol * 100)}" ${st.on ? '' : 'disabled'}>
-        <span class="snd-val">${Math.round(st.vol * 100)}</span>
-      </div>
-      <div class="snd-row">
-        <span>BGM</span>
-        <button class="btn btn-sm ${bg.on ? '' : 'btn-ghost'}" data-bgm-toggle="1" aria-pressed="${bg.on}">${bg.on ? 'ON' : 'OFF'}</button>
-      </div>
-      <div class="snd-row">
-        <label for="bgm-volume">音量</label>
-        <input id="bgm-volume" type="range" min="0" max="100" step="5" value="${Math.round(bg.vol * 100)}" ${bg.on ? '' : 'disabled'}>
-        <span class="snd-val bgm-val">${Math.round(bg.vol * 100)}</span>
-      </div>
-      <div class="snd-tests">
-        ${[['slash', '斬撃'], ['fire', '炎'], ['heal', '回復'], ['confirm', '決定']].map(([k, l]) =>
-          `<button class="btn btn-ghost btn-sm" data-sfx-test="${k}" ${st.on ? '' : 'disabled'}>${l}</button>`).join('')}
-      </div>
-      <button class="btn btn-block" id="close-result">閉じる</button>
-    </div>`;
-  layer.classList.add('show');
-}
 // top bar: who you are, what you can spend, bag and settings
 function renderTopBar(){
   const g = STATE.gold || 0;
   const goldText2 = g >= 1e6 ? `${(g / 1e6).toFixed(1)}M` : g >= 1e4 ? `${Math.floor(g / 1000)}K` : g.toLocaleString();
-  const claim = claimableCount();
   return `
-    <button class="tb-profile" data-open-account="1" aria-label="プロフィール">
-      <span class="tb-avatar">👤</span>
+    <button class="tb-profile" data-overlay="profile" aria-label="プロフィール">
+      <span class="tb-avatar">${profileAvatar() ? `<img src="${imgSrc(profileAvatar())}" alt="">` : '👤'}</span>
       <span class="tb-name">${escapeHtml(ACCOUNT ? ACCOUNT.name : 'テイマー')}
-        <small>図鑑 ${Object.keys(STATE.owned).length} / ${MONSTERS.length}</small></span>
+        <small>Lv.${tamerLevel().lv}・図鑑 ${Object.keys(STATE.owned).length}</small></span>
     </button>
     <span class="tb-gap"></span>
     ${currentScreen === 'gacha'
@@ -8559,7 +8616,8 @@ function renderTopBar(){
       : `<span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>`}
     <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
     <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
-    <button class="tb-btn" id="sound-btn" aria-label="設定">⚙${claim ? `<span class="tb-dot">${claim}</span>` : ''}</button>`;
+    <button class="tb-btn" data-overlay="settings" aria-label="設定">⚙${
+      unreadNotices() ? `<span class="tb-dot">${unreadNotices()}</span>` : ''}</button>`;
 }
 function updateSoundButton(){ /* the gear lives in the top bar now; render() keeps it in step */ }
 
@@ -8691,6 +8749,301 @@ async function installToHome(){
     return;
   }
   if(isIOS()) toast('Safariの共有ボタンから「ホーム画面に追加」を選んでください');
+}
+
+/* ---------------- full-screen overlays: profile, settings, notices ---------------- */
+let overlayView = null;      // 'profile' | 'settings' | 'notices' | 'pick'
+let pickTarget = null;       // which profile slot the monster picker is filling
+
+// in-game notices. Add to the top of the list when something ships.
+const NOTICES = [
+  { id: 5, date: '9/18', title: 'ログインとデータ引き継ぎ', body: 'Google・メールアドレス・ゲストでログインできます。端末をまたいでも続きから遊べます。' },
+  { id: 4, date: '9/18', title: 'ホーム画面に追加できます', body: 'スマホのホーム画面に置くと全画面で遊べて、オフラインでも起動します。' },
+  { id: 3, date: '9/18', title: '探索でモンスターが仲間になります', body: 'クリアすると、出てきたモンスターが確率で仲間になります。所持済みなら重複ぶんがソウルになります。' },
+  { id: 2, date: '9/18', title: '図鑑に絞り込みと並び替え', body: '属性・ロール・種族で絞り込めるようになりました。★を上げられるモンスターだけの表示もできます。' },
+  { id: 1, date: '9/18', title: 'プロトタイプを公開しました', body: '105体のモンスターと33ステージで遊べます。' },
+];
+const unreadNotices = () => NOTICES.filter(n => n.id > (STATE.noticeSeen || 0)).length;
+
+/* テイマーLv: クリア数・仲間の数・育成の進み具合から決まる、進行度の目安 */
+function tamerXp(){
+  const owned = Object.values(STATE.owned);
+  return (STATE.clearedStages || []).length * 120 + owned.length * 40
+    + owned.reduce((a, o) => a + (o.level || 1) + ((o.star || 1) - 1) * 20, 0);
+}
+function tamerLevel(){
+  const xp = tamerXp();
+  const lv = Math.floor(Math.sqrt(xp / 45)) + 1;
+  const cur = Math.pow(lv - 1, 2) * 45, next = Math.pow(lv, 2) * 45;
+  return { lv, pct: Math.max(0, Math.min(100, Math.round((xp - cur) / (next - cur) * 100))), toNext: Math.max(0, next - xp) };
+}
+function profileState(){
+  if(!STATE.profile) STATE.profile = { avatar: null, favorites: [] };
+  return STATE.profile;
+}
+function profileAvatar(){
+  const p = profileState();
+  return (p.avatar && STATE.owned[p.avatar]) ? p.avatar : (STATE.slots.find(id => id) || Object.keys(STATE.owned)[0] || null);
+}
+// 称号: 受け取り済みの実績から
+function earnedTitles(){
+  const claimed = STATE.achievements || {};
+  return ACHIEVEMENTS.filter(a => (claimed[a.id] || 0) > 0)
+    .map(a => a.label(a.tiers[Math.min(claimed[a.id], a.tiers.length) - 1].goal));
+}
+
+function openOverlay(view){
+  overlayView = view;
+  if(view === 'notices'){
+    STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, NOTICES[0] ? NOTICES[0].id : 0);
+    saveState();
+  }
+  render();
+}
+function closeOverlay(){
+  if(overlayView === 'pick'){ overlayView = 'profile'; pickTarget = null; render(); return; }
+  overlayView = null;
+  pickTarget = null;
+  render();
+}
+
+const overlayHead = (title, extra) => `
+  <div class="ov-head">
+    <button class="ov-back" data-overlay-close="1">‹ 戻る</button>
+    <div class="ov-title">${title}</div>
+    ${extra || ''}
+  </div>`;
+
+function renderProfileOverlay(){
+  const a = ACCOUNT || {};
+  const t = tamerLevel();
+  const av = profileAvatar();
+  const fav = (profileState().favorites || []).filter(id => STATE.owned[id]).slice(0, 3);
+  const cleared = (STATE.clearedStages || []).filter(id => STAGE_BY_ID[id] && STAGE_BY_ID[id].type === 'main').length;
+  const mains = STAGES.filter(s => s.type === 'main').length;
+  const power = getPartyIds().reduce((sum, id) => sum + battlePower(id), 0);
+  const days = a.createdAt ? Math.max(1, Math.ceil((Date.now() - a.createdAt) / 86400000)) : 1;
+  const favCell = (id, i) => id ? `
+    <div class="pf-fav" data-pick="fav${i}">
+      <img src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">
+      <div class="pf-fav-name">${MON_BY_ID[id].name}</div>
+      <div class="pf-fav-sub">★${STATE.owned[id].star} Lv${STATE.owned[id].level}</div>
+    </div>` : `<div class="pf-fav empty" data-pick="fav${i}">＋</div>`;
+
+  return `
+    <div class="ov-screen">
+      ${overlayHead('プロフィール')}
+      <div class="ov-body">
+        <div class="pf-card">
+          <button class="pf-avatar" data-pick="avatar" aria-label="アバターを変える">
+            ${av ? `<img src="${imgSrc(av)}" alt="">` : '<span>👤</span>'}
+            <span class="pf-avatar-tag">変更</span>
+          </button>
+          <div class="pf-main">
+            <div class="pf-name-row">
+              <div class="pf-name">${escapeHtml(a.name || 'テイマー')}</div>
+              <button class="pf-rename" data-open-account="1">名前変更</button>
+            </div>
+            <div class="pf-id">ID ${escapeHtml(a.playerId || '----')}・${PROVIDER_LABEL[a.provider] || '-'}</div>
+            <div class="pf-lv">
+              <span class="pf-lv-num">Lv.${t.lv}</span>
+              <span class="pf-lv-bar"><span style="width:${t.pct}%;"></span></span>
+              <span class="pf-lv-next">次まで ${t.toNext.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pf-stats">
+          <div class="pf-stat" data-nav="dex" role="button"><div class="pf-stat-k">図鑑 ›</div>
+            <div class="pf-stat-v">${Object.keys(STATE.owned).length}<small> / ${MONSTERS.length}</small></div></div>
+          <div class="pf-stat"><div class="pf-stat-k">クリア済</div>
+            <div class="pf-stat-v">${cleared}<small> / ${mains}</small></div></div>
+          <div class="pf-stat"><div class="pf-stat-k">パーティ総合BP</div>
+            <div class="pf-stat-v gold">${power.toLocaleString()}</div></div>
+          <div class="pf-stat"><div class="pf-stat-k">プレイ日数</div>
+            <div class="pf-stat-v">${days}<small> 日</small></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="row-between" style="margin-bottom:10px;">
+            <div class="mc-head">お気に入り</div>
+            <div class="mc-reset">プロフィールに表示される3体</div>
+          </div>
+          <div class="pf-favs">${[0, 1, 2].map(i => favCell(fav[i], i)).join('')}</div>
+        </div>
+
+        <div class="panel">
+          <div class="mc-head" style="margin-bottom:9px;">称号</div>
+          ${earnedTitles().length
+            ? `<div class="pf-titles">${earnedTitles().map(x => `<span class="pf-title on">${x}</span>`).join('')}</div>`
+            : '<div class="ui-none">実績を達成すると称号が増えます</div>'}
+        </div>
+
+        <div class="ov-links">
+          <button class="ov-link" data-share-id="1">フレンドコードを共有</button>
+          <button class="ov-link" data-overlay="settings">⚙ 設定を開く</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderSettingsOverlay(){
+  const st = sfxSettings(), bg = bgmSettings();
+  const unread = NOTICES.slice(0, 3);
+  const speed = STATE.battleSpeed || 1;
+  const toggle = (key, on) => `<button class="sw ${on ? 'on' : ''}" data-setting="${key}" role="switch" aria-checked="${on}"><span></span></button>`;
+  return `
+    <div class="ov-screen">
+      ${overlayHead('設定')}
+      <div class="ov-body">
+        <div class="panel notice-card">
+          <div class="mc-head" style="margin-bottom:10px;">お知らせ</div>
+          <div class="nt-list">
+            ${unread.map(n => `
+              <div class="nt-row">
+                <span class="nt-dot ${n.id > (STATE.noticeSeen || 0) ? 'new' : ''}"></span>
+                <div class="nt-body"><div class="nt-title">${n.title}</div><div class="nt-sub">${n.body}</div></div>
+                <div class="nt-date">${n.date}</div>
+              </div>`).join('')}
+          </div>
+          <button class="ov-more" data-overlay="notices">すべてのお知らせ ›</button>
+        </div>
+
+        <div class="panel">
+          <div class="mc-head" style="margin-bottom:12px;">サウンド</div>
+          <div class="set-row">
+            <div class="set-k">BGM</div>
+            <input id="bgm-volume" type="range" min="0" max="100" step="5" value="${Math.round(bg.vol * 100)}" ${bg.on ? '' : 'disabled'}>
+            <div class="set-v bgm-val">${Math.round(bg.vol * 100)}</div>
+            ${toggle('bgm', bg.on)}
+          </div>
+          <div class="set-row">
+            <div class="set-k">効果音</div>
+            <input id="sfx-volume" type="range" min="0" max="100" step="5" value="${Math.round(st.vol * 100)}" ${st.on ? '' : 'disabled'}>
+            <div class="set-v snd-val">${Math.round(st.vol * 100)}</div>
+            ${toggle('sfx', st.on)}
+          </div>
+          <div class="snd-tests">
+            ${[['slash', '斬撃'], ['fire', '炎'], ['heal', '回復'], ['confirm', '決定']].map(([k, l]) =>
+              `<button class="btn btn-ghost btn-sm" data-sfx-test="${k}" ${st.on ? '' : 'disabled'}>${l}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="mc-head" style="margin-bottom:11px;">戦闘</div>
+          <div class="set-row">
+            <div class="set-k wide">既定の速度</div>
+            <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''}" data-set-speed="${n}">${n}倍</button>`).join('')}</div>
+          </div>
+          <div class="set-row"><div class="set-k wide">必殺技オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
+          <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
+        </div>
+
+        <div class="panel set-list">
+          <div class="set-item" data-open-account="1"><div class="set-k wide">アカウント連携</div>
+            <div class="set-val ${ACCOUNT && ACCOUNT.provider !== 'guest' ? 'ok' : ''}">${ACCOUNT ? (PROVIDER_LABEL[ACCOUNT.provider] || '-') : '-'}</div><div class="set-go">›</div></div>
+          <div class="set-item"><div class="set-k wide">言語</div><div class="set-val">日本語</div></div>
+          <div class="set-item" data-clear-cache="1"><div class="set-k wide">キャッシュを削除</div>
+            <div class="set-val">読み込み直します</div><div class="set-go">›</div></div>
+        </div>
+
+        <button class="ov-link" data-logout="1">タイトル画面へ戻る</button>
+        <div class="ov-ver">${GAME_VERSION}</div>
+      </div>
+    </div>`;
+}
+
+function renderNoticesOverlay(){
+  return `
+    <div class="ov-screen">
+      ${overlayHead('お知らせ')}
+      <div class="ov-body">
+        ${NOTICES.map(n => `
+          <div class="panel nt-full">
+            <div class="row-between"><div class="nt-title">${n.title}</div><div class="nt-date">${n.date}</div></div>
+            <div class="nt-sub">${n.body}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderPickOverlay(){
+  const list = sortMonsters(Object.keys(STATE.owned).map(id => MON_BY_ID[id]), { key: 'bp', desc: true });
+  return `
+    <div class="ov-screen">
+      ${overlayHead(pickTarget === 'avatar' ? 'アバターを選ぶ' : 'お気に入りを選ぶ')}
+      <div class="ov-body">
+        <div class="mon-grid">
+          ${list.map(m => `
+            <div class="mon-cell r${m.rarity}" data-picked="${m.id}">
+              <span class="star">${starsHtml(m.rarity, STATE.owned[m.id].star)}</span>
+              <span class="lv">Lv${STATE.owned[m.id].level}</span>
+              <img src="${imgSrc(m.id)}" alt="${m.name}">
+              <div class="name">${m.name}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderOverlay(){
+  const el = document.getElementById('overlay');
+  if(!el) return;
+  if(!overlayView){ el.innerHTML = ''; el.classList.remove('show'); return; }
+  el.innerHTML = overlayView === 'profile' ? renderProfileOverlay()
+    : overlayView === 'settings' ? renderSettingsOverlay()
+    : overlayView === 'notices' ? renderNoticesOverlay()
+    : renderPickOverlay();
+  el.classList.add('show');
+}
+
+async function handleOverlayAction(el){
+  const set = el.dataset.setting;
+  if(set){
+    if(set === 'bgm'){ const b = bgmSettings(); b.on = !b.on; if(b.on) updateBgm(); else stopBgm(); }
+    if(set === 'sfx'){ const s = sfxSettings(); s.on = !s.on; if(s.on) playSfx('tap'); }
+    if(set === 'autoUlt') STATE.autoUlt = !STATE.autoUlt;
+    if(set === 'showDamage') STATE.showDamage = STATE.showDamage === false;
+    saveState();
+    render();
+    return;
+  }
+  if(el.dataset.setSpeed){ STATE.battleSpeed = Number(el.dataset.setSpeed); saveState(); render(); return; }
+  if(el.dataset.pick){ pickTarget = el.dataset.pick; overlayView = 'pick'; render(); return; }
+  if(el.dataset.picked){
+    const p = profileState();
+    if(pickTarget === 'avatar') p.avatar = el.dataset.picked;
+    else {
+      const i = Number(pickTarget.replace('fav', ''));
+      p.favorites = (p.favorites || []).filter(id => STATE.owned[id]);
+      p.favorites[i] = el.dataset.picked;
+      p.favorites = [...new Set(p.favorites.filter(Boolean))].slice(0, 3);
+    }
+    saveState();
+    overlayView = 'profile';
+    pickTarget = null;
+    render();
+    return;
+  }
+  if(el.dataset.shareId){
+    const id = (ACCOUNT && ACCOUNT.playerId) || '';
+    const text = `モンスター収集ゲーム プレイヤーID: ${id}`;
+    try{
+      if(navigator.share) await navigator.share({ text });
+      else { await navigator.clipboard.writeText(id); toast('プレイヤーIDをコピーしました'); }
+    }catch(e){ toast(`プレイヤーID ${id}`); }
+    return;
+  }
+  if(el.dataset.clearCache){
+    try{
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      toast('キャッシュを削除しました。読み込み直します');
+      setTimeout(() => location.reload(), 900);
+    }catch(e){ toast('この環境ではキャッシュを削除できません'); }
+    return;
+  }
+  if(el.dataset.logout){ acctView = 'logout'; renderAccountModal(); return; }
 }
 
 /* ---------------- title screen ---------------- */
@@ -9014,6 +9367,7 @@ function buildShell(){
   phone.innerHTML = `
     <div id="statusbar"></div>
     <div id="screen"></div>
+    <div id="overlay"></div>
     <div id="stage-fx"></div>
     <div id="log-sheet" aria-hidden="true" role="dialog" aria-label="バトルログ"></div>
     <div id="modal-layer"></div>

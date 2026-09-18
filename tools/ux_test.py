@@ -101,6 +101,40 @@ async def main():
             await pg.screenshot(path=str(OUT / 'ux_detail.png'))
 
 
+
+            # ---- プロフィール・設定・お知らせ ----
+            await pg.evaluate("() => { closeModal(); goto('home'); render(); }")
+            await pg.wait_for_timeout(300)
+            check('未読のお知らせがギアに出る',
+                  await pg.evaluate("() => { const d = document.querySelector('[data-overlay=\"settings\"] .tb-dot'); return !!d && Number(d.textContent) > 0; }"))
+            await pg.click('[data-overlay="profile"]')
+            await pg.wait_for_timeout(400)
+            check('プロフィールが開く', await pg.evaluate("() => !!document.querySelector('.pf-card')"))
+            check('プレイヤーIDと統計が出る',
+                  'ID' in await pg.inner_text('.pf-id') and await pg.evaluate("() => document.querySelectorAll('.pf-stat').length") == 4)
+            await pg.click('[data-pick="fav0"]')
+            await pg.wait_for_timeout(300)
+            await pg.click('.mon-cell[data-picked]')
+            await pg.wait_for_timeout(400)
+            check('お気に入りを登録できる',
+                  await pg.evaluate("() => !!(STATE.profile && STATE.profile.favorites && STATE.profile.favorites[0])"))
+            await pg.click('.ov-link[data-overlay="settings"]')
+            await pg.wait_for_timeout(400)
+            check('設定が開く', await pg.evaluate("() => document.querySelectorAll('.sw').length") >= 4)
+            await pg.click('[data-set-speed="3"]')
+            await pg.wait_for_timeout(200)
+            await pg.click('[data-setting="showDamage"]')
+            await pg.wait_for_timeout(200)
+            check('設定が保存される', await pg.evaluate("() => [STATE.battleSpeed, STATE.showDamage]") == [3, False])
+            await pg.click('[data-overlay="notices"]')
+            await pg.wait_for_timeout(400)
+            check('お知らせ一覧が出る', await pg.evaluate("() => document.querySelectorAll('.nt-full').length") >= 3)
+            await pg.click('[data-overlay-close]')
+            await pg.wait_for_timeout(300)
+            check('読んだら未読バッジが消える',
+                  await pg.evaluate("() => !document.querySelector('[data-overlay=\"settings\"] .tb-dot')"))
+            await pg.evaluate("() => { STATE.showDamage = true; STATE.battleSpeed = 1; }")
+
             # ---- 周回UI・★上げフィルター・シールド表示 ----
             await pg.evaluate("""() => {
               closeModal(); STATE.stamina = 180; STATE.vip = true;
