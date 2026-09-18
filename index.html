@@ -130,6 +130,17 @@ body{
   background:var(--danger); border:2px solid var(--bg); font-size:7px; font-weight:800; color:#fff; line-height:9px; }
 .mission-card{ cursor:pointer; }
 .mission-card.has-claim{ border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
+.beginner-card{ cursor:pointer; border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
+.login-bonus-card .login-days{ display:flex; gap:5px; }
+.login-day{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:8px 2px; border-radius:10px; border:1px solid rgba(232,180,85,.22); background:var(--panel2);
+  color:var(--text); cursor:pointer; }
+.login-day:disabled{ cursor:default; }
+.login-day.ready{ border-color:var(--gold); background:rgba(232,180,85,.14); animation:guide-pulse 1.6s ease-in-out infinite; }
+.login-day.done{ opacity:.55; }
+.login-day .ld-no{ font-size:9px; color:var(--dim); white-space:nowrap; }
+.login-day .ld-rw{ font-size:11px; font-weight:800; }
+.login-day .ld-rw .rw{ font-size:10.5px; }
 .mc-sub{ font-size:11px; color:var(--dim); margin-top:3px; }
 .mc-go{ font-size:22px; color:var(--dim); }
 .tab-dot{ display:inline-block; min-width:16px; height:16px; line-height:16px; padding:0 4px; margin-left:5px; border-radius:999px;
@@ -2885,6 +2896,8 @@ const DEFAULT_STATE = () => ({
   achievements: {},        // id → tiers claimed
   guidesSeen: {},          // key → true once its mascot guide has been dismissed
   beginnerStep: 0,
+  beginnerBonusClaimed: false,
+  beginnerLogin: null,     // { day, key, claimed } — see ensureBeginnerLogin
   clearedStages: [],
   stageStars: {},          // stage id → best clear rank (1–3)
   totalPulls: 0,
@@ -3627,18 +3640,54 @@ const ACHIEVEMENTS = [
     tiers:[1, 5, 10].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[100, 200, 300][i] }] })) },
 ];
 // beginner missions: one step at a time, the last one gives a ★4
+// ordered to double as a soft tutorial: clear the tutorial stages first, then
+// touch each basic system in turn (gacha → party → level → formation → …).
 const BEGINNER_MISSIONS = [
+  { id:'b05', label:'チュートリアルを終える',          hint:'探索 → 入門',          value:() => STATE.clearedStages.includes('tu3') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
   { id:'b01', label:'ガチャを10連で引く',              hint:'ガチャ画面の「10連引く」',   value:() => stat('gacha10'),        goal:1, reward:[{ type:'crystal', n:300 }] },
   { id:'b02', label:'パーティを5体にする',             hint:'パーティ画面で配置',          value:() => getPartyIds().length,   goal:5, reward:[{ type:'item', key:'exp1', n:80 }] },
   { id:'b03', label:'モンスターのレベルを上げる',        hint:'モンスターの詳細画面',        value:() => stat('levelUp'),        goal:1, reward:[{ type:'crystal', n:100 }] },
   { id:'b04', label:'陣形を変える',                    hint:'パーティ画面の陣形カード',     value:() => stat('formationChange'), goal:1, reward:[{ type:'universal', n:10 }] },
-  { id:'b05', label:'チュートリアルを終える',          hint:'探索 → クエスト',          value:() => STATE.clearedStages.includes('tu3') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
   { id:'b06', label:'初級「猪王の縄張り」をクリアする',     hint:'探索 → クエスト',        value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m01' }] },
   { id:'b07', label:'スキルLvを上げる',                 hint:'詳細画面(属性の欠片とロールの証を使う)',  value:() => stat('skillUp'),        goal:1, reward:[{ type:'item', key:'box_sel_2', n:1 }] },
   { id:'b08', label:'育成ダンジョンをクリアする',        hint:'探索 → 育成ダンジョン',      value:() => stat('dungeonClear'),   goal:1, reward:[{ type:'gold', n:20000 }] },
   { id:'b09', label:'モンスターを昇格させる',            hint:'詳細画面の「昇格」',          value:() => stat('promote'),        goal:1, reward:[{ type:'universal', n:20 }] },
   { id:'b10', label:'初級「森の主」をクリアする',     hint:'探索 → クエスト',        value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m24' }] },
 ];
+// completing every beginner mission pays out a 10-pull's worth of crystals
+const BEGINNER_ALL_CLEAR = [{ type:'crystal', n:1350 }];
+
+/* ---- beginner 7-day login bonus: one calendar day (not necessarily
+   consecutive) advances it, so a new player never loses progress by missing a day ---- */
+const BEGINNER_LOGIN_REWARDS = [
+  [{ type:'crystal', n:50 }],
+  [{ type:'gold', n:8000 }],
+  [{ type:'crystal', n:80 }, { type:'item', key:'exp1', n:20 }],
+  [{ type:'universal', n:15 }],
+  [{ type:'crystal', n:100 }],
+  [{ type:'item', key:'box_sel_2', n:1 }],
+  [{ type:'crystal', n:250 }, { type:'universal', n:30 }],
+];
+function ensureBeginnerLogin(){
+  if(!STATE.beginnerLogin) STATE.beginnerLogin = { day: 0, key: null, claimed: [] };
+  const bl = STATE.beginnerLogin;
+  const key = currentDayKey();
+  if(bl.day < BEGINNER_LOGIN_REWARDS.length && bl.key !== key){
+    bl.day += 1;
+    bl.key = key;
+  }
+  return bl;
+}
+function claimBeginnerLoginDay(day){
+  const bl = ensureBeginnerLogin();
+  if(bl.claimed.includes(day) || day > bl.day) return;
+  bl.claimed.push(day);
+  const reward = BEGINNER_LOGIN_REWARDS[day - 1];
+  grantRewards(reward);
+  saveState();
+  showRewardModal([{ reward, label: `ログインボーナス ${day}日目` }]);
+  render();
+}
 
 function weekKey(){
   const d = new Date(Date.now() - DAY_RESET_HOUR * 3600 * 1000);
@@ -3730,6 +3779,8 @@ function missionEntries(){
     out.push({ key:`b:${m.id}`, section:'beginner', label:m.label, hint:m.hint, progress: i < step ? m.goal : val, goal:m.goal, reward:m.reward, stepNo:i + 1,
       state: i < step ? 'done' : i > step ? 'locked' : val >= m.goal ? 'claim' : 'progress' });
   });
+  out.push({ key:'b:all', section:'beginner', bonus:true, label:'はじめてガイドをすべて達成', progress:Math.min(step, BEGINNER_MISSIONS.length), goal:BEGINNER_MISSIONS.length, reward:BEGINNER_ALL_CLEAR,
+    state: STATE.beginnerBonusClaimed ? 'done' : step >= BEGINNER_MISSIONS.length ? 'claim' : 'locked' });
   return out;
 }
 function claimableCount(section){
@@ -3750,7 +3801,8 @@ function claimMission(key){
     STATE.achievements = STATE.achievements || {};
     STATE.achievements[id] = (STATE.achievements[id] || 0) + 1;
   }else if(kind === 'b'){
-    STATE.beginnerStep = (STATE.beginnerStep || 0) + 1;
+    if(id === 'all') STATE.beginnerBonusClaimed = true;
+    else STATE.beginnerStep = (STATE.beginnerStep || 0) + 1;
   }
   grantRewards(e.reward);
   return e;
@@ -4357,7 +4409,7 @@ let missionTab = null; // first visit: beginner tab while it has steps left, oth
 function renderMissions(){
   const entries = missionEntries();
   const tabs = [
-    { key:'beginner', label:'初心者', hide: (STATE.beginnerStep || 0) >= BEGINNER_MISSIONS.length },
+    { key:'beginner', label:'初心者', hide: !!STATE.beginnerBonusClaimed },
     { key:'daily', label:'デイリー' },
     { key:'weekly', label:'ウィークリー' },
     { key:'achieve', label:'実績' },
@@ -4370,7 +4422,7 @@ function renderMissions(){
 
   const resetText = missionTab === 'daily' ? `リセットまで ${formatDuration(msToDailyReset())}`
     : missionTab === 'weekly' ? `リセットまで ${formatDuration(msToWeeklyReset())}(毎週月曜${DAY_RESET_HOUR}時)`
-    : missionTab === 'beginner' ? `${Math.min(STATE.beginnerStep || 0, BEGINNER_MISSIONS.length)} / ${BEGINNER_MISSIONS.length} 達成。最後の報酬は★4モンスター`
+    : missionTab === 'beginner' ? `${Math.min(STATE.beginnerStep || 0, BEGINNER_MISSIONS.length)} / ${BEGINNER_MISSIONS.length} 達成。すべて終えると10連分の結晶(💎1350)`
     : '段階をクリアするごとに、次の目標が現れます';
 
   const row = e => {
@@ -4526,6 +4578,53 @@ function tickBanner(){
   bannerTimer = setTimeout(() => { setBanner(bannerIndex + 1); tickBanner(); }, 4500);
 }
 
+// home: the beginner mission track, shown as a single "what's next" line until it's fully claimed
+function renderBeginnerCard(){
+  if(STATE.beginnerBonusClaimed) return '';
+  const list = missionEntries().filter(m => m.section === 'beginner');
+  const current = list.find(m => m.state === 'progress' || m.state === 'claim');
+  if(!current) return '';
+  const steps = list.filter(m => !m.bonus);
+  const done = steps.filter(m => m.state === 'done').length;
+  const pct = Math.round(done / steps.length * 100);
+  return `
+    <div class="panel beginner-card" data-nav="missions" role="button">
+      <div class="row-between" style="margin-bottom:8px;">
+        <div class="mc-head">🔰 はじめてガイド</div>
+        <div class="mc-reset">${done} / ${steps.length}</div>
+      </div>
+      <div class="mc-row">
+        <span class="mc-box ${current.state === 'claim' ? 'ready' : ''}"></span>
+        <span class="mc-label">${current.label}</span>
+        <span class="mc-prog ${current.state === 'claim' ? 'ready' : ''}">${current.state === 'claim' ? '受取可' : `${current.progress} / ${current.goal}`}</span>
+      </div>
+      ${current.hint && current.state === 'progress' ? `<div class="mc-reset" style="margin-top:6px;">${current.hint}</div>` : ''}
+      <div class="mc-bar"><div style="width:${pct}%;"></div></div>
+    </div>`;
+}
+// home: a one-time 7-day login track for new players. One calendar day advances
+// it (see ensureBeginnerLogin) regardless of whether the previous day was claimed.
+function renderLoginBonusCard(){
+  const bl = ensureBeginnerLogin();
+  if(bl.claimed.length >= BEGINNER_LOGIN_REWARDS.length) return '';
+  return `
+    <div class="panel login-bonus-card">
+      <div class="mc-head" style="margin-bottom:10px;">🎁 はじめての7日ログインボーナス</div>
+      <div class="login-days">
+        ${BEGINNER_LOGIN_REWARDS.map((r, i) => {
+          const day = i + 1;
+          const claimed = bl.claimed.includes(day);
+          const ready = !claimed && day <= bl.day;
+          return `
+            <button class="login-day ${claimed ? 'done' : ''} ${ready ? 'ready' : ''}" data-login-day="${day}" ${ready ? '' : 'disabled'}>
+              <span class="ld-no">${day}日目</span>
+              <span class="ld-rw">${claimed ? '✓' : rewardHtml(r.slice(0, 1))}</span>
+            </button>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
 function renderHome(){
   const act = nextAction();
   const daily = ensureDaily();
@@ -4540,6 +4639,9 @@ function renderHome(){
   };
 
   return `
+    ${renderBeginnerCard()}
+    ${renderLoginBonusCard()}
+
     <div class="next-card">
       <div class="next-head"><span class="pixel next-tag">NEXT</span><span class="next-eyebrow">${act.eyebrow}</span></div>
       <div class="next-title">${act.title}</div>
@@ -9194,6 +9296,8 @@ function handlePhoneClick(ev){
     closeModal(); startBattle(stageEl.dataset.stage); return; }
   const claimEl = t.closest('[data-claim]');
   if(claimEl){ const key = claimEl.dataset.claim; claimMissions(x => x.key === key); return; }
+  const loginDayEl = t.closest('[data-login-day]');
+  if(loginDayEl){ claimBeginnerLoginDay(Number(loginDayEl.dataset.loginDay)); return; }
   const claimAllEl = t.closest('[data-claim-all]');
   if(claimAllEl){ const sec = claimAllEl.dataset.claimAll; claimMissions(x => x.section === sec); return; }
   const mTabEl = t.closest('[data-mission-tab]');
