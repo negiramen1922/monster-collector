@@ -59,17 +59,21 @@
 }
 
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;height:100%;}
+/* mobile-first default: fill the real visible viewport exactly, no page-level
+   scroll, so the header/nav can never end up scrolled out of view. A width
+   check for "is this a phone" is unreliable across real devices, so instead
+   this is the baseline for every width and only a generous min-width query
+   (below) opts a genuinely wide desktop window into the centered card look. */
+html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none;}
 body{
   background:
     radial-gradient(circle at 50% -10%, #241a3c 0%, var(--table) 55%);
   font-family:'M PLUS Rounded 1c', sans-serif;
   color:var(--text);
-  min-height:100vh;
   display:flex;
-  align-items:flex-start;
+  align-items:stretch;
   justify-content:center;
-  padding:18px 10px 40px;
+  padding:0;
 }
 
 .pixel{ font-family:'Press Start 2P', monospace; }
@@ -78,15 +82,23 @@ body{
   width:100%;
   max-width:430px;
   background:var(--bg);
-  border:2px solid #392f57;
-  border-radius:28px;
-  box-shadow:0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 6px #060510;
   overflow:hidden;
   overflow:clip; /* never scroll the frame itself (e.g. via focus/scrollIntoView) */
   display:flex;
   flex-direction:column;
-  height:830px;
+  height:100vh;
+  height:100dvh; /* tracks the real visible area as the browser's address bar shows/hides */
   position:relative;
+}
+@media (min-width:431px){
+  html,body{ overflow:visible; }
+  body{ min-height:100vh; align-items:flex-start; padding:18px 10px 40px; }
+  #phone{
+    height:830px;
+    border:2px solid #392f57;
+    border-radius:28px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 6px #060510;
+  }
 }
 
 /* ---------- top status bar ---------- */
@@ -2015,9 +2027,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .mc-prog.ready{ color:#5cab52; }
 .mc-bar{ height:5px; border-radius:999px; background:var(--groove); margin-top:10px; overflow:hidden; }
 .mc-bar > div{ height:100%; background:linear-gradient(90deg,#c98f2e,#e8b455); }
-.banner-wrap{ overflow:hidden; border-radius:16px; }
-.banner-track{ display:flex; transition:transform .5s cubic-bezier(.4,0,.2,1); }
-.banner-track > .home-banner{ flex:0 0 100%; min-width:100%; }
+.banner-wrap{ overflow-x:auto; overflow-y:hidden; border-radius:16px; scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.banner-wrap::-webkit-scrollbar{ display:none; }
+.banner-track{ display:flex; }
+.banner-track > .home-banner{ flex:0 0 100%; min-width:100%; scroll-snap-align:start; }
 .banner-dots{ display:flex; justify-content:center; gap:5px; margin-top:8px; }
 .bdot{ width:22px; height:4px; padding:0; border:0; border-radius:999px; background:#3f3a55; cursor:pointer; }
 .bdot.on{ background:var(--gold); }
@@ -2079,15 +2093,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .acct-id-label{ font-size:10px; color:var(--dim); white-space:nowrap; }
 .acct-id{ flex:1; font-size:12px; font-weight:800; letter-spacing:.5px; color:var(--gold); text-align:center; white-space:nowrap; }
 
-@media (max-width:420px){
-  /* 100vh ignores the mobile browser's address bar and can make #phone taller
-     than what's actually visible, pushing the nav bar off-screen. 100dvh tracks
-     the real visible area (and updates as the address bar shows/hides); locking
-     html/body from scrolling keeps the header and nav pinned in place. */
-  html,body{ height:100%; overflow:hidden; }
-  #phone{ height:100vh; height:100dvh; border-radius:0; border:none; box-shadow:none; }
-  body{ padding:0; }
-}
 
 </style>
 </head>
@@ -4473,8 +4478,8 @@ function renderBannerCarousel(){
   const list = homeBanners();
   if(bannerIndex >= list.length) bannerIndex = 0;
   return `
-    <div class="banner-wrap">
-      <div class="banner-track" style="transform:translateX(-${bannerIndex * 100}%);">
+    <div class="banner-wrap" id="banner-wrap">
+      <div class="banner-track">
         ${list.map(b => `
           <div class="home-banner ${b.cls}" ${b.attr} role="button">
             <div class="hb-body">
@@ -4491,19 +4496,33 @@ function renderBannerCarousel(){
       </div>
     </div>`;
 }
-function setBanner(i){
+function setBanner(i, instant){
   const n = homeBanners().length;
   bannerIndex = ((i % n) + n) % n;
-  const track = document.querySelector('.banner-track');
-  if(track) track.style.transform = `translateX(-${bannerIndex * 100}%)`;
+  const wrap = document.getElementById('banner-wrap');
+  if(wrap) wrap.scrollTo({ left: bannerIndex * wrap.clientWidth, behavior: instant ? 'auto' : 'smooth' });
   document.querySelectorAll('.bdot').forEach((d, k) => d.classList.toggle('on', k === bannerIndex));
+}
+let bannerScrollTimer = null;
+// the user dragged the carousel by hand: settle on whichever slide is nearest once the swipe stops
+function onBannerScroll(wrap){
+  clearTimeout(bannerScrollTimer);
+  clearTimeout(bannerTimer);
+  bannerScrollTimer = setTimeout(() => {
+    const n = homeBanners().length;
+    bannerIndex = Math.max(0, Math.min(n - 1, Math.round(wrap.scrollLeft / wrap.clientWidth)));
+    document.querySelectorAll('.bdot').forEach((d, k) => d.classList.toggle('on', k === bannerIndex));
+    tickBanner();
+  }, 120);
 }
 // auto-advance only while the home screen is actually in front
 function tickBanner(){
   clearTimeout(bannerTimer);
   const layer = document.getElementById('modal-layer');
-  if(currentScreen !== 'home' || overlayView || (layer && layer.classList.contains('show'))) return;
-  if(!document.querySelector('.banner-track')) return;
+  const wrap = document.getElementById('banner-wrap');
+  if(currentScreen !== 'home' || overlayView || (layer && layer.classList.contains('show')) || !wrap) return;
+  wrap.scrollLeft = bannerIndex * wrap.clientWidth; // keep the freshly-redrawn DOM in sync with state
+  wrap.onscroll = () => onBannerScroll(wrap);
   bannerTimer = setTimeout(() => { setBanner(bannerIndex + 1); tickBanner(); }, 4500);
 }
 
