@@ -214,8 +214,17 @@ body{
 .battle-field{ background:
     radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--terrain, #e8b455) 28%, transparent), transparent 62%),
     linear-gradient(180deg,#201a38,#140f24) !important; }
-.tutorial-modal .tut-step{ font-size:11px; color:var(--gold); font-weight:800; text-align:center; }
-.tutorial-modal p{ font-size:13px; line-height:1.8; margin:6px 0 14px; }
+/* mascot guides: a small monster portrait + speech bubble, pinned above the nav bar
+   (see #guide-toast below) and used by the tutorial, the welcome message and screen tips */
+.guide-banner{ display:flex; align-items:flex-start; gap:8px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:8px 10px; position:relative; }
+.guide-avatar{ width:40px; height:40px; flex:none; border-radius:50%; object-fit:cover; background:var(--panel3); border:2px solid var(--line); }
+.guide-banner-body{ flex:1; padding-right:16px; }
+.guide-name{ font-size:11px; font-weight:800; color:var(--gold); margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+.guide-page{ font-size:9.5px; font-weight:700; color:var(--dim); background:var(--panel3); border-radius:999px; padding:1px 7px; }
+.guide-title{ font-size:13px; font-weight:800; margin:0 0 2px; }
+.guide-banner p{ font-size:12px; line-height:1.6; margin:0 0 8px; }
+.guide-nav{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.guide-close{ position:absolute; top:6px; right:8px; background:none; border:none; color:var(--dim); font-size:15px; line-height:1; padding:2px; cursor:pointer; }
 .rank-stars{ letter-spacing:-1px; font-size:13px; }
 .rank-stars i{ font-style:normal; color:#4a4460; }
 .rank-stars i.on{ color:var(--gold); text-shadow:0 0 6px rgba(232,180,85,.6); }
@@ -1664,6 +1673,26 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 #toast.show{ opacity:.95; transform:translate(-50%, 0); }
 
+/* ---------- guide toast: mascot tips, pinned above the nav bar ---------- */
+#guide-toast{
+  position:absolute; left:12px; right:12px; bottom:86px; z-index:55;
+  opacity:0; pointer-events:none; transform:translateY(8px); transition:all .25s ease;
+}
+#guide-toast.show{ opacity:1; pointer-events:auto; transform:translateY(0); }
+#guide-toast .guide-banner{ margin-bottom:0; box-shadow:0 10px 24px -8px rgba(0,0,0,.6); }
+
+/* the screen element a guide step is currently talking about.
+   inset-only so it never gets clipped by #phone's overflow:clip, even for
+   elements flush against the frame's edge (like the nav bar). */
+.guide-spot{
+  position:relative; z-index:1; border-radius:14px;
+  animation:guide-pulse 1.6s ease-in-out infinite;
+}
+@keyframes guide-pulse{
+  0%, 100%{ box-shadow:inset 0 0 0 3px var(--gold), inset 0 0 20px rgba(232,180,85,.35); }
+  50%{ box-shadow:inset 0 0 0 3px var(--gold), inset 0 0 30px rgba(232,180,85,.6); }
+}
+
 @media (prefers-reduced-motion: reduce){
   .uni-summary, .point-summary{ animation:none; opacity:1; transform:none; }
   .unit.ready, .unit.ready.acting-ally{ animation:none; box-shadow:0 0 14px -2px rgba(232,180,85,.8); }
@@ -2845,6 +2874,7 @@ const DEFAULT_STATE = () => ({
   weekly: null,            // { key, counts, claimed }
   stats: {},               // lifetime event counters
   achievements: {},        // id → tiers claimed
+  guidesSeen: {},          // key → true once its mascot guide has been dismissed
   beginnerStep: 0,
   clearedStages: [],
   stageStars: {},          // stage id → best clear rank (1–3)
@@ -2912,6 +2942,8 @@ function normalizeState(){
   if(STATE.daily && !STATE.daily.counts) STATE.daily = null; // saves from before missions
   ensureWeekly();
   ensureDaily();
+  // saves from before the mascot guides existed: skip the onboarding popups, don't replay them
+  if(!STATE.guidesSeen) STATE.guidesSeen = { welcome: true, monsterDetail: true };
   delete STATE.formation;
   delete STATE.party;
 }
@@ -4006,23 +4038,31 @@ function tierUnlocked(key){
   return first ? stageUnlocked(first) : false;
 }
 
-/* ---- tutorial texts ---- */
+/* ---- guide mascots: small friendly monsters that narrate onboarding ---- */
+const MASCOTS = {
+  hinoko: { id: 'm129', name: 'ヒノコ' },   // battle tutorial (energetic, tu1-3)
+  hanoko: { id: 'm86',  name: 'ハノコ' },   // monster detail screen (caring)
+  ketsy:  { id: 'm55',  name: 'ケットシー' }, // welcome message, missions (gentlemanly)
+};
+
+/* ---- tutorial texts (narrated by ヒノコ) ---- */
+const TUTORIAL_MASCOT = 'hinoko';
 const TUTORIAL_PAGES = {
   flow: [
-    ['戦闘の流れ', 'クエストでは、敵のウェーブを順番に倒していきます。戦闘はオートで進み、SPDの高い順に1体ずつ行動します。'],
-    ['ターンとラウンド', '全員が1回ずつ行動すると1ラウンドです。画面上部に、これから行動する順番が表示されます。'],
-    ['勝利と報酬', 'すべてのウェーブを倒すとクリアです。ゴールドや育成素材、仲間にできるモンスターのソウルが手に入ります。'],
+    ['戦闘の流れ', 'やっほー、案内役のヒノコだよ!クエストでは敵のウェーブを順番にやっつけていくよ。戦闘はオートで進んで、すばやさ(SPD)の高い子から動いていくんだ。'],
+    ['ターンとラウンド', '全員が1回ずつ動くと1ラウンド。画面の上に、次に動く順番が出るから見ててね。'],
+    ['勝利と報酬', 'ウェーブを全部倒せばクリア!ゴールドや育成素材、仲間にできるモンスターのソウルがもらえるよ。'],
   ],
   ult: [
-    ['スキル', 'モンスターは、決まったターンごとに自動でスキルを使います。スキルの効果は詳細画面で確認できます。'],
-    ['SPと必殺技', '行動したり攻撃を受けたりするとSPが溜まります。SPが溜まったモンスターは光ります。'],
-    ['必殺技の予約', '光ったモンスターをタップすると必殺技を予約し、そのモンスターの番に発動します。オートにすると自動で使います。'],
-    ['ウェーブ', 'このステージは3ウェーブです。ウェーブを突破するとHPが少し回復します。'],
+    ['スキル', 'ここからは必殺技のお話。モンスターは決まったターンごとに、自動でスキルを使うよ。効果は詳細画面で確認できるんだ。'],
+    ['SPと必殺技', '行動したり攻撃を受けたりすると、SPが少しずつ溜まっていくよ。いっぱいになったモンスターは光るんだ!'],
+    ['必殺技の予約', '光ってる子をタップすれば必殺技を予約できて、その子の番に発動するよ。オートにしておけば自動で使ってくれる!'],
+    ['ウェーブ', 'このステージは3ウェーブ。突破するたびに、HPが少し回復するよ。'],
   ],
   self: [
-    ['陣形', 'パーティは前衛と後衛に分かれます。前衛が残っている間、後衛は敵の攻撃から守られます。'],
-    ['属性と種族', '属性の相性で与えるダメージが変わります。同じ属性・種族をそろえるとボーナスが付きます。'],
-    ['自分でやってみよう', 'ここからはヒントなしです。パーティ画面で陣形を整えてから挑戦してみましょう!'],
+    ['陣形', '最後は陣形のおさらい!パーティは前衛と後衛に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。'],
+    ['属性と種族', '属性の相性でダメージが変わるよ。同じ属性・種族をそろえるとボーナスも付くんだ!'],
+    ['自分でやってみよう', 'ここからはヒントなし!パーティ画面で陣形を整えてから、挑戦してみてね。ヒノコも応援してるよ!'],
   ],
 };
 
@@ -5206,6 +5246,9 @@ function showMonsterDetail(id){
   // keep the place the player was looking at: level-ups re-render this modal
   const nowEl = layer.querySelector('.detail-modal');
   if(nowEl && keepScroll) nowEl.scrollTop = keepScroll;
+  if(!STATE.guidesSeen || !STATE.guidesSeen.monsterDetail){
+    openGuideToast('hanoko', GUIDE_CONTENT.monsterDetail.steps, { key: 'monsterDetail' });
+  }
 }
 
 /* ---------------- DEX ---------------- */
@@ -6031,24 +6074,14 @@ function findStage(id){
   const d = /^dg_(exp|gold|mat)_(\d)$/.exec(id || '');
   return d ? dungeonStage(d[1], Number(d[2])) : STAGE_BY_ID[id];
 }
-let tutorialState = null; // { stageId, page }
 function showTutorial(stageId, page){
   const stage = findStage(stageId);
-  const pages = TUTORIAL_PAGES[stage.tutorial];
-  tutorialState = { stageId, page };
-  const [title, body] = pages[page];
-  const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
-    <div class="result-modal tutorial-modal" role="dialog" aria-label="チュートリアル">
-      <div class="tut-step">チュートリアル ${page + 1} / ${pages.length}</div>
-      <h3>${title}</h3>
-      <p>${body}</p>
-      <div class="br-actions">
-        <button class="btn btn-block" data-tut-next="1">${page + 1 < pages.length ? '次へ' : '戦闘開始'}</button>
-        ${page > 0 ? '<button class="btn btn-ghost btn-block" data-tut-back="1">戻る</button>' : ''}
-      </div>
-    </div>`;
-  layer.classList.add('show');
+  const steps = TUTORIAL_PAGES[stage.tutorial].map(([title, body]) => ({ title, body }));
+  guideToastState = {
+    mascotKey: TUTORIAL_MASCOT, steps, step: page || 0, key: null, doneLabel: '戦闘開始',
+    dismissible: false, onDone: () => startBattle(stageId, { skipIntro: true }),
+  };
+  renderGuideToastStep();
 }
 function startBattle(stageId, opts){
   const stage = findStage(stageId);
@@ -8966,8 +8999,14 @@ function handlePhoneClick(ev){
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
     layer.innerHTML = '';
+    // closing mid-guide still counts as seen, so it won't pop up again next time
+    if(guideToastState && guideToastState.key === 'monsterDetail') finishGuideToast();
+    else clearGuideToast();
     return;
   }
+  if(t.closest('[data-guide-next]')){ guideToastNext(); return; }
+  if(t.closest('[data-guide-back]')){ guideToastBack(); return; }
+  if(t.closest('[data-guide-close]')){ finishGuideToast(); return; }
 
   const levelUpEl = t.closest('[data-levelup]');
   if(levelUpEl){
@@ -9138,14 +9177,6 @@ function handlePhoneClick(ev){
   if(claimAllEl){ const sec = claimAllEl.dataset.claimAll; claimMissions(x => x.section === sec); return; }
   const mTabEl = t.closest('[data-mission-tab]');
   if(mTabEl){ missionTab = mTabEl.dataset.missionTab; render(); return; }
-  if(t.closest('[data-tut-next]') && tutorialState){
-    const { stageId, page } = tutorialState;
-    const pages = TUTORIAL_PAGES[findStage(stageId).tutorial];
-    if(page + 1 < pages.length){ showTutorial(stageId, page + 1); }
-    else { tutorialState = null; closeModal(); startBattle(stageId, { skipIntro: true }); }
-    return;
-  }
-  if(t.closest('[data-tut-back]') && tutorialState){ showTutorial(tutorialState.stageId, Math.max(0, tutorialState.page - 1)); return; }
   const swOpen = t.closest('[data-sweep-open]');
   if(swOpen){ sweepTarget = swOpen.dataset.sweepOpen; renderSweepModal(); return; }
   const swRun = t.closest('[data-sweep-run]');
@@ -10041,6 +10072,104 @@ async function startGame(){
   if(!localSaveFound && from !== 'cloud') logEvent('game_start', { method: ACCOUNT.provider });
   buildShell();
   if(from === 'cloud') toast('クラウドのデータを読み込みました');
+  if(!STATE.guidesSeen || !STATE.guidesSeen.welcome){
+    openGuideToast('ketsy', GUIDE_CONTENT.welcome.steps, { key: 'welcome', doneLabel: 'はじめる' });
+  }
+}
+
+/* ---- mascot guides: multi-step tips pinned above the nav bar, can spotlight a screen element ---- */
+const GUIDE_CONTENT = {
+  welcome: {
+    steps: [
+      { title: 'ようこそ', body: 'ようこそ、MonsterCollectorへ旅の方。MonsterCollector(モンコレ)では、さまざまなモンスターを収集することをお楽しみいただけますよ。' },
+      { body: '下のメニューから、探索・編成・ガチャ・拠点をいつでも行き来できます。まずは探索から始めてみましょう。', highlight: '#nav' },
+    ],
+  },
+  monsterDetail: {
+    steps: [
+      { body: 'わたしハノコ。ここがモンスターの詳細画面。まずはレベルアップ。育てたいモンスターをどんどん強くしてあげてね。', highlight: '.lv-card' },
+      { body: 'ここでステータスが見られるよ。HPや攻撃力、防御力なんかが確認できるの。', highlight: '.detail-stats' },
+      { body: 'こっちはスキル。通常攻撃やスキル、必殺技の効果がここに書いてあるよ。', highlight: '.detail-skill-box' },
+      { body: '最後はここ、昇格。ソウルを集めると★を上げられて、もっと強くなれるの。困ったらいつでも呼んでね。', highlight: '.promo-box' },
+    ],
+  },
+};
+
+// state for whichever guide is currently showing: { mascotKey, steps, step, key, doneLabel, dismissible, onDone }
+let guideToastState = null;
+function openGuideToast(mascotKey, steps, opts){
+  opts = opts || {};
+  if(guideToastState && opts.key && guideToastState.key === opts.key) return; // already mid-way through this one
+  guideToastState = {
+    mascotKey, steps, step: 0, key: opts.key || null, doneLabel: opts.doneLabel || '閉じる',
+    dismissible: opts.dismissible !== false, onDone: opts.onDone || null,
+  };
+  renderGuideToastStep();
+}
+function renderGuideToastStep(){
+  const el = document.getElementById('guide-toast');
+  const st = guideToastState;
+  if(!el || !st) return;
+  clearGuideHighlight();
+  const mascot = MASCOTS[st.mascotKey];
+  const s = st.steps[st.step];
+  const isLast = st.step === st.steps.length - 1;
+  el.innerHTML = `
+    <div class="guide-banner">
+      <img class="guide-avatar" src="${imgSrc(mascot.id)}" alt="${mascot.name}">
+      <div class="guide-banner-body">
+        <div class="guide-name">${mascot.name}${st.steps.length > 1 ? `<span class="guide-page">${st.step + 1} / ${st.steps.length}</span>` : ''}</div>
+        ${s.title ? `<div class="guide-title">${s.title}</div>` : ''}
+        <p>${s.body}</p>
+        <div class="guide-nav">
+          ${st.step > 0 ? '<button class="btn btn-sm btn-ghost" data-guide-back="1">戻る</button>' : '<span></span>'}
+          <button class="btn btn-sm" data-guide-next="1">${isLast ? st.doneLabel : '次へ'}</button>
+        </div>
+      </div>
+      ${st.dismissible ? '<button class="guide-close" data-guide-close="1">×</button>' : ''}
+    </div>`;
+  el.classList.add('show');
+  if(s.highlight) applyGuideHighlight(s.highlight);
+}
+function guideToastNext(){
+  const st = guideToastState;
+  if(!st) return;
+  if(st.step < st.steps.length - 1){ st.step++; renderGuideToastStep(); }
+  else finishGuideToast();
+}
+function guideToastBack(){
+  const st = guideToastState;
+  if(!st || st.step === 0) return;
+  st.step--; renderGuideToastStep();
+}
+function finishGuideToast(){
+  const st = guideToastState;
+  clearGuideHighlight();
+  const el = document.getElementById('guide-toast');
+  if(el){ el.classList.remove('show'); el.innerHTML = ''; }
+  guideToastState = null;
+  if(st && st.key){
+    STATE.guidesSeen = STATE.guidesSeen || {};
+    STATE.guidesSeen[st.key] = true;
+    saveState();
+  }
+  if(st && st.onDone) st.onDone();
+}
+// hides the toast without marking its guide as seen (e.g. the screen behind it was closed mid-way)
+function clearGuideToast(){
+  clearGuideHighlight();
+  guideToastState = null;
+  const el = document.getElementById('guide-toast');
+  if(el){ el.classList.remove('show'); el.innerHTML = ''; }
+}
+function applyGuideHighlight(selector){
+  const target = document.querySelector(selector);
+  if(!target) return;
+  target.classList.add('guide-spot');
+  target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+function clearGuideHighlight(){
+  document.querySelectorAll('.guide-spot').forEach(el => el.classList.remove('guide-spot'));
 }
 
 function wireGlobalEvents(){
@@ -10127,6 +10256,7 @@ function buildShell(){
     <div id="stage-fx"></div>
     <div id="log-sheet" aria-hidden="true" role="dialog" aria-label="バトルログ"></div>
     <div id="modal-layer"></div>
+    <div id="guide-toast"></div>
     <div id="toast"></div>
     <div id="nav">
       ${NAV.map(n => `<button class="nav-btn" data-key="${n.key}" data-nav="${n.key}"><span class="ic">${n.icon}</span>${n.label}</button>`).join('')}
