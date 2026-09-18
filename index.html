@@ -131,6 +131,8 @@ body{
 .mission-card{ cursor:pointer; }
 .mission-card.has-claim{ border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
 .beginner-card{ cursor:pointer; border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
+.event-card{ cursor:pointer; border-color:#e2572b; box-shadow:0 0 14px -4px rgba(226,87,43,.55); }
+.event-card .mc-label{ flex:1; }
 .login-bonus-card{ cursor:default; padding:12px 16px; }
 .login-bonus-card.open{ padding-bottom:16px; }
 .login-card-head{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
@@ -2315,12 +2317,30 @@ const PULL10_COST = 1350;
 const HIGH_PITY_PULLS = 50;      // ★4+ guaranteed on the 50th pull without one
 const TEN_PULL_MIN_STAR = 3;     // 10th slot of a 10-pull is ★3+ if the first 9 weren't
 const SPARK_POINTS = 200;        // summon points (1 per pull, carried over) → pickup ★5
-const GACHA_BANNER = {
+const DEFAULT_BANNER = {
   name: '星霜の呼び声',
   pickup: 'm31',
   featured: ['m31', 'm24', 'm08'],
 };
 
+/* ---- event: a time-limited banner + its own farmable quest stage.
+   startAt/endAt use the device's local clock (no server, so this is honor-system -
+   fine for a single-file prototype; edit the dates here for the next event). ---- */
+const EVENT = {
+  key: 'ev_kyubi',
+  name: '紅蓮の九尾',
+  startAt: '2026-09-18T00:00:00+09:00',
+  endAt: '2026-10-02T23:59:59+09:00',
+  pickup: 'm116',
+  featured: ['m116'],
+};
+function eventActive(){
+  const now = Date.now();
+  return now >= new Date(EVENT.startAt).getTime() && now <= new Date(EVENT.endAt).getTime();
+}
+function currentBanner(){
+  return eventActive() ? { name: EVENT.name, pickup: EVENT.pickup, featured: EVENT.featured } : DEFAULT_BANNER;
+}
 
 
 /* ---------------- formation ---------------- */
@@ -4178,6 +4198,34 @@ const TUTORIAL_PAGES = {
 
 const STAGES = buildQuestStages();
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(st => [st.id, st]));
+
+// event stage: hand-built rather than run through buildQuestStages() since it isn't
+// part of the tu/q1-q3 progression (no `requires`, so it's always open while the
+// event is running - see eventActive()). Its boss is the event's pickup monster,
+// shown at its real ★ so it feels like the showcase it is.
+function buildEventStage(){
+  const rec = 78;
+  return {
+    id: EVENT.key, type: 'event', tier: 'event', name: '狐火の祭壇', terrain: 'lava', element: 'fire',
+    rec, stamina: 15, power: 1, enemySkill: 5,
+    firstClear: 500, boss: true,
+    desc: `期間限定。「${MON_BY_ID[EVENT.pickup].name}」が守る祭壇に挑む。`,
+    waves: [
+      [{ ref: 'm128', level: rec, star: 3 }, { ref: 'm59', level: rec, star: 3 },
+       { ref: 'm127', level: rec, star: 3 }, { ref: 'm129', level: rec, star: 3 }],
+      [{ ref: 'm59', level: rec + 1, star: 3 }, { ref: 'm33', level: rec + 1, star: 3 },
+       { ref: 'm127', level: rec + 1, star: 3 }, { ref: 'm129', level: rec + 1, star: 3 }],
+      [{ ref: EVENT.pickup, level: rec + 2, star: 4, boss: true },
+       { ref: 'm59', level: rec + 2, star: 3 }, { ref: 'm127', level: rec + 2, star: 3 }],
+    ],
+    gold: 8000, pots: { exp2: 4 },
+    bossReward: [{ type: 'item', key: 'box_sel_4', n: 1 }],
+  };
+}
+const EVENT_STAGE = buildEventStage();
+STAGES.push(EVENT_STAGE);
+STAGE_BY_ID[EVENT_STAGE.id] = EVENT_STAGE;
+
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
 function bossOf(stage){
   for(const wave of stage.waves){ const e = wave.find(x => x.boss); if(e) return MON_BY_ID[e.ref]; }
@@ -4560,21 +4608,29 @@ function nextAction(){
 // home: a small auto-sliding banner. Nothing inside it spends anything - it only navigates.
 let bannerIndex = 0, bannerTimer = null;
 function homeBanners(){
-  const pickup = MON_BY_ID[GACHA_BANNER.pickup];
+  const pickup = MON_BY_ID[currentBanner().pickup];
   const daily = ensureDaily();
   const left = DAILY_MISSIONS.filter(m => !daily.claimed[m.id]).length;
   const todayEls = (matOpenToday().el || []).map(k => `${ELEM_ICON[k]}${ELEM_LABEL[k]}`);
   const dungeonMon = MONSTERS.find(m => m.rarity === 4) || pickup;
-  return [
+  const banners = [];
+  if(eventActive()){
+    const evStage = STAGE_BY_ID[EVENT.key];
+    const boss = bossOf(evStage);
+    banners.push({ tag: 'EVENT', cls: 'b-event', title: EVENT.name,
+      sub: `期間限定クエスト「${evStage.name}」開催中`, go: '挑戦する', img: boss.id, attr: `data-stage-open="${EVENT.key}"` });
+  }
+  banners.push(
     { tag: 'PICK UP', cls: 'b-pick', title: `${pickup.name} ★${pickup.rarity} ピックアップ`,
-      sub: `${GACHA_BANNER.name}・排出率アップ中`, go: 'ガチャを見る', img: pickup.id, attr: 'data-nav="gacha"' },
-    { tag: 'EVENT', cls: 'b-event', title: '本日の育成ダンジョン',
+      sub: `${currentBanner().name}・排出率アップ中`, go: 'ガチャを見る', img: pickup.id, attr: 'data-nav="gacha"' },
+    { tag: 'DUNGEON', cls: 'b-event', title: '本日の育成ダンジョン',
       sub: todayEls.length ? `本日開放: ${todayEls.join('・')}の欠片ほか` : '素材を集めてスキルを強化',
       go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle"' },
     { tag: 'DAILY', cls: 'b-daily', title: left ? `今日の日課 あと${left}件` : '今日の日課は完了',
       sub: `リセットまで ${formatDuration(msToDailyReset())}`, go: 'ミッションへ',
       img: STATE.slots.find(Boolean) || pickup.id, attr: 'data-nav="missions"' },
-  ];
+  );
+  return banners;
 }
 function renderBannerCarousel(){
   const list = homeBanners();
@@ -4779,7 +4835,7 @@ function renderHome(){
 /* ---------------- GACHA ---------------- */
 
 function renderGacha(){
-  const pickup = MON_BY_ID[GACHA_BANNER.pickup];
+  const pickup = MON_BY_ID[currentBanner().pickup];
   const pullsToHigh = Math.max(1, HIGH_PITY_PULLS - STATE.pitySinceRare);
   const highPct = Math.min(100, Math.round((STATE.pitySinceRare / HIGH_PITY_PULLS) * 100));
   const sparkPct = Math.min(100, Math.round((STATE.summonPoints / SPARK_POINTS) * 100));
@@ -4792,7 +4848,7 @@ function renderGacha(){
       <div class="pixel gc-tag">PICK UP</div>
       <div class="gc-hero-row">
         <div class="gc-hero-body">
-          <div class="gc-name">${GACHA_BANNER.name}</div>
+          <div class="gc-name">${currentBanner().name}</div>
           <div class="gc-sub">★${pickup.rarity}「${pickup.name}」${ELEM_LABEL[pickup.element]}・${ROLE_LABEL[pickup.role]}
             <br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
@@ -4869,8 +4925,8 @@ function rollRarity(minStar){
 
 function pickMonsterOfRarity(rarity){
   if(rarity === 5){
-    const pickup = MON_BY_ID[GACHA_BANNER.pickup];
-    const others = MONSTERS.filter(m => m.rarity === 5 && m.id !== GACHA_BANNER.pickup);
+    const pickup = MON_BY_ID[currentBanner().pickup];
+    const others = MONSTERS.filter(m => m.rarity === 5 && m.id !== currentBanner().pickup);
     if(pickup && (others.length === 0 || Math.random() < PICKUP_SHARE)) return pickup;
     return others[Math.floor(Math.random() * others.length)];
   }
@@ -4929,7 +4985,7 @@ function doPull(times, cost){
 
 function exchangeSpark(){
   if(STATE.summonPoints < SPARK_POINTS){ toast('召喚ポイントが足りません'); return; }
-  const mon = MON_BY_ID[GACHA_BANNER.pickup];
+  const mon = MON_BY_ID[currentBanner().pickup];
   STATE.summonPoints -= SPARK_POINTS;
   const r = grantMonster(mon);
   saveState();
@@ -5047,7 +5103,7 @@ function renderGachaStage(){
     inner = `
       <div class="reveal-head">
         <div>
-          <div class="reveal-title">${MON_BY_ID[GACHA_BANNER.pickup].name}</div>
+          <div class="reveal-title">${MON_BY_ID[currentBanner().pickup].name}</div>
           <div class="reveal-sub">${n}連召喚・卵の色がレア度です</div>
         </div>
         <button class="btn btn-ghost btn-sm" data-gacha-skip="1">スキップ</button>
@@ -5180,7 +5236,7 @@ function showGachaResults(results, before){
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''}">
       <div class="gr-title pixel">RESULT</div>
-      <div class="gr-banner">${GACHA_BANNER.name}</div>
+      <div class="gr-banner">${currentBanner().name}</div>
 
       <div class="panel panel-tight gr-best r${best.mon.rarity}">
         <img src="${imgSrc(best.mon.id)}" alt="${best.mon.name}">
@@ -5997,6 +6053,24 @@ function renderDungeons(){
     }).join('')}`;
 }
 
+function renderEventCard(){
+  const st = STAGE_BY_ID[EVENT.key];
+  if(!st) return '';
+  const boss = bossOf(st);
+  const msLeft = new Date(EVENT.endAt).getTime() - Date.now();
+  return `
+    <div class="panel event-card" data-stage-open="${EVENT.key}" role="button">
+      <div class="row-between" style="margin-bottom:8px;">
+        <div class="mc-head">🔥 ${EVENT.name}</div>
+        <div class="mc-reset">残り ${formatDuration(Math.max(0, msLeft))}</div>
+      </div>
+      <div class="mc-row">
+        <img src="${imgSrc(boss.id)}" alt="" style="width:36px;height:36px;object-fit:contain;border-radius:8px;">
+        <span class="mc-label">${st.name}<div class="mc-reset">推奨Lv${st.rec}・⚡${st.stamina}</div></span>
+        <span class="mc-go">›</span>
+      </div>
+    </div>`;
+}
 function renderBattleSelect(){
   refreshStamina();
   const daily = ensureDaily();
@@ -6015,6 +6089,7 @@ function renderBattleSelect(){
       <div class="screen-title" style="margin:0;">探索</div>
       <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
     </div>
+    ${eventActive() ? renderEventCard() : ''}
     ${stageTab === 'dungeon' ? `
       <div class="row-between" style="margin-bottom:8px;">
         <button class="btn btn-ghost btn-sm" data-stage-tab="main">← クエスト</button>
