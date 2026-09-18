@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """素材のPNGを `icon-data` に入る形に変換して index.html に書き込む。
 
+素材は assets/source/ に置きます。
 やること: マゼンタ背景を抜く → 左上の「AI」バッジを消す → 余白を詰める → 96px角にして
 data URI(PNG)にし、`icon-data` の指定キーへ入れる。画像処理はChromiumのcanvasで行う
 (この環境にはPillowもImageMagickも無いため)。
@@ -87,7 +88,7 @@ async def main():
         b = await p.chromium.launch(**LAUNCH)
         pg = await b.new_page()
         for name, key in ICONS.items():
-            f = ROOT / name
+            f = ROOT / 'assets' / 'source' / name
             if not f.exists():
                 print(f'❌ {name} が見つかりません')
                 continue

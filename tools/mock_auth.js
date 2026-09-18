@@ -18,6 +18,7 @@
   const edit = fn => { const c = readCloud(); const out = fn(c); writeCloud(c); return out; };
   if(window.__mockCloudSeed) writeCloud(window.__mockCloudSeed);
   window.__mockCloud = readCloud;
+  window.__events = [];
 
   const session = {
     get(){ try{ return JSON.parse(localStorage.getItem(SESSION_KEY)); }catch(e){ return null; } },
@@ -69,6 +70,9 @@
       return session.set({ ...cur, isAnonymous: false, email, providerData: [{ providerId: 'password' }] });
     },
     async signOut(){ session.clear(); },
+    // アナリティクス: テストから中身を見られるように溜めるだけ
+    logEvent(name, params){ window.__events.push([name, params || {}]); },
+    setUser(uid, props){ window.__gaUser = [uid, props]; },
     async cloudLoad(uid){ return readCloud().saves[uid] || null; },
     async cloudSave(uid, payload, baseAt){
       return edit(c => {

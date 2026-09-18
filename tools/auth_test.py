@@ -15,6 +15,13 @@ MOCK = (HERE / 'mock_auth.js').read_text(encoding='utf-8')
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
 ID_RE = re.compile(r'^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$')
 
+BATTLE_SETUP = """() => {
+  STATE.clearedStages = STAGES.map(s => s.id); STATE.stamina = 999;
+  ['m05','m15','m22','m57','m19'].forEach(id => STATE.owned[id] = { ...newOwned(MON_BY_ID[id]), star:4, level:60, wall:60 });
+  STATE.slots = ['m05','m15','m22','m57','m19'];
+  startBattle('q1_01', { skipIntro: true });
+}"""
+
 bad = 0
 def check(name, cond, info=''):
     global bad
@@ -166,6 +173,31 @@ async def main():
             profiles = await gpg.evaluate("() => window.__mockCloud().players")
             check('公開プロフィールが作られる', gg['uid'] in profiles and profiles[gg['uid']]['playerId'] == gg['playerId'])
             check('JSエラーなし(Google)', not errsG, f'{len(errsG)}件 {errsG[:3]}')
+
+            # ---- アナリティクス ----
+            ctxA2, an, errsAn = await device(browser, url)
+            await an.click('[data-auth="guest"]')
+            await an.wait_for_timeout(1000)
+            names = [e[0] for e in await an.evaluate("() => window.__events")]
+            check('ログインが記録される', 'login' in names, str(names))
+            check('新規プレイヤーが記録される', 'game_start' in names, str(names))
+            check('ユーザーが紐づく', bool(await an.evaluate("() => window.__gaUser")),
+                  str(await an.evaluate("() => window.__gaUser")))
+            await an.evaluate("() => { goto('gacha'); render(); }")
+            await an.evaluate("() => doPull(1, PULL_COST)")
+            await an.wait_for_timeout(400)
+            await an.evaluate(BATTLE_SETUP)
+            await an.wait_for_timeout(600)
+            await an.evaluate("() => finishBattle(true)")
+            await an.wait_for_timeout(400)
+            events = await an.evaluate("() => window.__events")
+            names = [e[0] for e in events]
+            check('画面遷移が記録される', 'screen_view' in names)
+            check('ガチャが記録される', 'gacha_pull' in names,
+                  str([e[1] for e in events if e[0] == 'gacha_pull']))
+            check('ステージの開始と結果が記録される', 'stage_start' in names and 'stage_clear' in names,
+                  str([e[1] for e in events if e[0] in ('stage_start', 'stage_clear')]))
+            check('JSエラーなし(アナリティクス)', not errsAn, f'{len(errsAn)}件 {errsAn[:3]}')
 
             # ---- Firebaseに届かないとき(このサンドボックスは外へ出られない) ----
             ctxC, c, errsC = await device(browser, url, mock=False)

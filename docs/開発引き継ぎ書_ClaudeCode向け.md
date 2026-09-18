@@ -7,6 +7,7 @@
 > - `index.html` … ゲーム本体(単一HTML)
 > - `tools/` … 検証スクリプト(旧 `dev_tools.zip`。`python3 tools/extract.py` で `game.js`/`mons.json` を生成)
 > - `docs/` … 引き継ぎ資料
+> - `assets/source/` … 加工前の素材(BGMの元ファイル・アイコンの元画像)。ゲームからは未参照
 > - `firestore.rules` … Firestoreのセキュリティルール
 > - `assets/bgm/` … BGM3曲(`index.html` から相対パスで参照)
 > - ルートの `PerituneMaterial_*.mp3` … BGMの元素材(加工前。ゲームからは参照していません)
@@ -287,6 +288,7 @@ npm i -D playwright && npx playwright install chromium   # 画面テストを使
 | 資料 | 内容 |
 |---|---|
 | 認証とクラウドセーブ.md | ログイン・プレイヤーID・Firestore・同期の仕様とテスト方法 |
+| 公開とアナリティクス.md | GitHub Pagesでの公開手順、OGP・favicon、送信しているイベント一覧 |
 | クエスト全ステージ一覧.md | 現在の全33ステージの構成(これが実装の正) |
 | クエストステージ案_未実装含む.md | ステージの設計案と、実装時の変更点 |
 | アイコン制作リスト.md | 必要なアイコン(91〜98個)の仕様 |
