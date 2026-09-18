@@ -22,7 +22,8 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | tune54.js | 調整値の自動探索(`ONLY=q1_01 node tune54.js q1`) |
 | dump33.js | 全ステージ構成のMarkdown出力 |
 | smoke.py | 起動スモークテスト(主要7画面のJSエラー・横スクロールと、BGMの読み込みを確認) |
-| auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(26項目) |
+| auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(30項目) |
+| ux_test.py | 図鑑の絞り込み・並び替えと、詳細画面の操作性の検証(16項目) |
 | mock_auth.js | テスト用の偽Firebase(認証とFirestoreの代役)。`window.__authBackend` に入る |
 | make_icons.py | 素材のPNGをアイコンに変換して `icon-data` に書き込む(マゼンタ抜き・バッジ除去・96px化) |
 | make_branding.py | favicon(64/180)とOGP画像(1200×630)を `assets/` に書き出す |

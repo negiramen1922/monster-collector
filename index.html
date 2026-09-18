@@ -1464,6 +1464,20 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   #battle-wrap .ult-hint{ display:none; }
 }
 
+/* ---------- level-dependent numbers / skill upgrade ---------- */
+.lv-stat{ color:var(--gold); display:inline-block; }
+.stat-row b.up{ animation:statUp .55s ease; }
+@keyframes statUp{
+  0%{ color:#fff; transform:scale(1.2); text-shadow:0 0 10px rgba(232,180,85,.85); }
+  100%{ color:var(--gold); transform:none; text-shadow:none; }
+}
+.lv-hint{ margin:6px 0 0; }
+.skill-upgrade{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+  margin:-2px 0 10px; padding:8px 10px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; }
+.skill-upgrade .su-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:11.5px; font-weight:700; }
+.skill-upgrade .cost-list{ display:flex; gap:6px; flex-wrap:wrap; }
+.skill-upgrade .btn{ flex:none; }
+
 /* ---------- title screen / account ---------- */
 #title{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:16px; padding:32px 22px; overflow-y:auto; }
 .title-logo{ font-size:17px; line-height:2; letter-spacing:1px; color:var(--gold); text-align:center; }
@@ -1526,6 +1540,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 const SPRITES = JSON.parse(document.getElementById('sprite-data').textContent);
 const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent);
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
+const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2468,16 +2483,17 @@ function spendPots(amount){
   }
   return gained;
 }
-function levelUpMonster(id, mode){
+// returns how many levels were gained (0 = could not, so a held button stops)
+function levelUpMonster(id, mode, quiet){
   const owned = STATE.owned[id];
-  if(!owned) return;
-  if(atWall(owned)){ toast(`Lv${owned.level}の壁です。限界突破してください`); return; }
-  if(owned.level >= levelCapOf(owned)){ toast('レベル上限です。★を上げると上限が伸びます'); return; }
+  if(!owned) return 0;
+  if(atWall(owned)){ if(!quiet) toast(`Lv${owned.level}の壁です。限界突破してください`); return 0; }
+  if(owned.level >= levelCapOf(owned)){ if(!quiet) toast('レベル上限です。★を上げると上限が伸びます'); return 0; }
   const stop = levelStop(owned);
   const target = mode === 'max' ? stop : Math.min(stop, owned.level + Number(mode || 1));
   const need = expNeeded(owned, target);
   const have = expPotTotal();
-  if(have <= 0 && need > 0){ toast('EXPポットが足りません'); return; }
+  if(have <= 0 && need > 0){ if(!quiet) toast('EXPポットが足りません'); return 0; }
   owned.exp = (owned.exp || 0) + spendPots(Math.min(need, have));
   const before = owned.level;
   // stop at the requested level; any extra EXP stays banked for next time
@@ -2486,13 +2502,44 @@ function levelUpMonster(id, mode){
     owned.level += 1;
   }
   const up = owned.level - before;
-  if(up === 0){ toast('EXPポットが足りません'); saveState(); showMonsterDetail(id); return; }
+  if(up === 0){
+    if(!quiet){ toast('EXPポットが足りません'); saveState(); showMonsterDetail(id); }
+    return 0;
+  }
   track('levelUp', up);
   track('upgrade');
-  playSfx('buff');
   saveState();
   showMonsterDetail(id);
-  render();
+  if(!quiet){ playSfx('buff'); render(); }
+  return up;
+}
+
+/* Press and hold +1 / +10 to keep levelling. The modal redraws on every step
+   (it keeps its scroll position); the rest of the screen catches up at the end. */
+const lvHold = { start: null, repeat: null, fired: false, id: null };
+function startLevelUpHold(btn){
+  stopLevelUpHold(false);
+  lvHold.fired = false;
+  if(btn.disabled || btn.dataset.times === 'max') return;
+  const id = lvHold.id = btn.dataset.levelup;
+  const times = btn.dataset.times;
+  lvHold.start = setTimeout(() => {
+    lvHold.fired = true;
+    playSfx('buff');
+    const step = () => { if(!levelUpMonster(id, times, true)) stopLevelUpHold(true); };
+    step();
+    lvHold.repeat = setInterval(step, 130);
+  }, 350);
+}
+function stopLevelUpHold(finish){
+  clearTimeout(lvHold.start);
+  clearInterval(lvHold.repeat);
+  lvHold.start = lvHold.repeat = null;
+  if(finish && lvHold.fired){
+    playSfx('buff');
+    render();
+    if(lvHold.id) showMonsterDetail(lvHold.id);
+  }
 }
 function breakWall(id){
   const owned = STATE.owned[id];
@@ -3419,7 +3466,9 @@ function bossOf(stage){
 /* ---------------- app / router ---------------- */
 
 let currentScreen = 'home';
-let dexFilter = 'all';
+let dexFilter = { elem: [], role: [], species: [] };
+let dexSort = { key: 'no', desc: false };
+let filterTarget = 'roster';   // which screen the filter sheet is editing
 let dexOwnedOnly = false;
 
 const NAV = [
@@ -4062,7 +4111,7 @@ function showGachaResults(results, before){
 /* ---------------- MONSTER DETAIL ---------------- */
 
 // one line per action for the detail modal
-function kitLinesHtml(m, star){
+function kitLinesHtml(m, star, after){
   const kit = kitOf(m);
   const slots = skillSlotsOf(m, star);
   const typeOf = act => act.atk ? ATK_TYPE_LABEL[act.atk] : '―';
@@ -4073,14 +4122,18 @@ function kitLinesHtml(m, star){
       ${act.tgt || act.tgtText ? `<div class="skill-desc elem-flavor">🎯 ${act.tgtText || TGT_TEXT[act.tgt] || ''}${act.atk && !act.tgtText ? `・${typeOf(act)}` : ''}</div>` : ''}
     </div>`;
   const skill2 = kit.skill2 || kit.skill1;
+  const a = after || {};
   return [
     line('通常', kit.normal, typeOf(kit.normal)),
     line('スキル1', kit.skill1, `CT ${kit.skill1.ct}ターン`),
     slots.length >= 2
       ? line('スキル2', skill2, `CT ${skill2.ct}ターン`)
       : `<div class="skill-line locked-slot">🔒 ★${SECOND_SKILL_STAR}に昇格すると、スキル2「${skill2.name}」が使えるようになります</div>`,
+    a.skill || '',
     line('パッシブ', kit.passive, ''),
+    a.passive || '',
     line('必殺技', kit.ult, `SP ${kit.ult.sp}`),
+    a.ult || '',
   ].join('');
 }
 
@@ -4122,7 +4175,6 @@ function showMonsterDetail(id){
   const owned = STATE.owned[id];
   if(!m || !owned) return;
   const stats = scaledStats(m, owned.star, owned.level);
-  const skills = skillSlotsOf(m, owned.star);
   const need = soulsToNext(owned);
   const canPromote = need !== null && owned.souls >= need;
   const shortSouls = need === null ? 0 : Math.max(0, need - owned.souls);
@@ -4137,14 +4189,64 @@ function showMonsterDetail(id){
   const stop = levelStop(owned);
   const potTotal = expPotTotal();
 
+  // highlight the numbers that just went up (level-up, promotion)
+  const before = showMonsterDetail._prev && showMonsterDetail._prev.id === id ? showMonsterDetail._prev.stats : null;
+  const up = k => (before && stats[k] > before[k]) ? ' up' : '';
+  showMonsterDetail._prev = { id, stats };
+  const statRow = (label, key, note) =>
+    `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}${note || ''}</b></div>`;
+
+  // 強化: 本体レベル。詳細の一番上に置く(ここを何度も押すため)
+  const levelBox = `
+    <div class="detail-level-box">
+      <div class="upgrade-row">
+        <div class="row-between" style="margin-bottom:6px;">
+          <div style="font-weight:800; font-size:12.5px;">本体レベル <b class="lv-stat">Lv${owned.level}</b><span class="lv-note">/ ${lvCap}</span></div>
+          <div class="mat-need">🧪 EXP ${potTotal.toLocaleString()}</div>
+        </div>
+        <div class="soul-bar exp-bar"><div class="soul-fill" style="width:${owned.level >= lvCap ? 100 : expPct}%;"></div></div>
+        <div class="promo-note">${owned.level >= lvCap ? 'レベル上限です(★を上げると上限が伸びます)' : `次のLvまで EXP ${Math.max(0, expToNext(owned.level) - (owned.exp || 0))}　／　Lv${stop}まで EXP ${expNeeded(owned, stop).toLocaleString()}`}</div>
+        ${wall ? `
+          <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= wallCost(owned.level) ? '' : 'btn-ghost'}" data-break-wall="${id}">
+            Lv${owned.level}の壁を限界突破(${goldText(wallCost(owned.level))})
+          </button>` : owned.level >= lvCap ? '' : `
+          <div class="lv-btns three">
+            <button class="btn btn-sm ${potTotal ? '' : 'btn-ghost'}" data-levelup="${id}" data-times="1" ${potTotal ? '' : 'disabled'}>+1</button>
+            <button class="btn btn-sm ${potTotal ? '' : 'btn-ghost'}" data-levelup="${id}" data-times="10" ${potTotal ? '' : 'disabled'}>+10</button>
+            <button class="btn btn-sm ${potTotal ? '' : 'btn-ghost'}" data-levelup="${id}" data-times="max" ${potTotal ? '' : 'disabled'}>Lv${stop}まで</button>
+          </div>
+          <div class="promo-note lv-hint">長押しで連続レベルアップ・10レベルごとにゴールドで限界突破</div>`}
+      </div>
+    </div>`;
+
+  // スキルの強化ボタンは、その説明のすぐ下に置く
+  const upgradeBox = field => {
+    const lv = owned[field];
+    const maxed = lv >= skillCap;
+    const list = maxed ? [] : skillCostList(m, field, lv);
+    const ok = list.every(c => getItem(c.key) >= c.n);
+    return `
+      <div class="skill-upgrade">
+        <div class="su-head">
+          <span>${SKILL_KINDS[field].label} <b class="lv-stat">${lv}</b>${maxed ? '(上限)' : `<span class="lv-note">/ ${skillCap}</span>`}</span>
+          ${maxed ? '' : `<span class="cost-list">${list.map(c => `<span class="cost-item ${getItem(c.key) >= c.n ? '' : 'short'}" title="${itemName(c.key)}">${itemIcon(c.key)}${getItem(c.key)}/${c.n}</span>`).join('')}</span>`}
+        </div>
+        <button class="btn btn-sm ${maxed || !ok ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed || !ok ? 'disabled' : ''}>
+          ${maxed ? (lv >= 12 ? '最大です' : `★${lv >= 10 && owned.star < 6 ? 6 : 7}で上限が伸びます`) : '強化する'}
+        </button>
+      </div>`;
+  };
+
   const layer = document.getElementById('modal-layer');
+  const openNow = layer.querySelector('.detail-modal');
+  const keepScroll = openNow && openNow.dataset.mon === id ? openNow.scrollTop : 0;
   layer.innerHTML = `
-    <div class="result-modal detail-modal">
+    <div class="result-modal detail-modal" data-mon="${id}">
       <button class="detail-close" data-close-detail="1">×</button>
       <div class="detail-head">
         <img src="${imgSrc(m.id)}" alt="${m.name}">
         <div class="detail-name">${m.name}</div>
-        <div class="detail-bp">BP ${battlePower(id).toLocaleString()}</div>
+        <div class="detail-bp">BP <b class="lv-stat">${battlePower(id).toLocaleString()}</b></div>
         <div class="detail-sub">${starsHtml(m.rarity, owned.star)}<span class="lv-note">Lv${owned.level} / ${lvCap}</span></div>
         <div class="detail-family">${SPECIES_LABEL[speciesOf(m)]}${m.tribe ? `・${m.tribe}` : ''}</div>
         <div class="detail-tags">
@@ -4154,17 +4256,20 @@ function showMonsterDetail(id){
         </div>
       </div>
 
+      <div class="upgrade-section-title">強化</div>
+      ${levelBox}
+
       <div class="detail-stats">
-        <div class="stat-row"><span>HP</span><b>${stats.hp}</b></div>
-        <div class="stat-row"><span>STR</span><b>${stats.str}</b></div>
-        <div class="stat-row"><span>物理防御</span><b>${stats.pdef}</b></div>
-        <div class="stat-row"><span>魔法防御</span><b>${stats.mdef}</b></div>
-        <div class="stat-row"><span>SPD</span><b>${stats.spd}</b></div>
+        ${statRow('HP', 'hp')}
+        ${statRow('STR', 'str')}
+        ${statRow('物理防御', 'pdef')}
+        ${statRow('魔法防御', 'mdef')}
+        ${statRow('SPD', 'spd')}
         <div class="stat-row"><span>HATE</span><b>${m.hate}<span class="stat-note">${hateLabel(m.hate)}</span></b></div>
       </div>
 
       <div class="detail-skill-box">
-        ${kitLinesHtml(m, owned.star)}
+        ${kitLinesHtml(m, owned.star, { skill: upgradeBox('skillLv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
       </div>
 
       <div class="upgrade-section-title">昇格</div>
@@ -4189,69 +4294,28 @@ function showMonsterDetail(id){
             </div>
           </div>`}
       </div>
-
-      <div class="upgrade-section-title">強化</div>
-
-      <div class="detail-level-box">
-        <div class="upgrade-row">
-          <div class="row-between" style="margin-bottom:6px;">
-            <div style="font-weight:800; font-size:12.5px;">本体レベル Lv${owned.level}<span class="lv-note">/ ${lvCap}</span></div>
-            <div class="mat-need">🧪 EXP ${potTotal.toLocaleString()}</div>
-          </div>
-          <div class="soul-bar exp-bar"><div class="soul-fill" style="width:${owned.level >= lvCap ? 100 : expPct}%;"></div></div>
-          <div class="promo-note">${owned.level >= lvCap ? 'レベル上限です(★を上げると上限が伸びます)' : `次のLvまで EXP ${Math.max(0, expToNext(owned.level) - (owned.exp || 0))}　／　Lv${stop}まで EXP ${expNeeded(owned, stop).toLocaleString()}`}</div>
-          ${wall ? `
-            <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= wallCost(owned.level) ? '' : 'btn-ghost'}" data-break-wall="${id}">
-              Lv${owned.level}の壁を限界突破(${goldText(wallCost(owned.level))})
-            </button>` : owned.level >= lvCap ? '' : `
-            <div class="lv-btns three">
-              <button class="btn btn-sm ${potTotal ? '' : 'btn-ghost'}" data-levelup="${id}" data-times="1" ${potTotal ? '' : 'disabled'}>+1</button>
-              <button class="btn btn-sm ${potTotal ? '' : 'btn-ghost'}" data-levelup="${id}" data-times="10" ${potTotal ? '' : 'disabled'}>+10</button>
-              <button class="btn btn-sm ${potTotal ? '' : 'btn-ghost'}" data-levelup="${id}" data-times="max" ${potTotal ? '' : 'disabled'}>Lv${stop}まで</button>
-            </div>`}
-          <div class="promo-note" style="margin:6px 0 0;">10レベルごとに、ゴールドで限界突破が必要です。</div>
-        </div>
-      </div>
-      ${['skillLv', 'ultLv', 'passiveLv'].map(field => {
-        const lv = owned[field];
-        const maxed = lv >= skillCap;
-        const list = maxed ? [] : skillCostList(m, field, lv);
-        const ok = list.every(c => getItem(c.key) >= c.n);
-        return `
-        <div class="detail-level-box">
-          <div class="upgrade-row">
-            <div class="row-between" style="margin-bottom:6px;">
-              <div style="font-weight:800; font-size:12.5px;">${SKILL_KINDS[field].label} ${lv}${maxed ? '(上限)' : `/${skillCap}`}</div>
-            </div>
-            ${maxed ? '' : `<div class="cost-list">${list.map(c => `<span class="cost-item ${getItem(c.key) >= c.n ? '' : 'short'}" title="${itemName(c.key)}">${itemIcon(c.key)}${getItem(c.key)}/${c.n}</span>`).join('')}</div>`}
-            <button class="btn btn-sm btn-block ${maxed || !ok ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed || !ok ? 'disabled' : ''}>
-              ${maxed ? (lv >= 12 ? '最大です' : `★${lv >= 10 && owned.star < 6 ? 6 : 7}に昇格すると上限が伸びます`) : '強化する'}
-            </button>
-          </div>
-        </div>`;
-      }).join('')}
     </div>
   `;
   layer.classList.add('show');
+  // keep the place the player was looking at: level-ups re-render this modal
+  const nowEl = layer.querySelector('.detail-modal');
+  if(nowEl && keepScroll) nowEl.scrollTop = keepScroll;
 }
 
 /* ---------------- DEX ---------------- */
 
 
 function renderDex(){
-  const chips = [{ key:'all', label:'全部' }, ...ELEM_ORDER.map(e => ({ key:e, label:ELEM_LABEL[e] }))];
-
-  const list = MONSTERS.filter(m => dexFilter === 'all' || m.element === dexFilter)
-                        .filter(m => !dexOwnedOnly || STATE.owned[m.id]);
+  const pool = MONSTERS.filter(m => !dexOwnedOnly || STATE.owned[m.id]);
+  const list = sortMonsters(pool.filter(m => matchesRosterFilter(m, dexFilter)), dexSort);
+  const ownedChip = `<button class="btn btn-sm ${dexOwnedOnly ? '' : 'btn-ghost'}" data-owned-toggle="1" aria-pressed="${dexOwnedOnly}">所持のみ</button>`;
 
   return `
     <div class="screen-title">モンスター図鑑</div>
-    <div class="screen-sub">${Object.keys(STATE.owned).length} / ${MONSTERS.length} 体を発見済み</div>
+    <div class="screen-sub">${Object.keys(STATE.owned).length} / ${MONSTERS.length} 体を発見済み${
+      list.length === MONSTERS.length ? '' : `・${list.length}体を表示`}</div>
 
-    <div class="filter-row">
-      ${chips.map(c => `<div class="chip ${dexFilter===c.key?'active':''}" data-filter="${c.key}">${c.label}</div>`).join('')}
-      <div class="chip ${dexOwnedOnly?'active':''}" data-owned-toggle="1">所持のみ</div>
-    </div>
+    ${renderFilterControls('dex', ownedChip)}
 
     <div class="mon-grid">
       ${list.map(m => {
@@ -4331,18 +4395,22 @@ const SORT_KEYS = [
   { key:'level',  label:'レベル' },
   { key:'bp',     label:'BP' },
 ];
+const DEX_SORT_KEYS = [{ key:'no', label:'図鑑順' }, ...SORT_KEYS];
 
-function sortedRoster(list){
+const bpOf = m => STATE.owned[m.id] ? battlePower(m.id) : -1;   // not owned: sorts last
+function sortMonsters(list, sort){
   const val = {
-    rarity: m => STATE.owned[m.id].star * 1000 + m.rarity, // current ★, then initial ★
-    level:  m => STATE.owned[m.id].level,
-    bp:     m => battlePower(m.id),
-  }[rosterSort.key];
-  const dir = rosterSort.desc ? -1 : 1;
+    no:     m => -MON_ORDER[m.id],                                        // dex order
+    rarity: m => (STATE.owned[m.id] ? STATE.owned[m.id].star * 1000 : 0) + m.rarity,
+    level:  m => STATE.owned[m.id] ? STATE.owned[m.id].level : -1,
+    bp:     bpOf,
+  }[sort.key];
+  const dir = sort.desc ? -1 : 1;
   // ties fall back to BP (strongest first), then dex order
   return list.slice().sort((a, b) =>
-    (val(a) - val(b)) * dir || battlePower(b.id) - battlePower(a.id) || a.id.localeCompare(b.id));
+    (val(a) - val(b)) * dir || bpOf(b) - bpOf(a) || MON_ORDER[a.id] - MON_ORDER[b.id]);
 }
+const sortedRoster = list => sortMonsters(list, rosterSort);
 
 function renderSynergyPanel(ids){
   const syn = partySynergies(ids);
@@ -4374,34 +4442,49 @@ function renderSynergyPanel(ids){
     </div>`;
 }
 
+// sort buttons + filter bar, shared by the party roster and the dex
+function renderFilterControls(target, extra){
+  const sort = target === 'dex' ? dexSort : rosterSort;
+  const keys = target === 'dex' ? DEX_SORT_KEYS : SORT_KEYS;
+  const filter = target === 'dex' ? dexFilter : rosterFilter;
+  const n = filterCount(filter);
+  const activeIcons = FILTER_GROUPS.flatMap(g => g.items().filter(it => filter[g.key].includes(it.key)).map(it => it.icon)).join('');
+  return `
+    <div class="sort-row" role="group" aria-label="並び替え">
+      ${keys.map(k => {
+        const on = sort.key === k.key;
+        return `<button class="sort-btn ${on ? 'active' : ''}" data-sort="${target}:${k.key}" aria-pressed="${on}">
+          ${k.label}${on ? (sort.desc ? ' ▼' : ' ▲') : ''}</button>`;
+      }).join('')}
+    </div>
+    <div class="filter-bar">
+      <button class="btn btn-sm ${n ? '' : 'btn-ghost'} rf-open" data-rf-open="${target}">絞り込み${n ? `(${n})` : ''}</button>
+      ${extra || ''}
+      <div class="rf-summary">${n ? activeIcons : '<span class="rf-none">すべて表示中</span>'}</div>
+      ${n ? `<button class="btn btn-ghost btn-sm" data-rf-clear="${target}">解除</button>` : ''}
+    </div>
+  `;
+}
 function renderRosterControls(shown, total){
-  const n = filterCount(rosterFilter);
-  const activeIcons = FILTER_GROUPS.flatMap(g => g.items().filter(it => rosterFilter[g.key].includes(it.key)).map(it => it.icon)).join('');
   return `
     <div class="roster-head">
       <b>所持モンスター</b>
       <span>${shown === total ? `${total}体` : `${shown} / ${total}体を表示`}</span>
     </div>
-    <div class="sort-row" role="group" aria-label="並び替え">
-      ${SORT_KEYS.map(k => {
-        const on = rosterSort.key === k.key;
-        return `<button class="sort-btn ${on ? 'active' : ''}" data-roster-sort="${k.key}" aria-pressed="${on}">
-          ${k.label}${on ? (rosterSort.desc ? ' ▼' : ' ▲') : ''}</button>`;
-      }).join('')}
-    </div>
-    <div class="filter-bar">
-      <button class="btn btn-sm ${n ? '' : 'btn-ghost'} rf-open" data-rf-open="1">絞り込み${n ? `(${n})` : ''}</button>
-      <div class="rf-summary">${n ? activeIcons : '<span class="rf-none">すべて表示中</span>'}</div>
-      ${n ? '<button class="btn btn-ghost btn-sm" data-rf-clear="1">解除</button>' : ''}
-    </div>
+    ${renderFilterControls('roster')}
   `;
 }
 
+function filterPool(){
+  // the dex counts every monster, the party only the ones you own
+  if(filterTarget === 'dex') return MONSTERS.filter(m => !dexOwnedOnly || STATE.owned[m.id]);
+  return Object.keys(STATE.owned).map(id => MON_BY_ID[id]);
+}
 function renderFilterSheet(){
   const d = rosterFilterDraft;
-  const owned = Object.keys(STATE.owned).map(id => MON_BY_ID[id]);
+  const owned = filterPool();
   const hits = owned.filter(m => matchesRosterFilter(m, d)).length;
-  // how many owned monsters each option would add (given the other categories)
+  // how many monsters each option would add (given the other categories)
   const countFor = (gKey, itKey) => owned.filter(m => matchesRosterFilter(m, { ...d, [gKey]: [itKey] })).length;
   return `
     <div class="result-modal filter-sheet" role="dialog" aria-label="絞り込み">
@@ -4427,8 +4510,10 @@ function renderFilterSheet(){
     </div>`;
 }
 
-function openFilterSheet(){
-  rosterFilterDraft = { elem: [...rosterFilter.elem], role: [...rosterFilter.role], species: [...rosterFilter.species] };
+function openFilterSheet(target){
+  filterTarget = target === 'dex' ? 'dex' : 'roster';
+  const from = filterTarget === 'dex' ? dexFilter : rosterFilter;
+  rosterFilterDraft = { elem: [...from.elem], role: [...from.role], species: [...from.species] };
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = renderFilterSheet();
   layer.classList.add('show');
@@ -7650,6 +7735,8 @@ function handlePhonePointerDown(ev){
   if(t.closest('#pause-btn')){ ev.preventDefault(); playSfx('tap'); togglePause(); return; }
   if(t.closest('#resume-btn')){ ev.preventDefault(); playSfx('tap'); setPaused(false); return; }
   if(t.closest('[data-open-log]')){ ev.preventDefault(); playSfx('open'); openLogSheet(); return; }
+  const lvEl = t.closest('[data-levelup]');
+  if(lvEl){ startLevelUpHold(lvEl); return; }   // a short tap still goes through as a click
 }
 
 function handlePhoneClick(ev){
@@ -7713,7 +7800,11 @@ function handlePhoneClick(ev){
   }
 
   const levelUpEl = t.closest('[data-levelup]');
-  if(levelUpEl){ levelUpMonster(levelUpEl.dataset.levelup, levelUpEl.dataset.times); return; }
+  if(levelUpEl){
+    if(lvHold.fired){ lvHold.fired = false; return; }   // the hold already did the work
+    levelUpMonster(levelUpEl.dataset.levelup, levelUpEl.dataset.times);
+    return;
+  }
   const wallEl = t.closest('[data-break-wall]');
   if(wallEl){ breakWall(wallEl.dataset.breakWall); return; }
   const skEl = t.closest('[data-skill-up]');
@@ -7775,14 +7866,21 @@ function handlePhoneClick(ev){
     }
   }
 
-  const sortEl = t.closest('[data-roster-sort]');
+  const sortEl = t.closest('[data-sort]');
   if(sortEl){
-    const key = sortEl.dataset.rosterSort;
-    rosterSort = rosterSort.key === key ? { key, desc: !rosterSort.desc } : { key, desc: true };
+    const [target, key] = sortEl.dataset.sort.split(':');
+    if(target === 'dex') dexSort = dexSort.key === key ? { key, desc: !dexSort.desc } : { key, desc: key !== 'no' };
+    else rosterSort = rosterSort.key === key ? { key, desc: !rosterSort.desc } : { key, desc: true };
     render(); return;
   }
-  if(t.closest('[data-rf-open]')){ openFilterSheet(); return; }
-  if(t.closest('[data-rf-clear]')){ rosterFilter = { elem: [], role: [], species: [] }; render(); return; }
+  const rfOpen = t.closest('[data-rf-open]');
+  if(rfOpen){ openFilterSheet(rfOpen.dataset.rfOpen); return; }
+  const rfClear = t.closest('[data-rf-clear]');
+  if(rfClear){
+    const empty = { elem: [], role: [], species: [] };
+    if(rfClear.dataset.rfClear === 'dex') dexFilter = empty; else rosterFilter = empty;
+    render(); return;
+  }
   const rfChip = t.closest('[data-rf-chip]');
   if(rfChip){
     const [g, k] = rfChip.dataset.rfChip.split(':');
@@ -7793,14 +7891,15 @@ function handlePhoneClick(ev){
   const rfGroupClear = t.closest('[data-rf-group-clear]');
   if(rfGroupClear){ rosterFilterDraft[rfGroupClear.dataset.rfGroupClear] = []; refreshFilterSheet(); return; }
   if(t.closest('[data-rf-reset]')){ rosterFilterDraft = { elem: [], role: [], species: [] }; refreshFilterSheet(); return; }
-  if(t.closest('[data-rf-apply]')){ rosterFilter = rosterFilterDraft; rosterFilterDraft = null; closeModal(); render(); return; }
+  if(t.closest('[data-rf-apply]')){
+    if(filterTarget === 'dex') dexFilter = rosterFilterDraft; else rosterFilter = rosterFilterDraft;
+    rosterFilterDraft = null; closeModal(); render(); return;
+  }
   if(t.closest('[data-rf-close]')){ rosterFilterDraft = null; closeModal(); return; }
 
   const detailEl = t.closest('[data-detail]');
   if(detailEl){ showMonsterDetail(detailEl.dataset.detail); return; }
 
-  const filterEl = t.closest('[data-filter]');
-  if(filterEl){ dexFilter = filterEl.dataset.filter; render(); return; }
   if(t.closest('[data-owned-toggle]')){ dexOwnedOnly = !dexOwnedOnly; render(); return; }
 
   const fmEl = t.closest('[data-formation]');
@@ -8459,6 +8558,8 @@ function wireGlobalEvents(){
     if(STATE.daily.key !== dayKey){ saveState(); if(currentScreen === 'missions' || currentScreen === 'home') render(); }
     updateMissionBadge();
   }, 1000);
+  ['pointerup', 'pointercancel'].forEach(e => document.addEventListener(e, () => stopLevelUpHold(true)));
+  window.addEventListener('blur', () => stopLevelUpHold(true));
   const phoneEl = document.getElementById('phone');
   phoneEl.addEventListener('click', handlePhoneClick);
   phoneEl.addEventListener('pointerdown', handlePhonePointerDown);
