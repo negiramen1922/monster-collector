@@ -2080,7 +2080,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .acct-id{ flex:1; font-size:12px; font-weight:800; letter-spacing:.5px; color:var(--gold); text-align:center; white-space:nowrap; }
 
 @media (max-width:420px){
-  #phone{ height:100vh; border-radius:0; border:none; box-shadow:none; }
+  /* 100vh ignores the mobile browser's address bar and can make #phone taller
+     than what's actually visible, pushing the nav bar off-screen. 100dvh tracks
+     the real visible area (and updates as the address bar shows/hides); locking
+     html/body from scrolling keeps the header and nav pinned in place. */
+  html,body{ height:100%; overflow:hidden; }
+  #phone{ height:100vh; height:100dvh; border-radius:0; border:none; box-shadow:none; }
   body{ padding:0; }
 }
 
@@ -2941,8 +2946,7 @@ function normalizeState(){
   if(STATE.daily && !STATE.daily.counts) STATE.daily = null; // saves from before missions
   ensureWeekly();
   ensureDaily();
-  // saves from before the mascot guides existed: skip the onboarding popups, don't replay them
-  if(!STATE.guidesSeen) STATE.guidesSeen = { welcome: true, monsterDetail: true };
+  if(!STATE.guidesSeen) STATE.guidesSeen = {};
   delete STATE.formation;
   delete STATE.party;
 }
