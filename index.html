@@ -131,6 +131,11 @@ body{
 .mission-card{ cursor:pointer; }
 .mission-card.has-claim{ border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
 .beginner-card{ cursor:pointer; border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
+.login-bonus-card{ cursor:default; padding:12px 16px; }
+.login-bonus-card.open{ padding-bottom:16px; }
+.login-card-head{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+.login-bonus-card.open .login-card-head{ margin-bottom:10px; }
+.login-card-arrow{ font-size:11px; color:var(--dim); }
 .login-bonus-card .login-days{ display:flex; gap:5px; }
 .login-day{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px;
   padding:8px 2px; border-radius:10px; border:1px solid rgba(232,180,85,.22); background:var(--panel2);
@@ -4647,48 +4652,60 @@ function renderBeginnerCard(){
       <div class="mc-bar"><div style="width:${pct}%;"></div></div>
     </div>`;
 }
+// login bonus cards start collapsed (a compact header row) and expand in place
+// when tapped, so they don't crowd the top of the home screen.
+let loginCardOpen = { beginner: false, daily: false };
+function loginCardHtml(key, icon, title, readyCount, bodyHtml){
+  const open = loginCardOpen[key];
+  return `
+    <div class="panel login-bonus-card ${open ? 'open' : ''}">
+      <div class="login-card-head" data-login-toggle="${key}" role="button">
+        <div class="mc-head">${icon} ${title}${readyCount ? `<span class="tab-dot">${readyCount}</span>` : ''}</div>
+        <span class="login-card-arrow">${open ? '︿' : '﹀'}</span>
+      </div>
+      ${open ? bodyHtml : ''}
+    </div>`;
+}
 // home: a one-time 7-day login track for new players. One calendar day advances
 // it (see ensureBeginnerLogin) regardless of whether the previous day was claimed.
 function renderBeginnerLoginCard(){
   const bl = ensureBeginnerLogin();
   if(bl.claimed.length >= BEGINNER_LOGIN_REWARDS.length) return '';
-  return `
-    <div class="panel login-bonus-card">
-      <div class="mc-head" style="margin-bottom:10px;">🎁 はじめての7日ログインボーナス</div>
-      <div class="login-days">
-        ${BEGINNER_LOGIN_REWARDS.map((r, i) => {
-          const day = i + 1;
-          const claimed = bl.claimed.includes(day);
-          const ready = !claimed && day <= bl.day;
-          return `
-            <button class="login-day ${claimed ? 'done' : ''} ${ready ? 'ready' : ''}" data-beginner-login-day="${day}" ${ready ? '' : 'disabled'}>
-              <span class="ld-no">${day}日目</span>
-              <span class="ld-rw">${claimed ? '✓' : rewardHtml(r.slice(0, 1))}</span>
-            </button>`;
-        }).join('')}
-      </div>
+  const ready = BEGINNER_LOGIN_REWARDS.filter((_, i) => !bl.claimed.includes(i + 1) && i + 1 <= bl.day).length;
+  const body = `
+    <div class="login-days">
+      ${BEGINNER_LOGIN_REWARDS.map((r, i) => {
+        const day = i + 1;
+        const claimed = bl.claimed.includes(day);
+        const isReady = !claimed && day <= bl.day;
+        return `
+          <button class="login-day ${claimed ? 'done' : ''} ${isReady ? 'ready' : ''}" data-beginner-login-day="${day}" ${isReady ? '' : 'disabled'}>
+            <span class="ld-no">${day}日目</span>
+            <span class="ld-rw">${claimed ? '✓' : rewardHtml(r.slice(0, 1))}</span>
+          </button>`;
+      }).join('')}
     </div>`;
+  return loginCardHtml('beginner', '🎁', 'はじめての7日ログインボーナス', ready, body);
 }
 // home: the ongoing 10-day login bonus, always shown (see ensureDailyLogin).
 // only the current day's box is claimable; a missed day is simply skipped.
 function renderDailyLoginCard(){
   const dl = ensureDailyLogin();
-  return `
-    <div class="panel login-bonus-card">
-      <div class="mc-head" style="margin-bottom:10px;">📅 ログインボーナス</div>
-      <div class="login-days">
-        ${DAILY_LOGIN_REWARDS.map((n, i) => {
-          const day = i + 1;
-          const claimed = dl.claimed.includes(day);
-          const ready = !claimed && day === dl.day;
-          return `
-            <button class="login-day ${claimed ? 'done' : ''} ${ready ? 'ready' : ''}" data-daily-login-day="${day}" ${ready ? '' : 'disabled'}>
-              <span class="ld-no">${day}日目</span>
-              <span class="ld-rw">${claimed ? '✓' : `💎${n}`}</span>
-            </button>`;
-        }).join('')}
-      </div>
+  const ready = dl.claimed.includes(dl.day) ? 0 : 1;
+  const body = `
+    <div class="login-days">
+      ${DAILY_LOGIN_REWARDS.map((n, i) => {
+        const day = i + 1;
+        const claimed = dl.claimed.includes(day);
+        const isReady = !claimed && day === dl.day;
+        return `
+          <button class="login-day ${claimed ? 'done' : ''} ${isReady ? 'ready' : ''}" data-daily-login-day="${day}" ${isReady ? '' : 'disabled'}>
+            <span class="ld-no">${day}日目</span>
+            <span class="ld-rw">${claimed ? '✓' : `💎${n}`}</span>
+          </button>`;
+      }).join('')}
     </div>`;
+  return loginCardHtml('daily', '📅', 'ログインボーナス', ready, body);
 }
 
 function renderHome(){
@@ -9363,6 +9380,8 @@ function handlePhoneClick(ev){
     closeModal(); startBattle(stageEl.dataset.stage); return; }
   const claimEl = t.closest('[data-claim]');
   if(claimEl){ const key = claimEl.dataset.claim; claimMissions(x => x.key === key); return; }
+  const loginToggleEl = t.closest('[data-login-toggle]');
+  if(loginToggleEl){ const key = loginToggleEl.dataset.loginToggle; loginCardOpen[key] = !loginCardOpen[key]; render(); return; }
   const beginnerLoginEl = t.closest('[data-beginner-login-day]');
   if(beginnerLoginEl){ claimBeginnerLoginDay(Number(beginnerLoginEl.dataset.beginnerLoginDay)); return; }
   const dailyLoginEl = t.closest('[data-daily-login-day]');
