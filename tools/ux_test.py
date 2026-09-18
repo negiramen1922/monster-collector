@@ -73,7 +73,9 @@ async def main():
             await pg.evaluate("() => showMonsterDetail('m128')")
             await pg.wait_for_timeout(400)
             order = await pg.evaluate("() => [...document.querySelectorAll('.detail-modal > div')].map(d => d.className)")
-            check('レベルアップが詳細の一番上にある', order[:3] == ['detail-head', 'upgrade-section-title', 'detail-level-box'], str(order[:4]))
+            check('レベルアップが詳細の一番上にある',
+                  order[0].startswith('detail-head') and 'lv-card' in order[1]
+                  and all('lv-card' not in c for c in order[2:]), str(order[:4]))
             check('レベルで変わる数字が色つき', await pg.evaluate("() => document.querySelectorAll('.detail-stats .lv-stat').length") == 5)
             check('スキル説明の下に強化ボタンがある',
                   await pg.evaluate("() => document.querySelectorAll('.detail-skill-box .skill-upgrade [data-skill-up]').length") == 3)
@@ -212,11 +214,15 @@ async def main():
             check('敵も見られる', '敵' in await pg.inner_text('.ui-name'), await pg.inner_text('.ui-name'))
             await pg.click('[data-close-inspect]')
             await pg.evaluate("() => { STATE.battleSpeed = 3; battleUI.paused = false; scheduleNextTick(); }")
-            await pg.wait_for_timeout(3000)
-            log = await pg.evaluate("() => (battleUI ? battleUI.log : []).join('\\n')")
+            # the log is cleared between waves, so collect it as the fight runs
+            log = ''
+            for _ in range(40):
+                await pg.wait_for_timeout(250)
+                log += '\n' + await pg.evaluate("() => (battleUI ? battleUI.log : []).join('\\n')")
+                if 'パッシブ「' in log and any(k in log for k in ['アップ', 'シールド', '回復', '挑発']): break
             check('パッシブの発動がログに出る', 'パッシブ「' in log)
             check('バフ・回復・シールドがログに出る',
-                  any(k in log for k in ['アップ', 'シールド', '回復', '挑発']), log[:80])
+                  any(k in log for k in ['アップ', 'シールド', '回復', '挑発']), log[-120:])
 
             check('JSエラーなし', not errs, f'{len(errs)}件 {errs[:3]}')
             await b.close()

@@ -39,7 +39,8 @@ async def run(p, w, h, tag):
     await pg.evaluate("() => { document.getElementById('screen').scrollTop = 99999; }")
     await pg.screenshot(path=f'./v26_{tag}_alchemy.png')
     # bag: open selection box
-    await pg.click('[data-open-bag]'); await pg.click('[data-open-box="box_sel_4"]'); await pg.click('[data-bag-fam="sp"]')
+    await pg.click('[data-open-bag]'); await pg.click('[data-bag-tab="other"]')
+    await pg.click('[data-open-box="box_sel_4"]'); await pg.click('[data-bag-fam="sp"]')
     await pg.screenshot(path=f'./v26_{tag}_bag.png')
     await pg.click('[data-box-pick="sp:demon"]')
     sel = await pg.evaluate("() => [STATE.items.sp_demon_4, STATE.items.box_sel_4]")

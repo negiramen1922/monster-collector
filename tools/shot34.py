@@ -16,21 +16,36 @@ async def main():
         # single pull with a forced ★5, then a 10-pull
         await pg.evaluate("() => { STATE.crystals = 99999; render(); }")
         await pg.evaluate("""() => { const orig = pullOne; window.__orig = orig; pullOne = (min) => { const r = orig(min); r.mon = MON_BY_ID.m116; return r; }; }""")
+        async def phase():
+            return await pg.evaluate("() => gachaSeq ? gachaSeq.phase : (document.querySelector('.gacha-result') ? 'result' : 'none')")
+        async def wait_phase(want, tries=40):
+            for _ in range(tries):
+                if await phase() in want: return await phase()
+                await pg.wait_for_timeout(250)
+            return await phase()
+
         await pg.click('[data-nav="gacha"]'); await pg.click('#pull1')
         for i, t in enumerate([500, 400, 300, 400]):
             await pg.wait_for_timeout(t)
             await pg.screenshot(path=f'./v34_egg{i}.png')
-        await pg.wait_for_timeout(1500)
-        after = await pg.evaluate("() => !!document.querySelector('.gacha-result')")
+        # a ★5 stops on the legend cut-in and waits for a tap
+        legend = await wait_phase(['legend'])
+        await pg.click('[data-gacha-stage]')
+        after = await wait_phase(['result']) == 'result'
         await pg.click('#close-result')
         await pg.evaluate("() => { pullOne = window.__orig; }")
         await pg.click('#pull10'); await pg.wait_for_timeout(1400)
         await pg.screenshot(path='./v34_ten.png')
-        await pg.wait_for_timeout(2400)
+        await wait_phase(['reveal'])
+        await pg.wait_for_timeout(900)
         await pg.screenshot(path='./v34_ten2.png')
-        # tap to skip
-        await pg.click('.gacha-eggs'); await pg.wait_for_timeout(300)
-        skipped = await pg.evaluate("() => !!document.querySelector('.gacha-result')")
-        print('単発: 結果へ自動遷移', after, '| 10連: タップでスキップ', skipped, '| errors', errs)
+        # skip button jumps to the end
+        await pg.click('[data-gacha-skip]')
+        ph = await wait_phase(['result', 'legend'])
+        if ph == 'legend':
+            await pg.click('[data-gacha-stage]')
+            ph = await wait_phase(['result'])
+        skipped = ph == 'result'
+        print('★5: カットイン', legend, '| 単発: 結果へ', after, '| 10連: スキップ', skipped, '| errors', errs)
         await b.close()
 asyncio.run(main())
