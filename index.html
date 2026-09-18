@@ -612,7 +612,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .egg-slot.hatching .egg-bottom, .egg-slot.hatching .egg-spot2{ animation:egg-base .45s ease-in .95s forwards; }
 @keyframes egg-base{ to{ transform:translateY(12px); opacity:0; } }
 .egg-slot.hatching .egg-spot{ animation:egg-lid .5s ease-out .68s forwards; transform-origin:50% 100%; }
-.egg-slot.hatching .shard{ animation:shard-fly .6s ease-out .72s backwards; opacity:0; }
+.shard{ opacity:0; }
+.egg-slot.hatching .shard{ animation:shard-fly .6s ease-out .72s backwards; }
 .shard.s0{ --dx:-40px; --dy:-46px; } .shard.s1{ --dx:36px; --dy:-52px; } .shard.s2{ --dx:-52px; --dy:6px; }
 .shard.s3{ --dx:48px; --dy:10px; } .shard.s4{ --dx:-24px; --dy:46px; } .shard.s5{ --dx:30px; --dy:44px; }
 @keyframes shard-fly{ 0%{ opacity:1; transform:translate(0,0) rotate(0); } 100%{ opacity:0; transform:translate(var(--dx), var(--dy)) rotate(220deg); } }
@@ -621,6 +622,22 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .egg-slot.hatching .egg-star{ animation:fade-in .3s ease-out 1.1s forwards; }
 @keyframes fade-in{ to{ opacity:1; } }
 .egg-hint{ font-size:11px; color:var(--dim); margin-top:10px; }
+/* ★5: light floods the frame, then the results come up */
+.gacha-flash{ position:absolute; inset:0; z-index:60; pointer-events:none; opacity:0;
+  background:radial-gradient(circle at 50% 45%, #fff 0%, rgba(255,255,255,.92) 16%, rgba(255,224,106,.65) 32%,
+    rgba(255,143,208,.4) 50%, rgba(111,183,255,0) 74%);
+  animation:gacha-burst 1.1s ease-out forwards; }
+@keyframes gacha-burst{
+  0%{ opacity:0; transform:scale(.12); }
+  10%{ opacity:1; transform:scale(.55); }
+  40%{ opacity:1; transform:scale(1.7); }
+  100%{ opacity:0; transform:scale(2.8); }
+}
+.gacha-flash.rainbow::after{ content:''; position:absolute; inset:-30%;
+  background:conic-gradient(from 0deg, rgba(255,143,208,.55), rgba(255,224,106,.55), rgba(126,224,122,.55),
+    rgba(111,183,255,.55), rgba(255,143,208,.55));
+  mix-blend-mode:screen; animation:gacha-spin 1.1s linear; }
+@keyframes gacha-spin{ to{ transform:rotate(360deg); } }
 /* pixel-art version (used when egg_<colour>_<part> icons exist) */
 .egg-art{ position:relative; width:100%; height:100%;
   animation:egg-in .35s ease-out backwards, egg-wobble 1.1s ease-in-out .35s infinite; animation-delay:calc(var(--i) * 60ms), calc(var(--i) * 60ms + .35s); }
@@ -1463,6 +1480,40 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 @media (max-height:720px){
   #battle-wrap .ult-hint{ display:none; }
 }
+
+/* ---------- battle: unit inspector ---------- */
+.unit-modal{ text-align:left; }
+.ui-head{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.ui-head img{ width:64px; height:64px; object-fit:contain; image-rendering:pixelated; }
+.ui-name{ font-weight:800; font-size:14px; }
+.ui-side{ font-size:9px; background:rgba(226,87,43,.25); border:1px solid rgba(226,87,43,.5);
+  color:#ff9d8a; border-radius:5px; padding:1px 5px; margin-right:6px; vertical-align:2px; }
+.ui-side.boss{ background:rgba(232,180,85,.2); border-color:rgba(232,180,85,.5); color:var(--gold); margin:0 0 0 6px; }
+.ui-tags{ display:flex; align-items:center; gap:3px; margin-top:4px; font-size:11px; }
+.ui-tags img.ico{ width:1.7em !important; height:1.7em !important; }
+.ui-bars{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+.ui-bar-row{ display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); }
+.ui-bar-row .hp-bg, .ui-bar-row .ult-bg{ flex:1; }
+.ui-bar-row b{ color:var(--text); font-size:11.5px; min-width:72px; text-align:right; }
+.ui-stats{ display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:var(--dim);
+  background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+.ui-stats b{ color:var(--text); margin-left:3px; }
+.ui-section{ font-size:11px; font-weight:800; color:var(--gold); margin:12px 0 6px; }
+.ui-none{ font-size:11px; color:var(--dim); }
+.ui-effects{ display:flex; flex-direction:column; gap:5px; }
+.ui-effect{ display:flex; align-items:center; gap:8px; padding:6px 9px; border-radius:9px;
+  background:var(--panel2); border:1px solid var(--line); font-size:11.5px; }
+.ui-effect.bad{ border-color:rgba(226,87,43,.45); }
+.ui-effect.good{ border-color:rgba(126,224,122,.35); }
+.ui-eff-ic{ font-size:14px; }
+.ui-effect small{ display:block; color:var(--dim); font-size:10px; margin-top:2px; }
+.ui-passive{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:11.5px; }
+.ui-passive small{ display:block; color:var(--dim); font-size:10.5px; margin-top:3px; line-height:1.6; }
+.ui-skill{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:7px 10px; margin-bottom:6px; }
+.ui-skill-head{ display:flex; justify-content:space-between; gap:8px; font-size:11.5px; font-weight:700; }
+.ui-skill-head span:last-child{ color:var(--dim); font-size:10px; font-weight:600; white-space:nowrap; }
+.ui-skill-desc{ font-size:10.5px; color:var(--dim); margin-top:3px; line-height:1.6; }
+.unit-modal .btn-block{ margin-top:12px; }
 
 /* ---------- level-dependent numbers / skill upgrade ---------- */
 .lv-stat{ color:var(--gold); display:inline-block; }
@@ -2532,10 +2583,11 @@ function startLevelUpHold(btn){
   }, 350);
 }
 function stopLevelUpHold(finish){
+  const holding = !!(lvHold.start || lvHold.repeat);   // only wrap up a hold that is actually running
   clearTimeout(lvHold.start);
   clearInterval(lvHold.repeat);
   lvHold.start = lvHold.repeat = null;
-  if(finish && lvHold.fired){
+  if(finish && holding && lvHold.fired){
     playSfx('buff');
     render();
     if(lvHold.id) showMonsterDetail(lvHold.id);
@@ -4000,11 +4052,10 @@ function eggSvg(rarity){
         </linearGradient>
       </defs>
       <g class="egg-body">
-        <path class="egg-top" d="M50 8c22 0 34 32 34 54 0 3 0 5-.4 8l-9-5-10 6-10-6-10 6-10-6-9 5c-.4-3-.4-5-.4-8C16 40 28 8 50 8Z" fill="url(#eg-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
-        <path class="egg-bottom" d="M15.6 70l9-5 10 6 10-6 10 6 10-6 9 5c-2.6 22-16 38-33.6 38S18.2 92 15.6 70Z" fill="url(#eg-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
+        <path class="egg-top" d="M16 68C16 34 30 8 50 8S84 34 84 68L76 71 66 64 56 71 46 64 36 71 26 64Z" fill="url(#eg-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
+        <path class="egg-bottom" d="M16 68 26 64 36 71 46 64 56 71 66 64 76 71 84 68c0 30-15 50-34 50S16 98 16 68Z" fill="url(#eg-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
         <ellipse class="egg-spot" cx="37" cy="40" rx="8" ry="11" fill="rgba(255,255,255,.35)"/>
-        <ellipse class="egg-spot2" cx="62" cy="86" rx="6" ry="8" fill="rgba(255,255,255,.2)"/>
-      </g>
+        <ellipse class="egg-spot2" cx="62" cy="92" rx="6" ry="8" fill="rgba(255,255,255,.2)"/>
       </g>
       <g class="egg-shards">
         ${[0, 1, 2, 3, 4, 5].map(i => `<rect class="shard s${i}" x="46" y="60" width="9" height="9" rx="2" fill="url(#eg-${cls})"/>`).join('')}
@@ -4040,9 +4091,19 @@ function showGachaEggs(results, before){
       if(!slot) return;
       slot.classList.add('hatching');
       playSfx(r.mon.rarity >= 5 ? 'boss' : r.mon.rarity >= 3 ? 'confirm' : 'open');
+      if(r.mon.rarity >= 5) setTimeout(() => gachaFlash('rainbow'), 300);
     }, 600 + i * perEgg);
   });
-  gachaTimer = setTimeout(() => finishGachaEggs(), 600 + results.length * perEgg + 1400);
+  gachaTimer = setTimeout(() => finishGachaEggs(), 600 + results.length * perEgg + (best >= 5 ? 2000 : 1400));
+}
+// a burst of light over the whole frame
+function gachaFlash(kind){
+  const phone = document.getElementById('phone');
+  if(!phone) return;
+  const el = document.createElement('div');
+  el.className = `gacha-flash ${kind || ''}`;
+  phone.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
 }
 let gachaPending = null, gachaTimer = null;
 function finishGachaEggs(){
@@ -5146,6 +5207,13 @@ function startBattle(stageId, opts){
   party.filter(u => u.penalty).forEach(u =>
     logLine(`⚠ ${nm(u)} は後衛のため与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%`, 'debuff'));
   [...party, ...battleUI.enemies].forEach(u => runPassive(u, 'onBattleStart'));
+  // line-up passives settle now ("味方に水属性が2体いると…" など), so say what they came to
+  [...party, ...battleUI.enemies].forEach(u => {
+    const p = u.passive;
+    if(!p || !p.name || typeof p.onBattleStart !== 'function') return;
+    const stacks = Object.values(u.stacks || {}).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0);
+    logLine(`⚡${nm(u)} のパッシブ「${p.name}」${stacks ? `(${stacks}段)` : ''}${p.desc ? ` ${p.desc}` : ''}`, 'skill');
+  });
   currentScreen = 'battle-fight';
   battleUI.transitioning = true;
   render();
@@ -6282,9 +6350,16 @@ function logLine(text, cls){
 }
 function pushFx(unit, amount, kind, extra){ battleUI.fxEvents.push({ unit, amount, kind, ...(extra || {}) }); }
 function chance(p){ return Math.random() < p; }
+// hooks whose effect the player must see: a save and a revive change the outcome
+const PASSIVE_LOUD = { survive: 1, onDeath: 1 };
 function runPassive(u, hook, ...args){
   const p = u.passive;
-  return p && typeof p[hook] === 'function' ? p[hook](u, ...args) : undefined;
+  if(!p || typeof p[hook] !== 'function') return undefined;
+  const before = battleUI ? battleUI.log.length : -1;
+  const out = p[hook](u, ...args);
+  if(battleUI && PASSIVE_LOUD[hook] && battleUI.log.length === before && (hook === 'survive' ? out : u.alive))
+    logLine(`${nm(u)} のパッシブ「${p.name}」が発動!`, 'heal');
+  return out;
 }
 function passiveMod(u, hook, ...args){ return runPassive(u, hook, ...args) || 0; }
 function pv(u, v){ return v * lvScale(u.passiveLv); }        // passive value at its level
@@ -6772,39 +6847,69 @@ function runGeneric(ctx){
 }
 
 // support-style effects: { to, buff, v, turns, flat, taunt, shield, heal, cleanse, immune, spGain, drainFoes, firstStrike, redirect }
+// one log line per effect, so the log says what the skill actually did
+function buffAmountText(key, v, flat){
+  if(v === 1 && !flat) return '';                       // taunt, ward and friends carry no number
+  return flat ? `+${Math.round(v)}` : `${v < 0 ? '' : '+'}${Math.round(v * 100)}%`;
+}
+function effectWho(names, total){
+  if(!names.length) return '';
+  return names.length >= 3 && names.length === total ? '全体' : names.join('、');
+}
 function applyEffect(ctx, e){
   const { actor, act, kind } = ctx;
   const targets = e.to === 'foes' ? foesOf(actor).filter(present) : selectAllies(actor, e.to || act.tgt || 'self', e.buff);
   if(e.chance !== undefined && !chance(e.chance)) return;
+  const got = { buff: [], shield: [], heal: [], taunt: [], ward: [], sp: [], drain: [], redirect: [] };
+  let shielded = 0, healed = 0, buffText = '', buffDown = false;
   targets.forEach(t => {
     if(e.buff){
       const v = e.flat ? e.v : capRatio(sv(actor, e.v, kind));
       const turns = (e.turns || 2) + (e.buff === 'spdUp' ? passiveMod(actor, 'spdBuffExtraTurns') : 0);
-      if(t.isEnemy !== actor.isEnemy && DEBUFF_KEYS.includes(e.buff)) applyDebuff(t, e.buff, v, turns, actor);
-      else addBuff(t, e.buff, v, turns, actor);
+      const down = t.isEnemy !== actor.isEnemy && DEBUFF_KEYS.includes(e.buff);
+      const ok = down ? applyDebuff(t, e.buff, v, turns, actor) : (addBuff(t, e.buff, v, turns, actor), true);
+      if(ok){
+        got.buff.push(nm(t));
+        buffDown = down;
+        buffText = `${BUFF_LABEL[e.buff]}${buffAmountText(e.buff, v, e.flat)}・${turns}ターン`;
+      }
       pushFx(t, null, 'buff', { fx: 'buff', label: BUFF_LABEL[e.buff] });
     }
-    if(e.ward) addBuff(t, 'ward', 1, e.ward, actor);
+    if(e.ward){ addBuff(t, 'ward', 1, e.ward, actor); got.ward.push(nm(t)); }
     if(e.cleanseDebuff) cleanseDebuff(t);
-    if(e.taunt) addBuff(t, 'taunt', 1, e.taunt, actor);
+    if(e.taunt){ addBuff(t, 'taunt', 1, e.taunt, actor); got.taunt.push(nm(t)); }
     if(e.shield){
       const base = e.base === 'maxHp' ? t.maxHp : e.base === 'casterMaxHp' ? actor.maxHp : effStr(actor);
-      addShield(t, base * sv(actor, e.shield, kind), e.turns || 2, actor, e.immune);
+      const add = addShield(t, base * sv(actor, e.shield, kind), e.turns || 2, actor, e.immune);
+      if(add > 0){ got.shield.push(nm(t)); shielded += add; }
     }
     if(e.heal){
       const amount = e.base === 'maxHp' ? t.maxHp * e.heal : effStr(actor) * sv(actor, e.heal, kind);
       const g = healUnit(actor, t, amount, { bySkill: true });
       addHate(actor, g * HATE_PER_HEAL);
       pushFx(t, g, 'heal', { fx: 'heal' });
+      if(g > 0){ got.heal.push(nm(t)); healed += g; }
     }
     if(e.cleanse) cleanseOne(t);
-    if(e.immune) addBuff(t, 'immune', 1, e.immune, actor);
-    if(e.spGain) { t.sp = Math.min(t.spCost, t.sp + e.spGain); }
-    if(e.drain) drainSp(t, e.drain);
-    if(e.redirect) addBuff(t, 'redirect', e.redirect, e.turns || 3, actor);
+    if(e.immune){ addBuff(t, 'immune', 1, e.immune, actor); got.ward.push(nm(t)); }
+    if(e.spGain){ t.sp = Math.min(t.spCost, t.sp + e.spGain); got.sp.push(nm(t)); }
+    if(e.drain){ drainSp(t, e.drain); got.drain.push(nm(t)); }
+    if(e.redirect){ addBuff(t, 'redirect', e.redirect, e.turns || 3, actor); got.redirect.push(nm(t)); }
   });
+  const n = targets.length;
+  if(got.buff.length) logLine(`${effectWho(got.buff, n)} に${buffText}`, buffDown ? 'debuff' : 'skill');
+  if(got.heal.length) logLine(`${effectWho(got.heal, n)} のHPが ${healed} 回復`, 'heal');
+  if(got.shield.length) logLine(`${effectWho(got.shield, n)} にシールド ${shielded}`, 'skill');
+  if(got.taunt.length) logLine(`${effectWho(got.taunt, n)} が挑発している`, 'skill');
+  if(got.ward.length) logLine(`${effectWho(got.ward, n)} に免疫`, 'skill');
+  if(got.sp.length) logLine(`${effectWho(got.sp, n)} のSP+${e.spGain}`, 'ult');
+  if(got.drain.length) logLine(`${effectWho(got.drain, n)} のSPを ${e.drain} 奪った`, 'debuff');
+  if(got.redirect.length) logLine(`${effectWho(got.redirect, n)} がダメージを肩代わりする`, 'skill');
   if(e.buff || e.shield || e.heal) addHate(actor, HATE_BUFF);
-  if(e.firstStrike) battleUI.firstStrike = actor.isEnemy ? 'enemies' : 'party';
+  if(e.firstStrike){
+    battleUI.firstStrike = actor.isEnemy ? 'enemies' : 'party';
+    logLine(`${nm(actor)} の号令! 次のラウンドは先に動く`, 'skill');
+  }
 }
 
 /* ---- boss gimmicks ---- */
@@ -7141,6 +7246,96 @@ function cycleSpeed(){
 }
 
 // status icons for battle cards
+/* ---- battle: tap a unit to see its state ---- */
+let inspectUnit = null;          // { side, idx } while the panel is open
+
+function inspectTarget(){
+  if(!inspectUnit || !battleUI) return null;
+  const list = inspectUnit.side === 'enemy' ? battleUI.enemies : battleUI.party;
+  return list[inspectUnit.idx] || null;
+}
+// the label already says up or down, so only the size is shown
+function buffValueText(v){
+  if(v === 1 || !v) return '';
+  return Math.abs(v) < 1 ? `${Math.round(Math.abs(v) * 100)}%` : `${Math.round(Math.abs(v))}`;
+}
+// everything currently on the unit: statuses, shields, buffs and debuffs
+function unitEffects(u){
+  const out = [];
+  const st = u.statuses;
+  if(st.burn) out.push({ icon: STATUS_ICON.burn, label: 'やけど', sub: `1ターン ${st.burn.dmg} ダメージ・回復-${Math.round(BURN_HEAL_CUT * 100)}%・残り${st.burn.turns}ターン`, bad: true });
+  if(st.poison) out.push({ icon: STATUS_ICON.poison, label: `毒(${st.poison.layers.length}層)`, sub: `毎ターン最大HPの${st.poison.layers.length * 2}%・残り${st.poison.turns}ターン`, bad: true });
+  if(st.stun) out.push({ icon: STATUS_ICON.stun, label: '気絶', sub: '次の行動を休む', bad: true });
+  const sh = shieldTotal(u);
+  if(sh > 0) out.push({ icon: '💠', label: 'シールド', sub: `あと ${sh}(${u.shields.length}枚)`, bad: false });
+  Object.entries(u.buffs).forEach(([k, b]) => {
+    const bad = DEBUFF_KEYS.includes(k) || k === 'statue';
+    const amount = buffValueText(b.v);
+    out.push({ icon: BUFF_ICON[k] || (bad ? '▼' : '▲'), label: BUFF_LABEL[k] || k,
+               sub: `${amount ? `${amount}・` : ''}残り${b.turns}ターン`, bad });
+  });
+  return out;
+}
+function renderUnitInspect(){
+  const u = inspectTarget();
+  const layer = document.getElementById('modal-layer');
+  if(!u){ inspectUnit = null; return; }
+  const m = MON_BY_ID[u.ref];
+  const effects = unitEffects(u);
+  const hpPct = Math.max(0, Math.round(u.hp / u.maxHp * 100));
+  const spPct = Math.min(100, Math.round(u.sp / u.spCost * 100));
+  const skillLine = (tag, act, meta) => `
+    <div class="ui-skill"><div class="ui-skill-head"><span><span class="slot-tag">${tag}</span>${act.name}</span><span>${meta}</span></div>
+    <div class="ui-skill-desc">${act.desc || ''}</div></div>`;
+  layer.innerHTML = `
+    <div class="result-modal unit-modal" role="dialog" aria-label="${u.name} の状態">
+      <button class="detail-close" data-close-inspect="1">×</button>
+      <div class="ui-head">
+        <img src="${imgSrc(u.ref)}" alt="${u.name}">
+        <div>
+          <div class="ui-name">${u.isEnemy ? '<span class="ui-side">敵</span>' : ''}${u.name}${u.boss ? '<span class="ui-side boss">BOSS</span>' : ''}</div>
+          <div class="ui-tags">${ELEM_ICON[u.element]}${ROLE_ICON[u.role]}${SPECIES_ICON[u.species]}<span class="lv-note">${starsHtml(u.rarity, u.star)}</span></div>
+        </div>
+      </div>
+      <div class="ui-bars">
+        <div class="ui-bar-row"><span>HP</span><div class="hp-bg"><div class="hp-fill ${hpPct <= 30 ? 'low' : ''}" style="width:${hpPct}%;"></div></div><b>${Math.max(0, u.hp)} / ${u.maxHp}</b></div>
+        <div class="ui-bar-row"><span>SP</span><div class="ult-bg"><div class="ult-fill ${spPct >= 100 ? 'full' : ''}" style="width:${spPct}%;"></div></div><b>${u.sp} / ${u.spCost}</b></div>
+      </div>
+      <div class="ui-stats">
+        <span>STR <b>${Math.round(effStr(u))}</b></span>
+        <span>SPD <b>${Math.round(effSpd(u))}</b></span>
+        <span>物防 <b>${u.pdef}</b></span>
+        <span>魔防 <b>${u.mdef}</b></span>
+        <span>HATE <b>${Math.round(u.hate)}</b></span>
+      </div>
+
+      <div class="ui-section">かかっている効果</div>
+      ${effects.length ? `<div class="ui-effects">${effects.map(e => `
+        <div class="ui-effect ${e.bad ? 'bad' : 'good'}">
+          <span class="ui-eff-ic">${e.icon}</span>
+          <span><b>${e.label}</b><small>${e.sub}</small></span>
+        </div>`).join('')}</div>` : '<div class="ui-none">なし</div>'}
+
+      <div class="ui-section">パッシブ</div>
+      <div class="ui-passive"><b>${u.passive && u.passive.name ? u.passive.name : '―'}</b>${u.passive && u.passive.desc ? `<small>${u.passive.desc}</small>` : ''}</div>
+
+      <div class="ui-section">技</div>
+      ${skillLine('通常', u.normal, ATK_TYPE_LABEL[u.normal.atk] || '―')}
+      ${u.skills.map((sk, i) => skillLine(`スキル${i + 1}`, sk, u.skillCd[i] > 0 ? `CT あと${u.skillCd[i]}ターン` : '使用可')).join('')}
+      ${skillLine('必殺技', u.ult, `SP ${u.sp}/${u.spCost}`)}
+      <button class="btn btn-block" data-close-inspect="1">閉じる</button>
+    </div>`;
+  layer.classList.add('show');
+}
+function showUnitInspect(side, idx){
+  inspectUnit = { side, idx };
+  renderUnitInspect();
+}
+function closeUnitInspect(){
+  inspectUnit = null;
+  closeModal();
+}
+
 function statusIconsOf(u){
   const out = [];
   if(u.statuses.burn) out.push(STATUS_ICON.burn);
@@ -7325,6 +7520,7 @@ function renderBattleReport(b){
 }
 
 function showBattleResult(tab){
+  inspectUnit = null;   // the result takes the modal layer
   const b = battleUI;
   if(tab) b.resultTab = tab;
   const resultTab = b.resultTab || 'main';
@@ -7528,7 +7724,10 @@ function renderBattleFight(){
     const justDied = !u.alive && before > 0;
     return `
       <div class="unit ${u.alive?'':'dead'} ${u.vanished?'vanished':''} ${justDied?'just-died':''} ${isReady?'ready':''} ${isReserved?'reserved':''} ${u.boss?'boss':''} ${u.rare?'rare':''} ${warn?'penalty':''} ${actingClass}"
-        ${isReady || isReserved ? `data-ult="${idx}" role="button" aria-pressed="${isReserved}" aria-label="${u.name} の必殺技${isReserved ? 'の予約を取り消す' : 'を予約'}"` : ''}>
+        data-inspect="${side}:${idx}"
+        ${isReady || isReserved
+          ? `data-ult="${idx}" role="button" aria-pressed="${isReserved}" aria-label="${u.name} の必殺技${isReserved ? 'の予約を取り消す' : 'を予約'}"`
+          : `role="button" aria-label="${u.name} の状態を見る"`}>
         ${isReady ? '<div class="ready-badge">タップで予約</div>' : ''}
         ${isReserved ? '<div class="ready-badge reserved-badge">予約中</div>' : ''}
         ${u.boss ? '<div class="boss-badge">BOSS</div>' : ''}
@@ -7681,6 +7880,7 @@ function formatLogLine(line){
 }
 
 function renderBattleScreenOnly(){
+  if(inspectUnit) renderUnitInspect();   // the panel shows live values
   updateBgm();
   if(currentScreen !== 'battle-fight') return;
   const screenEl = document.getElementById('screen');
@@ -7899,6 +8099,15 @@ function handlePhoneClick(ev){
 
   const detailEl = t.closest('[data-detail]');
   if(detailEl){ showMonsterDetail(detailEl.dataset.detail); return; }
+
+  if(t.closest('[data-close-inspect]')){ closeUnitInspect(); return; }
+  const inspectEl = t.closest('[data-inspect]');
+  if(inspectEl && !t.closest('[data-ult]')){        // an SP-ready ally reserves its ultimate instead
+    const [side, idx] = inspectEl.dataset.inspect.split(':');
+    showUnitInspect(side, Number(idx));
+    playSfx('open');
+    return;
+  }
 
   if(t.closest('[data-owned-toggle]')){ dexOwnedOnly = !dexOwnedOnly; render(); return; }
 

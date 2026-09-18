@@ -99,6 +99,46 @@ async def main():
             check('長押しで連続レベルアップ', await lv() >= 6, f'Lv{await lv()}')
             check('壁で止まる', await lv() == 10, f'Lv{await lv()}')
             await pg.screenshot(path=str(OUT / 'ux_detail.png'))
+
+            # ---- 戦闘: ユニットのタップとログ ----
+            await pg.evaluate("""() => {
+              ['m05','m15','m22','m57','m19'].forEach(id => STATE.owned[id] = { ...newOwned(MON_BY_ID[id]), star:4, level:60, wall:60 });
+              STATE.formationKey='f2'; STATE.slots=['m05','m15','m22','m57','m19'];
+              STATE.clearedStages = STAGES.map(s => s.id); STATE.stamina = 999; STATE.battleSpeed = 1;
+              closeModal(); startBattle('q1_05', { skipIntro:true });
+            }""")
+            await pg.wait_for_timeout(900)
+            await pg.evaluate("() => { battleUI.paused = true; }")   # 戦闘が終わる前に止める
+            check('戦闘中', not await pg.evaluate("() => battleUI.finished"))
+            check('戦闘中の全ユニットがタップできる',
+                  await pg.evaluate("() => document.querySelectorAll('[data-inspect]').length") >= 8)
+            await pg.evaluate("""() => {
+              const u = battleUI.party[0];
+              applyStatus(u, 'burn', battleUI.enemies[0]);
+              addBuff(u, 'strUp', 0.3, 3, u); addShield(u, 200, 2, u);
+            }""")
+            await pg.click('.bf-grid .unit >> nth=0')
+            await pg.wait_for_timeout(300)
+            check('タップで詳細が開く', await pg.evaluate("() => !!document.querySelector('.unit-modal')"))
+            await pg.evaluate("() => showUnitInspect('ally', 0)")   # 効果を付けた本人を開く
+            await pg.wait_for_timeout(300)
+            effects = await pg.evaluate("() => [...document.querySelectorAll('.ui-effect b')].map(e => e.textContent)")
+            check('かかっている効果が出る', 'やけど' in effects and 'STRアップ' in effects and 'シールド' in effects, str(effects))
+            check('パッシブと技が出る',
+                  await pg.evaluate("() => !!document.querySelector('.ui-passive b') && document.querySelectorAll('.ui-skill').length >= 3"))
+            await pg.click('[data-close-inspect]')
+            await pg.wait_for_timeout(200)
+            await pg.evaluate("() => { showUnitInspect('enemy', 0); }")
+            await pg.wait_for_timeout(300)
+            check('敵も見られる', '敵' in await pg.inner_text('.ui-name'), await pg.inner_text('.ui-name'))
+            await pg.click('[data-close-inspect]')
+            await pg.evaluate("() => { STATE.battleSpeed = 3; battleUI.paused = false; scheduleNextTick(); }")
+            await pg.wait_for_timeout(3000)
+            log = await pg.evaluate("() => (battleUI ? battleUI.log : []).join('\\n')")
+            check('パッシブの発動がログに出る', 'パッシブ「' in log)
+            check('バフ・回復・シールドがログに出る',
+                  any(k in log for k in ['アップ', 'シールド', '回復', '挑発']), log[:80])
+
             check('JSエラーなし', not errs, f'{len(errs)}件 {errs[:3]}')
             await b.close()
     raise SystemExit(1 if bad else 0)
