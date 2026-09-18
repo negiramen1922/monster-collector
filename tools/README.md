@@ -24,6 +24,7 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | smoke.py | 起動スモークテスト(主要7画面のJSエラー・横スクロールと、BGMの読み込みを確認) |
 | auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(26項目) |
 | mock_auth.js | テスト用の偽Firebase(認証とFirestoreの代役)。`window.__authBackend` に入る |
+| make_icons.py | 素材のPNGをアイコンに変換して `icon-data` に書き込む(マゼンタ抜き・バッジ除去・96px化) |
 | _serve.py | 画面テスト用のローカルHTTPサーバ(BGMの `fetch` は `file://` では通らないため) |
 | shot*.py | playwrightの画面テスト |
 
