@@ -3611,6 +3611,7 @@ const ownedCount = () => Object.keys(STATE.owned).length;
 const maxOwned = key => Math.max(0, ...Object.values(STATE.owned).map(o => o[key]));
 const clearedOfType = type => STAGES.filter(st => st.type === type && STATE.clearedStages.includes(st.id)).length;
 const typeCount = type => STAGES.filter(st => st.type === type).length;
+const bossClearedInTier = tier => STAGES.filter(st => st.tier === tier && st.boss && STATE.clearedStages.includes(st.id)).length;
 const ACHIEVEMENTS = [
   { id:'a_collect', label:n => `モンスターを${n}体集める`, value:() => ownedCount(),
     tiers:[
@@ -3624,6 +3625,13 @@ const ACHIEVEMENTS = [
     tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }] }] },
   { id:'a_bossall', label:() => 'クエストのボスをすべて倒す', value:() => STAGES.filter(st => st.boss && STATE.clearedStages.includes(st.id)).length / Math.max(1, STAGES.filter(st => st.boss).length), ratio:true,
     tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }, { type:'item', key:'box_sel_4', n:2 }] }] },
+  // each tier has exactly 2 boss stages; clearing both pays a 10-pull's worth of crystals
+  { id:'a_boss_q1', label:() => '初級のボスを2体とも倒す', value:() => bossClearedInTier('q1'),
+    tiers:[{ goal:2, reward:[{ type:'crystal', n:1350 }] }] },
+  { id:'a_boss_q2', label:() => '中級のボスを2体とも倒す', value:() => bossClearedInTier('q2'),
+    tiers:[{ goal:2, reward:[{ type:'crystal', n:1350 }] }] },
+  { id:'a_boss_q3', label:() => '上級のボスを2体とも倒す', value:() => bossClearedInTier('q3'),
+    tiers:[{ goal:2, reward:[{ type:'crystal', n:1350 }] }] },
   { id:'a_clears', label:n => `探索を${n}回クリアする`, value:() => stat('stageClear'),
     tiers:[10, 50, 100, 300].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[50, 100, 200, 300][i] }] })) },
   { id:'a_dungeon', label:n => `育成ダンジョンを${n}回クリアする`, value:() => stat('dungeonClear'),
@@ -3639,8 +3647,9 @@ const ACHIEVEMENTS = [
   { id:'a_befriend', label:n => `探索でモンスターを${n}体仲間にする`, value:() => stat('befriend'),
     tiers:[1, 5, 10].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[100, 200, 300][i] }] })) },
 ];
-// beginner missions: one step at a time, the last one gives a ★4
-// ordered to double as a soft tutorial: clear the tutorial stages first, then
+// beginner missions: one step at a time, completing all of them pays a 10-pull's
+// worth of crystals (BEGINNER_ALL_CLEAR below). ordered to double as a soft
+// tutorial: clear the tutorial stages first, then
 // touch each basic system in turn (gacha → party → level → formation → …).
 const BEGINNER_MISSIONS = [
   { id:'b05', label:'チュートリアルを終える',          hint:'探索 → 入門',          value:() => STATE.clearedStages.includes('tu3') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
@@ -3659,14 +3668,15 @@ const BEGINNER_ALL_CLEAR = [{ type:'crystal', n:1350 }];
 
 /* ---- beginner 7-day login bonus: one calendar day (not necessarily
    consecutive) advances it, so a new player never loses progress by missing a day ---- */
+// crystal-only, and sums to exactly 1350 (a 10-pull) across all 7 days
 const BEGINNER_LOGIN_REWARDS = [
-  [{ type:'crystal', n:50 }],
-  [{ type:'gold', n:8000 }],
-  [{ type:'crystal', n:80 }, { type:'item', key:'exp1', n:20 }],
-  [{ type:'universal', n:15 }],
   [{ type:'crystal', n:100 }],
-  [{ type:'item', key:'box_sel_2', n:1 }],
-  [{ type:'crystal', n:250 }, { type:'universal', n:30 }],
+  [{ type:'crystal', n:150 }],
+  [{ type:'crystal', n:150 }],
+  [{ type:'crystal', n:200 }],
+  [{ type:'crystal', n:200 }],
+  [{ type:'crystal', n:250 }],
+  [{ type:'crystal', n:300 }],
 ];
 function ensureBeginnerLogin(){
   if(!STATE.beginnerLogin) STATE.beginnerLogin = { day: 0, key: null, claimed: [] };
