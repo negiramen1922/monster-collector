@@ -3625,9 +3625,11 @@ const ACHIEVEMENTS = [
     tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }] }] },
   { id:'a_bossall', label:() => 'クエストのボスをすべて倒す', value:() => STAGES.filter(st => st.boss && STATE.clearedStages.includes(st.id)).length / Math.max(1, STAGES.filter(st => st.boss).length), ratio:true,
     tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }, { type:'item', key:'box_sel_4', n:2 }] }] },
-  // each tier has exactly 2 boss stages; clearing both pays a 10-pull's worth of crystals
-  { id:'a_boss_q1', label:() => '初級のボスを2体とも倒す', value:() => bossClearedInTier('q1'),
-    tiers:[{ goal:2, reward:[{ type:'crystal', n:1350 }] }] },
+  // 初級: each boss stage pays its own reward. 中級/上級: both bosses together pay a 10-pull's worth
+  { id:'a_boss_q1_05', label:() => '初級「猪王の縄張り」のボスを倒す', value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0,
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }] }] },
+  { id:'a_boss_q1_10', label:() => '初級「森の主」のボスを倒す', value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0,
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }] }] },
   { id:'a_boss_q2', label:() => '中級のボスを2体とも倒す', value:() => bossClearedInTier('q2'),
     tiers:[{ goal:2, reward:[{ type:'crystal', n:1350 }] }] },
   { id:'a_boss_q3', label:() => '上級のボスを2体とも倒す', value:() => bossClearedInTier('q3'),
