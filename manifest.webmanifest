@@ -1,6 +1,6 @@
 {
-  "name": "モンスター収集ゲーム",
-  "short_name": "MONSTER",
+  "name": "MonsterCollector",
+  "short_name": "モンコレ",
   "description": "105体のモンスターを集めて育てる、ブラウザで遊べる収集RPG。",
   "lang": "ja",
   "start_url": "./",
