@@ -1598,6 +1598,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ssa-sub{ font-size:10.5px; color:var(--dim); margin-top:3px; line-height:1.6; }
 .ssa-go{ font-size:11px; font-weight:800; color:var(--gold); white-space:nowrap; }
 .ss-actions .ss-go{ flex:1.5; }
+.go-cost{ display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; background:rgba(15,12,26,.28); color:#2a2114; font-size:11px; font-weight:800; vertical-align:1px; }
 .ss-actions .sweep-btn{ flex:1; }
 
 /* ---------- quest: tabs, stage cards, affinity sheet ---------- */
@@ -5054,7 +5055,7 @@ function renderParty(){
     <div class="panel panel-tight cover-card">
       <div class="row-between" style="margin-bottom:8px;">
         <div class="mc-head">属性カバー</div>
-        <div class="cover-bp">総合BP <b>${totalBp.toLocaleString()}</b></div>
+        <div class="cover-bp"><b>${new Set(partyIds.map(id => MON_BY_ID[id].element)).size}</b> 属性</div>
       </div>
       <div class="cover-row">
         ${ELEM_ORDER.map(e => {
@@ -5212,7 +5213,7 @@ function renderStageSheet(){
       <div class="ss-actions">
         ${sweepButton(st)}
         <button class="btn ss-go ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
-          ${st.stamina ? `出撃する(⚡${st.stamina})` : '出撃する'}
+          出撃する${st.stamina ? `<span class="go-cost">⚡${st.stamina}</span>` : ''}
         </button>
       </div>
     </div>`;

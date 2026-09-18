@@ -71,7 +71,12 @@ async def main():
             g = await acct(a)
             check('ゲストで開始できる', g and g['provider'] == 'guest' and await a.evaluate("() => !!document.getElementById('nav')"))
             check('プレイヤーIDが割り振られる', bool(g and ID_RE.match(g['playerId'])), g['playerId'] if g else '-')
-            check('ホームにアカウント欄が出る', await a.evaluate("() => !!document.querySelector('[data-open-account]')"))
+            # アカウント連携は設定画面から開く
+            await a.click('.ov-link[data-overlay="settings"]')
+            await a.wait_for_timeout(300)
+            check('設定にアカウント欄が出る', await a.evaluate("() => !!document.querySelector('[data-open-account]')"))
+            await a.evaluate("() => { overlayView = null; render(); }")
+            await a.wait_for_timeout(200)
 
             # 保存 → 再読み込みで自動ログイン
             await set_crystals(a, 777)
