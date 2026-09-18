@@ -100,6 +100,51 @@ async def main():
             check('壁で止まる', await lv() == 10, f'Lv{await lv()}')
             await pg.screenshot(path=str(OUT / 'ux_detail.png'))
 
+
+            # ---- 周回UI・★上げフィルター・シールド表示 ----
+            await pg.evaluate("""() => {
+              closeModal(); STATE.stamina = 180; STATE.vip = true;
+              STATE.stageStars = Object.fromEntries(STAGES.map(s => [s.id, 3]));
+              STATE.owned['m128'].souls = 999;
+              sweepTarget = 'q1_01'; renderSweepModal();
+            }""")
+            await pg.wait_for_timeout(300)
+            sweep = await pg.evaluate("() => [...document.querySelectorAll('[data-sweep-run]')].map(b => b.textContent.replace(/\\\\s+/g,' ').trim())")
+            check('周回に回数・消費・残りが出る', any('残り' in x and '⚡' in x for x in sweep), str(sweep[:2]))
+            check('周回に今のスタミナが出る', '180' in await pg.inner_text('.sw-stamina'))
+            check('周回に1回の報酬が出る', '報酬' in await pg.inner_text('.sw-reward'))
+            await pg.evaluate("() => closeModal()")
+
+            await pg.evaluate("() => { goto('dex'); render(); }")
+            await pg.wait_for_timeout(300)
+            all_cells = await pg.evaluate("() => document.querySelectorAll('.mon-cell').length")
+            await pg.click('[data-promo-toggle="dex"]')
+            await pg.wait_for_timeout(300)
+            promo_cells = await pg.evaluate("() => document.querySelectorAll('.mon-cell').length")
+            check('★上げできるモンスターだけに絞れる', 0 < promo_cells < all_cells, f'{all_cells} → {promo_cells}')
+            check('絞れる数がボタンに出る', '(' in await pg.inner_text('[data-promo-toggle="dex"]'))
+            await pg.click('[data-promo-toggle="dex"]')
+            await pg.wait_for_timeout(200)
+
+            await pg.evaluate("""() => {
+              ['m05','m15','m22','m57','m19'].forEach(id => STATE.owned[id] = { ...newOwned(MON_BY_ID[id]), star:4, level:60, wall:60 });
+              STATE.formationKey = 'f2'; STATE.slots = ['m05','m15','m22','m57','m19'];
+              STATE.clearedStages = STAGES.map(s => s.id);
+              STATE.stamina = 999; STATE.battleSpeed = 1; startBattle('q1_05', { skipIntro:true });
+            }""")
+            await pg.wait_for_timeout(900)
+            await pg.evaluate("""() => { battleUI.paused = true;
+              const u = battleUI.party[0]; u.hp = Math.round(u.maxHp * 0.5);
+              addShield(u, Math.round(u.maxHp * 0.3), 3, u); renderBattleScreenOnly(); }""")
+            await pg.wait_for_timeout(300)
+            check('シールドがHPバーの上に青く出る',
+                  await pg.evaluate("() => document.querySelectorAll('.shield-fill').length") >= 1)
+            check('シールド量が数字で出る',
+                  await pg.evaluate("() => { const e = document.querySelector('.shield-num'); return e && Number(e.textContent) > 0; }"))
+            check('状態アイコンから💠が消えた',
+                  '💠' not in await pg.evaluate("() => [...document.querySelectorAll('.status-row')].map(e => e.textContent).join('')"))
+            await pg.evaluate("() => { closeModal(); goto('home'); render(); }")
+
             # ---- 戦闘: ユニットのタップとログ ----
             await pg.evaluate("""() => {
               ['m05','m15','m22','m57','m19'].forEach(id => STATE.owned[id] = { ...newOwned(MON_BY_ID[id]), star:4, level:60, wall:60 });

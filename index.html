@@ -1481,6 +1481,24 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   #battle-wrap .ult-hint{ display:none; }
 }
 
+/* ---------- sweep panel ---------- */
+.sw-stamina{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:12px; }
+.sw-stamina .soul-bar{ margin:6px 0 4px; }
+.sw-reward{ font-size:11px; color:var(--dim); background:var(--panel2); border:1px solid var(--line);
+  border-radius:10px; padding:8px 10px; margin-bottom:10px; line-height:1.6; }
+.sweep-opts .btn{ display:flex; flex-direction:column; align-items:center; gap:2px; }
+.sweep-opts .btn small{ font-weight:700; opacity:.8; font-size:9.5px; }
+
+/* ---------- shield over the HP bar ---------- */
+.hp-bg{ position:relative; }
+.shield-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(180deg, rgba(150,220,255,.95), rgba(58,160,214,.85));
+  box-shadow:0 0 6px rgba(120,200,255,.55); }
+.shield-num{ position:absolute; right:2px; top:-11px; z-index:4; font-size:9.5px; font-weight:800; line-height:1;
+  color:#9fdcff; text-shadow:0 1px 3px #000, 0 0 6px rgba(0,0,0,.9); pointer-events:none; }
+.ubody{ position:relative; z-index:3; }
+.ui-bar-row .sh-num{ display:block; font-size:10px; color:#9fdcff; }
+
 /* ---------- battle: unit inspector ---------- */
 .unit-modal{ text-align:left; }
 .ui-head{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
@@ -2827,12 +2845,26 @@ function renderSweepModal(){
   refreshStamina();
   const max = Math.floor(STATE.stamina / stage.stamina);
   const opts = [...new Set([1, 5, 10, max].filter(n => n >= 1 && n <= max))].sort((a, b) => a - b);
+  const stamPct = Math.min(100, Math.round(STATE.stamina / STAMINA_MAX * 100));
+  const drops = stage.drops ? stage.drops.tiers.reduce((a, b) => a + b, 0) : 0;
+  const pots = Object.values(stage.pots || {}).reduce((a, b) => a + b, 0);
   layer.innerHTML = `
     <div class="result-modal sweep-modal" role="dialog" aria-label="周回">
       <h3>周回:${stage.name}</h3>
-      <p class="fs-note">戦闘をスキップして、クリア報酬だけを受け取ります。1回 ⚡${stage.stamina}(今のスタミナ ${STATE.stamina})</p>
-      ${opts.length ? `<div class="sweep-opts">${opts.map(n => `<button class="btn" data-sweep-run="${n}">${n === max && n > 10 ? `最大 ${n}回` : `${n}回`}<small>⚡${n * stage.stamina}</small></button>`).join('')}</div>`
-        : '<div class="soul-none">スタミナが足りません</div>'}
+      <p class="fs-note">戦闘をスキップして、クリア報酬だけを受け取ります。</p>
+      <div class="sw-stamina">
+        <div class="row-between"><span>今のスタミナ</span><b>⚡${STATE.stamina} / ${STAMINA_MAX}</b></div>
+        <div class="soul-bar"><div class="soul-fill" style="width:${stamPct}%;"></div></div>
+        <div class="promo-note">1回 ⚡${stage.stamina}・いまは最大 ${max}回${
+          STATE.stamina >= STAMINA_MAX ? '' : `・全回復まで ${formatDuration(msToFullStamina())}`}</div>
+      </div>
+      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・🧪EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル(1日5個まで)' : ''}</div>
+      ${opts.length ? `<div class="sweep-opts">${opts.map(n => `
+        <button class="btn" data-sweep-run="${n}">
+          <b>${n === max && n > 10 ? `最大 ${n}回` : `${n}回`}</b>
+          <small>⚡${n * stage.stamina} → 残り ⚡${STATE.stamina - n * stage.stamina}</small>
+        </button>`).join('')}</div>`
+        : `<div class="soul-none">スタミナが足りません(1回 ⚡${stage.stamina})</div>`}
       <button class="btn btn-ghost btn-block" id="close-result">やめる</button>
     </div>`;
   layer.classList.add('show');
@@ -3520,6 +3552,7 @@ function bossOf(stage){
 let currentScreen = 'home';
 let dexFilter = { elem: [], role: [], species: [] };
 let dexSort = { key: 'no', desc: false };
+let dexPromoOnly = false, rosterPromoOnly = false;   // 昇格できるモンスターだけ
 let filterTarget = 'roster';   // which screen the filter sheet is editing
 let dexOwnedOnly = false;
 
@@ -3666,6 +3699,13 @@ function matchesRosterFilter(m, f){
     && (!f.species.length || f.species.includes(speciesOf(m)));
 }
 function filterCount(f){ return f.elem.length + f.role.length + f.species.length; }
+// enough souls for the next ★ (the gold is checked when you actually promote)
+function canPromoteNow(id){
+  const o = STATE.owned[id];
+  if(!o) return false;
+  const need = soulsToNext(o);
+  return need !== null && o.souls >= need;
+}
 
 function goto(screen){
   if(screen !== currentScreen) logEvent('screen_view', { screen_name: screen });
@@ -4367,7 +4407,7 @@ function showMonsterDetail(id){
 
 
 function renderDex(){
-  const pool = MONSTERS.filter(m => !dexOwnedOnly || STATE.owned[m.id]);
+  const pool = MONSTERS.filter(m => (!dexOwnedOnly || STATE.owned[m.id]) && (!dexPromoOnly || canPromoteNow(m.id)));
   const list = sortMonsters(pool.filter(m => matchesRosterFilter(m, dexFilter)), dexSort);
   const ownedChip = `<button class="btn btn-sm ${dexOwnedOnly ? '' : 'btn-ghost'}" data-owned-toggle="1" aria-pressed="${dexOwnedOnly}">所持のみ</button>`;
 
@@ -4509,6 +4549,8 @@ function renderFilterControls(target, extra){
   const keys = target === 'dex' ? DEX_SORT_KEYS : SORT_KEYS;
   const filter = target === 'dex' ? dexFilter : rosterFilter;
   const n = filterCount(filter);
+  const promoOn = target === 'dex' ? dexPromoOnly : rosterPromoOnly;
+  const promoN = MONSTERS.filter(m => canPromoteNow(m.id)).length;
   const activeIcons = FILTER_GROUPS.flatMap(g => g.items().filter(it => filter[g.key].includes(it.key)).map(it => it.icon)).join('');
   return `
     <div class="sort-row" role="group" aria-label="並び替え">
@@ -4520,6 +4562,8 @@ function renderFilterControls(target, extra){
     </div>
     <div class="filter-bar">
       <button class="btn btn-sm ${n ? '' : 'btn-ghost'} rf-open" data-rf-open="${target}">絞り込み${n ? `(${n})` : ''}</button>
+      <button class="btn btn-sm ${promoOn ? '' : 'btn-ghost'}" data-promo-toggle="${target}" aria-pressed="${promoOn}"
+        title="ソウルが貯まっていて★を上げられるモンスター">★上げ${promoN ? `(${promoN})` : ''}</button>
       ${extra || ''}
       <div class="rf-summary">${n ? activeIcons : '<span class="rf-none">すべて表示中</span>'}</div>
       ${n ? `<button class="btn btn-ghost btn-sm" data-rf-clear="${target}">解除</button>` : ''}
@@ -4644,7 +4688,7 @@ function renderParty(){
   partyIds.forEach(id => { const m = MON_BY_ID[id]; if(m) coverage[m.element] = true; });
 
   const ownedAll = Object.keys(STATE.owned).map(id => MON_BY_ID[id]);
-  const ownedList = sortedRoster(ownedAll.filter(m => matchesRosterFilter(m, rosterFilter)));
+  const ownedList = sortedRoster(ownedAll.filter(m => matchesRosterFilter(m, rosterFilter) && (!rosterPromoOnly || canPromoteNow(m.id))));
   const f = currentFormation();
   const pickId = formationPick !== null ? STATE.slots[formationPick] : null;
   const guide = formationPick === null
@@ -7282,6 +7326,7 @@ function renderUnitInspect(){
   if(!u){ inspectUnit = null; return; }
   const m = MON_BY_ID[u.ref];
   const effects = unitEffects(u);
+  const shield = shieldTotal(u);
   const hpPct = Math.max(0, Math.round(u.hp / u.maxHp * 100));
   const spPct = Math.min(100, Math.round(u.sp / u.spCost * 100));
   const skillLine = (tag, act, meta) => `
@@ -7298,7 +7343,12 @@ function renderUnitInspect(){
         </div>
       </div>
       <div class="ui-bars">
-        <div class="ui-bar-row"><span>HP</span><div class="hp-bg"><div class="hp-fill ${hpPct <= 30 ? 'low' : ''}" style="width:${hpPct}%;"></div></div><b>${Math.max(0, u.hp)} / ${u.maxHp}</b></div>
+        <div class="ui-bar-row"><span>HP</span>
+          <div class="hp-bg">
+            <div class="hp-fill ${hpPct <= 30 ? 'low' : ''}" style="width:${hpPct}%;"></div>
+            ${shield > 0 ? `<div class="shield-fill" style="width:${Math.min(100, Math.round(shield / u.maxHp * 100))}%;"></div>` : ''}
+          </div>
+          <b>${shield > 0 ? `<span class="sh-num">シールド ${shield}</span>` : ''}${Math.max(0, u.hp)} / ${u.maxHp}</b></div>
         <div class="ui-bar-row"><span>SP</span><div class="ult-bg"><div class="ult-fill ${spPct >= 100 ? 'full' : ''}" style="width:${spPct}%;"></div></div><b>${u.sp} / ${u.spCost}</b></div>
       </div>
       <div class="ui-stats">
@@ -7341,8 +7391,7 @@ function statusIconsOf(u){
   if(u.statuses.burn) out.push(STATUS_ICON.burn);
   if(u.statuses.poison) out.push(`${STATUS_ICON.poison}${u.statuses.poison.layers.length > 1 ? u.statuses.poison.layers.length : ''}`);
   if(u.statuses.stun) out.push(STATUS_ICON.stun);
-  const sh = shieldTotal(u);
-  if(sh > 0) out.push(`💠${sh}`);
+  // the shield is drawn over the HP bar instead of sitting here as an icon
   Object.keys(u.buffs).forEach(k => { if(BUFF_ICON[k]) out.push(BUFF_ICON[k]); });
   if(u.passive.stackIcon) { const s = u.passive.stackIcon(u); if(s) out.push(s); }
   return out.join('');
@@ -7722,6 +7771,8 @@ function renderBattleFight(){
     const fromPct = Math.max(0, Math.round((before / u.maxHp) * 100));
     const hpAnim = fromPct !== hpPct ? `hp-anim" style="--hp-from:${fromPct}%; width:${hpPct}%;` : `" style="width:${hpPct}%;`;
     const justDied = !u.alive && before > 0;
+    const shield = u.alive ? shieldTotal(u) : 0;
+    const shieldPct = Math.min(100, Math.round(shield / u.maxHp * 100));
     return `
       <div class="unit ${u.alive?'':'dead'} ${u.vanished?'vanished':''} ${justDied?'just-died':''} ${isReady?'ready':''} ${isReserved?'reserved':''} ${u.boss?'boss':''} ${u.rare?'rare':''} ${warn?'penalty':''} ${actingClass}"
         data-inspect="${side}:${idx}"
@@ -7740,7 +7791,11 @@ function renderBattleFight(){
         <div class="uname">${ELEM_ICON[u.element]}${u.name}</div>
         <img src="${imgSrc(u.ref)}" alt="${u.name}">
         <div class="ubody">
-          <div class="hp-bg"><div class="hp-fill ${hpPct<=30?'low':''} ${hpAnim}"></div></div>
+          ${shield > 0 ? `<div class="shield-num">${shield}</div>` : ''}
+          <div class="hp-bg">
+            <div class="hp-fill ${hpPct<=30?'low':''} ${hpAnim}"></div>
+            ${shield > 0 ? `<div class="shield-fill" style="width:${shieldPct}%;"></div>` : ''}
+          </div>
           <div class="ult-bg" title="SP ${u.sp}/${u.spCost}">${u.alive ? `<div class="ult-fill ${side==='enemy'?'enemy':''} ${spPct>=100?'full':''}" style="width:${spPct}%;"></div>` : ''}</div>
           <div class="status-row">${statusIcons}</div>
         </div>
@@ -8075,10 +8130,16 @@ function handlePhoneClick(ev){
   }
   const rfOpen = t.closest('[data-rf-open]');
   if(rfOpen){ openFilterSheet(rfOpen.dataset.rfOpen); return; }
+  const promoEl = t.closest('[data-promo-toggle]');
+  if(promoEl){
+    if(promoEl.dataset.promoToggle === 'dex') dexPromoOnly = !dexPromoOnly; else rosterPromoOnly = !rosterPromoOnly;
+    render(); return;
+  }
   const rfClear = t.closest('[data-rf-clear]');
   if(rfClear){
     const empty = { elem: [], role: [], species: [] };
-    if(rfClear.dataset.rfClear === 'dex') dexFilter = empty; else rosterFilter = empty;
+    if(rfClear.dataset.rfClear === 'dex'){ dexFilter = empty; dexPromoOnly = false; }
+    else { rosterFilter = empty; rosterPromoOnly = false; }
     render(); return;
   }
   const rfChip = t.closest('[data-rf-chip]');
