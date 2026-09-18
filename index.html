@@ -1482,6 +1482,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   #battle-wrap .ult-hint{ display:none; }
 }
 
+/* ---------- stage sheet: join odds ---------- */
+.ss-label .ss-sub{ float:right; font-weight:600; color:var(--dim); font-size:9.5px; }
+.enemy-chip{ position:relative; display:inline-flex; flex-direction:column; align-items:center; gap:1px; }
+.enemy-chip small{ font-size:9px; font-weight:800; color:var(--gold); line-height:1; }
+.enemy-chip.have small{ color:#9fdcff; }
+
 /* ---------- sweep panel ---------- */
 .sw-stamina{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:12px; }
 .sw-stamina .soul-bar{ margin:6px 0 4px; }
@@ -2859,7 +2865,7 @@ function renderSweepModal(){
         <div class="promo-note">1回 ⚡${stage.stamina}・いまは最大 ${max}回${
           STATE.stamina >= STAMINA_MAX ? '' : `・全回復まで ${formatDuration(msToFullStamina())}`}</div>
       </div>
-      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・🧪EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}</div>
+      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・🧪EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
       ${opts.length ? `<div class="sweep-opts">${opts.map(n => `
         <button class="btn" data-sweep-run="${n}">
           <b>${n === max && n > 10 ? `最大 ${n}回` : `${n}回`}</b>
@@ -3290,10 +3296,13 @@ const DAY_RESET_HOUR = 4;                // daily counters reset at 4:00 local t
 // no daily cap: exploration souls are slow by the numbers below, not by a timer
 const NORMAL_SOUL_DROP = 0.20;           // per defeated ★1/★2 enemy
 const RARE_SPAWN_PER_WAVE = 0.08;        // a ★3/★4 from the stage's rare list replaces one enemy
-/* Souls needed to befriend a monster you do not own. The gacha is the way in; exploration
-   is the slow alternative. At roughly 29 runs a day these work out as: ★1 half a day,
-   ★2 two days, ★3 and ★4 about nine days each. */
-const UNLOCK_SOULS = { 1: 10, 2: 25, 3: 60, 4: 250 };
+/* Clearing a stage can befriend a monster outright: one roll per kind that showed up.
+   A monster you already own leaves souls instead, the same as a gacha duplicate. */
+const RECRUIT_CHANCE = { 1: 0.30, 2: 0.30, 3: 0.15, 4: 0.01, 5: 0.002 };
+/* The souls that drop along the way are the safety net: collect this many of a monster you
+   do not own and it joins anyway, however unlucky the rolls have been. */
+const UNLOCK_SOULS = { 1: 10, 2: 25, 3: 60, 4: 250, 5: 400 };
+const pctText = v => v >= 0.01 ? `${Math.round(v * 100)}%` : `${(v * 100).toFixed(1)}%`;
 const DEBUG_TOOLS = true;                // test buttons (stamina refill) on the stage screen
 
 /* ================= QUESTS (tutorial + 5 tiers × 10 stages) =================
@@ -4828,20 +4837,25 @@ function renderStageSheet(){
           <div>
             <div class="bh-name">${'★'.repeat(boss.rarity)} ${boss.name}</div>
             <div class="bh-tags">${ELEM_ICON[boss.element]}${ELEM_LABEL[boss.element]}・${ROLE_ICON[boss.role]}${ROLE_LABEL[boss.role]}</div>
-            <div class="bh-tags">◆ ボスのソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個)・仲間にするまで ${UNLOCK_SOULS[boss.rarity]}個</div>
+            <div class="bh-tags">🤝 仲間になる ${pctText(RECRUIT_CHANCE[boss.rarity] || 0)}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)</div>
           </div>
         </div>` : ''}
       <div class="ss-block">
-        <div class="ss-label">出現する敵</div>
+        <div class="ss-label">出現する敵<span class="ss-sub">クリアで仲間になる確率</span></div>
         <div class="stage-enemy-row">
-          ${enemyIds.map(id => `<img src="${imgSrc(id)}" alt="" title="${MON_BY_ID[id].name}">`).join('')}
+          ${enemyIds.map(id => {
+            const m = MON_BY_ID[id];
+            return `<span class="enemy-chip ${STATE.owned[id] ? 'have' : ''}" title="${m.name}${STATE.owned[id] ? '(所持済み: 重複はソウルに)' : ''}">
+              <img src="${imgSrc(id)}" alt="">
+              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(RECRUIT_CHANCE[m.rarity] || 0)}</small></span>`;
+          }).join('')}
         </div>
       </div>
       ${st.rares ? `
         <div class="ss-block">
           <div class="ss-label">レア出現(各ウェーブ${Math.round(RARE_SPAWN_PER_WAVE * 100)}%)</div>
           <div class="rare-row">
-            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${daily.rareSouls[id] || 0}/${UNLOCK_SOULS[MON_BY_ID[id].rarity]}</small></span>`).join('')}
+            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(RECRUIT_CHANCE[MON_BY_ID[id].rarity] || 0)}</small></span>`).join('')}
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -7737,7 +7751,21 @@ function grantStageRewards(stage, spawned){
       addSoul(u.ref, 1);
     }
   });
-  const souls = Object.entries(soulTotals).map(([id, n]) => ({ ...giveSouls(id, n), rare: spawned.some(u => u.ref === id && u.rare), boss: spawned.some(u => u.ref === id && u.boss) }));
+  // each kind that showed up gets one roll to join; already owned, it leaves souls instead
+  const recruited = [];
+  [...new Set(spawned.map(u => u.ref))].forEach(id => {
+    const m = MON_BY_ID[id];
+    if(!m || Math.random() >= (RECRUIT_CHANCE[m.rarity] || 0)) return;
+    if(STATE.owned[id]){
+      addSoul(id, DUP_SOULS[m.rarity] || 1);
+    }else{
+      // top the pending souls up to the threshold, so the usual join path takes over
+      addSoul(id, Math.max(1, (UNLOCK_SOULS[m.rarity] || 20) - (STATE.pendingSouls[id] || 0)));
+      recruited.push(id);
+    }
+  });
+  const souls = Object.entries(soulTotals).map(([id, n]) => ({ ...giveSouls(id, n), rare: spawned.some(u => u.ref === id && u.rare), boss: spawned.some(u => u.ref === id && u.boss), recruit: recruited.includes(id) }));
+  souls.filter(x => x.joined).forEach(x => logEvent('monster_join', { monster: x.id, rarity: MON_BY_ID[x.id].rarity, how: x.recruit ? 'recruit' : 'souls' }));
 
   // first clear
   let crystals = 0;

@@ -1,7 +1,11 @@
 const load=require('./harness.js');
-const api=load('game.js', src => src + `;global.__e={expToNext,expNeeded,levelUpMonster,breakWall,atWall,levelStop,upgradeSkillLevel,skillCostList,promoteMonster,openRandomBox,openSelectBox,craftMat,collectFacility,upgradeFacility,idleAmount,baseState,dungeonStage,grantDungeonRewards,grantStageRewards,matOpenToday,getItem,addItem,addGold,wallCost,expPotTotal,missionEntries,claimMission,STAGE_BY_ID,findStage,get b(){return battleUI}};`);
+const api=load('game.js', src => src + `;global.__e={expToNext,expNeeded,levelUpMonster,breakWall,atWall,levelStop,upgradeSkillLevel,skillCostList,promoteMonster,openRandomBox,openSelectBox,craftMat,collectFacility,upgradeFacility,idleAmount,baseState,dungeonStage,grantDungeonRewards,grantStageRewards,matOpenToday,getItem,addItem,addGold,wallCost,expPotTotal,missionEntries,claimMission,STAGE_BY_ID,findStage,giveSouls,RECRUIT_CHANCE,UNLOCK_SOULS,DUP_SOULS,get b(){return battleUI}};`);
 const E=global.__e;
 const ok=(name, cond, info)=>console.log((cond?'✅':'❌')+' '+name+(info!==undefined?'  '+JSON.stringify(info):''));
+// クリア時の「仲間になる」抽選は乱数なので、個数を数える検証のあいだは止める
+const recruitRates={...E.RECRUIT_CHANCE};
+const setRecruit=on=>Object.keys(E.RECRUIT_CHANCE).forEach(k=>{ E.RECRUIT_CHANCE[k]= on?recruitRates[k]:0; });
+setRecruit(false);
 const sum=n=>{let t=0; for(let L=1;L<n;L++) t+=E.expToNext(L); return t;};
 ok('経験値: Lv100まで約7,500', Math.abs(sum(100)-7526)<30, sum(100));
 ok('経験値: Lv200まで約62,000', Math.abs(sum(200)-62417)<200, sum(200));
@@ -85,3 +89,31 @@ const bossOnly=bb.spawned.filter(u=>u.boss);
 let souls=0; for(let i=0;i<8;i++){ const rr=E.grantStageRewards(E.STAGE_BY_ID.q1_05, bossOnly); souls+=rr.souls.reduce((a,x)=>a+x.n,0); }
 ok('ボスのソウルに1日の上限はない(8回で8個)', souls===8, souls);
 ok('ボスステージのドロップ(初級: TierI×4・II×1・III×1)', res.items.filter(x=>/^(el|sp|ro)_/.test(x.key)).reduce((a,x)=>a+x.n,0)===6, res.items);
+
+// ---- クリアで仲間になる抽選 ----
+setRecruit(true);
+const rs=api.STATE; rs.owned={}; rs.pendingSouls={}; rs.daily=null;
+const stage=E.STAGE_BY_ID.q1_01;
+const kinds=[...new Set(stage.waves.flat().map(e=>e.ref))];
+const spawned=stage.waves.flat().map(e=>({ ref:e.ref, rarity:api.MON_BY_ID[e.ref].rarity, boss:!!e.boss, rare:false }));
+let joined=0, runs=0;
+while(joined<kinds.length && runs<500){
+  runs++;
+  const r=E.grantStageRewards(stage, spawned);
+  joined=kinds.filter(id=>api.STATE.owned[id]).length;
+}
+ok('クリアで★1が仲間になる(3種そろうまで50周以内)', joined===kinds.length && runs<=50, {runs, joined});
+// 所持済みなら重複ぶんはソウルになる
+rs.pendingSouls={};
+const before=api.STATE.owned[kinds[0]].souls;
+let gotSouls=false;
+for(let i=0;i<60 && !gotSouls;i++){ E.grantStageRewards(stage, spawned); gotSouls=api.STATE.owned[kinds[0]].souls>before; }
+ok('所持済みモンスターの重複はソウルになる', gotSouls, api.STATE.owned[kinds[0]].souls-before);
+// 抽選に外れ続けても、ソウルが必要数に届けば確定で仲間になる
+setRecruit(false);
+rs.owned={}; rs.pendingSouls={};
+const need=E.UNLOCK_SOULS[1];
+const almost=E.giveSouls(kinds[0], need-1);
+const last=E.giveSouls(kinds[0], 1);
+ok('ソウルが必要数に届けば確定で仲間になる', !almost.joined && last.joined && !!api.STATE.owned[kinds[0]], { need, progress: almost.progress });
+setRecruit(true);

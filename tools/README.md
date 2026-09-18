@@ -21,6 +21,7 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | base54.js | 調整なしの勝率測定(`POWER=1.15 node base54.js`) |
 | tune54.js | 調整値の自動探索(`ONLY=q1_01 node tune54.js q1`) |
 | dump33.js | 全ステージ構成のMarkdown出力 |
+| recruit_sim.js | クリアでモンスターが仲間になるまでの周回数を測る(`N=200 node recruit_sim.js q1_01`) |
 | smoke.py | 起動スモークテスト(主要7画面のJSエラー・横スクロールと、BGMの読み込みを確認) |
 | auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(30項目) |
 | ux_test.py | 図鑑の絞り込み・並び替えと、詳細画面の操作性の検証(16項目) |
