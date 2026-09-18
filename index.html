@@ -15,7 +15,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <!-- SNSに貼ったときの見た目。og:url と og:image は絶対URLでないと効かないので、公開先を変えたらここも直す -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="MonsterCollector">
+<meta property="og:site_name" content="Monstercollect">
 <meta property="og:title" content="モンコレ">
 <meta property="og:description" content="105体のモンスターを集めて育てる、ブラウザで遊べる収集RPG。ガチャ・編成・オート戦闘。">
 <meta property="og:url" content="https://negiramen1922.github.io/monster-collector/">
@@ -131,6 +131,8 @@ body{
 .mission-card{ cursor:pointer; }
 .mission-card.has-claim{ border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
 .beginner-card{ cursor:pointer; border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
+.event-card{ cursor:pointer; border-color:#e2572b; box-shadow:0 0 14px -4px rgba(226,87,43,.55); }
+.event-card .mc-label{ flex:1; }
 .login-bonus-card{ cursor:default; padding:12px 16px; }
 .login-bonus-card.open{ padding-bottom:16px; }
 .login-card-head{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
@@ -1859,12 +1861,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
-.dungeon-card{ width:100%; display:flex; align-items:center; gap:10px; text-align:left; padding:12px;
-  border-radius:15px; border:1px dashed rgba(232,180,85,.35); background:transparent; color:var(--text);
-  font-family:inherit; cursor:pointer; }
-.dc-body{ flex:1; min-width:0; }
-.dc-title{ display:block; font-size:13px; font-weight:800; }
-.dc-sub{ display:block; font-size:10.5px; color:var(--dim); margin-top:3px; }
+.explore-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:10px; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
 .af-cycle{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--panel2); border:1px dashed var(--line);
   border-radius:12px; padding:9px 10px; margin-bottom:7px; }
@@ -2117,7 +2114,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 <body>
 <div id="phone">
   <div id="title">
-    <div class="title-logo pixel">MonsterCollector<span>モンコレ</span></div>
+    <div class="title-logo pixel">Monstercollect<span>モンコレ</span></div>
     <p class="title-lead">読み込み中…</p>
   </div>
 </div>
@@ -2130,7 +2127,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 
 <script>
 /* =========================================================
-   モンコレ (MonsterCollector) v2
+   モンコレ (Monstercollect) v2
    7属性 / ロール制 / 覚醒(重複)システム / ウェーブ制探索
    ========================================================= */
 
@@ -2315,12 +2312,48 @@ const PULL10_COST = 1350;
 const HIGH_PITY_PULLS = 50;      // ★4+ guaranteed on the 50th pull without one
 const TEN_PULL_MIN_STAR = 3;     // 10th slot of a 10-pull is ★3+ if the first 9 weren't
 const SPARK_POINTS = 200;        // summon points (1 per pull, carried over) → pickup ★5
-const GACHA_BANNER = {
+const DEFAULT_BANNER = {
   name: '星霜の呼び声',
   pickup: 'm31',
   featured: ['m31', 'm24', 'm08'],
 };
 
+/* ---- events: time-limited banners, each with its own farmable quest stages.
+   startAt/endAt use the device's local clock (no server, so this is honor-system -
+   fine for a single-file prototype). Several can run at once; add more entries here
+   for the next event rather than replacing this one. ---- */
+const EVENTS = [
+  {
+    key: 'ev_kyubi',
+    name: '紅蓮の九尾',
+    startAt: '2026-09-18T00:00:00+09:00',
+    endAt: '2026-10-02T23:59:59+09:00',
+    pickup: 'm116',
+    featured: ['m116'],
+    stageName: '狐火の祭壇',
+    terrain: 'lava',
+    element: 'fire',
+    escorts: ['m128', 'm59', 'm127', 'm33', 'm129'],
+    tiers: [
+      { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+      { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+      { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+      { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+      { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+      { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
+    ],
+  },
+];
+function activeEvents(){
+  const now = Date.now();
+  return EVENTS.filter(ev => now >= new Date(ev.startAt).getTime() && now <= new Date(ev.endAt).getTime());
+}
+function eventActive(){ return activeEvents().length > 0; }
+function currentBanner(){
+  const ev = activeEvents()[0];
+  return ev ? { name: ev.name, pickup: ev.pickup, featured: ev.featured } : DEFAULT_BANNER;
+}
 
 
 /* ---------------- formation ---------------- */
@@ -3914,8 +3947,11 @@ const RARE_SPAWN_PER_WAVE = 0.08;        // a ★3/★4 from the stage's rare li
    lower than the same monster appearing in the rare slot. */
 const RECRUIT_CHANCE = { 1: 0.30, 2: 0.30, 3: 0.05, 4: 0.01, 5: 0.002 };
 const RECRUIT_CHANCE_RARE = { 3: 0.15, 4: 0.01, 5: 0.002 };
-const recruitChanceOf = (mon, asRare) =>
-  (asRare && RECRUIT_CHANCE_RARE[mon.rarity]) || RECRUIT_CHANCE[mon.rarity] || 0;
+const recruitChanceOf = (mon, asRare, stage) => {
+  const override = stage && stage.recruitOverride && stage.recruitOverride[mon.id];
+  if(override != null) return override;
+  return (asRare && RECRUIT_CHANCE_RARE[mon.rarity]) || RECRUIT_CHANCE[mon.rarity] || 0;
+};
 /* The souls that drop along the way are the safety net: collect this many of a monster you
    do not own and it joins anyway, however unlucky the rolls have been. */
 const UNLOCK_SOULS = { 1: 10, 2: 25, 3: 60, 4: 250, 5: 400 };
@@ -4178,6 +4214,44 @@ const TUTORIAL_PAGES = {
 
 const STAGES = buildQuestStages();
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(st => [st.id, st]));
+
+// event stages: hand-built rather than run through buildQuestStages() since they
+// aren't part of the tu/q1-q3 progression (no `requires`, so all of an event's tiers
+// are open at once while it's running - see eventActive()). Each event is a set of
+// difficulty tiers, each a 5-wave gauntlet ending in the event's pickup monster as
+// the boss; the recruit chance for that boss rises tier by tier (recruitOverride,
+// read by recruitChanceOf). Registered for every event in EVENTS (not just active
+// ones) so stages stay reachable/testable even once an event's dates have passed.
+function buildEventStages(ev){
+  return ev.tiers.map((t, i) => {
+    const n = i + 1;
+    const rec = t.lv;
+    const escort = (ref, wave) => ({ ref, level: rec, star: t.bossStar });
+    const waves = [0, 1, 2, 3].map(w => [
+      escort(ev.escorts[w % ev.escorts.length], w),
+      escort(ev.escorts[(w + 1) % ev.escorts.length], w),
+    ]);
+    waves.push([
+      { ref: ev.pickup, level: rec + 2, star: t.bossStar, boss: true },
+      escort(ev.escorts[0], 4), escort(ev.escorts[1], 4),
+    ]);
+    return {
+      id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, name: `${ev.stageName}・${n}層`,
+      terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(10, 2 + n),
+      firstClear: 100 * n, boss: true,
+      desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る祭壇に挑む。`,
+      waves,
+      gold: 1500 * n, pots: { exp2: Math.max(1, n) },
+      bossReward: [{ type: 'item', key: n >= 6 ? 'box_sel_4' : 'box_sel_3', n: 1 }],
+      recruitOverride: { [ev.pickup]: t.rate },
+    };
+  });
+}
+EVENTS.forEach(ev => {
+  ev.stages = buildEventStages(ev);
+  ev.stages.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
+});
+
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
 function bossOf(stage){
   for(const wave of stage.waves){ const e = wave.find(x => x.boss); if(e) return MON_BY_ID[e.ref]; }
@@ -4560,21 +4634,28 @@ function nextAction(){
 // home: a small auto-sliding banner. Nothing inside it spends anything - it only navigates.
 let bannerIndex = 0, bannerTimer = null;
 function homeBanners(){
-  const pickup = MON_BY_ID[GACHA_BANNER.pickup];
+  const pickup = MON_BY_ID[currentBanner().pickup];
   const daily = ensureDaily();
   const left = DAILY_MISSIONS.filter(m => !daily.claimed[m.id]).length;
   const todayEls = (matOpenToday().el || []).map(k => `${ELEM_ICON[k]}${ELEM_LABEL[k]}`);
   const dungeonMon = MONSTERS.find(m => m.rarity === 4) || pickup;
-  return [
+  const banners = [];
+  activeEvents().forEach(ev => {
+    banners.push({ tag: 'EVENT', cls: 'b-event', title: ev.name,
+      sub: `期間限定クエスト「${ev.stageName}」全${ev.tiers.length}層 開催中`, go: '挑戦する', img: ev.pickup,
+      attr: 'data-nav="battle" data-stage-tab-set="event"' });
+  });
+  banners.push(
     { tag: 'PICK UP', cls: 'b-pick', title: `${pickup.name} ★${pickup.rarity} ピックアップ`,
-      sub: `${GACHA_BANNER.name}・排出率アップ中`, go: 'ガチャを見る', img: pickup.id, attr: 'data-nav="gacha"' },
-    { tag: 'EVENT', cls: 'b-event', title: '本日の育成ダンジョン',
+      sub: `${currentBanner().name}・排出率アップ中`, go: 'ガチャを見る', img: pickup.id, attr: 'data-nav="gacha"' },
+    { tag: 'DUNGEON', cls: 'b-event', title: '本日の育成ダンジョン',
       sub: todayEls.length ? `本日開放: ${todayEls.join('・')}の欠片ほか` : '素材を集めてスキルを強化',
-      go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle"' },
+      go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle" data-stage-tab-set="dungeon"' },
     { tag: 'DAILY', cls: 'b-daily', title: left ? `今日の日課 あと${left}件` : '今日の日課は完了',
       sub: `リセットまで ${formatDuration(msToDailyReset())}`, go: 'ミッションへ',
       img: STATE.slots.find(Boolean) || pickup.id, attr: 'data-nav="missions"' },
-  ];
+  );
+  return banners;
 }
 function renderBannerCarousel(){
   const list = homeBanners();
@@ -4779,7 +4860,7 @@ function renderHome(){
 /* ---------------- GACHA ---------------- */
 
 function renderGacha(){
-  const pickup = MON_BY_ID[GACHA_BANNER.pickup];
+  const pickup = MON_BY_ID[currentBanner().pickup];
   const pullsToHigh = Math.max(1, HIGH_PITY_PULLS - STATE.pitySinceRare);
   const highPct = Math.min(100, Math.round((STATE.pitySinceRare / HIGH_PITY_PULLS) * 100));
   const sparkPct = Math.min(100, Math.round((STATE.summonPoints / SPARK_POINTS) * 100));
@@ -4792,7 +4873,7 @@ function renderGacha(){
       <div class="pixel gc-tag">PICK UP</div>
       <div class="gc-hero-row">
         <div class="gc-hero-body">
-          <div class="gc-name">${GACHA_BANNER.name}</div>
+          <div class="gc-name">${currentBanner().name}</div>
           <div class="gc-sub">★${pickup.rarity}「${pickup.name}」${ELEM_LABEL[pickup.element]}・${ROLE_LABEL[pickup.role]}
             <br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
@@ -4869,8 +4950,8 @@ function rollRarity(minStar){
 
 function pickMonsterOfRarity(rarity){
   if(rarity === 5){
-    const pickup = MON_BY_ID[GACHA_BANNER.pickup];
-    const others = MONSTERS.filter(m => m.rarity === 5 && m.id !== GACHA_BANNER.pickup);
+    const pickup = MON_BY_ID[currentBanner().pickup];
+    const others = MONSTERS.filter(m => m.rarity === 5 && m.id !== currentBanner().pickup);
     if(pickup && (others.length === 0 || Math.random() < PICKUP_SHARE)) return pickup;
     return others[Math.floor(Math.random() * others.length)];
   }
@@ -4929,7 +5010,7 @@ function doPull(times, cost){
 
 function exchangeSpark(){
   if(STATE.summonPoints < SPARK_POINTS){ toast('召喚ポイントが足りません'); return; }
-  const mon = MON_BY_ID[GACHA_BANNER.pickup];
+  const mon = MON_BY_ID[currentBanner().pickup];
   STATE.summonPoints -= SPARK_POINTS;
   const r = grantMonster(mon);
   saveState();
@@ -5047,7 +5128,7 @@ function renderGachaStage(){
     inner = `
       <div class="reveal-head">
         <div>
-          <div class="reveal-title">${MON_BY_ID[GACHA_BANNER.pickup].name}</div>
+          <div class="reveal-title">${MON_BY_ID[currentBanner().pickup].name}</div>
           <div class="reveal-sub">${n}連召喚・卵の色がレア度です</div>
         </div>
         <button class="btn btn-ghost btn-sm" data-gacha-skip="1">スキップ</button>
@@ -5180,7 +5261,7 @@ function showGachaResults(results, before){
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''}">
       <div class="gr-title pixel">RESULT</div>
-      <div class="gr-banner">${GACHA_BANNER.name}</div>
+      <div class="gr-banner">${currentBanner().name}</div>
 
       <div class="panel panel-tight gr-best r${best.mon.rarity}">
         <img src="${imgSrc(best.mon.id)}" alt="${best.mon.name}">
@@ -5267,7 +5348,7 @@ function kitLinesHtml(m, star, after){
   const a = after || {};
   return [
     card('通常', 'normal', kit.normal, typeOf(kit.normal), ''),
-    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, two ? '' : a.skill),
+    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill),
     two
       ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill)
       : `<div class="skill-card locked-slot">🔒 ★${SECOND_SKILL_STAR}に昇格すると、スキル2「${skill2.name}」が使えるようになります</div>`,
@@ -5917,7 +5998,7 @@ function renderStageSheet(){
           <div>
             <div class="bh-name">${'★'.repeat(boss.rarity)} ${boss.name}</div>
             <div class="bh-tags">${ELEM_ICON[boss.element]}${ELEM_LABEL[boss.element]}・${ROLE_ICON[boss.role]}${ROLE_LABEL[boss.role]}</div>
-            <div class="bh-tags">🤝 仲間になる ${pctText(RECRUIT_CHANCE[boss.rarity] || 0)}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)</div>
+            <div class="bh-tags">🤝 仲間になる ${pctText(recruitChanceOf(boss, false, st))}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)</div>
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -5927,7 +6008,7 @@ function renderStageSheet(){
             const m = MON_BY_ID[id];
             return `<span class="enemy-chip ${STATE.owned[id] ? 'have' : ''}" title="${m.name}${STATE.owned[id] ? '(所持済み: 重複はソウルに)' : ''}">
               <img src="${imgSrc(id)}" alt="">
-              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(recruitChanceOf(m, false))}</small></span>`;
+              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(recruitChanceOf(m, false, st))}</small></span>`;
           }).join('')}
         </div>
       </div>
@@ -5935,7 +6016,7 @@ function renderStageSheet(){
         <div class="ss-block">
           <div class="ss-label">レア出現(各ウェーブ${Math.round(RARE_SPAWN_PER_WAVE * 100)}%)</div>
           <div class="rare-row">
-            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(recruitChanceOf(MON_BY_ID[id], true))}</small></span>`).join('')}
+            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(recruitChanceOf(MON_BY_ID[id], true, st))}</small></span>`).join('')}
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -5997,30 +6078,48 @@ function renderDungeons(){
     }).join('')}`;
 }
 
+function renderEventCard(ev){
+  const msLeft = new Date(ev.endAt).getTime() - Date.now();
+  return `
+    <div class="panel event-card">
+      <div class="row-between" style="margin-bottom:6px;">
+        <div class="mc-head">🔥 ${ev.name}</div>
+        <div class="mc-reset">残り ${formatDuration(Math.max(0, msLeft))}</div>
+      </div>
+      <div class="screen-sub" style="margin:0 0 8px;">「${MON_BY_ID[ev.pickup].name}」が守る祭壇に挑む。層が上がるほど仲間になる確率も上がる。</div>
+      ${ev.stages.map(renderStageRow).join('')}
+    </div>`;
+}
+function renderEventTab(){
+  const evs = activeEvents();
+  if(!evs.length) return `<div class="screen-sub" style="margin:28px 0;text-align:center;">現在開催中のイベントはありません</div>`;
+  return evs.map(renderEventCard).join('');
+}
 function renderBattleSelect(){
   refreshStamina();
-  const daily = ensureDaily();
-  const stPct = Math.min(100, Math.round(STATE.stamina / STAMINA_MAX * 100));
+  ensureDaily();
   if(questTier && !tierUnlocked(questTier)) questTier = null;
-  const list = questTier ? STAGES.filter(st => st.tier === questTier) : [];
-  const tierDef = questTier ? QUEST_TIERS.find(t => t.key === questTier) : null;
-  const tierStars = list.reduce((a, st) => a + stageStars(st.id), 0);
-
   if(stageTab === 'main' && !questTier) questTier = QUEST_TIERS_ACTIVE.filter(t => tierUnlocked(t.key)).slice(-1)[0].key;
   const tier2 = questTier ? QUEST_TIERS.find(t => t.key === questTier) : null;
   const list2 = questTier ? STAGES.filter(st => st.tier === questTier) : [];
+  const tierStars = list2.reduce((a, st) => a + stageStars(st.id), 0);
+  const evCount = activeEvents().length;
 
   return `
     <div class="row-between" style="margin:10px 0 6px;">
       <div class="screen-title" style="margin:0;">探索</div>
       <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
     </div>
+    <div class="explore-tabs" role="tablist">
+      <button class="stage-tab ${stageTab === 'main' ? 'on' : ''}" data-stage-tab="main" role="tab" aria-selected="${stageTab === 'main'}">クエスト</button>
+      <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">育成</button>
+      <button class="stage-tab ${stageTab === 'event' ? 'on' : ''}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">イベント${evCount ? ` 🔥${evCount}` : ''}</button>
+    </div>
+    ${stageTab === 'event' ? renderEventTab() : ''}
     ${stageTab === 'dungeon' ? `
-      <div class="row-between" style="margin-bottom:8px;">
-        <button class="btn btn-ghost btn-sm" data-stage-tab="main">← クエスト</button>
-        <div class="screen-sub" style="margin:0;">⚡${STATE.stamina} / ${STAMINA_MAX}</div>
-      </div>
-      ${renderDungeons()}` : `
+      <div class="screen-sub" style="margin-bottom:8px;">⚡${STATE.stamina} / ${STAMINA_MAX}</div>
+      ${renderDungeons()}` : ''}
+    ${stageTab === 'main' ? `
     <div class="screen-sub" style="margin-bottom:9px;">難易度を選んでください。最後のボスを倒すと次の難易度が解放されます。</div>
     <div class="tier-tabs" role="tablist">
       ${QUEST_TIERS.filter(t => !t.hidden).map(t => {
@@ -6034,12 +6133,7 @@ function renderBattleSelect(){
       ${questTier === 'tu' ? 'ゲームの遊び方を順番に覚えましょう。スタミナは使いません。'
         : `${tier2.label}　推奨Lv${tier2.lv[0]}〜${tier2.lv[1]}　★${tierStars}/${list2.length * 3}・★3クリアで周回できます(VIP限定)`}
     </div>
-    ${list2.map(st => renderStageRow(st)).join('')}
-    <button class="dungeon-card" data-stage-tab="dungeon">
-      <span class="dc-body"><span class="dc-title">⛏ 育成ダンジョン</span>
-        <span class="dc-sub">EXP・ゴールド・素材。素材は曜日で入れ替わります</span></span>
-      <span class="mc-go">›</span>
-    </button>`}
+    ${list2.map(st => renderStageRow(st)).join('')}` : ''}
 
     ${DEBUG_TOOLS ? `<div class="debug-row"><button class="btn btn-ghost btn-sm" data-debug="stamina">テスト用:スタミナ全回復</button><button class="btn btn-ghost btn-sm" data-debug="daily">テスト用:日付リセット</button><button class="btn btn-ghost btn-sm" data-debug="rich">テスト用:素材とゴールド</button><button class="btn btn-ghost btn-sm" data-debug="vip">テスト用:VIP ${STATE.vip ? 'ON' : 'OFF'}</button></div>` : ''}
   `;
@@ -8858,7 +8952,7 @@ function grantStageRewards(stage, spawned){
   [...new Set(spawned.map(u => u.ref))].forEach(id => {
     const m = MON_BY_ID[id];
     const asRare = spawned.some(u => u.ref === id && u.rare);
-    if(!m || Math.random() >= recruitChanceOf(m, asRare)) return;
+    if(!m || Math.random() >= recruitChanceOf(m, asRare, stage)) return;
     if(STATE.owned[id]){
       addSoul(id, DUP_SOULS[m.rarity] || 1);
     }else{
@@ -9185,7 +9279,11 @@ function handlePhoneClick(ev){
     return;
   }
   const navEl = t.closest('[data-nav]');
-  if(navEl){ goto(navEl.dataset.nav); return; }
+  if(navEl){
+    if(navEl.dataset.stageTabSet) stageTab = navEl.dataset.stageTabSet;
+    goto(navEl.dataset.nav);
+    return;
+  }
 
   const againEl = t.closest('[data-pull-again]');
   if(againEl){
@@ -10305,7 +10403,7 @@ async function startGame(){
 const GUIDE_CONTENT = {
   welcome: {
     steps: [
-      { title: 'ようこそ', body: 'ようこそ、MonsterCollectorへ旅の方。MonsterCollector(モンコレ)では、さまざまなモンスターを収集することをお楽しみいただけますよ。' },
+      { title: 'ようこそ', body: 'ようこそ、Monstercollectへ旅の方。Monstercollect(モンコレ)では、さまざまなモンスターを収集することをお楽しみいただけますよ。' },
       { body: '下のメニューから、探索・編成・ガチャ・拠点をいつでも行き来できます。まずは探索から始めてみましょう。', highlight: '#nav' },
     ],
   },
