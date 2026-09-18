@@ -1565,6 +1565,82 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .skill-upgrade .cost-list{ display:flex; gap:6px; flex-wrap:wrap; }
 .skill-upgrade .btn{ flex:none; }
 
+/* ---------- party coverage + battle header/telop ---------- */
+#phone.in-battle #statusbar, #phone.in-battle #nav{ display:none; }
+#phone.in-battle #screen{ padding:0; }
+.battle-head .wave-dot{ width:9px; height:9px; font-size:0; border-radius:2px; padding:0; }
+.battle-head .wave-line{ width:4px; }
+.cover-card{ margin-bottom:9px; }
+.cover-bp{ font-size:11px; color:var(--dim); } .cover-bp b{ color:var(--gold); font-size:12.5px; }
+.cover-row{ display:flex; gap:5px; flex-wrap:wrap; }
+.cover-chip{ display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:800; padding:5px 8px;
+  border-radius:9px; border:1px solid var(--line); background:var(--panel2); color:#5b5473; }
+.cover-chip.on{ color:var(--text); border-color:rgba(232,180,85,.45); }
+.cover-chip b{ color:var(--gold); }
+.roster-row img{ border:1px solid var(--elem, var(--line)); border-radius:10px; }
+.battle-head{ display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--nav);
+  border-bottom:1px solid var(--line); }
+.bh-back{ flex:none; padding:6px 9px; font-size:12px; }
+.bh-name{ font-size:12.5px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
+.bh-wave{ font-size:10px; color:var(--dim); white-space:nowrap; }
+.battle-head .wave-row{ margin:0; gap:3px; }
+.battle-head .battle-timer{ margin-left:auto; font-size:9px; color:var(--gold); }
+.bf-telop{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:6; max-width:90%; white-space:nowrap;
+  background:rgba(10,8,18,.88); border:1px solid rgba(232,180,85,.4); border-radius:999px; padding:7px 14px;
+  font-size:12px; font-weight:800; text-align:center; line-height:1.5; pointer-events:none;
+  box-shadow:0 8px 20px -10px rgba(0,0,0,.9); }
+
+/* ---------- stage sheet ---------- */
+.ss-affinity{ display:flex; align-items:center; gap:8px; background:rgba(232,180,85,.09); border:1px solid rgba(232,180,85,.35);
+  border-radius:13px; padding:10px 11px; margin-bottom:10px; cursor:pointer; text-align:left; }
+.ssa-body{ flex:1; min-width:0; }
+.ssa-title{ font-size:11.5px; font-weight:800; }
+.ssa-sub{ font-size:10.5px; color:var(--dim); margin-top:3px; line-height:1.6; }
+.ssa-go{ font-size:11px; font-weight:800; color:var(--gold); white-space:nowrap; }
+.ss-actions .ss-go{ flex:1.5; }
+.ss-actions .sweep-btn{ flex:1; }
+
+/* ---------- quest: tabs, stage cards, affinity sheet ---------- */
+.tier-tabs{ display:flex; gap:5px; overflow-x:auto; padding-bottom:4px; margin-bottom:9px; }
+.tier-tabs::-webkit-scrollbar{ display:none; }
+.tier-tab{ flex:none; font-family:inherit; font-size:12px; font-weight:800; padding:9px 14px; border-radius:11px;
+  border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; white-space:nowrap; }
+.tier-tab.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
+.tier-tab.locked{ opacity:.45; }
+.stage-row{ width:100%; display:flex; align-items:center; gap:10px; text-align:left; margin-bottom:9px;
+  padding:12px; border-radius:15px; border:1px solid var(--line); background:var(--panel); cursor:pointer;
+  font-family:inherit; color:var(--text); }
+.stage-row.locked{ opacity:.5; }
+.sr-body{ flex:1; min-width:0; }
+.sr-title{ display:flex; align-items:center; gap:6px; font-size:14px; font-weight:800; }
+.terrain-tag{ font-size:9.5px; font-weight:800; color:#fff; padding:2px 6px; border-radius:6px; flex:none;
+  text-shadow:0 1px 2px rgba(0,0,0,.5); }
+.sr-sub{ display:block; font-size:11px; color:var(--dim); margin-top:5px; }
+.sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
+.sr-state.done{ color:#5cab52; }
+.sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
+.dungeon-card{ width:100%; display:flex; align-items:center; gap:10px; text-align:left; padding:12px;
+  border-radius:15px; border:1px dashed rgba(232,180,85,.35); background:transparent; color:var(--text);
+  font-family:inherit; cursor:pointer; }
+.dc-body{ flex:1; min-width:0; }
+.dc-title{ display:block; font-size:13px; font-weight:800; }
+.dc-sub{ display:block; font-size:10.5px; color:var(--dim); margin-top:3px; }
+.affinity-sheet{ text-align:left; max-height:86vh; }
+.af-cycle{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--panel2); border:1px dashed var(--line);
+  border-radius:12px; padding:9px 10px; margin-bottom:7px; }
+.af-el{ display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:800; padding:4px 8px;
+  border-radius:9px; border:1px solid var(--line); background:var(--panel); }
+.af-arrow{ color:var(--gold); font-size:14px; font-weight:800; }
+.af-pair{ display:flex; align-items:center; gap:6px; background:var(--panel2); border:1px solid var(--line);
+  border-radius:12px; padding:9px 10px; margin-bottom:7px; }
+.af-note{ font-size:10.5px; color:var(--dim); margin-left:auto; }
+.af-table{ border:1px solid var(--line); border-radius:12px; overflow:hidden; margin:10px 0; }
+.af-row{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; padding:8px 10px; font-size:11.5px;
+  border-bottom:1px solid rgba(232,180,85,.1); }
+.af-row:last-child{ border-bottom:none; }
+.af-row.af-head{ background:var(--panel2); font-weight:800; color:var(--dim); font-size:10.5px; }
+.af-row .good{ color:#5cab52; } .af-row .bad{ color:#ff9d8a; }
+
 /* ---------- gacha ---------- */
 .gc-hero{ position:relative; border:1px solid rgba(232,180,85,.3); border-radius:18px; padding:13px; overflow:hidden;
   background:linear-gradient(120deg,#2a1c3f 0%,#3b2050 55%,#1d1830 100%); }
@@ -3506,7 +3582,7 @@ const DEBUG_TOOLS = true;                // test buttons (stamina refill) on the
    Each tier ramps the enemies' ★ from `star[0]` to `star[1]`; an enemy never
    goes below its own rarity. Bosses use `bossStar`. No hidden multipliers. */
 const QUEST_TIERS = [
-  { key: 'tu', label: 'チュートリアル', lv: [1, 1],   star: [1, 1], bossStar: 1, skill: 1,  waves: 3 },
+  { key: 'tu', label: 'チュートリアル', short: '入門', lv: [1, 1],   star: [1, 1], bossStar: 1, skill: 1,  waves: 3 },
   { key: 'q1', label: '初級',   lv: [1, 28],    star: [1, 1], bossStar: 4, skill: 1,  waves: 3, drops: [3, 0, 0], pots: { exp1: 5 } },
   { key: 'q2', label: '中級',   lv: [30, 58],   star: [2, 2], bossStar: 4, skill: 3,  waves: 3, drops: [4, 2, 0], pots: { exp1: 8, exp2: 2 } },
   { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [4, 3, 1], pots: { exp2: 4 } },
@@ -3951,6 +4027,7 @@ function render(){
   screenEl.innerHTML = renderScreen(currentScreen);
   renderOverlay();
 
+  app.classList.toggle('in-battle', currentScreen === 'battle-fight');
   const activeKey = currentScreen === 'battle-fight' ? 'battle' : currentScreen === 'missions' ? 'home' : currentScreen;
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.key === activeKey);
@@ -4958,7 +5035,10 @@ function renderParty(){
   return `
     <div class="row-between" style="margin:10px 0 4px;">
       <div class="screen-title" style="margin:0;">編成</div>
-      <button class="btn btn-ghost btn-sm" data-nav="dex">📕 図鑑</button>
+      <div class="home-party-btns">
+        <button class="btn btn-ghost btn-sm" data-nav="dex">📕 図鑑</button>
+        <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 相性</button>
+      </div>
     </div>
     <div class="row-between" style="margin:0 0 4px;">
       <div class="party-count">${partyIds.length} / ${PARTY_MAX}体<span class="bp">総合BP ${totalBp.toLocaleString()}</span></div>
@@ -4971,6 +5051,18 @@ function renderParty(){
     <p class="formation-note">前衛が1体でも残っている間、<b>後衛は敵に狙われません</b>(一部の陣形無視スキルを除く)。前衛が全滅すると後衛が攻撃されます。</p>
     ${penalized.length ? `<div class="warn-box" role="alert">⚠ 近接ロール(タンク・アタッカー)が後衛にいます。与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%: ${penalized.map(m => m.name).join('、')}</div>` : ''}
 
+    <div class="panel panel-tight cover-card">
+      <div class="row-between" style="margin-bottom:8px;">
+        <div class="mc-head">属性カバー</div>
+        <div class="cover-bp">総合BP <b>${totalBp.toLocaleString()}</b></div>
+      </div>
+      <div class="cover-row">
+        ${ELEM_ORDER.map(e => {
+          const n = partyIds.filter(id => MON_BY_ID[id].element === e).length;
+          return `<span class="cover-chip ${n ? 'on' : ''}" title="${ELEM_LABEL[e]}">${ELEM_ICON[e]}${n ? `<b>${n}</b>` : ''}</span>`;
+        }).join('')}
+      </div>
+    </div>
     ${renderSynergyPanel(partyIds)}
 
     ${renderRosterControls(ownedList.length, ownedAll.length)}
@@ -4982,7 +5074,8 @@ function renderParty(){
       const full = partyIds.length >= PARTY_MAX && !inParty && formationPick === null;
       const where = inParty ? `・${slotRowIn(f, slot) === 'front' ? '前衛' : '後衛'}に編成中` : '';
       return `
-        <div class="roster-row ${inParty?'selected':''} ${full?'disabled':''}" data-toggle="${m.id}">
+        <div class="roster-row ${inParty?'selected':''} ${full?'disabled':''}" data-toggle="${m.id}"
+          style="--elem:${ELEM_COLOR[m.element]};">
           <img src="${imgSrc(m.id)}" alt="${m.name}">
           <div class="info">
             <div class="name">${m.name} ${starsHtml(m.rarity, owned.star)}</div>
@@ -5039,13 +5132,16 @@ function renderStageRow(st){
   const unlocked = stageUnlocked(st);
   const cleared = STATE.clearedStages.includes(st.id);
   return `
-    <button class="stage-row ${st.boss ? 'boss' : ''} ${unlocked ? '' : 'locked'}" style="--terrain:${TERRAIN[st.terrain].color}" data-stage-open="${st.id}" ${unlocked ? '' : 'disabled'}>
-      <span class="sr-no">${st.tier === 'tu' ? 'T' : ''}${st.no}</span>
+    <button class="stage-row ${st.boss ? 'boss' : ''} ${unlocked ? '' : 'locked'}" style="--terrain:${TERRAIN[st.terrain].color}"
+      data-stage-open="${st.id}" ${unlocked ? '' : 'disabled'}>
       <span class="sr-body">
-        <span class="sr-title">${unlocked ? '' : '🔒 '}${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</span>
-        <span class="sr-sub">${TERRAIN[st.terrain].label}・${ELEM_ICON[st.element]}${ELEM_LABEL[st.element]}　推奨Lv${st.rec}</span>
+        <span class="sr-title">
+          <span class="terrain-tag" style="background:${TERRAIN[st.terrain].color};">${TERRAIN[st.terrain].label}</span>
+          ${unlocked ? '' : '🔒 '}${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</span>
+        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・⚡${st.stamina}</span>
+        <span class="sr-state ${cleared ? 'done' : ''}">${cleared ? 'クリア済み' : unlocked ? `未クリア${st.boss ? '・ボスあり' : ''}` : '前のステージをクリアすると挑戦できます'}</span>
       </span>
-      <span class="sr-right">${starsText(stageStars(st.id))}${cleared ? '<span class="sr-clear">✓</span>' : ''}</span>
+      <span class="sr-right">${starsText(stageStars(st.id))}<span class="mc-go">›</span></span>
     </button>`;
 }
 
@@ -5057,6 +5153,8 @@ function renderStageSheet(){
   const levels = st.waves.flat().map(e => e.level);
   const boss = st.boss ? bossOf(st) : null;
   const enemyIds = [...new Set(st.waves.flat().filter(e => !e.boss).map(e => e.ref))];
+  const enemyElems = [...new Set(st.waves.flat().map(e => MON_BY_ID[e.ref].element))].filter(e => e !== 'none');
+  const goodElems = ELEM_ORDER.filter(a => a !== 'none' && enemyElems.some(d => elementMultiplier(a, d) > 1));
   const disabled = STATE.stamina < st.stamina;
   const cleared = STATE.clearedStages.includes(st.id);
   const layer = document.getElementById('modal-layer');
@@ -5068,6 +5166,15 @@ function renderStageSheet(){
         <h3>${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</h3>
         <div class="ss-meta">推奨Lv${st.rec}　敵Lv${Math.min(...levels)}〜${Math.max(...levels)}　全${st.waves.length}ウェーブ</div>
         <div class="ss-meta">${starsText(stageStars(st.id))}　★3条件:味方が倒れず${rankRoundLimit(st)}ラウンド以内</div>
+      </div>
+      <div class="ss-affinity" data-affinity="1" role="button">
+        <div class="ssa-body">
+          <div class="ssa-title">敵の属性: ${enemyElems.map(e => `${ELEM_ICON[e]}${ELEM_LABEL[e]}`).join('・')}</div>
+          <div class="ssa-sub">${goodElems.length
+            ? `${goodElems.map(e => ELEM_LABEL[e]).join('・')}属性が有利(×1.5)。相性表を確認`
+            : '有利な属性はありません。相性表を確認'}</div>
+        </div>
+        <span class="ssa-go">相性表 ›</span>
       </div>
       ${boss ? `
         <div class="boss-hero">
@@ -5104,8 +5211,8 @@ function renderStageSheet(){
       </div>
       <div class="ss-actions">
         ${sweepButton(st)}
-        <button class="btn ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
-          ${st.stamina ? `出撃 ⚡${st.stamina}` : '出撃'}
+        <button class="btn ss-go ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
+          ${st.stamina ? `出撃する(⚡${st.stamina})` : '出撃する'}
         </button>
       </div>
     </div>`;
@@ -5164,31 +5271,40 @@ function renderBattleSelect(){
   const tierDef = questTier ? QUEST_TIERS.find(t => t.key === questTier) : null;
   const tierStars = list.reduce((a, st) => a + stageStars(st.id), 0);
 
-  return `
-    <div class="screen-title">探索</div>
-    <div class="stamina-panel">
-      <div class="row-between">
-        <div class="sp-title">⚡ スタミナ <b>${STATE.stamina}</b> / ${STAMINA_MAX}</div>
-        <div class="sp-next">${STATE.stamina >= STAMINA_MAX ? '満タン' : `次の回復 ${formatDuration(msToNextStamina())}・全回復 ${formatDuration(msToFullStamina())}`}</div>
-      </div>
-      <div class="stamina-bar"><div class="stamina-fill" style="width:${stPct}%;"></div></div>
-      <div class="sp-note">${Math.round(STAMINA_REGEN_MS / 60000)}分で1回復。敗北したときは消費の半分が戻ります。</div>
-    </div>
+  if(stageTab === 'main' && !questTier) questTier = QUEST_TIERS_ACTIVE.filter(t => tierUnlocked(t.key)).slice(-1)[0].key;
+  const tier2 = questTier ? QUEST_TIERS.find(t => t.key === questTier) : null;
+  const list2 = questTier ? STAGES.filter(st => st.tier === questTier) : [];
 
-    <div class="stage-tabs" role="tablist">
-      <button class="stage-tab ${stageTab === 'main' ? 'on' : ''}" data-stage-tab="main" role="tab" aria-selected="${stageTab === 'main'}">クエスト</button>
-      <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">育成ダンジョン</button>
+  return `
+    <div class="row-between" style="margin:10px 0 6px;">
+      <div class="screen-title" style="margin:0;">探索</div>
+      <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
     </div>
-    ${stageTab === 'dungeon' ? renderDungeons() : !questTier ? renderTierList() : `
-    <div class="tier-head">
-      <button class="btn btn-ghost btn-sm" data-quest-back="1">← 難易度</button>
-      <b>${tierDef.label}</b><span>推奨Lv${tierDef.lv[0]}〜${tierDef.lv[1]}　★${tierStars}/${list.length * 3}</span>
+    ${stageTab === 'dungeon' ? `
+      <div class="row-between" style="margin-bottom:8px;">
+        <button class="btn btn-ghost btn-sm" data-stage-tab="main">← クエスト</button>
+        <div class="screen-sub" style="margin:0;">⚡${STATE.stamina} / ${STAMINA_MAX}</div>
+      </div>
+      ${renderDungeons()}` : `
+    <div class="screen-sub" style="margin-bottom:9px;">難易度を選んでください。最後のボスを倒すと次の難易度が解放されます。</div>
+    <div class="tier-tabs" role="tablist">
+      ${QUEST_TIERS.filter(t => !t.hidden).map(t => {
+        const open = tierUnlocked(t.key);
+        return `<button class="tier-tab ${questTier === t.key ? 'on' : ''} ${open ? '' : 'locked'}"
+          data-quest-tier="${t.key}" ${open && !t.disabled ? '' : 'disabled'} role="tab" aria-selected="${questTier === t.key}">
+          ${open && !t.disabled ? '' : '🔒'}${t.short || t.label}</button>`;
+      }).join('')}
     </div>
-    <div class="screen-sub" style="margin-bottom:10px;">
+    <div class="screen-sub" style="margin-bottom:9px;">
       ${questTier === 'tu' ? 'ゲームの遊び方を順番に覚えましょう。スタミナは使いません。'
-        : `ステージを選ぶと、出現する敵や報酬を確認できます。★3でクリアしたステージは周回できます(VIP限定)。`}
+        : `${tier2.label}　推奨Lv${tier2.lv[0]}〜${tier2.lv[1]}　★${tierStars}/${list2.length * 3}・★3クリアで周回できます(VIP限定)`}
     </div>
-    ${list.map(st => renderStageRow(st)).join('')}`}
+    ${list2.map(st => renderStageRow(st)).join('')}
+    <button class="dungeon-card" data-stage-tab="dungeon">
+      <span class="dc-body"><span class="dc-title">⛏ 育成ダンジョン</span>
+        <span class="dc-sub">EXP・ゴールド・素材。素材は曜日で入れ替わります</span></span>
+      <span class="mc-go">›</span>
+    </button>`}
 
     ${DEBUG_TOOLS ? `<div class="debug-row"><button class="btn btn-ghost btn-sm" data-debug="stamina">テスト用:スタミナ全回復</button><button class="btn btn-ghost btn-sm" data-debug="daily">テスト用:日付リセット</button><button class="btn btn-ghost btn-sm" data-debug="rich">テスト用:素材とゴールド</button><button class="btn btn-ghost btn-sm" data-debug="vip">テスト用:VIP ${STATE.vip ? 'ON' : 'OFF'}</button></div>` : ''}
   `;
@@ -8119,6 +8235,11 @@ function renderBattleFight(){
         ? `予約中 ${reservedCount}体。もう一度タップで取り消し`
         : 'SPが溜まったキャラをタップで必殺技を予約';
 
+  // the running commentary in the middle of the field: the latest attack or skill
+  const telopLine = [...b.log].reverse().find(l => /^@@(hit|skill|ult|ko|burn|debuff|heal)@@/.test(l));
+  const telopRaw = (telopLine || '').replace(/^@@[a-z]+@@/, '').split('!')[0];
+  const telop = b.finished || !telopRaw ? '' : (telopRaw.length > 30 ? `${telopRaw.slice(0, 29)}…` : telopRaw);
+
   // turn order: units still to act this round, then the next round
   const order = upcomingOrder(b, 9);
   const orderIcon = (u, cls) => `<div class="ts-icon ${u.isEnemy ? 'enemy' : 'ally'} ${cls || ''}" title="${nm(u)}"><img src="${imgSrc(u.ref)}" alt=""></div>`;
@@ -8132,10 +8253,12 @@ function renderBattleFight(){
   return `
     <div id="battle-wrap" class="${b.paused && !b.finished ? 'is-paused' : ''}" style="--terrain:${(TERRAIN[b.stage.terrain] || TERRAIN.field).color}; --spd:${speedFactor()}; --hit-delay:${Math.round(HIT_DELAY_MS / speedFactor())}ms;">
       <div class="battle-head">
-        <div class="screen-title">${b.stage.name}</div>
-        <div class="battle-timer ${MAX_ROUNDS - b.round <= 5 ? 'low' : ''}" aria-label="ラウンド">R ${Math.max(1, b.round)} / ${MAX_ROUNDS}</div>
+        <button class="btn btn-ghost btn-sm bh-back" data-nav="battle">‹ 撤退</button>
+        <div class="bh-name">${b.stage.name}</div>
+        <div class="wave-row">${waveRow}</div>
+        <div class="bh-wave">WAVE ${b.waveIndex + 1}/${b.stage.waves.length}</div>
+        <div class="pixel battle-timer ${MAX_ROUNDS - b.round <= 5 ? 'low' : ''}" aria-label="ラウンド">R${Math.max(1, b.round)}</div>
       </div>
-      <div class="wave-row">${waveRow}</div>
       ${turnStrip}
       <div class="battle-field">
         ${b.paused && !b.finished ? `
@@ -8146,6 +8269,7 @@ function renderBattleFight(){
           </div>` : ''}
         ${b.fxCutIn ? renderCutIn(b.fxCutIn) : ''}
         ${renderSideGrid(b.enemies, 'enemy', b.enemyFormation)}
+        ${telop ? `<div class="bf-telop">${telop}</div>` : ''}
         <div class="bf-divider">▲ 敵 ${shortFormationName(b.enemyFormation)}　WAVE ${b.waveIndex+1}/${b.stage.waves.length}　${shortFormationName(b.formation)} 味方 ▼</div>
         ${renderSideGrid(b.party, 'ally', b.formation)}
       </div>
@@ -8280,6 +8404,8 @@ function handlePhoneClick(ev){
   const ovEl = t.closest('[data-overlay]');
   if(ovEl){ openOverlay(ovEl.dataset.overlay); playSfx('open'); return; }
   if(t.closest('[data-overlay-close]')){ closeOverlay(); return; }
+  if(t.closest('[data-affinity]')){ renderAffinitySheet(); playSfx('open'); return; }
+  if(t.closest('[data-close-affinity]')){ closeModal(); return; }
   const ovAct = t.closest('[data-setting], [data-set-speed], [data-pick], [data-picked], [data-share-id], [data-clear-cache], [data-logout]');
   if(ovAct){ handleOverlayAction(ovAct); return; }
   if(t.closest('[data-install]')){ installToHome(); return; }
@@ -8810,6 +8936,38 @@ async function installToHome(){
     return;
   }
   if(isIOS()) toast('Safariの共有ボタンから「ホーム画面に追加」を選んでください');
+}
+
+/* ---------------- 属性相性表 (shared sheet) ---------------- */
+const ELEM_UP = 1.5, ELEM_DOWN = 0.7;
+function renderAffinitySheet(){
+  const chip = e => `<span class="af-el" style="border-color:${ELEM_COLOR[e]};">${ELEM_ICON[e]}${ELEM_LABEL[e]}</span>`;
+  const cycleRow = cyc => `<div class="af-cycle">${cyc.map((e, i) =>
+    `${chip(e)}<span class="af-arrow">${i < cyc.length - 1 ? '→' : '↩'}</span>`).join('')}</div>`;
+  const beats = e => ELEM_ORDER.filter(x => elementMultiplier(e, x) > 1);
+  const weak = e => ELEM_ORDER.filter(x => elementMultiplier(x, e) > 1);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal affinity-sheet" role="dialog" aria-label="属性相性表">
+      <button class="fs-close" data-close-affinity="1" aria-label="閉じる">×</button>
+      <h3>🔰 属性相性表</h3>
+      <p class="fs-note">有利 ×${ELEM_UP} / 不利 ×${ELEM_DOWN} / それ以外 ×1.0</p>
+      ${cycleRow(['fire', 'grass', 'water'])}
+      ${cycleRow(['earth', 'thunder', 'wind'])}
+      <div class="af-pair">${chip('light')}<span class="af-arrow">⇄</span>${chip('dark')}<span class="af-note">おたがいに ×${ELEM_UP}</span></div>
+      <div class="af-pair">${chip('none')}<span class="af-note">つねに ×1.0</span></div>
+      <div class="af-table">
+        <div class="af-row af-head"><span>属性</span><span>有利 ×${ELEM_UP}</span><span>不利 ×${ELEM_DOWN}</span></div>
+        ${ELEM_ORDER.map(e => `
+          <div class="af-row">
+            <span>${ELEM_ICON[e]}${ELEM_LABEL[e]}</span>
+            <span class="good">${beats(e).map(x => ELEM_LABEL[x]).join('・') || '—'}</span>
+            <span class="bad">${weak(e).map(x => ELEM_LABEL[x]).join('・') || '—'}</span>
+          </div>`).join('')}
+      </div>
+      <p class="fs-note">矢印の向きに攻撃すると ×${ELEM_UP}、逆向きは ×${ELEM_DOWN} になります。</p>
+    </div>`;
+  layer.classList.add('show');
 }
 
 /* ---------------- full-screen overlays: profile, settings, notices ---------------- */
