@@ -15,7 +15,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <!-- SNSに貼ったときの見た目。og:url と og:image は絶対URLでないと効かないので、公開先を変えたらここも直す -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="MonsterCollector">
+<meta property="og:site_name" content="Monstercollect">
 <meta property="og:title" content="モンコレ">
 <meta property="og:description" content="105体のモンスターを集めて育てる、ブラウザで遊べる収集RPG。ガチャ・編成・オート戦闘。">
 <meta property="og:url" content="https://negiramen1922.github.io/monster-collector/">
@@ -1861,12 +1861,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
-.dungeon-card{ width:100%; display:flex; align-items:center; gap:10px; text-align:left; padding:12px;
-  border-radius:15px; border:1px dashed rgba(232,180,85,.35); background:transparent; color:var(--text);
-  font-family:inherit; cursor:pointer; }
-.dc-body{ flex:1; min-width:0; }
-.dc-title{ display:block; font-size:13px; font-weight:800; }
-.dc-sub{ display:block; font-size:10.5px; color:var(--dim); margin-top:3px; }
+.explore-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:10px; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
 .af-cycle{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--panel2); border:1px dashed var(--line);
   border-radius:12px; padding:9px 10px; margin-bottom:7px; }
@@ -2119,7 +2114,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 <body>
 <div id="phone">
   <div id="title">
-    <div class="title-logo pixel">MonsterCollector<span>モンコレ</span></div>
+    <div class="title-logo pixel">Monstercollect<span>モンコレ</span></div>
     <p class="title-lead">読み込み中…</p>
   </div>
 </div>
@@ -2132,7 +2127,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 
 <script>
 /* =========================================================
-   モンコレ (MonsterCollector) v2
+   モンコレ (Monstercollect) v2
    7属性 / ロール制 / 覚醒(重複)システム / ウェーブ制探索
    ========================================================= */
 
@@ -2323,23 +2318,41 @@ const DEFAULT_BANNER = {
   featured: ['m31', 'm24', 'm08'],
 };
 
-/* ---- event: a time-limited banner + its own farmable quest stage.
+/* ---- events: time-limited banners, each with its own farmable quest stages.
    startAt/endAt use the device's local clock (no server, so this is honor-system -
-   fine for a single-file prototype; edit the dates here for the next event). ---- */
-const EVENT = {
-  key: 'ev_kyubi',
-  name: '紅蓮の九尾',
-  startAt: '2026-09-18T00:00:00+09:00',
-  endAt: '2026-10-02T23:59:59+09:00',
-  pickup: 'm116',
-  featured: ['m116'],
-};
-function eventActive(){
+   fine for a single-file prototype). Several can run at once; add more entries here
+   for the next event rather than replacing this one. ---- */
+const EVENTS = [
+  {
+    key: 'ev_kyubi',
+    name: '紅蓮の九尾',
+    startAt: '2026-09-18T00:00:00+09:00',
+    endAt: '2026-10-02T23:59:59+09:00',
+    pickup: 'm116',
+    featured: ['m116'],
+    stageName: '狐火の祭壇',
+    terrain: 'lava',
+    element: 'fire',
+    escorts: ['m128', 'm59', 'm127', 'm33', 'm129'],
+    tiers: [
+      { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+      { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+      { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+      { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+      { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+      { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
+    ],
+  },
+];
+function activeEvents(){
   const now = Date.now();
-  return now >= new Date(EVENT.startAt).getTime() && now <= new Date(EVENT.endAt).getTime();
+  return EVENTS.filter(ev => now >= new Date(ev.startAt).getTime() && now <= new Date(ev.endAt).getTime());
 }
+function eventActive(){ return activeEvents().length > 0; }
 function currentBanner(){
-  return eventActive() ? { name: EVENT.name, pickup: EVENT.pickup, featured: EVENT.featured } : DEFAULT_BANNER;
+  const ev = activeEvents()[0];
+  return ev ? { name: ev.name, pickup: ev.pickup, featured: ev.featured } : DEFAULT_BANNER;
 }
 
 
@@ -4203,47 +4216,41 @@ const STAGES = buildQuestStages();
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(st => [st.id, st]));
 
 // event stages: hand-built rather than run through buildQuestStages() since they
-// aren't part of the tu/q1-q3 progression (no `requires`, so all 7 are open at once
-// while the event is running - see eventActive()). Seven difficulty tiers, each a
-// 5-wave gauntlet ending in the event's pickup monster as the boss; the recruit
-// chance for that boss rises tier by tier (recruitOverride, read by recruitChanceOf).
-const EVENT_TIERS = [
-  { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
-  { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
-  { lv: 60,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
-  { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
-  { lv: 140, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
-  { lv: 170, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
-  { lv: 200, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
-];
-const EVENT_ESCORTS = ['m128', 'm59', 'm127', 'm33', 'm129'];
-function buildEventStages(){
-  return EVENT_TIERS.map((t, i) => {
+// aren't part of the tu/q1-q3 progression (no `requires`, so all of an event's tiers
+// are open at once while it's running - see eventActive()). Each event is a set of
+// difficulty tiers, each a 5-wave gauntlet ending in the event's pickup monster as
+// the boss; the recruit chance for that boss rises tier by tier (recruitOverride,
+// read by recruitChanceOf). Registered for every event in EVENTS (not just active
+// ones) so stages stay reachable/testable even once an event's dates have passed.
+function buildEventStages(ev){
+  return ev.tiers.map((t, i) => {
     const n = i + 1;
     const rec = t.lv;
     const escort = (ref, wave) => ({ ref, level: rec, star: t.bossStar });
     const waves = [0, 1, 2, 3].map(w => [
-      escort(EVENT_ESCORTS[w % EVENT_ESCORTS.length], w),
-      escort(EVENT_ESCORTS[(w + 1) % EVENT_ESCORTS.length], w),
+      escort(ev.escorts[w % ev.escorts.length], w),
+      escort(ev.escorts[(w + 1) % ev.escorts.length], w),
     ]);
     waves.push([
-      { ref: EVENT.pickup, level: rec + 2, star: t.bossStar, boss: true },
-      escort(EVENT_ESCORTS[0], 4), escort(EVENT_ESCORTS[1], 4),
+      { ref: ev.pickup, level: rec + 2, star: t.bossStar, boss: true },
+      escort(ev.escorts[0], 4), escort(ev.escorts[1], 4),
     ]);
     return {
-      id: `${EVENT.key}_${n}`, type: 'event', tier: 'event', name: `狐火の祭壇・${n}層`,
-      terrain: 'lava', element: 'fire', rec, stamina: 10 + n, power: 1, enemySkill: Math.min(10, 2 + n),
+      id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, name: `${ev.stageName}・${n}層`,
+      terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(10, 2 + n),
       firstClear: 100 * n, boss: true,
-      desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[EVENT.pickup].name}」が守る祭壇に挑む。`,
+      desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る祭壇に挑む。`,
       waves,
       gold: 1500 * n, pots: { exp2: Math.max(1, n) },
       bossReward: [{ type: 'item', key: n >= 6 ? 'box_sel_4' : 'box_sel_3', n: 1 }],
-      recruitOverride: { [EVENT.pickup]: t.rate },
+      recruitOverride: { [ev.pickup]: t.rate },
     };
   });
 }
-const EVENT_STAGES = buildEventStages();
-EVENT_STAGES.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
+EVENTS.forEach(ev => {
+  ev.stages = buildEventStages(ev);
+  ev.stages.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
+});
 
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
 function bossOf(stage){
@@ -4633,16 +4640,17 @@ function homeBanners(){
   const todayEls = (matOpenToday().el || []).map(k => `${ELEM_ICON[k]}${ELEM_LABEL[k]}`);
   const dungeonMon = MONSTERS.find(m => m.rarity === 4) || pickup;
   const banners = [];
-  if(eventActive()){
-    banners.push({ tag: 'EVENT', cls: 'b-event', title: EVENT.name,
-      sub: `期間限定クエスト「狐火の祭壇」全7層 開催中`, go: '挑戦する', img: EVENT.pickup, attr: 'data-nav="battle"' });
-  }
+  activeEvents().forEach(ev => {
+    banners.push({ tag: 'EVENT', cls: 'b-event', title: ev.name,
+      sub: `期間限定クエスト「${ev.stageName}」全${ev.tiers.length}層 開催中`, go: '挑戦する', img: ev.pickup,
+      attr: 'data-nav="battle" data-stage-tab-set="event"' });
+  });
   banners.push(
     { tag: 'PICK UP', cls: 'b-pick', title: `${pickup.name} ★${pickup.rarity} ピックアップ`,
       sub: `${currentBanner().name}・排出率アップ中`, go: 'ガチャを見る', img: pickup.id, attr: 'data-nav="gacha"' },
     { tag: 'DUNGEON', cls: 'b-event', title: '本日の育成ダンジョン',
       sub: todayEls.length ? `本日開放: ${todayEls.join('・')}の欠片ほか` : '素材を集めてスキルを強化',
-      go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle"' },
+      go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle" data-stage-tab-set="dungeon"' },
     { tag: 'DAILY', cls: 'b-daily', title: left ? `今日の日課 あと${left}件` : '今日の日課は完了',
       sub: `リセットまで ${formatDuration(msToDailyReset())}`, go: 'ミッションへ',
       img: STATE.slots.find(Boolean) || pickup.id, attr: 'data-nav="missions"' },
@@ -5340,7 +5348,7 @@ function kitLinesHtml(m, star, after){
   const a = after || {};
   return [
     card('通常', 'normal', kit.normal, typeOf(kit.normal), ''),
-    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, two ? '' : a.skill),
+    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill),
     two
       ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill)
       : `<div class="skill-card locked-slot">🔒 ★${SECOND_SKILL_STAR}に昇格すると、スキル2「${skill2.name}」が使えるようになります</div>`,
@@ -6070,44 +6078,48 @@ function renderDungeons(){
     }).join('')}`;
 }
 
-function renderEventCard(){
-  if(!EVENT_STAGES.length) return '';
-  const msLeft = new Date(EVENT.endAt).getTime() - Date.now();
+function renderEventCard(ev){
+  const msLeft = new Date(ev.endAt).getTime() - Date.now();
   return `
     <div class="panel event-card">
       <div class="row-between" style="margin-bottom:6px;">
-        <div class="mc-head">🔥 ${EVENT.name}</div>
+        <div class="mc-head">🔥 ${ev.name}</div>
         <div class="mc-reset">残り ${formatDuration(Math.max(0, msLeft))}</div>
       </div>
-      <div class="screen-sub" style="margin:0 0 8px;">「${MON_BY_ID[EVENT.pickup].name}」が守る祭壇に挑む。層が上がるほど仲間になる確率も上がる。</div>
-      ${EVENT_STAGES.map(renderStageRow).join('')}
+      <div class="screen-sub" style="margin:0 0 8px;">「${MON_BY_ID[ev.pickup].name}」が守る祭壇に挑む。層が上がるほど仲間になる確率も上がる。</div>
+      ${ev.stages.map(renderStageRow).join('')}
     </div>`;
+}
+function renderEventTab(){
+  const evs = activeEvents();
+  if(!evs.length) return `<div class="screen-sub" style="margin:28px 0;text-align:center;">現在開催中のイベントはありません</div>`;
+  return evs.map(renderEventCard).join('');
 }
 function renderBattleSelect(){
   refreshStamina();
-  const daily = ensureDaily();
-  const stPct = Math.min(100, Math.round(STATE.stamina / STAMINA_MAX * 100));
+  ensureDaily();
   if(questTier && !tierUnlocked(questTier)) questTier = null;
-  const list = questTier ? STAGES.filter(st => st.tier === questTier) : [];
-  const tierDef = questTier ? QUEST_TIERS.find(t => t.key === questTier) : null;
-  const tierStars = list.reduce((a, st) => a + stageStars(st.id), 0);
-
   if(stageTab === 'main' && !questTier) questTier = QUEST_TIERS_ACTIVE.filter(t => tierUnlocked(t.key)).slice(-1)[0].key;
   const tier2 = questTier ? QUEST_TIERS.find(t => t.key === questTier) : null;
   const list2 = questTier ? STAGES.filter(st => st.tier === questTier) : [];
+  const tierStars = list2.reduce((a, st) => a + stageStars(st.id), 0);
+  const evCount = activeEvents().length;
 
   return `
     <div class="row-between" style="margin:10px 0 6px;">
       <div class="screen-title" style="margin:0;">探索</div>
       <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
     </div>
-    ${eventActive() ? renderEventCard() : ''}
+    <div class="explore-tabs" role="tablist">
+      <button class="stage-tab ${stageTab === 'main' ? 'on' : ''}" data-stage-tab="main" role="tab" aria-selected="${stageTab === 'main'}">クエスト</button>
+      <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">育成</button>
+      <button class="stage-tab ${stageTab === 'event' ? 'on' : ''}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">イベント${evCount ? ` 🔥${evCount}` : ''}</button>
+    </div>
+    ${stageTab === 'event' ? renderEventTab() : ''}
     ${stageTab === 'dungeon' ? `
-      <div class="row-between" style="margin-bottom:8px;">
-        <button class="btn btn-ghost btn-sm" data-stage-tab="main">← クエスト</button>
-        <div class="screen-sub" style="margin:0;">⚡${STATE.stamina} / ${STAMINA_MAX}</div>
-      </div>
-      ${renderDungeons()}` : `
+      <div class="screen-sub" style="margin-bottom:8px;">⚡${STATE.stamina} / ${STAMINA_MAX}</div>
+      ${renderDungeons()}` : ''}
+    ${stageTab === 'main' ? `
     <div class="screen-sub" style="margin-bottom:9px;">難易度を選んでください。最後のボスを倒すと次の難易度が解放されます。</div>
     <div class="tier-tabs" role="tablist">
       ${QUEST_TIERS.filter(t => !t.hidden).map(t => {
@@ -6121,12 +6133,7 @@ function renderBattleSelect(){
       ${questTier === 'tu' ? 'ゲームの遊び方を順番に覚えましょう。スタミナは使いません。'
         : `${tier2.label}　推奨Lv${tier2.lv[0]}〜${tier2.lv[1]}　★${tierStars}/${list2.length * 3}・★3クリアで周回できます(VIP限定)`}
     </div>
-    ${list2.map(st => renderStageRow(st)).join('')}
-    <button class="dungeon-card" data-stage-tab="dungeon">
-      <span class="dc-body"><span class="dc-title">⛏ 育成ダンジョン</span>
-        <span class="dc-sub">EXP・ゴールド・素材。素材は曜日で入れ替わります</span></span>
-      <span class="mc-go">›</span>
-    </button>`}
+    ${list2.map(st => renderStageRow(st)).join('')}` : ''}
 
     ${DEBUG_TOOLS ? `<div class="debug-row"><button class="btn btn-ghost btn-sm" data-debug="stamina">テスト用:スタミナ全回復</button><button class="btn btn-ghost btn-sm" data-debug="daily">テスト用:日付リセット</button><button class="btn btn-ghost btn-sm" data-debug="rich">テスト用:素材とゴールド</button><button class="btn btn-ghost btn-sm" data-debug="vip">テスト用:VIP ${STATE.vip ? 'ON' : 'OFF'}</button></div>` : ''}
   `;
@@ -9272,7 +9279,11 @@ function handlePhoneClick(ev){
     return;
   }
   const navEl = t.closest('[data-nav]');
-  if(navEl){ goto(navEl.dataset.nav); return; }
+  if(navEl){
+    if(navEl.dataset.stageTabSet) stageTab = navEl.dataset.stageTabSet;
+    goto(navEl.dataset.nav);
+    return;
+  }
 
   const againEl = t.closest('[data-pull-again]');
   if(againEl){
@@ -10392,7 +10403,7 @@ async function startGame(){
 const GUIDE_CONTENT = {
   welcome: {
     steps: [
-      { title: 'ようこそ', body: 'ようこそ、MonsterCollectorへ旅の方。MonsterCollector(モンコレ)では、さまざまなモンスターを収集することをお楽しみいただけますよ。' },
+      { title: 'ようこそ', body: 'ようこそ、Monstercollectへ旅の方。Monstercollect(モンコレ)では、さまざまなモンスターを収集することをお楽しみいただけますよ。' },
       { body: '下のメニューから、探索・編成・ガチャ・拠点をいつでも行き来できます。まずは探索から始めてみましょう。', highlight: '#nav' },
     ],
   },
