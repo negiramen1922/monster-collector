@@ -314,7 +314,6 @@ body{
 .sound-modal .snd-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; font-size:13px; font-weight:700; }
 .sound-modal input[type=range]{ flex:1; accent-color:var(--gold); }
 .snd-val{ width:28px; text-align:right; font-variant-numeric:tabular-nums; color:var(--dim); }
-.snd-tests{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:14px; }
 .stamina-chip{
   display:flex; align-items:baseline; gap:3px; background:var(--panel2); border:1px solid var(--line);
   border-radius:999px; padding:6px 10px; font-size:13px; font-weight:700; color:#ffe27a;
@@ -3810,7 +3809,7 @@ const recruitChanceOf = (mon, asRare) =>
    do not own and it joins anyway, however unlucky the rolls have been. */
 const UNLOCK_SOULS = { 1: 10, 2: 25, 3: 60, 4: 250, 5: 400 };
 const pctText = v => v >= 0.01 ? `${Math.round(v * 100)}%` : `${(v * 100).toFixed(1)}%`;
-const DEBUG_TOOLS = true;                // test buttons (stamina refill) on the stage screen
+const DEBUG_TOOLS = false;               // test buttons (stamina refill) on the stage screen
 
 /* ================= QUESTS (tutorial + 5 tiers × 10 stages) =================
    Enemy strength = level (recommended level + lvAdj) and ★ (promotions).
@@ -8941,6 +8940,7 @@ function handlePhoneClick(ev){
   if(appPhase !== 'game') return;      // the title screen has its own handler
   const t = ev.target;
   if(t.closest('[data-open-account]')){ acctView = 'main'; renderAccountModal(); playSfx('open'); return; }
+  if(t.closest('[data-view-tutorial]')){ stageTab = 'main'; questTier = 'tu'; goto('battle'); return; }
   const ovEl = t.closest('[data-overlay]');
   if(ovEl){ openOverlay(ovEl.dataset.overlay); playSfx('open'); return; }
   if(t.closest('[data-overlay-close]')){ closeOverlay(); return; }
@@ -8953,8 +8953,6 @@ function handlePhoneClick(ev){
   if(acctEl){ handleAccountAction(acctEl.dataset.account); return; }
   if(gachaSeq && t.closest('[data-gacha-skip]')){ skipGacha(); return; }
   if(gachaSeq && t.closest('[data-gacha-stage]')){ tapGachaStage(); return; }
-  const testEl = t.closest('[data-sfx-test]');
-  if(testEl){ playSfx(testEl.dataset.sfxTest); return; }
   // battle controls make their sound on pointerdown instead
   if(!t.closest('#pause-btn, #resume-btn, #speed-btn, #auto-ult-btn, [data-ult], [data-open-log]')){
     const name = uiSfxFor(t);
@@ -9702,10 +9700,6 @@ function renderSettingsOverlay(){
             <div class="set-v snd-val">${Math.round(st.vol * 100)}</div>
             ${toggle('sfx', st.on)}
           </div>
-          <div class="snd-tests">
-            ${[['slash', '斬撃'], ['fire', '炎'], ['heal', '回復'], ['confirm', '決定']].map(([k, l]) =>
-              `<button class="btn btn-ghost btn-sm" data-sfx-test="${k}" ${st.on ? '' : 'disabled'}>${l}</button>`).join('')}
-          </div>
         </div>
 
         <div class="panel">
@@ -9722,6 +9716,8 @@ function renderSettingsOverlay(){
           <div class="set-item" data-open-account="1"><div class="set-k wide">アカウント連携</div>
             <div class="set-val ${ACCOUNT && ACCOUNT.provider !== 'guest' ? 'ok' : ''}">${ACCOUNT ? (PROVIDER_LABEL[ACCOUNT.provider] || '-') : '-'}</div><div class="set-go">›</div></div>
           <div class="set-item"><div class="set-k wide">言語</div><div class="set-val">日本語</div></div>
+          <div class="set-item" data-view-tutorial="1"><div class="set-k wide">チュートリアルを見る</div>
+            <div class="set-val"></div><div class="set-go">›</div></div>
           <div class="set-item" data-clear-cache="1"><div class="set-k wide">キャッシュを削除</div>
             <div class="set-val">読み込み直します</div><div class="set-go">›</div></div>
         </div>
