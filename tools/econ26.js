@@ -83,5 +83,5 @@ const res=E.grantStageRewards(E.STAGE_BY_ID.q1_05, bb.spawned);
 ok('ボスステージ初回: 選択BOX TierIIとボスのソウル', E.getItem('box_sel_2')===1 && res.souls.some(x=>x.id==='m60' && x.boss), res.souls.map(x=>x.id));
 const bossOnly=bb.spawned.filter(u=>u.boss);
 let souls=0; for(let i=0;i<8;i++){ const rr=E.grantStageRewards(E.STAGE_BY_ID.q1_05, bossOnly); souls+=rr.souls.reduce((a,x)=>a+x.n,0); }
-ok('ボスのソウルは1日5個まで', souls===4, souls);
+ok('ボスのソウルに1日の上限はない(8回で8個)', souls===8, souls);
 ok('ボスステージのドロップ(初級: TierI×4・II×1・III×1)', res.items.filter(x=>/^(el|sp|ro)_/.test(x.key)).reduce((a,x)=>a+x.n,0)===6, res.items);

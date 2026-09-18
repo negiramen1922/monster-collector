@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#0f0c1a">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2858,7 +2859,7 @@ function renderSweepModal(){
         <div class="promo-note">1回 ⚡${stage.stamina}・いまは最大 ${max}回${
           STATE.stamina >= STAMINA_MAX ? '' : `・全回復まで ${formatDuration(msToFullStamina())}`}</div>
       </div>
-      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・🧪EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル(1日5個まで)' : ''}</div>
+      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・🧪EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}</div>
       ${opts.length ? `<div class="sweep-opts">${opts.map(n => `
         <button class="btn" data-sweep-run="${n}">
           <b>${n === max && n > 10 ? `最大 ${n}回` : `${n}回`}</b>
@@ -3286,11 +3287,13 @@ const STAMINA_MAX = 300;
 const STAMINA_REGEN_MS = 5 * 60 * 1000;  // 1 point every 5 min → 288/day (≈29 runs)
 const STAMINA_REFUND_ON_LOSS = 0.5;      // half the cost comes back on defeat / time-out
 const DAY_RESET_HOUR = 4;                // daily counters reset at 4:00 local time
-const BOSS_SOUL_DAILY_CAP = 5;           // main boss stages: 1 soul of the boss per clear, up to 5 a day
-const NORMAL_SOUL_DROP = 0.30;           // per defeated ★1/★2 enemy
-const RARE_SPAWN_PER_WAVE = 0.05;        // a ★3/★4 from the stage's rare list replaces one enemy
-const RARE_SOUL_DAILY_CAP = 5;           // souls per rare monster per day
-const UNLOCK_SOULS = { 1: 3, 2: 5, 3: 10, 4: 20 }; // souls of an unowned monster needed to befriend it
+// no daily cap: exploration souls are slow by the numbers below, not by a timer
+const NORMAL_SOUL_DROP = 0.20;           // per defeated ★1/★2 enemy
+const RARE_SPAWN_PER_WAVE = 0.08;        // a ★3/★4 from the stage's rare list replaces one enemy
+/* Souls needed to befriend a monster you do not own. The gacha is the way in; exploration
+   is the slow alternative. At roughly 29 runs a day these work out as: ★1 half a day,
+   ★2 two days, ★3 and ★4 about nine days each. */
+const UNLOCK_SOULS = { 1: 10, 2: 25, 3: 60, 4: 250 };
 const DEBUG_TOOLS = true;                // test buttons (stamina refill) on the stage screen
 
 /* ================= QUESTS (tutorial + 5 tiers × 10 stages) =================
@@ -3904,6 +3907,15 @@ function renderHome(){
       </div>
       <div style="font-size:20px;">⚔️</div>
     </div>
+
+    ${canInstall() ? `
+    <div class="panel panel-tight row-between" data-install="1" style="cursor:pointer;">
+      <div>
+        <div style="font-weight:800; font-size:13px;">📲 ホーム画面に追加</div>
+        <div class="acct-line">アプリのように全画面で遊べます</div>
+      </div>
+      <div class="mc-go">›</div>
+    </div>` : ''}
 
     <div class="panel panel-tight row-between" data-open-account="1" style="cursor:pointer;">
       <div>
@@ -4816,7 +4828,7 @@ function renderStageSheet(){
           <div>
             <div class="bh-name">${'★'.repeat(boss.rarity)} ${boss.name}</div>
             <div class="bh-tags">${ELEM_ICON[boss.element]}${ELEM_LABEL[boss.element]}・${ROLE_ICON[boss.role]}${ROLE_LABEL[boss.role]}</div>
-            <div class="bh-tags">◆ ボスのソウル 1個(1日${BOSS_SOUL_DAILY_CAP}個まで・今日 ${(daily.bossSouls || {})[boss.id] || 0}/${BOSS_SOUL_DAILY_CAP})</div>
+            <div class="bh-tags">◆ ボスのソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個)・仲間にするまで ${UNLOCK_SOULS[boss.rarity]}個</div>
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -4829,7 +4841,7 @@ function renderStageSheet(){
         <div class="ss-block">
           <div class="ss-label">レア出現(各ウェーブ${Math.round(RARE_SPAWN_PER_WAVE * 100)}%)</div>
           <div class="rare-row">
-            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${daily.rareSouls[id] || 0}/${RARE_SOUL_DAILY_CAP}</small></span>`).join('')}
+            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${daily.rareSouls[id] || 0}/${UNLOCK_SOULS[MON_BY_ID[id].rarity]}</small></span>`).join('')}
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -7717,10 +7729,10 @@ function grantStageRewards(stage, spawned){
   spawned.forEach(u => {
     if(u.boss){
       const got = daily.bossSouls[u.ref] || 0;
-      if(got < BOSS_SOUL_DAILY_CAP){ daily.bossSouls[u.ref] = got + 1; addSoul(u.ref, 1); }
+      daily.bossSouls[u.ref] = got + 1; addSoul(u.ref, 1);
     }else if(u.rare){
       const got = daily.rareSouls[u.ref] || 0;
-      if(got < RARE_SOUL_DAILY_CAP){ daily.rareSouls[u.ref] = got + 1; addSoul(u.ref, 1); }
+      daily.rareSouls[u.ref] = got + 1; addSoul(u.ref, 1);
     }else if(u.rarity <= 2 && Math.random() < NORMAL_SOUL_DROP){
       addSoul(u.ref, 1);
     }
@@ -7999,6 +8011,7 @@ function handlePhoneClick(ev){
   const t = ev.target;
   if(t.closest('#sound-btn')){ renderSoundSettings(); playSfx('open'); return; }
   if(t.closest('[data-open-account]')){ acctView = 'main'; renderAccountModal(); playSfx('open'); return; }
+  if(t.closest('[data-install]')){ installToHome(); return; }
   const acctEl = t.closest('[data-account]');
   if(acctEl){ handleAccountAction(acctEl.dataset.account); return; }
   if(gachaPending && t.closest('.gacha-eggs')){ finishGachaEggs(); return; }
@@ -8536,6 +8549,25 @@ function setBgmVolume(v){
   if(bgm.el && bgm.key) bgm.el.volume = bgmElementVolume(bgm.key);
 }
 
+/* ---------------- install to the home screen ---------------- */
+// Chrome hands us the prompt to fire later; iOS has no API, so we explain instead.
+let installPrompt = null;
+const standaloneMode = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+const canInstall = () => !standaloneMode() && (!!installPrompt || isIOS());
+async function installToHome(){
+  if(installPrompt){
+    const prompt = installPrompt;
+    installPrompt = null;
+    prompt.prompt();
+    const choice = await prompt.userChoice.catch(() => null);
+    logEvent('install_prompt', { outcome: choice ? choice.outcome : 'error' });
+    render();
+    return;
+  }
+  if(isIOS()) toast('Safariの共有ボタンから「ホーム画面に追加」を選んでください');
+}
+
 /* ---------------- title screen ---------------- */
 let appPhase = 'boot';        // 'boot' | 'title' | 'game'
 let titleView = 'choose';     // 'choose' | 'email'
@@ -8676,6 +8708,7 @@ function renderAccountModal(){
       <div class="snd-row"><span>ログイン方法</span><b>${PROVIDER_LABEL[a.provider] || '-'}</b></div>
       ${a.email ? `<div class="snd-row"><span>メール</span><b>${escapeHtml(a.email)}</b></div>` : ''}
       <div class="snd-row"><span>データ同期</span><b>${syncLabel()}</b></div>
+      ${canInstall() ? '<button class="btn btn-ghost btn-block" data-install="1">📲 ホーム画面に追加</button>' : ''}
       ${guest ? `
         <p class="title-note">GoogleかメールアドレスにすればプレイヤーIDと進行状況をそのまま引き継げて、ほかの端末でも続きから遊べます。</p>
         <button class="btn btn-block" data-account="link-google">Googleに引き継ぐ</button>
@@ -8779,6 +8812,16 @@ async function startGame(){
 function wireGlobalEvents(){
   if(wireGlobalEvents.done) return;
   wireGlobalEvents.done = true;
+  window.addEventListener('beforeinstallprompt', ev => {
+    ev.preventDefault();
+    installPrompt = ev;
+    if(appPhase === 'game') render();
+  });
+  window.addEventListener('appinstalled', () => { installPrompt = null; logEvent('installed', {}); });
+  // the service worker only makes sense on a served page
+  if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e)));
+  }
   document.addEventListener('input', ev => {
     if(ev.target.id === 'sfx-volume'){
       const v = Number(ev.target.value) / 100;

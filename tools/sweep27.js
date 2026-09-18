@@ -27,8 +27,8 @@ S.vip=true; S.stamina=300;
 r=F.runSweep('q1_01', 10);
 ok('VIPならメインステージを周回(ゴールド・素材・ソウル)', r.runs===10 && r.gold===10*F.STAGE_BY_ID.q1_01.gold && Object.keys(r.items).length>0, {gold:r.gold, items:Object.keys(r.items).length, souls:r.souls});
 ok('周回もミッションの探索クリアに数える', S.stats.stageClear>=10, S.stats.stageClear);
-// boss soul cap still applies when sweeping
+// sweeping a boss stage gives one soul per run, with no daily cap
 S.stageStars.q1_05=3; S.clearedStages=api.STAGES.map(x=>x.id); S.stamina=300; S.daily=null;
 r=F.runSweep('q1_05', 10);
 const bossSouls=api.STATE.daily.bossSouls.m60;
-ok('ボスステージの周回でもボスのソウルは1日5個まで', bossSouls===5, bossSouls);
+ok('ボスステージの周回は1回1個(上限なし)', bossSouls===10, bossSouls);

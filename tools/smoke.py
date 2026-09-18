@@ -76,12 +76,50 @@ async def local_file(p, url):
     await b.close()
 
 
+async def pwa(p, url):
+    """ホーム画面に置けるか(manifest・サービスワーカー・オフライン起動)。"""
+    b = await p.chromium.launch(**LAUNCH, args=['--autoplay-policy=no-user-gesture-required'])
+    ctx = await b.new_context(viewport={'width': 375, 'height': 667})
+    pg = await ctx.new_page()
+    await use_mock_auth(pg)
+    await pg.goto(url)
+    await pg.wait_for_timeout(1200)
+    await start_as_guest(pg)
+    await pg.wait_for_timeout(2500)
+    man = await pg.evaluate("""async () => {
+      const link = document.querySelector('link[rel=manifest]');
+      if(!link) return null;
+      const j = await (await fetch(link.href)).json();
+      return { name: j.name, display: j.display, icons: (j.icons || []).length,
+               maskable: (j.icons || []).some(i => (i.purpose || '').includes('maskable')) };
+    }""")
+    check('manifestが読める', bool(man and man['display'] == 'standalone'), str(man))
+    check('アイコンが揃っている', bool(man and man['icons'] >= 3 and man['maskable']))
+    regs = await pg.evaluate("async () => (await navigator.serviceWorker.getRegistrations()).map(r => !!r.active)")
+    check('サービスワーカーが動いている', bool(regs) and all(regs), str(regs))
+    cached = await pg.evaluate("""async () => {
+      const ks = await caches.keys();
+      if(!ks.length) return [];
+      const c = await caches.open(ks[0]);
+      return (await c.keys()).map(r => new URL(r.url).pathname.split('/').pop());
+    }""")
+    check('本体がキャッシュされている', 'index.html' in cached, str(cached))
+    await ctx.set_offline(True)
+    await pg.reload()
+    await pg.wait_for_timeout(2500)
+    check('オフラインでも起動する', await pg.evaluate("() => !!STATE && !!document.getElementById('nav')"))
+    await ctx.set_offline(False)
+    await b.close()
+
+
 async def main():
     async with async_playwright() as p:
         with game_url() as url:
             await screens(p, url)
         with game_url(http=False) as url:
             await local_file(p, url)
+        with game_url() as url:
+            await pwa(p, url)
     raise SystemExit(1 if bad else 0)
 
 

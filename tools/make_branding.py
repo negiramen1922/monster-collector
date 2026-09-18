@@ -71,9 +71,15 @@ async def main():
         b = await p.chromium.launch(**LAUNCH)
         pg = await b.new_page()
         face = sprite(sprites, FACE)
-        for size, ring, name in [(64, 3, 'favicon.png'), (180, 7, 'icon-180.png')]:
+        for size, ring, name in [(64, 3, 'favicon.png'), (180, 7, 'icon-180.png'),
+                                 (192, 7, 'icon-192.png'), (512, 18, 'icon-512.png')]:
             html = FAVICON.replace('SIZE', str(size)).replace('RING', str(ring)).replace('SRC', face)
             await shot(pg, html, OUT / name, (size, size))
+        # maskable: the launcher may crop to a circle, so the art sits inside the safe zone
+        mask = (FAVICON.replace('SIZE', '512').replace('RING', '0').replace('SRC', face)
+                .replace('border-radius:22%', 'border-radius:0')
+                .replace('width:82%;height:82%', 'width:58%;height:58%'))
+        await shot(pg, mask, OUT / 'icon-512-maskable.png', (512, 512))
         cast = ''.join(f'<img src="{sprite(sprites, k)}">' for k in CAST)
         elems = ''.join(f'<img src="{icons["elem_" + e]}">' for e in ['fire', 'water', 'grass', 'thunder', 'light', 'dark'])
         await shot(pg, OGP.replace('CAST', cast).replace('ELEMS', elems), OUT / 'ogp.png', (1200, 630))
