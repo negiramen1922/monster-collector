@@ -10042,6 +10042,8 @@ async function handleAccountAction(action){
     STATE = null;
     appPhase = 'title'; titleView = 'choose'; titleMsg = ''; titleEmail = ''; titleBusy = false;
     currentScreen = 'home';
+    // leftover overlay state (e.g. settings left open) must not carry into the next login
+    overlayView = null; pickTarget = null; acctView = 'main';
     renderTitle();
   }
 }
