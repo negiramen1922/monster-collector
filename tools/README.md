@@ -22,6 +22,8 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | tune54.js | 調整値の自動探索(`ONLY=q1_01 node tune54.js q1`) |
 | dump33.js | 全ステージ構成のMarkdown出力 |
 | smoke.py | 起動スモークテスト(主要7画面のJSエラー・横スクロールと、BGMの読み込みを確認) |
+| auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(26項目) |
+| mock_auth.js | テスト用の偽Firebase(認証とFirestoreの代役)。`window.__authBackend` に入る |
 | _serve.py | 画面テスト用のローカルHTTPサーバ(BGMの `fetch` は `file://` では通らないため) |
 | shot*.py | playwrightの画面テスト |
 
@@ -34,6 +36,7 @@ python3 tools/smoke.py
 
 - 対象のHTMLは `GAME_HTML` 環境変数で差し替えられます(既定はリポジトリ直下の `index.html`)。
 - `smoke.py` と `shot33.py` は `_serve.py` のローカルサーバ経由で開きます(BGMをWebAudioで読むため)。他の `shot*.py` は `file://` のままです。
+- 画面テストは `mock_auth.js` を差し込んでゲストで開始します(本番のFirebaseには接続しません)。
 - chromium をplaywright経由で入れられない環境では、`CHROMIUM_PATH` に実行ファイルのパスを指定してください
   (例: `CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome python3 tools/smoke.py`)。
 

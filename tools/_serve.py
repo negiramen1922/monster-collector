@@ -38,3 +38,18 @@ def game_url(http=True):
         return
     with serve(root=target.parent, page=target.name) as url:
         yield url
+
+
+MOCK_AUTH = (pathlib.Path(__file__).resolve().parent / 'mock_auth.js').read_text(encoding='utf-8')
+
+
+async def use_mock_auth(pg):
+    """本番のFirebaseに触らずにログインできるよう、偽バックエンドを仕込む(goto の前に呼ぶ)。"""
+    await pg.add_init_script(MOCK_AUTH)
+
+
+async def start_as_guest(pg, wait=900):
+    """タイトル画面が出ていればゲストで開始して、ゲーム画面まで進める。"""
+    if await pg.evaluate("() => !!document.getElementById('title')"):
+        await pg.click('[data-auth="guest"]')
+        await pg.wait_for_timeout(wait)

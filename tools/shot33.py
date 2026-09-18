@@ -1,7 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright
 import os, pathlib
-from _serve import game_url
+from _serve import game_url, use_mock_auth, start_as_guest
 # chromium: CHROMIUM_PATH env var when playwright's own download is unavailable
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
 # bgm needs fetch, which file:// blocks, so this one goes through a local server
@@ -10,8 +10,10 @@ async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(**LAUNCH, args=['--autoplay-policy=no-user-gesture-required'])
         pg = await b.new_page(viewport={'width':375,'height':667})
+        await use_mock_auth(pg)
         errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto(GAME_HTML); await pg.wait_for_timeout(1500)
+        await start_as_guest(pg)
         await pg.evaluate("() => { ['m05','m15','m22','m57','m19'].forEach(id => STATE.owned[id] = { ...newOwned(MON_BY_ID[id]), star:4, level:60, wall:60 }); STATE.formationKey='f2'; STATE.slots=['m05','m15','m22','m57','m19']; STATE.clearedStages = STAGES.filter(s => s.tier==='tu' || s.tier==='q1').map(s=>s.id); STATE.battleSpeed=3; questTier='q1'; render(); }")
         await pg.click('[data-nav="home"]'); await pg.wait_for_timeout(1500)
         decoded = await pg.evaluate("() => Object.keys(bgm.buffers).length")

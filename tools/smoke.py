@@ -8,7 +8,7 @@
 """
 import asyncio, os, pathlib
 from playwright.async_api import async_playwright
-from _serve import game_url
+from _serve import game_url, use_mock_auth, start_as_guest
 
 OUT = pathlib.Path(__file__).resolve().parent
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
@@ -32,10 +32,12 @@ def check(name, cond, info=''):
 async def open_game(p, url):
     b = await p.chromium.launch(**LAUNCH, args=['--autoplay-policy=no-user-gesture-required'])
     pg = await b.new_page(viewport={'width': 375, 'height': 667})
+    await use_mock_auth(pg)          # 本番のFirebaseには触らずゲストで開始する
     errs = []
     pg.on('pageerror', lambda e: errs.append(str(e)))
     await pg.goto(url)
     await pg.wait_for_timeout(1200)
+    await start_as_guest(pg)
     await pg.evaluate(SETUP)
     await pg.wait_for_timeout(300)
     return b, pg, errs

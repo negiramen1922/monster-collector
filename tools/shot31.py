@@ -1,14 +1,17 @@
 import asyncio
 from playwright.async_api import async_playwright
 import os, pathlib
+from _serve import use_mock_auth, start_as_guest
 # game file: GAME_HTML env var, else ../index.html next to this script
 # chromium: CHROMIUM_PATH env var when playwright's own download is unavailable
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
 GAME_HTML = 'file://' + os.environ.get('GAME_HTML', str(pathlib.Path(__file__).resolve().parent.parent / 'index.html'))
 async def run(p, w, h, tag):
     b = await p.chromium.launch(**LAUNCH); pg = await b.new_page(viewport={'width':w,'height':h})
+    await use_mock_auth(pg)
     errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
     await pg.goto(GAME_HTML); await pg.wait_for_timeout(600)
+    await start_as_guest(pg)
     await pg.evaluate("() => { ['m05','m15','m22','m57','m19'].forEach(id => STATE.owned[id] = { ...newOwned(MON_BY_ID[id]), star: 4, level: 60, wall: 60 }); STATE.formationKey='f2'; STATE.slots=['m05','m15','m22','m57','m19']; STATE.clearedStages = STAGES.filter(s => s.tier==='tu' || s.tier==='q1' || (s.tier==='q2' && s.no<6)).map(s => s.id); STATE.stageStars = { q1_01:3, q1_02:2, q2_01:3 }; STATE.vip = true; STATE.battleSpeed=3; questTier=null; render(); }")
     await pg.click('[data-nav="battle"]'); await pg.wait_for_timeout(150)
     await pg.screenshot(path=f'./v31_{tag}_tiers.png')

@@ -1,6 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright
 import os, pathlib
+from _serve import use_mock_auth, start_as_guest
 # game file: GAME_HTML env var, else ../index.html next to this script
 # chromium: CHROMIUM_PATH env var when playwright's own download is unavailable
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
@@ -8,8 +9,10 @@ GAME_HTML = 'file://' + os.environ.get('GAME_HTML', str(pathlib.Path(__file__).r
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(**LAUNCH); pg = await b.new_page(viewport={'width':375,'height':667})
+        await use_mock_auth(pg)
         errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto(GAME_HTML); await pg.wait_for_timeout(1200)
+        await start_as_guest(pg)
         # single pull with a forced ★5, then a 10-pull
         await pg.evaluate("() => { STATE.crystals = 99999; render(); }")
         await pg.evaluate("""() => { const orig = pullOne; window.__orig = orig; pullOne = (min) => { const r = orig(min); r.mon = MON_BY_ID.m116; return r; }; }""")

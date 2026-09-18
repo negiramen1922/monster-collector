@@ -1,6 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright
 import os, pathlib
+from _serve import use_mock_auth, start_as_guest
 # game file: GAME_HTML env var, else ../index.html next to this script
 # chromium: CHROMIUM_PATH env var when playwright's own download is unavailable
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
@@ -13,8 +14,10 @@ SETUP = """() => {
 async def run(p, w, h, tag):
     b = await p.chromium.launch(**LAUNCH)
     pg = await b.new_page(viewport={'width':w,'height':h})
+    await use_mock_auth(pg)
     errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
     await pg.goto(GAME_HTML); await pg.wait_for_timeout(600)
+    await start_as_guest(pg)
     await pg.evaluate(SETUP)
     if tag == 'desk':
         await pg.click('[data-nav="party"]'); await pg.click('[data-slot="0"] img'); await pg.click('[data-slot-action="detail"]')

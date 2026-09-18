@@ -1447,6 +1447,38 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   #battle-wrap .ult-hint{ display:none; }
 }
 
+/* ---------- title screen / account ---------- */
+#title{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:16px; padding:32px 22px; overflow-y:auto; }
+.title-logo{ font-size:17px; line-height:2; letter-spacing:1px; color:var(--gold); text-align:center; }
+.title-logo span{ display:block; font-size:7px; color:var(--dim); letter-spacing:2px; margin-top:10px; }
+.title-lead{ margin:0; text-align:center; font-size:12px; color:var(--dim); }
+.title-actions{ display:flex; flex-direction:column; gap:10px; }
+.title-links{ display:flex; gap:8px; justify-content:center; }
+.title-note{ margin:0; font-size:10.5px; line-height:1.8; color:var(--dim); }
+.title-warn{ margin:0; font-size:10.5px; line-height:1.7; color:var(--gold); background:rgba(232,180,85,.08);
+  border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+.title-msg{ margin:0; min-height:15px; text-align:center; font-size:11px; line-height:1.5; color:#ff9d8a; }
+.title-msg.ok{ color:#7fd6a2; }
+.title-form{ display:flex; flex-direction:column; gap:6px; }
+.title-form label{ font-size:11px; color:var(--dim); }
+.title-form input, .acct-modal .snd-row input{
+  background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:11px 12px;
+  color:var(--text); font-family:inherit; font-size:14px; min-width:0;
+}
+.title-form input:focus, .acct-modal .snd-row input:focus{ outline:none; border-color:var(--gold); }
+.title-form .btn{ margin-top:4px; }
+.acct-line{ font-size:11px; color:var(--dim); margin-top:3px; }
+.acct-modal .snd-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom:10px; font-size:12.5px; font-weight:700; }
+.acct-modal .snd-row input{ flex:1; padding:8px 10px; font-size:13px; }
+.acct-modal .snd-row b{ font-weight:700; color:var(--dim); text-align:right; word-break:break-all; }
+.acct-modal .btn-block{ margin-top:8px; }
+.acct-modal .title-note{ margin:10px 0; }
+.acct-id-box{ display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--line);
+  border-radius:12px; padding:10px 12px; margin-bottom:12px; }
+.acct-id-label{ font-size:10px; color:var(--dim); white-space:nowrap; }
+.acct-id{ flex:1; font-size:12px; font-weight:800; letter-spacing:.5px; color:var(--gold); text-align:center; white-space:nowrap; }
+
 @media (max-width:420px){
   #phone{ height:100vh; border-radius:0; border:none; box-shadow:none; }
   body{ padding:0; }
@@ -1782,6 +1814,377 @@ function applySynergies(units){
   return syn.filter(x => x.active);
 }
 
+/* ---------------- storage ---------------- */
+// The host used to inject window.storage; in a plain browser back it with localStorage.
+const storage = (() => {
+  const host = (typeof window !== 'undefined' && window.storage) || null;
+  if(host) return { get: k => host.get(k), set: (k, v) => host.set(k, v), remove: k => host.remove ? host.remove(k) : host.set(k, '') };
+  return {
+    async get(key){ try{ const v = localStorage.getItem(key); return v === null ? null : { value: v }; }catch(e){ return null; } },
+    async set(key, value){ try{ localStorage.setItem(key, value); }catch(e){} },
+    async remove(key){ try{ localStorage.removeItem(key); }catch(e){} },
+  };
+})();
+
+/* ---------------- account, sign-in and cloud save ---------------- */
+/* Firebase web app config. The apiKey is not a secret (it identifies the project, it does
+   not grant access) — Firestore security rules are what keep saves private, see firestore.rules.
+   Sign-in methods used: Google / メール・パスワード / 匿名. */
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDnmOoDr2xIZ9QwqzpJpsr0N-aKB4RskgQ',
+  authDomain: 'monster-collector-80b5b.firebaseapp.com',
+  projectId: 'monster-collector-80b5b',
+  storageBucket: 'monster-collector-80b5b.firebasestorage.app',
+  messagingSenderId: '682683586147',
+  appId: '1:682683586147:web:99dabd2d3e0b97821c8a56',
+};
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.5/';
+const firebaseConfigured = () => !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.authDomain);
+
+const ACCOUNT_KEY = 'monster-game-account';
+const SAVE_KEY = 'monster-game-state';           // also the key of pre-account saves
+const saveKeyFor = uid => `${SAVE_KEY}:${uid}`;
+const PROVIDER_LABEL = { google: 'Google', email: 'メールアドレス', guest: 'ゲスト' };
+
+let ACCOUNT = null;        // { uid, playerId, provider, name, email, createdAt, lastLoginAt }
+let localSaveFound = false;
+
+class AuthError extends Error {
+  constructor(code){ super(code); this.code = code; }
+}
+const AUTH_MESSAGE = {
+  'needs-firebase': 'この方法を使うにはFirebaseの設定が必要です',
+  'auth/invalid-email': 'メールアドレスの形式が正しくありません',
+  'auth/missing-email': 'メールアドレスを入力してください',
+  'auth/missing-password': 'パスワードを入力してください',
+  'auth/weak-password': 'パスワードは6文字以上にしてください',
+  'auth/email-already-in-use': 'このメールアドレスは登録済みです。ログインしてください',
+  'auth/invalid-credential': 'メールアドレスかパスワードが違います',
+  'auth/wrong-password': 'メールアドレスかパスワードが違います',
+  'auth/user-not-found': 'このメールアドレスは登録されていません',
+  'auth/too-many-requests': '試行が多すぎます。しばらく待ってからお試しください',
+  'auth/popup-closed-by-user': 'ログインがキャンセルされました',
+  'auth/cancelled-popup-request': 'ログインがキャンセルされました',
+  'auth/network-request-failed': 'ネットワークに接続できませんでした',
+  'auth/operation-not-allowed': 'このログイン方法がFirebaseで有効になっていません',
+  'auth/credential-already-in-use': 'このアカウントは別のデータで使われています',
+  'auth/email-already-in-use-link': 'このメールアドレスは別のアカウントで使われています',
+};
+function authMessage(e){
+  return AUTH_MESSAGE[e && e.code] || 'ログインできませんでした。時間をおいてお試しください';
+}
+
+/* Friend code: 12 Crockford base32 characters (no I/L/O/U), derived from the uid so a
+   player keeps the same code on every device. playerIds/{code} in Firestore owns
+   uniqueness; on the rare collision the next candidate is used. */
+const ID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+function hash32(str, seed){
+  let h = seed >>> 0;
+  for(let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193) >>> 0;
+  return h >>> 0;
+}
+function playerIdFromUid(uid){
+  return [0x811c9dc5, 0x9e3779b1, 0x85ebca6b].map(seed => {
+    let h = hash32(uid, seed), s = '';
+    for(let i = 0; i < 4; i++){ s += ID_ALPHABET[h & 31]; h >>>= 5; }
+    return s;
+  }).join('-');
+}
+function providerOf(user){
+  if(user.isAnonymous) return 'guest';
+  const p = (user.providerData && user.providerData[0] && user.providerData[0].providerId) || '';
+  return p === 'google.com' ? 'google' : p === 'password' ? 'email' : 'guest';
+}
+function accountFromUser(user, provider, prev){
+  const prov = provider || providerOf(user);
+  const keep = prev && prev.uid === user.uid ? prev : null;
+  return {
+    uid: user.uid,
+    playerId: (keep && keep.playerId) || playerIdFromUid(user.uid),
+    provider: prov,
+    name: (keep && keep.name) || user.displayName || (user.email ? user.email.split('@')[0] : '') ||
+          `テイマー${playerIdFromUid(user.uid).slice(0, 4)}`,
+    email: user.email || (keep ? keep.email : '') || '',
+    createdAt: (keep && keep.createdAt) || Date.now(),
+    lastLoginAt: Date.now(),
+  };
+}
+async function readAccount(){
+  try{ const res = await storage.get(ACCOUNT_KEY); return res ? JSON.parse(res.value) : null; }
+  catch(e){ return null; }
+}
+async function storeAccount(acct){
+  ACCOUNT = acct;
+  try{ await storage.set(ACCOUNT_KEY, JSON.stringify(acct)); }catch(e){}
+}
+
+/* ---- sign-in backends ---- */
+// No Firebase config (or no network at all): guest play on this device only.
+const localBackend = {
+  kind: 'local',
+  async restore(){ return null; },
+  async guest(){ return { uid: 'local-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), isAnonymous: true }; },
+  async google(){ throw new AuthError('needs-firebase'); },
+  async emailSignIn(){ throw new AuthError('needs-firebase'); },
+  async emailSignUp(){ throw new AuthError('needs-firebase'); },
+  async resetPassword(){ throw new AuthError('needs-firebase'); },
+  async linkGoogle(){ throw new AuthError('needs-firebase'); },
+  async linkEmail(){ throw new AuthError('needs-firebase'); },
+  async signOut(){},
+};
+
+const POPUP_FALLBACK = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'];
+
+const firebaseBackend = {
+  kind: 'firebase',
+  _m: null,
+  async load(){
+    if(this._m) return this._m;
+    let app, auth, fs;
+    try{
+      [app, auth, fs] = await Promise.all([
+        import(FIREBASE_SDK + 'firebase-app.js'),
+        import(FIREBASE_SDK + 'firebase-auth.js'),
+        import(FIREBASE_SDK + 'firebase-firestore.js'),
+      ]);
+    }catch(e){
+      throw new AuthError('auth/network-request-failed'); // SDK could not be fetched
+    }
+    const a = app.initializeApp(FIREBASE_CONFIG);
+    const authInst = auth.getAuth(a);
+    await auth.setPersistence(authInst, auth.browserLocalPersistence).catch(() => {});
+    this._m = { auth, authInst, fs, db: fs.getFirestore(a) };
+    return this._m;
+  },
+  async restore(){
+    const { auth, authInst } = await this.load();
+    const back = await auth.getRedirectResult(authInst).catch(() => null);
+    if(back && back.user) return back.user;
+    return new Promise(resolve => {
+      const stop = auth.onAuthStateChanged(authInst, u => { stop(); resolve(u); }, () => { stop(); resolve(null); });
+    });
+  },
+  async google(){
+    const { auth, authInst } = await this.load();
+    const provider = new auth.GoogleAuthProvider();
+    try{
+      return (await auth.signInWithPopup(authInst, provider)).user;
+    }catch(e){
+      if(!POPUP_FALLBACK.includes(e.code)) throw e;
+      await auth.signInWithRedirect(authInst, provider);
+      return new Promise(() => {}); // the page navigates away
+    }
+  },
+  async guest(){
+    const { auth, authInst } = await this.load();
+    return (await auth.signInAnonymously(authInst)).user;
+  },
+  async emailSignUp(email, password){
+    const { auth, authInst } = await this.load();
+    return (await auth.createUserWithEmailAndPassword(authInst, email, password)).user;
+  },
+  async emailSignIn(email, password){
+    const { auth, authInst } = await this.load();
+    return (await auth.signInWithEmailAndPassword(authInst, email, password)).user;
+  },
+  async resetPassword(email){
+    const { auth, authInst } = await this.load();
+    await auth.sendPasswordResetEmail(authInst, email);
+  },
+  // guest → real account: keeps the same uid, so the save and the friend code carry over
+  async linkGoogle(){
+    const { auth, authInst } = await this.load();
+    return (await auth.linkWithPopup(authInst.currentUser, new auth.GoogleAuthProvider())).user;
+  },
+  async linkEmail(email, password){
+    const { auth, authInst } = await this.load();
+    const cred = auth.EmailAuthProvider.credential(email, password);
+    return (await auth.linkWithCredential(authInst.currentUser, cred)).user;
+  },
+  async signOut(){
+    const { auth, authInst } = await this.load();
+    await auth.signOut(authInst);
+  },
+  /* ---- firestore ---- */
+  async cloudLoad(uid){
+    const { fs, db } = await this.load();
+    const snap = await fs.getDoc(fs.doc(db, 'saves', uid));
+    return snap.exists() ? snap.data() : null;   // { savedAt, version, data }
+  },
+  async cloudSave(uid, payload, baseAt){
+    const { fs, db } = await this.load();
+    const ref = fs.doc(db, 'saves', uid);
+    return await fs.runTransaction(db, async tx => {
+      const snap = await tx.get(ref);
+      const remoteAt = (snap.exists() && snap.data().savedAt) || 0;
+      // another device saved something we have not seen yet: keep it and pull on the next start
+      if(remoteAt > (baseAt || 0)) return false;
+      tx.set(ref, payload);
+      return true;
+    });
+  },
+  async cloudProfile(uid, profile){
+    const { fs, db } = await this.load();
+    await fs.setDoc(fs.doc(db, 'players', uid), profile, { merge: true });
+  },
+  async claimPlayerId(code, uid){
+    const { fs, db } = await this.load();
+    const ref = fs.doc(db, 'playerIds', code);
+    const snap = await fs.getDoc(ref);
+    if(snap.exists()) return snap.data().uid === uid;
+    await fs.setDoc(ref, { uid, at: Date.now() });
+    return true;
+  },
+};
+
+// tests install their own backend here; otherwise firebase when configured, local when not
+function authBackend(){
+  if(typeof window !== 'undefined' && window.__authBackend) return window.__authBackend;
+  return firebaseConfigured() ? firebaseBackend : localBackend;
+}
+const cloudAvailable = () => typeof authBackend().cloudSave === 'function';
+
+/* ---- sign-in / sign-out ---- */
+async function authRestore(){
+  const saved = await readAccount();
+  const be = authBackend();
+  if(!be.restore) { ACCOUNT = saved; return ACCOUNT; }
+  try{
+    const user = await be.restore();
+    if(user){ await storeAccount(accountFromUser(user, null, saved)); return ACCOUNT; }
+  }catch(e){
+    console.warn('auth: sign-in service unreachable', e);
+    ACCOUNT = saved;              // offline: a returning player keeps playing with the local save
+    return ACCOUNT;
+  }
+  // signed out on the service side; a device-local guest can still play
+  ACCOUNT = saved && String(saved.uid).startsWith('local-') ? saved : null;
+  return ACCOUNT;
+}
+async function signIn(kind, opts){
+  const be = authBackend();
+  const saved = await readAccount();
+  const o = opts || {};
+  const user = kind === 'google' ? await be.google()
+    : kind === 'guest' ? await be.guest()
+    : kind === 'email-up' ? await be.emailSignUp(o.email, o.password)
+    : await be.emailSignIn(o.email, o.password);
+  const provider = kind === 'google' ? 'google' : kind === 'guest' ? 'guest' : 'email';
+  await storeAccount(accountFromUser(user, provider, saved));
+  return ACCOUNT;
+}
+async function linkAccount(kind, opts){
+  const be = authBackend();
+  const o = opts || {};
+  const user = kind === 'google' ? await be.linkGoogle() : await be.linkEmail(o.email, o.password);
+  await storeAccount(accountFromUser(user, kind === 'google' ? 'google' : 'email', ACCOUNT));
+  return ACCOUNT;
+}
+async function signOutAccount(){
+  await flushSave();
+  try{ await authBackend().signOut(); }catch(e){ /* already signed out */ }
+  ACCOUNT = null;
+  try{ await storage.remove(ACCOUNT_KEY); }catch(e){}
+}
+// claim the friend code so PVP and friend lookups can go from code → uid
+async function ensurePlayerId(){
+  const be = authBackend();
+  if(!ACCOUNT || !be.claimPlayerId) return;
+  for(let i = 0; i < 5; i++){
+    const code = i ? playerIdFromUid(`${ACCOUNT.uid}#${i}`) : ACCOUNT.playerId;
+    try{
+      if(await be.claimPlayerId(code, ACCOUNT.uid)){
+        if(code !== ACCOUNT.playerId) await storeAccount({ ...ACCOUNT, playerId: code });
+        return;
+      }
+    }catch(e){ console.warn('player id: could not claim', e); return; }
+  }
+}
+// public profile, for the friend list and PVP opponent cards later
+async function publishProfile(){
+  const be = authBackend();
+  if(!ACCOUNT || !be.cloudProfile) return;
+  try{
+    await be.cloudProfile(ACCOUNT.uid, {
+      playerId: ACCOUNT.playerId,
+      name: ACCOUNT.name,
+      provider: ACCOUNT.provider,
+      monsters: STATE ? Object.keys(STATE.owned).length : 0,
+      cleared: STATE ? STATE.clearedStages.length : 0,
+      updatedAt: Date.now(),
+    });
+  }catch(e){ console.warn('profile: not published', e); }
+}
+
+/* ---- cloud save ---- */
+const CLOUD_PUSH_MS = 8000;
+const cloud = { timer: null, pushing: false, dirty: false, at: 0, error: null, syncedAt: 0, blocked: false };
+
+function cloudPayload(){
+  return { savedAt: STATE.savedAt || Date.now(), version: STATE_VERSION, data: JSON.stringify(STATE) };
+}
+async function cloudPush(now){
+  if(!ACCOUNT || !STATE || !cloudAvailable() || cloud.blocked) return;
+  clearTimeout(cloud.timer);
+  if(!now){
+    cloud.dirty = true;
+    cloud.timer = setTimeout(() => cloudPush(true), CLOUD_PUSH_MS);
+    return;
+  }
+  if(cloud.pushing){ cloud.dirty = true; return; }
+  cloud.pushing = true;
+  cloud.dirty = false;
+  try{
+    const payload = cloudPayload();
+    const ok = await authBackend().cloudSave(ACCOUNT.uid, payload, cloud.syncedAt);
+    if(ok === false){
+      cloud.blocked = true;      // stop pushing rather than overwrite the other device
+      cloud.error = 'conflict';
+      if(appPhase === 'game') toast('ほかの端末でデータが更新されています。読み込み直してください');
+    }else{
+      cloud.syncedAt = payload.savedAt;
+      cloud.at = Date.now();
+      cloud.error = null;
+    }
+  }catch(e){
+    cloud.error = e;
+    cloud.dirty = true;           // retry with the next save
+    console.warn('cloud save failed', e);
+  }
+  cloud.pushing = false;
+  if(cloud.dirty) cloud.timer = setTimeout(() => cloudPush(true), CLOUD_PUSH_MS);
+}
+async function cloudPull(){
+  if(!ACCOUNT || !cloudAvailable()) return null;
+  try{ return await authBackend().cloudLoad(ACCOUNT.uid); }
+  catch(e){ console.warn('cloud load failed', e); return null; }
+}
+/* Newest save wins, so a player can move between devices. The save that loses is kept
+   under a :backup key on this device, in case the clocks disagreed. */
+async function syncOnLogin(){
+  const remote = await cloudPull();
+  const localAt = (STATE && STATE.savedAt) || 0;
+  cloud.blocked = false;
+  cloud.syncedAt = (remote && remote.savedAt) || 0;
+  if(!remote || !remote.data){
+    if(localSaveFound) await cloudPush(true);
+    return 'local';
+  }
+  if(remote.version !== STATE_VERSION) return 'local';   // save format moved on; keep this device's
+  if(!localSaveFound || (remote.savedAt || 0) > localAt){
+    let parsed = null;
+    try{ parsed = JSON.parse(remote.data); }catch(e){ return 'local'; }
+    if(!parsed || !parsed.owned) return 'local';
+    if(localSaveFound) await storage.set(`${saveKeyFor(ACCOUNT.uid)}:backup`, JSON.stringify(STATE));
+    STATE = parsed;
+    normalizeState();
+    await storage.set(saveKeyFor(ACCOUNT.uid), JSON.stringify(STATE));
+    return 'cloud';
+  }
+  if(localAt > (remote.savedAt || 0)) await cloudPush(true);
+  return 'local';
+}
+
 /* ---------------- persistence ---------------- */
 
 const DEFAULT_STATE = () => ({
@@ -1812,6 +2215,7 @@ const DEFAULT_STATE = () => ({
   clearedStages: [],
   stageStars: {},          // stage id → best clear rank (1–3)
   totalPulls: 0,
+  savedAt: 0,       // when this save was last written (cloud sync compares it)
   autoUlt: false,   // false: tap a unit with full SP to reserve its ultimate
   battleSpeed: 1,   // 1 / 2 / 3
   vip: false,
@@ -1821,15 +2225,30 @@ let STATE = null;
 let saveTimer = null;
 
 async function loadState(){
+  const key = ACCOUNT ? saveKeyFor(ACCOUNT.uid) : SAVE_KEY;
+  localSaveFound = false;
   try{
-    const res = await window.storage.get('monster-game-state');
-    STATE = res ? JSON.parse(res.value) : DEFAULT_STATE();
+    let res = await storage.get(key);
+    if(!res && ACCOUNT){
+      // a save from before sign-in existed: the first account to sign in adopts it
+      const legacy = await storage.get(SAVE_KEY);
+      if(legacy && legacy.value){ res = legacy; await storage.set(key, legacy.value); await storage.remove(SAVE_KEY); }
+    }
+    localSaveFound = !!(res && res.value);
+    STATE = localSaveFound ? JSON.parse(res.value) : DEFAULT_STATE();
   }catch(e){
     STATE = DEFAULT_STATE();
+    localSaveFound = false;
   }
   if(!STATE || !STATE.owned || STATE.version !== STATE_VERSION){
     STATE = DEFAULT_STATE(); // schema changed -> fresh start
+    localSaveFound = false;
   }
+  normalizeState();
+}
+
+// fixups that any save needs, whether it came from this device or the cloud
+function normalizeState(){
   // migrate older saves (4-slot list / 3x2 grid / 4x2 grid) to "formation + 5 slots"
   if(!Array.isArray(STATE.slots) || STATE.slots.length !== PARTY_MAX){
     let front = [], back = [];
@@ -1860,11 +2279,24 @@ async function loadState(){
 }
 
 function saveState(){
-  clearTimeout(saveTimer);
+  if(!STATE) return;
+  STATE.savedAt = Date.now();   // when the data changed, not when it reached the disk:
+  clearTimeout(saveTimer);      // the cloud compares this to decide which device is newer
   saveTimer = setTimeout(async () => {
-    try{ await window.storage.set('monster-game-state', JSON.stringify(STATE)); }
-    catch(e){ /* storage unavailable, ignore in prototype */ }
+    await writeSave();
+    cloudPush();
   }, 250);
+}
+async function writeSave(){
+  if(!STATE) return;
+  try{ await storage.set(ACCOUNT ? saveKeyFor(ACCOUNT.uid) : SAVE_KEY, JSON.stringify(STATE)); }
+  catch(e){ /* storage unavailable, ignore in prototype */ }
+}
+// write now instead of on the timer: before signing out, or when the page goes away
+async function flushSave(){
+  clearTimeout(saveTimer);
+  await writeSave();
+  await cloudPush(true);
 }
 
 /* ================= ITEMS & GROWTH ECONOMY (v6) =================
@@ -3251,6 +3683,14 @@ function renderHome(){
         <div style="font-size:11px; color:var(--dim); margin-top:3px;">クリア済み: ${STATE.clearedStages.length} / ${STAGES.length} ステージ</div>
       </div>
       <div style="font-size:20px;">⚔️</div>
+    </div>
+
+    <div class="panel panel-tight row-between" data-open-account="1" style="cursor:pointer;">
+      <div>
+        <div style="font-weight:800; font-size:13px;">👤 ${escapeHtml(ACCOUNT ? ACCOUNT.name : 'テイマー')}</div>
+        <div class="acct-line">ID ${escapeHtml(ACCOUNT ? ACCOUNT.playerId : '----')}・${ACCOUNT ? (PROVIDER_LABEL[ACCOUNT.provider] || '-') : '-'}</div>
+      </div>
+      <div class="mc-go">›</div>
     </div>
   `;
 }
@@ -7124,8 +7564,12 @@ function handlePhonePointerDown(ev){
 }
 
 function handlePhoneClick(ev){
+  if(appPhase !== 'game') return;      // the title screen has its own handler
   const t = ev.target;
   if(t.closest('#sound-btn')){ renderSoundSettings(); playSfx('open'); return; }
+  if(t.closest('[data-open-account]')){ acctView = 'main'; renderAccountModal(); playSfx('open'); return; }
+  const acctEl = t.closest('[data-account]');
+  if(acctEl){ handleAccountAction(acctEl.dataset.account); return; }
   if(gachaPending && t.closest('.gacha-eggs')){ finishGachaEggs(); return; }
   if(t.closest('[data-bgm-toggle]')){
     const bg = bgmSettings(); bg.on = !bg.on; saveState(); renderSoundSettings();
@@ -7634,13 +8078,247 @@ function setBgmVolume(v){
   if(bgm.el && bgm.key) bgm.el.volume = bgmElementVolume(bgm.key);
 }
 
+/* ---------------- title screen ---------------- */
+let appPhase = 'boot';        // 'boot' | 'title' | 'game'
+let titleView = 'choose';     // 'choose' | 'email'
+let titleEmail = '';
+let titleBusy = false;
+let titleMsg = '';
+let titleMsgOk = false;
+
+const escapeHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function titleHtml(){
+  const off = titleBusy ? 'disabled' : '';
+  const local = !firebaseConfigured() && !(typeof window !== 'undefined' && window.__authBackend);
+  const msg = titleMsg ? `<p class="title-msg ${titleMsgOk ? 'ok' : ''}">${escapeHtml(titleMsg)}</p>` : '<p class="title-msg"></p>';
+  let body;
+  if(appPhase === 'boot'){
+    body = '<p class="title-lead">ログイン中…</p>';
+  }else if(titleView === 'email'){
+    body = `
+      <div class="title-form">
+        <label for="auth-email">メールアドレス</label>
+        <input id="auth-email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" value="${escapeHtml(titleEmail)}" ${off}>
+        <label for="auth-pass">パスワード</label>
+        <input id="auth-pass" type="password" autocomplete="current-password" placeholder="6文字以上" ${off}>
+      </div>
+      ${msg}
+      <div class="title-actions">
+        <button class="btn btn-block" data-auth="email-in" ${off}>ログイン</button>
+        <button class="btn btn-ghost btn-block" data-auth="email-up" ${off}>新規登録</button>
+        <div class="title-links">
+          <button class="btn btn-ghost btn-sm" data-auth="email-reset" ${off}>パスワードを忘れた</button>
+          <button class="btn btn-ghost btn-sm" data-auth="back" ${off}>戻る</button>
+        </div>
+      </div>`;
+  }else{
+    body = `
+      <p class="title-lead">はじめる方法を選んでください</p>
+      ${msg}
+      <div class="title-actions">
+        <button class="btn btn-block" data-auth="google" ${off}>Googleでログイン</button>
+        <button class="btn btn-block" data-auth="email-form" ${off}>メールアドレスで始める</button>
+        <button class="btn btn-ghost btn-block" data-auth="guest" ${off}>ゲストで遊ぶ</button>
+      </div>
+      <p class="title-note">ゲストのデータはこの端末だけに保存されます。あとからGoogle・メールアドレスに引き継げます。</p>
+      ${local ? '<p class="title-warn">Firebaseが未設定のため、いまはゲストのみ遊べます。</p>' : ''}`;
+  }
+  return `
+    <div id="title">
+      <div class="title-logo pixel">MONSTER<span>Adventure Prototype</span></div>
+      ${body}
+    </div>`;
+}
+function renderTitle(){
+  document.getElementById('phone').innerHTML = titleHtml();
+}
+function titleFormValues(){
+  const email = document.getElementById('auth-email');
+  const pass = document.getElementById('auth-pass');
+  if(email) titleEmail = email.value.trim();
+  return { email: titleEmail, password: pass ? pass.value : '' };
+}
+async function handleTitleClick(ev){
+  if(appPhase !== 'title' || titleBusy) return;
+  const el = ev.target.closest('[data-auth]');
+  if(!el) return;
+  const kind = el.dataset.auth;
+  if(kind === 'email-form' || kind === 'back'){
+    titleView = kind === 'back' ? 'choose' : 'email';
+    titleMsg = ''; renderTitle();
+    return;
+  }
+  const { email, password } = titleFormValues();
+  if(kind === 'email-reset'){
+    if(!email){ titleMsg = 'メールアドレスを入力してください'; titleMsgOk = false; renderTitle(); return; }
+    try{
+      await authBackend().resetPassword(email);
+      titleMsg = 'パスワード再設定のメールを送りました'; titleMsgOk = true;
+    }catch(e){ titleMsg = authMessage(e); titleMsgOk = false; }
+    renderTitle();
+    return;
+  }
+  if(kind === 'email-in' || kind === 'email-up'){
+    if(!email){ titleMsg = 'メールアドレスを入力してください'; titleMsgOk = false; renderTitle(); return; }
+    if(!password){ titleMsg = 'パスワードを入力してください'; titleMsgOk = false; renderTitle(); return; }
+  }
+  titleBusy = true; titleMsg = ''; renderTitle();
+  try{
+    await signIn(kind, { email, password });
+    await startGame();
+  }catch(e){
+    titleBusy = false;
+    titleMsg = authMessage(e);
+    titleMsgOk = false;
+    renderTitle();
+  }
+}
+function handleTitleKey(ev){
+  if(appPhase !== 'title' || ev.key !== 'Enter' || titleView !== 'email') return;
+  const btn = document.querySelector('[data-auth="email-in"]');
+  if(btn) btn.click();
+}
+
+/* ---------------- account panel ---------------- */
+let acctView = 'main';        // 'main' | 'link-email' | 'logout'
+
+function syncLabel(){
+  if(!cloudAvailable()) return 'この端末のみ';
+  if(cloud.error === 'conflict') return 'ほかの端末が新しい(読み込み直してください)';
+  if(cloud.error) return '未同期(通信できません)';
+  if(cloud.at) return `同期済み(${formatDuration(Date.now() - cloud.at)}前)`;
+  return 'ログイン時に同期';
+}
+function renderAccountModal(){
+  const a = ACCOUNT || {};
+  const guest = a.provider === 'guest';
+  const layer = document.getElementById('modal-layer');
+  let body;
+  if(acctView === 'logout'){
+    body = `
+      <p class="title-note">${guest
+        ? 'ゲストのデータはこの端末にだけあります。ログアウトすると、このデータには戻れません。'
+        : '同じ方法でログインし直せば、データはそのまま続けられます。'}</p>
+      <button class="btn btn-block" data-account="logout-yes">ログアウトする</button>
+      <button class="btn btn-ghost btn-block" data-account="main">やめる</button>`;
+  }else{
+    body = `
+      <div class="acct-id-box">
+        <div class="acct-id-label">プレイヤーID</div>
+        <div class="acct-id">${escapeHtml(a.playerId || '----')}</div>
+        <button class="btn btn-ghost btn-sm" data-account="copy">コピー</button>
+      </div>
+      <div class="snd-row">
+        <label for="acct-name">名前</label>
+        <input id="acct-name" type="text" maxlength="12" value="${escapeHtml(a.name)}">
+        <button class="btn btn-sm" data-account="rename">保存</button>
+      </div>
+      <div class="snd-row"><span>ログイン方法</span><b>${PROVIDER_LABEL[a.provider] || '-'}</b></div>
+      ${a.email ? `<div class="snd-row"><span>メール</span><b>${escapeHtml(a.email)}</b></div>` : ''}
+      <div class="snd-row"><span>データ同期</span><b>${syncLabel()}</b></div>
+      ${guest ? `
+        <p class="title-note">GoogleかメールアドレスにすればプレイヤーIDと進行状況をそのまま引き継げて、ほかの端末でも続きから遊べます。</p>
+        <button class="btn btn-block" data-account="link-google">Googleに引き継ぐ</button>
+        <button class="btn btn-ghost btn-block" data-account="link-email-form">メールアドレスに引き継ぐ</button>` : ''}
+      ${acctView === 'link-email' ? `
+        <div class="title-form">
+          <label for="link-email">メールアドレス</label>
+          <input id="link-email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com">
+          <label for="link-pass">パスワード</label>
+          <input id="link-pass" type="password" autocomplete="new-password" placeholder="6文字以上">
+          <button class="btn btn-block" data-account="link-email-go">この内容で引き継ぐ</button>
+        </div>` : ''}
+      <button class="btn btn-ghost btn-block" data-account="logout">ログアウト</button>`;
+  }
+  layer.innerHTML = `
+    <div class="result-modal acct-modal" role="dialog" aria-label="アカウント">
+      <h3>アカウント</h3>
+      ${body}
+      <button class="btn btn-block" id="close-result">閉じる</button>
+    </div>`;
+  layer.classList.add('show');
+}
+async function handleAccountAction(action){
+  if(action === 'main' || action === 'link-email-form'){
+    acctView = action === 'main' ? 'main' : 'link-email';
+    renderAccountModal();
+    return;
+  }
+  if(action === 'logout'){ acctView = 'logout'; renderAccountModal(); return; }
+  if(action === 'copy'){
+    const id = (ACCOUNT && ACCOUNT.playerId) || '';
+    try{ await navigator.clipboard.writeText(id); toast('プレイヤーIDをコピーしました'); }
+    catch(e){ toast(`プレイヤーID ${id}`); }
+    return;
+  }
+  if(action === 'rename'){
+    const input = document.getElementById('acct-name');
+    const name = (input ? input.value : '').trim().slice(0, 12);
+    if(!name){ toast('名前を入力してください'); return; }
+    await storeAccount({ ...ACCOUNT, name });
+    publishProfile();
+    renderAccountModal();
+    render();
+    toast('名前を変えました');
+    return;
+  }
+  if(action === 'link-google' || action === 'link-email-go'){
+    const email = document.getElementById('link-email');
+    const pass = document.getElementById('link-pass');
+    try{
+      await linkAccount(action === 'link-google' ? 'google' : 'email',
+        { email: email ? email.value.trim() : '', password: pass ? pass.value : '' });
+      await flushSave();
+      publishProfile();
+      acctView = 'main';
+      renderAccountModal();
+      render();
+      toast('引き継ぎました');
+    }catch(e){ toast(authMessage(e)); }
+    return;
+  }
+  if(action === 'logout-yes'){
+    closeModal();
+    await signOutAccount();
+    stopBgm(false);
+    STATE = null;
+    appPhase = 'title'; titleView = 'choose'; titleMsg = ''; titleEmail = ''; titleBusy = false;
+    currentScreen = 'home';
+    renderTitle();
+  }
+}
+
 /* ---------------- boot ---------------- */
 
 async function boot(){
+  wireGlobalEvents();
+  appPhase = 'boot';
+  renderTitle();                       // splash while the saved session is restored
+  let acct = null;
+  try{ acct = await authRestore(); }
+  catch(e){ console.warn('auth: could not restore the session', e); }
+  if(!acct){ appPhase = 'title'; titleView = 'choose'; renderTitle(); return; }
+  await startGame();
+}
+
+// signed in: load the save (the cloud one wins when it is newer) and show the game
+async function startGame(){
+  appPhase = 'game';
+  titleBusy = false; titleMsg = '';   // leave the title in a clean state for the next sign-out
   await loadState();
-  const audioStart = () => { sfxInit(); bgmInit().then(updateBgm); };
-  document.addEventListener('pointerdown', audioStart, { once: true, capture: true });
-  document.addEventListener('keydown', audioStart, { once: true, capture: true });
+  let from = 'local';
+  try{ from = await syncOnLogin(); }
+  catch(e){ console.warn('sync: could not reach the cloud save', e); }
+  ensurePlayerId().then(publishProfile);
+  buildShell();
+  if(from === 'cloud') toast('クラウドのデータを読み込みました');
+}
+
+function wireGlobalEvents(){
+  if(wireGlobalEvents.done) return;
+  wireGlobalEvents.done = true;
   document.addEventListener('input', ev => {
     if(ev.target.id === 'sfx-volume'){
       const v = Number(ev.target.value) / 100;
@@ -7666,10 +8344,12 @@ async function boot(){
     if(ev.code === 'Space' || ev.key === 'p' || ev.key === 'P'){ ev.preventDefault(); togglePause(); }
   });
   document.addEventListener('visibilitychange', () => {
+    if(!STATE) return;
     if(document.hidden && currentScreen === 'battle-fight' && battleUI && !battleUI.finished) setPaused(true);
-    if(document.hidden) stopBgm(false);
+    if(document.hidden){ stopBgm(false); flushSave(); }
     else updateBgm();
   });
+  window.addEventListener('pagehide', () => { if(STATE) flushSave(); });
   // keep stamina (header + stage screen timers) up to date
   setInterval(() => {
     if(!STATE) return;
@@ -7688,6 +8368,18 @@ async function boot(){
     if(STATE.daily.key !== dayKey){ saveState(); if(currentScreen === 'missions' || currentScreen === 'home') render(); }
     updateMissionBadge();
   }, 1000);
+  const phoneEl = document.getElementById('phone');
+  phoneEl.addEventListener('click', handlePhoneClick);
+  phoneEl.addEventListener('pointerdown', handlePhonePointerDown);
+  phoneEl.addEventListener('click', handleTitleClick);
+  document.addEventListener('keydown', handleTitleKey);
+}
+
+// the game shell: header, screen container, nav. Rebuilt whenever an account signs in.
+function buildShell(){
+  const audioStart = () => { sfxInit(); bgmInit().then(updateBgm); };
+  document.addEventListener('pointerdown', audioStart, { once: true, capture: true });
+  document.addEventListener('keydown', audioStart, { once: true, capture: true });
   const phone = document.getElementById('phone');
   phone.innerHTML = `
     <div id="statusbar">
@@ -7708,8 +8400,6 @@ async function boot(){
       ${NAV.map(n => `<button class="nav-btn" data-key="${n.key}" data-nav="${n.key}"><span class="ic">${n.icon}</span>${n.label}</button>`).join('')}
     </div>
   `;
-  phone.addEventListener('click', handlePhoneClick);
-  phone.addEventListener('pointerdown', handlePhonePointerDown);
   render();
 }
 
