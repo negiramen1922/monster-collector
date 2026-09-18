@@ -1565,6 +1565,49 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .skill-upgrade .cost-list{ display:flex; gap:6px; flex-wrap:wrap; }
 .skill-upgrade .btn{ flex:none; }
 
+/* ---------- gacha ---------- */
+.gc-hero{ position:relative; border:1px solid rgba(232,180,85,.3); border-radius:18px; padding:13px; overflow:hidden;
+  background:linear-gradient(120deg,#2a1c3f 0%,#3b2050 55%,#1d1830 100%); }
+.gc-tag{ display:inline-block; font-size:8px; padding:4px 6px; border-radius:4px; background:var(--danger); color:#fff; }
+.gc-hero-row{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+.gc-hero-body{ flex:1; min-width:0; }
+.gc-name{ font-size:18px; font-weight:800; }
+.gc-sub{ font-size:11px; color:#d9c7f0; margin-top:4px; line-height:1.7; }
+.gc-period{ font-size:11px; color:var(--gold); font-weight:800; margin-top:5px; }
+.gc-hero-row img{ width:118px; height:118px; flex:none; object-fit:contain; image-rendering:pixelated;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
+.gc-line{ display:flex; align-items:center; justify-content:space-between; font-size:11.5px; font-weight:800; margin-bottom:6px; }
+.gc-line .gold{ color:var(--gold); } .gc-line .purple{ color:#b06fe0; }
+.gc-bar{ height:6px; border-radius:999px; background:var(--groove); overflow:hidden; }
+.gc-bar > div{ height:100%; background:linear-gradient(90deg,#c98f2e,#e8b455); }
+.gc-bar > div.spark{ background:#b06fe0; }
+.gc-soul{ margin-top:10px; font-size:11.5px; font-weight:800; color:var(--dim); }
+.gc-soul b{ color:var(--text); }
+.gc-soul small{ display:block; font-size:10px; font-weight:700; color:var(--dim2); margin-top:3px; line-height:1.6; }
+.gc-rates{ display:flex; gap:5px; }
+.gc-rate{ flex:1; text-align:center; padding:8px 0; border-radius:10px; background:var(--panel2); border:1px solid rgba(232,180,85,.14); }
+.gc-rate-star{ font-size:11px; font-weight:800; }
+.gc-rate-pct{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+.gc-rate.r5 .gc-rate-star{ color:#e8b455; } .gc-rate.r4 .gc-rate-star{ color:#b06fe0; }
+.gc-rate.r3 .gc-rate-star{ color:#3aa0d6; } .gc-rate.r2 .gc-rate-star{ color:#5cab52; }
+.gc-rate.r1 .gc-rate-star{ color:#8f8fa0; }
+.gc-rate.top{ background:#3a2a1a; border-color:var(--gold); }
+.gc-recent{ display:flex; gap:6px; }
+.gc-recent-cell{ flex:1; border-radius:11px; background:var(--panel2); border:1px solid rgba(232,180,85,.14);
+  padding:5px; text-align:center; min-width:0; }
+.gc-recent-cell img{ width:100%; height:44px; object-fit:contain; image-rendering:pixelated; }
+.gc-recent-star{ font-size:9px; font-weight:800; }
+.gc-recent-cell.r5{ border-color:rgba(232,180,85,.55); } .gc-recent-cell.r5 .gc-recent-star{ color:#e8b455; }
+.gc-recent-cell.r4{ border-color:rgba(176,111,224,.5); } .gc-recent-cell.r4 .gc-recent-star{ color:#b06fe0; }
+.gc-recent-cell.r3{ border-color:rgba(58,160,214,.4); } .gc-recent-cell.r3 .gc-recent-star{ color:#3aa0d6; }
+.gc-recent-cell.r2 .gc-recent-star{ color:#5cab52; } .gc-recent-cell.r1 .gc-recent-star{ color:#8f8fa0; }
+.gc-btns{ display:flex; gap:7px; padding-top:2px; }
+.gc-btns .btn{ padding:14px 0; border-radius:13px; font-size:13px; }
+.gc-btns .btn small{ display:block; font-size:10.5px; font-weight:700; margin-top:3px; }
+.gc-pull1{ flex:1; border:1px solid rgba(232,180,85,.35); background:var(--panel); color:var(--text); }
+.gc-pull1 small{ color:var(--dim); }
+.gc-pull10{ flex:1.6; border:none; background:linear-gradient(180deg,#e8b455,#c98f2e); color:#1a1206; font-size:14px; }
+
 /* ---------- full-screen overlays (profile / settings / notices) ---------- */
 #overlay{ position:absolute; inset:0; z-index:20; display:none; }
 #overlay.show{ display:block; }
@@ -2528,6 +2571,7 @@ const DEFAULT_STATE = () => ({
   stageStars: {},          // stage id → best clear rank (1–3)
   totalPulls: 0,
   savedAt: 0,       // when this save was last written (cloud sync compares it)
+  recentPulls: [],  // the last few monsters pulled, shown on the gacha screen
   profile: null,    // { avatar, favorites:[id] }
   noticeSeen: 0,    // highest notice id the player has seen
   showDamage: true, // damage numbers over the units
@@ -4118,49 +4162,65 @@ function renderGacha(){
   const highPct = Math.min(100, Math.round((STATE.pitySinceRare / HIGH_PITY_PULLS) * 100));
   const sparkPct = Math.min(100, Math.round((STATE.summonPoints / SPARK_POINTS) * 100));
   const canSpark = STATE.summonPoints >= SPARK_POINTS;
-  const rates = Object.entries(RARITY_WEIGHTS).map(([r, w]) => `★${r} ${w}%`).join('　');
+  const recent = (STATE.recentPulls || []).map(id => MON_BY_ID[id]).filter(Boolean).slice(0, 4);
+  const rates = Object.entries(RARITY_WEIGHTS).map(([r, w]) => `★${r} ${w}%`).join('　');   // 下の「詳しい仕様」で使う
 
   return `
-    <div class="gacha-banner">
-      <div class="tag">PICK UP</div>
-      <h2>${GACHA_BANNER.name}</h2>
-      <p>★5「${pickup.name}」の排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</p>
-      <div class="gacha-splash">
-        ${GACHA_BANNER.featured.map(id => `<img src="${imgSrc(id)}" alt="">`).join('')}
+    <div class="gc-hero">
+      <div class="pixel gc-tag">PICK UP</div>
+      <div class="gc-hero-row">
+        <div class="gc-hero-body">
+          <div class="gc-name">${GACHA_BANNER.name}</div>
+          <div class="gc-sub">★${pickup.rarity}「${pickup.name}」${ELEM_LABEL[pickup.element]}・${ROLE_LABEL[pickup.role]}
+            <br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
+          <div class="gc-period">ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
+        </div>
+        <img src="${imgSrc(pickup.id)}" alt="${pickup.name}">
       </div>
     </div>
 
     <div class="panel">
-      <div class="soul-wallet">
-        <div class="sw-item">
-          <div class="sw-icon" aria-hidden="true">💠</div>
-          <div><div class="sw-label">万能ソウル</div><div class="sw-value">${STATE.universalSouls.toLocaleString()}</div></div>
-        </div>
-        <div class="sw-note">ガチャを引くたびに必ず手に入ります。${UNIVERSAL_PER_SOUL}個で好きなモンスターのソウル1個に変換でき、★の昇格に使えます。</div>
-      </div>
-
-      <div class="pity-bar-wrap">
-        <div class="pity-bar-bg"><div class="pity-bar-fill" style="width:${highPct}%;"></div></div>
-        <div class="pity-label"><span>★4以上確定まであと ${pullsToHigh} 回</span><span>${STATE.pitySinceRare} / ${HIGH_PITY_PULLS}</span></div>
-      </div>
-      <div class="pity-bar-wrap">
-        <div class="pity-bar-bg"><div class="pity-bar-fill spark" style="width:${sparkPct}%;"></div></div>
-        <div class="pity-label"><span>召喚ポイント ${STATE.summonPoints} / ${SPARK_POINTS}</span><span>ピックアップ★5と交換</span></div>
-      </div>
-      <button class="btn btn-block btn-sm ${canSpark ? '' : 'btn-ghost'}" id="spark-btn" ${canSpark ? '' : 'disabled'} style="margin-top:8px;">
-        ${canSpark ? `召喚ポイント${SPARK_POINTS}で「${pickup.name}」と交換する` : `あと ${SPARK_POINTS - STATE.summonPoints}ポイントで「${pickup.name}」と交換できます`}
+      <div class="gc-line"><span>★4以上確定まで</span><span class="gold">あと ${pullsToHigh}回</span></div>
+      <div class="gc-bar"><div style="width:${highPct}%;"></div></div>
+      <div class="gc-line" style="margin-top:11px;"><span>召喚ポイント</span><span class="purple">${STATE.summonPoints} / ${SPARK_POINTS}</span></div>
+      <div class="gc-bar"><div class="spark" style="width:${sparkPct}%;"></div></div>
+      <button class="btn btn-block btn-sm ${canSpark ? '' : 'btn-ghost'}" id="spark-btn" ${canSpark ? '' : 'disabled'} style="margin-top:9px;">
+        ${canSpark ? `${SPARK_POINTS}ポイントで「${pickup.name}」と交換する` : `あと ${SPARK_POINTS - STATE.summonPoints}ポイントで「${pickup.name}」と交換できます`}
       </button>
+      <div class="gc-soul">💠 万能ソウル <b>${STATE.universalSouls.toLocaleString()}</b>
+        <small>${UNIVERSAL_PER_SOUL}個で好きなモンスターのソウル1個に交換できます</small></div>
+    </div>
 
-      <div class="gacha-btn-row">
-        <button class="btn" id="pull1" ${STATE.crystals < PULL_COST ? 'disabled' : ''}>
-          1回引く
-          <span class="cost">💎 ${PULL_COST}</span>
-        </button>
-        <button class="btn" id="pull10" ${STATE.crystals < PULL10_COST ? 'disabled' : ''}>
-          10連引く
-          <span class="cost">💎 ${PULL10_COST}・10枠目★${TEN_PULL_MIN_STAR}以上</span>
-        </button>
+    <div class="panel">
+      <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
+      <div class="gc-rates">
+        ${[5, 4, 3, 2, 1].map(r => `
+          <div class="gc-rate r${r} ${r === 5 ? 'top' : ''}">
+            <div class="gc-rate-star">★${r}</div>
+            <div class="gc-rate-pct">${RARITY_WEIGHTS[r]}%</div>
+          </div>`).join('')}
       </div>
+    </div>
+
+    ${recent.length ? `
+    <div class="panel">
+      <div class="mc-head" style="margin-bottom:8px;">最近の結果</div>
+      <div class="gc-recent">
+        ${recent.map(m => `
+          <div class="gc-recent-cell r${m.rarity}">
+            <img src="${imgSrc(m.id)}" alt="${m.name}">
+            <div class="gc-recent-star">★${m.rarity}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="gc-btns">
+      <button class="btn gc-pull1" id="pull1" ${STATE.crystals < PULL_COST ? 'disabled' : ''}>
+        1回<small>💎 ${PULL_COST}</small>
+      </button>
+      <button class="btn gc-pull10" id="pull10" ${STATE.crystals < PULL10_COST ? 'disabled' : ''}>
+        10連<small>💎 ${PULL10_COST}・10枠目★${TEN_PULL_MIN_STAR}以上</small>
+      </button>
     </div>
 
     <div class="panel panel-tight">
@@ -4238,6 +4298,7 @@ function doPull(times, cost){
   }
   track('gachaPull', times);
   if(times === 10) track('gacha10');
+  STATE.recentPulls = [...results.map(r => r.mon.id), ...(STATE.recentPulls || [])].slice(0, 4);
   logEvent('gacha_pull', { count: times, best: Math.max(...results.map(r => r.mon.rarity)) });
   saveState();
   showGachaEggs(results, before);
