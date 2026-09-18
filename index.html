@@ -36,6 +36,9 @@
   --gold-deep:#c98f2e;
   --text:#f3ecdf;
   --dim:#a89bc9;
+  --dim2:#8d82ab;
+  --nav:#16122a;
+  --groove:#171225;
   --fire:#e2572b;
   --water:#3aa0d6;
   --earth:#b8864a;
@@ -89,24 +92,28 @@ body{
 #statusbar{
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  padding:14px 16px 10px;
+  gap:6px;
+  padding:11px 12px 9px;
   background:linear-gradient(180deg, #1a1530, rgba(26,21,48,0));
   position:relative;
   z-index:5;
 }
-#statusbar .brand{
-  font-size:11px;
-  letter-spacing:.06em;
-  color:var(--gold);
-}
-#statusbar .brand .sub{
-  display:block;
-  font-size:9px;
-  color:var(--dim);
-  margin-top:3px;
-  letter-spacing:.03em;
-}
+.tb-profile{ display:flex; align-items:center; gap:7px; background:var(--panel2); border:1px solid rgba(232,180,85,.2);
+  border-radius:999px; padding:4px 10px 4px 4px; cursor:pointer; font-family:inherit; color:var(--text); min-width:0; }
+.tb-avatar{ width:28px; height:28px; border-radius:50%; background:#3a2f5e; display:flex; align-items:center;
+  justify-content:center; font-size:14px; flex:none; }
+.tb-name{ font-size:11px; font-weight:800; line-height:1.35; text-align:left; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:84px; }
+.tb-name small{ display:block; font-size:9px; color:var(--dim); font-weight:700; }
+.tb-gap{ flex:1; }
+.tb-pill{ display:flex; align-items:baseline; gap:2px; background:var(--panel2); border:1px solid rgba(232,180,85,.18);
+  border-radius:999px; padding:5px 8px; font-size:11px; font-weight:800; white-space:nowrap; flex:none; }
+.tb-pill.stam{ color:#5fd0c0; } .tb-pill.gold{ color:var(--gold); } .tb-pill.gem{ color:#9fd8ff; }
+.tb-btn{ position:relative; width:32px; height:32px; border-radius:10px; background:var(--panel2);
+  border:1px solid rgba(232,180,85,.2); display:flex; align-items:center; justify-content:center; font-size:15px;
+  cursor:pointer; font-family:inherit; color:var(--text); flex:none; padding:0; }
+.tb-dot{ position:absolute; top:-3px; right:-3px; min-width:9px; height:9px; padding:0 2px; border-radius:999px;
+  background:var(--danger); border:2px solid var(--bg); font-size:7px; font-weight:800; color:#fff; line-height:9px; }
 .mission-card{ cursor:pointer; }
 .mission-card.has-claim{ border-color:var(--gold); box-shadow:0 0 14px -4px rgba(232,180,85,.6); }
 .mc-sub{ font-size:11px; color:var(--dim); margin-top:3px; }
@@ -420,9 +427,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 #nav{
   position:absolute;
   left:0;right:0;bottom:0;
-  display:flex;
-  background:linear-gradient(180deg, rgba(26,21,48,0), #150f26 30%);
-  padding:10px 8px 16px;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:2px;
+  background:var(--nav);
+  border-top:1px solid var(--line);
+  padding:8px 8px 14px;
   z-index:10;
 }
 .nav-btn{
@@ -436,16 +446,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   color:var(--dim);
   font-family:inherit;
   font-size:10px;
-  font-weight:700;
-  padding:8px 2px;
+  font-weight:800;
+  padding:6px 2px;
   border-radius:12px;
   cursor:pointer;
 }
-.nav-btn .ic{ font-size:19px; line-height:1; filter:grayscale(1) opacity(.7); }
+.nav-btn .ic{ font-size:17px; line-height:1; filter:grayscale(1) opacity(.7); }
 .nav-btn{ position:relative; }
 .nav-dot{ position:absolute; top:3px; left:calc(50% + 6px); min-width:16px; height:16px; padding:0 4px; border-radius:999px;
   background:var(--danger); color:#fff; font-size:9.5px; font-weight:800; line-height:16px; text-align:center; }
-.nav-btn.active{ color:var(--gold); background:rgba(232,180,85,.1); }
+.nav-btn.active{ color:var(--gold); background:var(--panel2); }
 .nav-btn.active .ic{ filter:none; }
 
 /* ---------- monster grid ---------- */
@@ -1553,6 +1563,48 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .skill-upgrade .su-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:11.5px; font-weight:700; }
 .skill-upgrade .cost-list{ display:flex; gap:6px; flex-wrap:wrap; }
 .skill-upgrade .btn{ flex:none; }
+
+/* ---------- home: next card, missions, banner ---------- */
+#screen{ padding-bottom:84px; }
+.next-card{ background:linear-gradient(135deg,#2c2549,#1d1830); border:1px solid var(--gold); border-radius:18px;
+  padding:13px; box-shadow:0 0 22px -8px rgba(232,180,85,.55); }
+.next-head{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+.next-tag{ font-size:9px; color:var(--gold); }
+.next-eyebrow{ font-size:11.5px; color:var(--dim); }
+.next-title{ font-size:18px; font-weight:800; line-height:1.4; }
+.next-sub{ font-size:11.5px; color:var(--dim); margin:4px 0 11px; line-height:1.6; }
+.next-btns{ display:flex; gap:8px; }
+.next-go{ flex:1; font-size:15px; padding:13px; border-radius:13px;
+  background:linear-gradient(180deg,#e8b455,#c98f2e); color:#1a1206; }
+.next-go[disabled]{ background:var(--panel2); color:var(--dim); border:1px solid var(--line); }
+.next-side{ font-size:13px; padding:13px 14px; border-radius:13px; border:1px solid rgba(232,180,85,.35);
+  background:var(--panel); color:var(--text); }
+.mc-head{ font-size:12.5px; font-weight:800; display:flex; align-items:center; gap:6px; }
+.mc-reset{ font-size:10.5px; color:var(--dim); }
+.mc-list{ display:flex; flex-direction:column; gap:6px; }
+.mc-row{ display:flex; align-items:center; gap:9px; font-size:12px; }
+.mc-box{ width:17px; height:17px; flex:none; border-radius:5px; border:1px solid rgba(232,180,85,.35);
+  display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; }
+.mc-box.done{ background:var(--dim2); border-color:var(--dim2); color:var(--bg); }
+.mc-box.ready{ background:#5cab52; border-color:#5cab52; color:var(--bg); }
+.mc-label{ flex:1; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mc-label.struck{ color:var(--dim); text-decoration:line-through; }
+.mc-prog{ font-size:11px; font-weight:800; color:var(--gold); white-space:nowrap; }
+.mc-prog.ready{ color:#5cab52; }
+.mc-bar{ height:5px; border-radius:999px; background:var(--groove); margin-top:10px; overflow:hidden; }
+.mc-bar > div{ height:100%; background:linear-gradient(90deg,#c98f2e,#e8b455); }
+.home-banner{ display:flex; align-items:center; gap:8px; padding:11px 12px; cursor:pointer;
+  border:1px solid rgba(232,180,85,.22); border-radius:16px; min-height:112px;
+  background:linear-gradient(110deg,#2a1c3f 0%,#3b2050 60%,#1d1830 100%); }
+.hb-body{ flex:1; min-width:0; }
+.hb-tag{ display:inline-block; font-size:7.5px; background:var(--danger); color:#fff; padding:3px 5px; border-radius:4px; }
+.hb-title{ font-size:15px; font-weight:800; margin-top:7px; line-height:1.35; }
+.hb-sub{ font-size:10.5px; color:#d9c7f0; margin-top:3px; }
+.hb-go{ display:inline-block; font-size:11.5px; font-weight:800; padding:7px 12px; margin-top:9px;
+  border:1px solid rgba(232,180,85,.5); border-radius:9px; background:rgba(15,12,26,.55); color:var(--gold); }
+.home-banner img{ width:96px; height:96px; flex:none; object-fit:contain; image-rendering:pixelated;
+  filter:drop-shadow(0 6px 12px rgba(0,0,0,.6)); }
+.home-party-btns{ display:flex; gap:6px; }
 
 /* ---------- title screen / account ---------- */
 #title{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:16px; padding:32px 22px; overflow-y:auto; }
@@ -3575,11 +3627,10 @@ let dexOwnedOnly = false;
 
 const NAV = [
   { key: 'home', label: 'ホーム', icon: '🏠' },
-  { key: 'gacha', label: 'ガチャ', icon: '🎰' },
-  { key: 'dex', label: '図鑑', icon: '📖' },
-  { key: 'party', label: 'パーティ', icon: '🧩' },
   { key: 'battle', label: '探索', icon: '⚔️' },
-  { key: 'base', label: '拠点', icon: '🏰' },
+  { key: 'party', label: '編成', icon: '🧩' },
+  { key: 'gacha', label: 'ガチャ', icon: '🎰' },
+  { key: 'base', label: '拠点', icon: '🏯' },
 ];
 
 let alchemyFam = 'el';
@@ -3754,10 +3805,7 @@ function render(){
   const app = document.getElementById('phone');
   refreshStamina();
   updateSoundButton();
-  app.querySelector('#statusbar .crystal-chip .val').textContent = STATE.crystals.toLocaleString();
-  app.querySelector('#statusbar .stamina-chip .val').textContent = STATE.stamina;
-  const g = STATE.gold || 0;
-  app.querySelector('#statusbar .gold-chip .val').textContent = g >= 1e6 ? `${(g / 1e6).toFixed(1)}M` : g >= 1e4 ? `${Math.floor(g / 1000)}K` : g.toLocaleString();
+  app.querySelector('#statusbar').innerHTML = renderTopBar();
 
   const screenEl = document.getElementById('screen');
   screenEl.innerHTML = renderScreen(currentScreen);
@@ -3862,82 +3910,106 @@ function showRewardModal(entries){
   layer.classList.add('show');
 }
 
+// "what to do next": the one card the home screen is built around
+function nextAction(){
+  const claim = claimableCount();
+  if(claim) return {
+    eyebrow: `受け取り待ち ${claim}件`,
+    title: 'ミッション報酬を受け取る',
+    sub: '受け取ってから次の探索に出よう',
+    main: { label: 'ミッションへ', nav: 'missions' },
+  };
+  const daily = ensureDaily();
+  const left = DAILY_MISSIONS.filter(m => !daily.claimed[m.id]).length;
+  const eyebrow = left ? `今日の残り ${left}件` : '今日の日課は完了';
+  const next = STAGES.find(st => st.type === 'main' && !st.disabled && stageUnlocked(st) && !STATE.clearedStages.includes(st.id));
+  if(next) return {
+    eyebrow,
+    title: `${next.name} に挑戦`,
+    sub: `推奨Lv${next.rec}・WAVE ${next.waves.length}・⚡${next.stamina}${STATE.stamina < next.stamina ? '(スタミナが足りません)' : ''}`,
+    main: { label: '出撃する', stage: next.id, disabled: STATE.stamina < next.stamina },
+    side: { label: '詳細', stageOpen: next.id },
+  };
+  const dungeon = STAGES.find(st => st.type === 'dungeon');
+  return {
+    eyebrow,
+    title: 'メインの探索はすべてクリア',
+    sub: '育成ダンジョンで素材を集めるか、ガチャで新しい仲間を探そう',
+    main: { label: '育成ダンジョンへ', nav: 'battle' },
+    side: { label: 'ガチャ', nav: 'gacha' },
+  };
+}
+
 function renderHome(){
-  const ownedCount = Object.keys(STATE.owned).length;
-  const claimable = claimableCount();
-  const beginnerLeft = (STATE.beginnerStep || 0) < BEGINNER_MISSIONS.length;
-  const nextBeginner = beginnerLeft ? BEGINNER_MISSIONS[STATE.beginnerStep || 0] : null;
+  const act = nextAction();
+  const daily = ensureDaily();
+  const rows = missionEntries().filter(m => m.section === 'daily' && !m.bonus).slice(0, 3);
+  const doneCount = DAILY_MISSIONS.filter(m => daily.claimed[m.id]).length;
+  const donePct = Math.round(doneCount / DAILY_MISSIONS.length * 100);
+  const claim = claimableCount();
+  const pickup = MON_BY_ID[GACHA_BANNER.pickup];
+  const btn = (b, primary) => {
+    if(!b) return '';
+    const attr = b.stage ? `data-stage="${b.stage}"` : b.stageOpen ? `data-stage-open="${b.stageOpen}"` : `data-nav="${b.nav}"`;
+    return `<button class="btn ${primary ? 'next-go' : 'next-side'}" ${attr} ${b.disabled ? 'disabled' : ''}>${b.label}</button>`;
+  };
 
   return `
-    <div class="hero-card">
-      <h2>テイマー、ようこそ</h2>
-      <p>仲間にしたモンスターは ${ownedCount} / ${MONSTERS.length} 体。<br>
-      ガチャや探索でモンスターを仲間にして、一緒に冒険しよう。</p>
+    <div class="next-card">
+      <div class="next-head"><span class="pixel next-tag">NEXT</span><span class="next-eyebrow">${act.eyebrow}</span></div>
+      <div class="next-title">${act.title}</div>
+      <div class="next-sub">${act.sub}</div>
+      <div class="next-btns">${btn(act.main, true)}${btn(act.side, false)}</div>
     </div>
 
-    <div class="panel mission-card ${claimable ? 'has-claim' : ''}" data-nav="missions" role="button">
-      <div class="row-between">
-        <div>
-          <div style="font-weight:800; font-size:13px;">📜 ミッション${claimable ? `<span class="tab-dot">${claimable}</span>` : ''}</div>
-          <div class="mc-sub">${claimable ? `受け取れる報酬が${claimable}件あります` : nextBeginner ? `初心者ミッション:${nextBeginner.label}` : `デイリーのリセットまで ${formatDuration(msToDailyReset())}`}</div>
-        </div>
-        <div class="mc-go">›</div>
+    <div class="panel mission-card ${claim ? 'has-claim' : ''}" data-nav="missions" role="button">
+      <div class="row-between" style="margin-bottom:8px;">
+        <div class="mc-head">📜 ミッション${claim ? `<span class="tab-dot">${claim}</span>` : ''}</div>
+        <div class="mc-reset">リセットまで ${formatDuration(msToDailyReset())}</div>
       </div>
+      <div class="mc-list">
+        ${rows.map(m => {
+          const done = m.state !== 'progress';
+          return `<div class="mc-row">
+            <span class="mc-box ${m.state === 'done' ? 'done' : m.state === 'claim' ? 'ready' : ''}">${done ? '✓' : ''}</span>
+            <span class="mc-label ${m.state === 'done' ? 'struck' : ''}">${m.label}</span>
+            <span class="mc-prog ${m.state === 'claim' ? 'ready' : ''}">${
+              m.state === 'done' ? '受取済' : m.state === 'claim' ? '受取可' : `${m.progress}/${m.goal}`}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="mc-bar"><div style="width:${donePct}%;"></div></div>
+    </div>
+
+    <div class="home-banner" data-nav="gacha" role="button">
+      <div class="hb-body">
+        <div class="pixel hb-tag">PICK UP</div>
+        <div class="hb-title">${pickup.name} ★${pickup.rarity} ピックアップ</div>
+        <div class="hb-sub">${GACHA_BANNER.name}・排出率アップ中</div>
+        <span class="hb-go">ガチャを見る ›</span>
+      </div>
+      <img src="${imgSrc(pickup.id)}" alt="${pickup.name}">
     </div>
 
     <div class="panel">
       <div class="row-between" style="margin-bottom:10px;">
-        <div style="font-weight:800; font-size:13px;">現在のパーティ<span class="home-fm">${currentFormation().name}</span></div>
-        <button class="btn btn-ghost btn-sm" data-nav="party">編成する</button>
+        <div class="mc-head">パーティ<span class="home-fm">${currentFormation().name}</span></div>
+        <div class="home-party-btns">
+          <button class="btn btn-ghost btn-sm" data-nav="dex">📕 図鑑</button>
+          <button class="btn btn-ghost btn-sm" data-nav="party">編成</button>
+        </div>
       </div>
       ${renderFormationGrid(true)}
-    </div>
-
-    <div class="panel">
-      <div style="font-weight:800; font-size:13px; margin-bottom:10px;">所持素材</div>
-      <div class="home-souls">
-        <span>💠 万能ソウル <b>${STATE.universalSouls.toLocaleString()}</b></span>
-        <span>召喚ポイント <b>${STATE.summonPoints} / ${SPARK_POINTS}</b></span>
-      </div>
-      <div class="home-items">
-        <span>${goldText(STATE.gold || 0)}</span>
-        ${['exp1', 'exp2', 'exp3'].map(k => `<span>${itemIcon(k)}×${getItem(k)}</span>`).join('')}
-        <button class="btn btn-ghost btn-sm" data-open-bag="1">🎒 持ち物</button>
-      </div>
-    </div>
-
-    <div class="panel panel-tight row-between" data-nav="gacha" style="cursor:pointer;">
-      <div>
-        <div style="font-weight:800; font-size:13px;">ガチャを引く</div>
-        <div style="font-size:11px; color:var(--dim); margin-top:3px;">新しい仲間を探そう</div>
-      </div>
-      <div style="font-size:20px;">🎰</div>
-    </div>
-
-    <div class="panel panel-tight row-between" data-nav="battle" style="cursor:pointer;">
-      <div>
-        <div style="font-weight:800; font-size:13px;">探索に出る</div>
-        <div style="font-size:11px; color:var(--dim); margin-top:3px;">クリア済み: ${STATE.clearedStages.length} / ${STAGES.length} ステージ</div>
-      </div>
-      <div style="font-size:20px;">⚔️</div>
     </div>
 
     ${canInstall() ? `
     <div class="panel panel-tight row-between" data-install="1" style="cursor:pointer;">
       <div>
-        <div style="font-weight:800; font-size:13px;">📲 ホーム画面に追加</div>
+        <div class="mc-head">📲 ホーム画面に追加</div>
         <div class="acct-line">アプリのように全画面で遊べます</div>
       </div>
       <div class="mc-go">›</div>
     </div>` : ''}
-
-    <div class="panel panel-tight row-between" data-open-account="1" style="cursor:pointer;">
-      <div>
-        <div style="font-weight:800; font-size:13px;">👤 ${escapeHtml(ACCOUNT ? ACCOUNT.name : 'テイマー')}</div>
-        <div class="acct-line">ID ${escapeHtml(ACCOUNT ? ACCOUNT.playerId : '----')}・${ACCOUNT ? (PROVIDER_LABEL[ACCOUNT.provider] || '-') : '-'}</div>
-      </div>
-      <div class="mc-go">›</div>
-    </div>
   `;
 }
 
@@ -4727,7 +4799,10 @@ function renderParty(){
 
   return `
     <div class="row-between" style="margin:10px 0 4px;">
-      <div class="screen-title" style="margin:0;">パーティ編成</div>
+      <div class="screen-title" style="margin:0;">編成</div>
+      <button class="btn btn-ghost btn-sm" data-nav="dex">📕 図鑑</button>
+    </div>
+    <div class="row-between" style="margin:0 0 4px;">
       <div class="party-count">${partyIds.length} / ${PARTY_MAX}体<span class="bp">総合BP ${totalBp.toLocaleString()}</span></div>
     </div>
     <div class="screen-sub" style="margin-bottom:6px;">${guide}</div>
@@ -8467,10 +8542,26 @@ function renderSoundSettings(){
     </div>`;
   layer.classList.add('show');
 }
-function updateSoundButton(){
-  const btn = document.getElementById('sound-btn');
-  if(btn) btn.textContent = sfxSettings().on ? '🔊' : '🔇';
+// top bar: who you are, what you can spend, bag and settings
+function renderTopBar(){
+  const g = STATE.gold || 0;
+  const goldText2 = g >= 1e6 ? `${(g / 1e6).toFixed(1)}M` : g >= 1e4 ? `${Math.floor(g / 1000)}K` : g.toLocaleString();
+  const claim = claimableCount();
+  return `
+    <button class="tb-profile" data-open-account="1" aria-label="プロフィール">
+      <span class="tb-avatar">👤</span>
+      <span class="tb-name">${escapeHtml(ACCOUNT ? ACCOUNT.name : 'テイマー')}
+        <small>図鑑 ${Object.keys(STATE.owned).length} / ${MONSTERS.length}</small></span>
+    </button>
+    <span class="tb-gap"></span>
+    ${currentScreen === 'gacha'
+      ? `<span class="tb-pill gem" title="結晶">💎${STATE.crystals.toLocaleString()}</span>`
+      : `<span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>`}
+    <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
+    <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
+    <button class="tb-btn" id="sound-btn" aria-label="設定">⚙${claim ? `<span class="tb-dot">${claim}</span>` : ''}</button>`;
 }
+function updateSoundButton(){ /* the gear lives in the top bar now; render() keeps it in step */ }
 
 /* ---------------- background music ---------------- */
 // One looping track per situation. Tracks are pre-trimmed so the loop has no seam.
@@ -8892,8 +8983,8 @@ function wireGlobalEvents(){
     if(!STATE) return;
     const before = STATE.stamina;
     refreshStamina();
-    const chip = document.querySelector('#statusbar .stamina-chip .val');
-    if(chip) chip.textContent = STATE.stamina;
+    const chip = document.querySelector('#statusbar .tb-pill.stam');
+    if(chip) chip.textContent = `⚡${STATE.stamina}`;
     if(currentScreen === 'battle' && !document.getElementById('modal-layer').classList.contains('show')){
       const next = document.querySelector('.sp-next');
       if(next) next.textContent = STATE.stamina >= STAMINA_MAX ? '満タン' : `次の回復 ${formatDuration(msToNextStamina())}・全回復 ${formatDuration(msToFullStamina())}`;
@@ -8921,15 +9012,7 @@ function buildShell(){
   document.addEventListener('keydown', audioStart, { once: true, capture: true });
   const phone = document.getElementById('phone');
   phone.innerHTML = `
-    <div id="statusbar">
-      <div class="brand pixel">MONSTER<span class="sub">Adventure Prototype</span></div>
-      <div class="top-chips">
-        <button class="sound-btn" id="sound-btn" aria-label="サウンド設定">🔊</button>
-        <div class="stamina-chip" title="スタミナ">⚡<span class="val">0</span><small>/${STAMINA_MAX}</small></div>
-        <div class="gold-chip" title="ゴールド">💰<span class="val">0</span></div>
-        <div class="crystal-chip"><span class="gem"></span><span class="val">0</span></div>
-      </div>
-    </div>
+    <div id="statusbar"></div>
     <div id="screen"></div>
     <div id="stage-fx"></div>
     <div id="log-sheet" aria-hidden="true" role="dialog" aria-label="バトルログ"></div>
