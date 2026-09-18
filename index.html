@@ -2946,8 +2946,7 @@ function normalizeState(){
   if(STATE.daily && !STATE.daily.counts) STATE.daily = null; // saves from before missions
   ensureWeekly();
   ensureDaily();
-  // saves from before the mascot guides existed: skip the onboarding popups, don't replay them
-  if(!STATE.guidesSeen) STATE.guidesSeen = { welcome: true, monsterDetail: true };
+  if(!STATE.guidesSeen) STATE.guidesSeen = {};
   delete STATE.formation;
   delete STATE.party;
 }
