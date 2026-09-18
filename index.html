@@ -2071,9 +2071,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .title-name{ margin:14px 0 0; font-size:33px; font-weight:800; line-height:1.24; letter-spacing:.02em;
   text-shadow:0 3px 18px rgba(0,0,0,.6); }
 .title-rule{ width:64px; height:2px; background:var(--gold); border-radius:2px; margin:16px 0 0; }
-.title-mon{ width:190px; height:190px; object-fit:contain; image-rendering:pixelated; margin-top:18px;
+.title-mon{ width:160px; height:160px; object-fit:contain; image-rendering:pixelated; margin-top:18px;
   animation:breathe 4s ease-in-out infinite; }
 @keyframes breathe{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-4px);} }
+.title-mon-name{ margin-top:10px; font-size:13px; font-weight:800; color:var(--gold); }
+.title-mon-desc{ margin:4px 0 0; font-size:10.5px; line-height:1.6; color:var(--dim); max-width:260px; }
 .title-body{ flex:none; display:flex; flex-direction:column; gap:10px; }
 .title-ver{ text-align:center; font-size:10px; color:var(--dim2); }
 .title-lead{ margin:0; text-align:center; font-size:11px; color:var(--dim); }
@@ -10026,6 +10028,14 @@ let titleMsgOk = false;
 const escapeHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// one random monster per page load (cached so re-rendering the title screen,
+// e.g. while typing in the login form, doesn't keep swapping the picture)
+let titleMonsterPick = null;
+function titleMonster(){
+  if(!titleMonsterPick) titleMonsterPick = MONSTERS[Math.floor(Math.random() * MONSTERS.length)];
+  return titleMonsterPick;
+}
+
 function titleHtml(){
   const off = titleBusy ? 'disabled' : '';
   const local = !firebaseConfigured() && !(typeof window !== 'undefined' && window.__authBackend);
@@ -10062,13 +10072,16 @@ function titleHtml(){
       <p class="title-note">ゲストのデータはこの端末だけに保存されます。あとからGoogle・メールアドレスに引き継げます。</p>
       ${local ? '<p class="title-warn">Firebaseが未設定のため、いまはゲストのみ遊べます。</p>' : ''}`;
   }
+  const tm = titleMonster();
   return `
     <div id="title">
       <div class="title-hero">
         <div class="title-eyebrow pixel">MONSTER TAMER</div>
         <h1 class="title-name">モンコレ</h1>
         <div class="title-rule"></div>
-        <img class="title-mon" src="${imgSrc(GACHA_BANNER.pickup)}" alt="">
+        <img class="title-mon" src="${imgSrc(tm.id)}" alt="${tm.name}">
+        <div class="title-mon-name">${'★'.repeat(tm.rarity)} ${tm.name}</div>
+        <p class="title-mon-desc">${tm.desc}</p>
       </div>
       <div class="title-body">
         ${body}
