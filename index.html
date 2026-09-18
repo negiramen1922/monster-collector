@@ -981,6 +981,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .formation.compact .party-slot{ margin:0 2.5px; }
 .party-slot .warn-mini{ position:absolute; left:4px; top:3px; font-size:11px; }
 .party-slot.penalty{ border-color:rgba(255,179,92,.7); border-style:dashed; }
+.party-slot .help-mini{ position:absolute; right:4px; top:3px; font-size:11px; }
+.party-slot.helped{ border-color:rgba(90,166,200,.7); border-style:dashed; }
 .warn-box{
   font-size:11.5px; line-height:1.7; color:#ffcf99; margin:0 0 12px;
   background:rgba(255,179,92,.08); border:1px solid rgba(255,179,92,.4); border-radius:12px; padding:8px 12px;
@@ -2090,11 +2092,13 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .title-msg.ok{ color:#7fd6a2; }
 .title-form{ display:flex; flex-direction:column; gap:6px; }
 .title-form label{ font-size:11px; color:var(--dim); }
-.title-form input, .acct-modal .snd-row input{
+.title-form input, .acct-modal .snd-row input, .friend-code-input{
   background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:11px 12px;
   color:var(--text); font-family:inherit; font-size:14px; min-width:0;
 }
-.title-form input:focus, .acct-modal .snd-row input:focus{ outline:none; border-color:var(--gold); }
+.title-form input:focus, .acct-modal .snd-row input:focus, .friend-code-input:focus{ outline:none; border-color:var(--gold); }
+.friend-add-row{ display:flex; gap:8px; }
+.friend-add-row .friend-code-input{ flex:1; }
 .title-form .btn{ margin-top:4px; }
 .acct-line{ font-size:11px; color:var(--dim); margin-top:3px; }
 .acct-modal .snd-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -2392,6 +2396,27 @@ const PARTY_MAX = 5;
 const COLS = 4;
 function isMeleeRole(role){ return role === 'tank' || role === 'attacker'; }
 function preferredRow(role){ return isMeleeRole(role) ? 'front' : 'back'; }
+
+/* ---- friends & the "お助け" (support) character they lend out ---- */
+const FRIEND_MAX = 30;
+const HELP_SLOT_ID = '__help__';       // sentinel STATE.slots value for a borrowed helper
+const HELP_STAMINA_SURCHARGE = 5;      // PvE only; sweep doesn't touch the player's party so it's exempt
+// MON_BY_ID is a static lookup, never saved - aliasing the sentinel onto it (instead of
+// STATE.owned, which IS saved) lets every existing MON_BY_ID[slotId] callsite (formation
+// rendering, role checks, synergy/coverage, buildUnit) resolve the borrowed monster for free.
+function syncHelperMon(){
+  if(STATE.borrowed && MON_BY_ID[STATE.borrowed.mon.id]) MON_BY_ID[HELP_SLOT_ID] = MON_BY_ID[STATE.borrowed.mon.id];
+  else delete MON_BY_ID[HELP_SLOT_ID];
+}
+// the "owned" half (star/level/skill levels) for a slot id, real or borrowed
+function slotOwnedLike(id){
+  return id === HELP_SLOT_ID && STATE.borrowed ? STATE.borrowed.mon : STATE.owned[id];
+}
+function stageStaminaCost(stage){
+  // stages that are already stamina-free (tutorials) stay free regardless of party
+  if(!stage.stamina) return 0;
+  return stage.stamina + (STATE.slots.includes(HELP_SLOT_ID) ? HELP_STAMINA_SURCHARGE : 0);
+}
 
 // melee roles placed in the back row deal less damage
 const BACK_ROW_MELEE_PENALTY = 0.3;
@@ -2768,6 +2793,16 @@ const firebaseBackend = {
     await fs.setDoc(ref, { uid, at: Date.now() });
     return true;
   },
+  // friend code -> public profile (players/{uid} is readable by any signed-in user)
+  async lookupPlayer(code){
+    const { fs, db } = await this.load();
+    const idSnap = await fs.getDoc(fs.doc(db, 'playerIds', code));
+    if(!idSnap.exists()) return null;
+    const uid = idSnap.data().uid;
+    const pSnap = await fs.getDoc(fs.doc(db, 'players', uid));
+    if(!pSnap.exists()) return null;
+    return { uid, ...pSnap.data() };
+  },
 };
 
 /* Analytics. Never throws and never blocks: without a backend (offline, tests, ad blocker)
@@ -2850,20 +2885,83 @@ async function ensurePlayerId(){
     }catch(e){ console.warn('player id: could not claim', e); return; }
   }
 }
-// public profile, for the friend list and PVP opponent cards later
+// public profile, for the friend list and PVP opponent cards later. `support` is a
+// snapshot of the favorites[0] monster (the "お助けキャラ" a friend can borrow for PvE).
 async function publishProfile(){
   const be = authBackend();
   if(!ACCOUNT || !be.cloudProfile) return;
   try{
+    const favId = STATE && profileState().favorites[0];
+    const favOwned = favId && STATE.owned[favId];
+    const support = favOwned ? {
+      id: favId, star: favOwned.star, level: favOwned.level,
+      skillLv: favOwned.skillLv, ultLv: favOwned.ultLv, passiveLv: favOwned.passiveLv,
+    } : null;
     await be.cloudProfile(ACCOUNT.uid, {
       playerId: ACCOUNT.playerId,
       name: ACCOUNT.name,
       provider: ACCOUNT.provider,
+      level: STATE ? tamerLevel().lv : 1,
       monsters: STATE ? Object.keys(STATE.owned).length : 0,
       cleared: STATE ? STATE.clearedStages.length : 0,
+      support,
       updatedAt: Date.now(),
     });
   }catch(e){ console.warn('profile: not published', e); }
+}
+
+/* ---- friends & the お助けキャラ they lend out ---- */
+const friendsAvailable = () => typeof authBackend().lookupPlayer === 'function';
+// untrusted cross-account data (another player's published doc): validate every field
+// before trusting it, since a crafted doc must never be able to crash the friends screen
+// or hand out absurd stats.
+function sanitizeSupport(raw){
+  if(!raw || !MON_BY_ID[raw.id]) return null;
+  const clamp = (v, lo, hi, dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt; };
+  return {
+    id: raw.id,
+    star: clamp(raw.star, 1, MAX_STAR, 1),
+    level: clamp(raw.level, 1, 200, 1),
+    skillLv: clamp(raw.skillLv, 1, 12, 1),
+    ultLv: clamp(raw.ultLv, 1, 12, 1),
+    passiveLv: clamp(raw.passiveLv, 1, 12, 1),
+  };
+}
+async function addFriendByCode(code){
+  if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
+  code = String(code || '').trim().toUpperCase();
+  if(!code) return;
+  if(ACCOUNT && code === ACCOUNT.playerId){ toast('自分のコードは追加できません'); return; }
+  if(STATE.friends.some(f => f.playerId === code)){ toast('すでに追加しています'); return; }
+  if(STATE.friends.length >= FRIEND_MAX){ toast(`フレンドは最大${FRIEND_MAX}人です`); return; }
+  try{
+    const p = await authBackend().lookupPlayer(code);
+    if(!p){ toast('そのコードのプレイヤーが見つかりません'); return; }
+    STATE.friends.push({
+      uid: p.uid, playerId: String(p.playerId || code).slice(0, 12),
+      name: String(p.name || 'テイマー').slice(0, 20),
+      level: Math.max(1, Math.min(999, Number(p.level) || 1)),
+      support: sanitizeSupport(p.support),
+    });
+    saveState();
+    toast(`${p.name}をフレンドに追加しました`);
+    render();
+  }catch(e){ toast('通信に失敗しました'); }
+}
+function removeFriend(uid){
+  STATE.friends = STATE.friends.filter(f => f.uid !== uid);
+  if(STATE.borrowed && STATE.borrowed.uid === uid) returnBorrowed();
+  saveState();
+  render();
+}
+function borrowFriendHelper(uid){
+  const f = STATE.friends.find(x => x.uid === uid);
+  if(!f || !f.support){ toast('お助けキャラが設定されていません'); return; }
+  STATE.borrowed = { uid: f.uid, name: f.name, mon: { ...f.support } };
+  syncHelperMon();
+  saveState();
+  toast(`${f.name}の${MON_BY_ID[f.support.id].name}を借りました`);
+  render();
 }
 
 /* ---- cloud save ---- */
@@ -2977,6 +3075,8 @@ const DEFAULT_STATE = () => ({
   autoUlt: false,   // false: tap a unit with full SP to reserve its ultimate
   battleSpeed: 1,   // 1 / 2 / 3
   vip: false,
+  friends: [],      // [{ uid, playerId, name, level, support:{id,star,level,skillLv,ultLv,passiveLv}|null }]
+  borrowed: null,   // { uid, name, mon:{...} } - the friend's お助けキャラ currently on loan
 });
 
 let STATE = null;
@@ -3026,7 +3126,11 @@ function normalizeState(){
   // monsters removed from the roster (v4.4 cleanup)
   Object.keys(STATE.owned).forEach(id => { if(!MON_BY_ID[id]) delete STATE.owned[id]; });
   Object.keys(STATE.pendingSouls).forEach(id => { if(!MON_BY_ID[id]) delete STATE.pendingSouls[id]; });
-  if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id => (id && MON_BY_ID[id]) ? id : null);
+  if(!STATE.friends) STATE.friends = [];
+  if(STATE.borrowed === undefined) STATE.borrowed = null;
+  syncHelperMon();
+  if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
+    id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
   STATE.clearedStages = (STATE.clearedStages || []).filter(id => STAGE_BY_ID[id]);
   refreshStamina();
   if(STATE.daily && !STATE.daily.counts) STATE.daily = null; // saves from before missions
@@ -3946,7 +4050,7 @@ function updateMissionBadge(){
 // a single "how strong is this unit" number for sorting and at-a-glance comparison
 function battlePower(id){
   const m = MON_BY_ID[id];
-  const o = STATE.owned[id];
+  const o = slotOwnedLike(id);
   if(!m || !o) return 0;
   const st = scaledStats(m, o.star, o.level);
   const base = st.hp * 0.6 + st.str * 4 + (st.pdef + st.mdef) * 4 + st.spd * 1.5;
@@ -4515,7 +4619,8 @@ function toast(msg){
 }
 
 function ensurePartyValid(){
-  STATE.slots = STATE.slots.map(id => (id && STATE.owned[id]) ? id : null);
+  STATE.slots = STATE.slots.map(id =>
+    id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && STATE.owned[id]) ? id : null);
 }
 
 function render(){
@@ -4680,7 +4785,7 @@ function homeBanners(){
       go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle" data-stage-tab-set="dungeon"' },
     { tag: 'DAILY', cls: 'b-daily', title: left ? `今日の日課 あと${left}件` : '今日の日課は完了',
       sub: `リセットまで ${formatDuration(msToDailyReset())}`, go: 'ミッションへ',
-      img: STATE.slots.find(Boolean) || pickup.id, attr: 'data-nav="missions"' },
+      img: STATE.slots.find(id => id && id !== HELP_SLOT_ID) || pickup.id, attr: 'data-nav="missions"' },
   );
   return banners;
 }
@@ -5618,6 +5723,7 @@ function renderFormationGrid(compact){
   const f = currentFormation();
   const cell = (i, gridRow) => {
     const id = STATE.slots[i];
+    const isHelp = id === HELP_SLOT_ID;
     const m = id ? MON_BY_ID[id] : null;
     const sel = !compact && formationPick === i ? 'selected' : '';
     const menuOpen = !compact && slotMenu === i && m;
@@ -5625,13 +5731,15 @@ function renderFormationGrid(compact){
     const slotAttr = compact ? '' : `data-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${m.name}` : ' 空き'}"`;
     if(!m) return `<div class="party-slot ${sel}" ${pos} ${slotAttr}><span class="empty-plus">+</span></div>`;
     const penalty = slotRowIn(f, i) === 'back' && isMeleeRole(m.role);
-    return `<div class="party-slot ${sel} ${menuOpen ? 'menu-open' : ''} ${penalty ? 'penalty' : ''}" ${pos} ${slotAttr}>
+    return `<div class="party-slot ${sel} ${menuOpen ? 'menu-open' : ''} ${penalty ? 'penalty' : ''} ${isHelp ? 'helped' : ''}" ${pos} ${slotAttr}>
       <img src="${imgSrc(m.id)}" alt="${m.name}">
+      ${isHelp ? '<span class="help-mini" title="お助けキャラ">🤝</span>' : ''}
       ${menuOpen ? `
         <div class="slot-menu" role="menu" aria-label="${m.name} の操作">
-          <div class="sm-name">${m.name}</div>
+          <div class="sm-name">${m.name}${isHelp ? ' 🤝' : ''}</div>
+          ${isHelp ? '' : `
           <button class="primary" role="menuitem" data-slot-action="detail" data-slot-idx="${i}">詳細</button>
-          <button role="menuitem" data-slot-action="move" data-slot-idx="${i}">移動</button>
+          <button role="menuitem" data-slot-action="move" data-slot-idx="${i}">移動</button>`}
           <button class="danger" role="menuitem" data-slot-action="remove" data-slot-idx="${i}">外す</button>
         </div>` : ''}
       ${penalty ? '<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">⚠</span>' : ''}
@@ -5857,6 +5965,53 @@ function tapFormationSlot(i){
   formationPick = null;
 }
 
+function placeHelperInSlot(){
+  if(!STATE.borrowed){ toast('お助けキャラを借りてください'); return; }
+  if(STATE.slots.includes(HELP_SLOT_ID)) return;
+  const f = currentFormation();
+  const role = MON_BY_ID[STATE.borrowed.mon.id].role;
+  const slot = emptySlotIn(STATE.slots, f, role);
+  if(slot < 0){ toast('パーティが満員です。1体外してからお試しください'); return; }
+  STATE.slots[slot] = HELP_SLOT_ID;
+  saveState();
+  render();
+}
+function removeHelperFromSlot(){
+  STATE.slots = STATE.slots.map(id => id === HELP_SLOT_ID ? null : id);
+  saveState();
+  render();
+}
+function returnBorrowed(){
+  if(!STATE.borrowed) return;
+  removeHelperFromSlot();
+  STATE.borrowed = null;
+  syncHelperMon();
+  saveState();
+  render();
+}
+function renderHelperCard(){
+  const b = STATE.borrowed;
+  const placed = STATE.slots.includes(HELP_SLOT_ID);
+  return `
+    <div class="panel facility" style="margin-bottom:10px;">
+      <div class="fc-head">
+        <div class="fc-ic">${b ? `<img src="${imgSrc(b.mon.id)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '🤝'}</div>
+        <div class="fc-body">
+          <div class="fc-name">お助けキャラ</div>
+          <div class="fc-line">${b
+            ? `${MON_BY_ID[b.mon.id].name} ★${b.mon.star} Lv${b.mon.level}・${escapeHtml(b.name)}から借用中`
+            : `フレンドから借りられます(お気に入り1枠目)。編成に入れると出撃時のスタミナ+${HELP_STAMINA_SURCHARGE}`}</div>
+        </div>
+        <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
+          ${b
+            ? `<button class="btn btn-sm ${placed ? 'btn-ghost' : ''}" data-toggle-helper-slot="1">${placed ? '編成から外す' : '編成に入れる'}</button>
+               <button class="btn btn-ghost btn-sm" data-return-helper="1">返却</button>`
+            : `<button class="btn btn-sm" data-overlay="friends">フレンドから借りる</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderParty(){
   const partyIds = getPartyIds();
   const coverage = {};
@@ -5887,6 +6042,7 @@ function renderParty(){
       <div class="party-count">${partyIds.length} / ${PARTY_MAX}体<span class="bp">総合BP ${totalBp.toLocaleString()}</span></div>
     </div>
     <div class="screen-sub" style="margin-bottom:6px;">${guide}</div>
+    ${renderHelperCard()}
 
     ${renderFormationPicker()}
     <div class="enemy-side-cap">▲ 敵側</div>
@@ -5981,7 +6137,7 @@ function renderStageRow(st){
         <span class="sr-title">
           <span class="terrain-tag" style="background:${TERRAIN[st.terrain].color};">${TERRAIN[st.terrain].label}</span>
           ${unlocked ? '' : '🔒 '}${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</span>
-        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・⚡${st.stamina}</span>
+        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・⚡${stageStaminaCost(st)}</span>
         <span class="sr-state ${cleared ? 'done' : ''}">${cleared ? 'クリア済み' : unlocked ? `未クリア${st.boss ? '・ボスあり' : ''}` : '前のステージをクリアすると挑戦できます'}</span>
       </span>
       <span class="sr-right">${starsText(stageStars(st.id))}<span class="mc-go">›</span></span>
@@ -5998,7 +6154,7 @@ function renderStageSheet(){
   const enemyIds = [...new Set(st.waves.flat().filter(e => !e.boss).map(e => e.ref))];
   const enemyElems = [...new Set(st.waves.flat().map(e => MON_BY_ID[e.ref].element))].filter(e => e !== 'none');
   const goodElems = ELEM_ORDER.filter(a => a !== 'none' && enemyElems.some(d => elementMultiplier(a, d) > 1));
-  const disabled = STATE.stamina < st.stamina;
+  const disabled = STATE.stamina < stageStaminaCost(st);
   const cleared = STATE.clearedStages.includes(st.id);
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
@@ -6055,7 +6211,7 @@ function renderStageSheet(){
       <div class="ss-actions">
         ${sweepButton(st)}
         <button class="btn ss-go ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
-          出撃する${st.stamina ? `<span class="go-cost">⚡${st.stamina}</span>` : ''}
+          出撃する${st.stamina ? `<span class="go-cost">⚡${stageStaminaCost(st)}</span>` : ''}
         </button>
       </div>
     </div>`;
@@ -6084,7 +6240,8 @@ function renderDungeons(){
     ${d.rewards.map((r, t) => {
       const unlocked = dungeonTierUnlocked(t);
       const req = STAGE_BY_ID[DUNGEON_TIER_UNLOCK[t]];
-      const disabled = !unlocked || STATE.stamina < DUNGEON_STAMINA;
+      const cost = stageStaminaCost({ stamina: DUNGEON_STAMINA });
+      const disabled = !unlocked || STATE.stamina < cost;
       return `
         <div class="stage-card dungeon ${unlocked ? '' : 'locked'}">
           <div class="row-between">
@@ -6097,7 +6254,7 @@ function renderDungeons(){
             <div class="stage-btns">
               ${sweepButton(dungeonStage(dungeonTab, t))}
               <button class="btn btn-sm ${disabled ? 'btn-ghost' : ''}" data-stage="dg_${dungeonTab}_${t}" ${disabled ? 'disabled' : ''}>
-                ${unlocked ? `挑戦 ⚡${DUNGEON_STAMINA}` : `「${req ? req.name : '？'}」クリアで解放`}
+                ${unlocked ? `挑戦 ⚡${cost}` : `「${req ? req.name : '？'}」クリアで解放`}
               </button>
             </div>
           </div>
@@ -6418,8 +6575,9 @@ function startBattle(stageId, opts){
   if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
   if(stage.tutorial && !(opts && opts.skipIntro) && stageUnlocked(stage)){ showTutorial(stageId, 0); return; }
   if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
-  if(!spendStamina(stage.stamina)){ toast(`スタミナが足りません(必要 ${stage.stamina})`); return; }
-  track('staminaUsed', stage.stamina);
+  const cost = stageStaminaCost(stage);
+  if(!spendStamina(cost)){ toast(`スタミナが足りません(必要 ${cost})`); return; }
+  track('staminaUsed', cost);
   logEvent('stage_start', { stage_id: stage.id, tier: stage.tier, type: stage.type || 'main' });
   if(stage.id === 'tu1') logEvent('tutorial_begin', {});
   if(stage.tutorial === 'ult') STATE.autoUlt = false;
@@ -6433,7 +6591,7 @@ function startBattle(stageId, opts){
   STATE.slots.forEach((id, i) => {
     if(!id) return;
     const m = MON_BY_ID[id];
-    const owned = STATE.owned[id];
+    const owned = slotOwnedLike(id);
     const u = buildUnit(m, 1, false, owned.star, false, owned.level, {
       skillLv: owned.skillLv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
     });
@@ -6464,7 +6622,7 @@ function startBattle(stageId, opts){
     waveResults: [],
     waveStartRound: 1,
     spawned: [],
-    staminaSpent: stage.stamina,
+    staminaSpent: cost,
     deathCounter: 0,
     firstStrike: null,
   };
@@ -9398,6 +9556,28 @@ function handlePhoneClick(ev){
     if(action === 'move'){ formationPick = i; render(); return; }
     if(action === 'remove'){ STATE.slots[i] = null; formationPick = null; saveState(); render(); return; }
   }
+
+  // party screen: お助けキャラ (borrowed support character)
+  if(t.closest('[data-toggle-helper-slot]')){
+    if(STATE.slots.includes(HELP_SLOT_ID)) removeHelperFromSlot();
+    else placeHelperInSlot();
+    return;
+  }
+  if(t.closest('[data-return-helper]')){ returnBorrowed(); return; }
+  const borrowEl = t.closest('[data-borrow-friend]');
+  if(borrowEl){
+    const uid = borrowEl.dataset.borrowFriend;
+    if(STATE.borrowed && STATE.borrowed.uid === uid) returnBorrowed();
+    else borrowFriendHelper(uid);
+    return;
+  }
+  const removeFriendEl = t.closest('[data-remove-friend]');
+  if(removeFriendEl){ removeFriend(removeFriendEl.dataset.removeFriend); return; }
+  if(t.closest('[data-add-friend]')){
+    const input = document.getElementById('friend-code-input');
+    addFriendByCode(input ? input.value : '');
+    return;
+  }
   // any other tap closes an open menu (the tap itself is still handled below)
   if(slotMenu !== null && !t.closest('.slot-menu')){
     const tappedSlot = t.closest('[data-slot]');
@@ -9701,7 +9881,7 @@ function renderTopBar(){
       : `<span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>`}
     <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
     <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
-    <button class="tb-btn" data-overlay="settings" aria-label="設定">⚙${
+    <button class="tb-btn" data-overlay="menu" aria-label="メニュー">☰${
       unreadNotices() ? `<span class="tb-dot">${unreadNotices()}</span>` : ''}</button>`;
 }
 function updateSoundButton(){ /* the gear lives in the top bar now; render() keeps it in step */ }
@@ -9900,7 +10080,7 @@ function profileState(){
 }
 function profileAvatar(){
   const p = profileState();
-  return (p.avatar && STATE.owned[p.avatar]) ? p.avatar : (STATE.slots.find(id => id) || Object.keys(STATE.owned)[0] || null);
+  return (p.avatar && STATE.owned[p.avatar]) ? p.avatar : (STATE.slots.find(id => id && id !== HELP_SLOT_ID) || Object.keys(STATE.owned)[0] || null);
 }
 // 称号: 受け取り済みの実績から
 function earnedTitles(){
@@ -10101,6 +10281,54 @@ function renderPickOverlay(){
     </div>`;
 }
 
+function renderMenuOverlay(){
+  return `
+    <div class="ov-screen">
+      ${overlayHead('メニュー')}
+      <div class="ov-body">
+        <div class="ov-links">
+          <button class="ov-link" data-overlay="notices">🔔 お知らせ${unreadNotices() ? `<span class="rank-new">${unreadNotices()}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="friends">🤝 フレンド${STATE.friends.length ? `<span class="rank-new">${STATE.friends.length}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="settings">⚙️ 設定</button>
+        </div>
+      </div>
+    </div>`;
+}
+function renderFriendsOverlay(){
+  const avail = friendsAvailable();
+  return `
+    <div class="ov-screen">
+      ${overlayHead('フレンド')}
+      <div class="ov-body">
+        ${!avail ? '<div class="screen-sub" style="margin:16px 0;">この機能はログイン中のみ利用できます。</div>' : `
+        <div class="panel panel-tight" style="margin-bottom:10px;">
+          <div class="mc-head" style="margin-bottom:8px;">コードでフレンド追加</div>
+          <div class="friend-add-row">
+            <input type="text" id="friend-code-input" class="friend-code-input" placeholder="フレンドコード" maxlength="12">
+            <button class="btn btn-sm" data-add-friend="1">追加</button>
+          </div>
+        </div>
+        ${STATE.friends.length === 0
+          ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。コードを教え合って追加しましょう。</div>'
+          : STATE.friends.map(f => `
+          <div class="panel facility" style="margin-bottom:8px;">
+            <div class="fc-head">
+              <div class="fc-ic">${f.support ? `<img src="${imgSrc(f.support.id)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
+              <div class="fc-body">
+                <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
+                <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けキャラ未設定'}</div>
+              </div>
+              <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
+                ${f.support ? `<button class="btn btn-sm ${STATE.borrowed && STATE.borrowed.uid === f.uid ? 'btn-ghost' : ''}" data-borrow-friend="${f.uid}">${STATE.borrowed && STATE.borrowed.uid === f.uid ? '返却' : '借りる'}</button>` : ''}
+                <button class="btn btn-ghost btn-sm" data-remove-friend="${f.uid}">削除</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        <div class="screen-sub" style="margin-top:10px;">あなたのコード: <b>${ACCOUNT ? ACCOUNT.playerId : '-'}</b>(プロフィールから共有できます)</div>
+        `}
+      </div>
+    </div>`;
+}
 function renderOverlay(){
   const el = document.getElementById('overlay');
   if(!el) return;
@@ -10108,6 +10336,8 @@ function renderOverlay(){
   el.innerHTML = overlayView === 'profile' ? renderProfileOverlay()
     : overlayView === 'settings' ? renderSettingsOverlay()
     : overlayView === 'notices' ? renderNoticesOverlay()
+    : overlayView === 'menu' ? renderMenuOverlay()
+    : overlayView === 'friends' ? renderFriendsOverlay()
     : renderPickOverlay();
   el.classList.add('show');
 }
@@ -10133,6 +10363,7 @@ async function handleOverlayAction(el){
       p.favorites = (p.favorites || []).filter(id => STATE.owned[id]);
       p.favorites[i] = el.dataset.picked;
       p.favorites = [...new Set(p.favorites.filter(Boolean))].slice(0, 3);
+      publishProfile(); // favorites[0] is the お助けキャラ friends can borrow - republish it
     }
     saveState();
     overlayView = 'profile';
