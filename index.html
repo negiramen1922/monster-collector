@@ -3297,8 +3297,13 @@ const DAY_RESET_HOUR = 4;                // daily counters reset at 4:00 local t
 const NORMAL_SOUL_DROP = 0.20;           // per defeated ★1/★2 enemy
 const RARE_SPAWN_PER_WAVE = 0.08;        // a ★3/★4 from the stage's rare list replaces one enemy
 /* Clearing a stage can befriend a monster outright: one roll per kind that showed up.
-   A monster you already own leaves souls instead, the same as a gacha duplicate. */
-const RECRUIT_CHANCE = { 1: 0.30, 2: 0.30, 3: 0.15, 4: 0.01, 5: 0.002 };
+   A monster you already own leaves souls instead, the same as a gacha duplicate.
+   A ★3 standing in the regular line-up is common enough to meet every run, so it rolls
+   lower than the same monster appearing in the rare slot. */
+const RECRUIT_CHANCE = { 1: 0.30, 2: 0.30, 3: 0.05, 4: 0.01, 5: 0.002 };
+const RECRUIT_CHANCE_RARE = { 3: 0.15, 4: 0.01, 5: 0.002 };
+const recruitChanceOf = (mon, asRare) =>
+  (asRare && RECRUIT_CHANCE_RARE[mon.rarity]) || RECRUIT_CHANCE[mon.rarity] || 0;
 /* The souls that drop along the way are the safety net: collect this many of a monster you
    do not own and it joins anyway, however unlucky the rolls have been. */
 const UNLOCK_SOULS = { 1: 10, 2: 25, 3: 60, 4: 250, 5: 400 };
@@ -4847,7 +4852,7 @@ function renderStageSheet(){
             const m = MON_BY_ID[id];
             return `<span class="enemy-chip ${STATE.owned[id] ? 'have' : ''}" title="${m.name}${STATE.owned[id] ? '(所持済み: 重複はソウルに)' : ''}">
               <img src="${imgSrc(id)}" alt="">
-              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(RECRUIT_CHANCE[m.rarity] || 0)}</small></span>`;
+              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(recruitChanceOf(m, false))}</small></span>`;
           }).join('')}
         </div>
       </div>
@@ -4855,7 +4860,7 @@ function renderStageSheet(){
         <div class="ss-block">
           <div class="ss-label">レア出現(各ウェーブ${Math.round(RARE_SPAWN_PER_WAVE * 100)}%)</div>
           <div class="rare-row">
-            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(RECRUIT_CHANCE[MON_BY_ID[id].rarity] || 0)}</small></span>`).join('')}
+            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(recruitChanceOf(MON_BY_ID[id], true))}</small></span>`).join('')}
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -7755,7 +7760,8 @@ function grantStageRewards(stage, spawned){
   const recruited = [];
   [...new Set(spawned.map(u => u.ref))].forEach(id => {
     const m = MON_BY_ID[id];
-    if(!m || Math.random() >= (RECRUIT_CHANCE[m.rarity] || 0)) return;
+    const asRare = spawned.some(u => u.ref === id && u.rare);
+    if(!m || Math.random() >= recruitChanceOf(m, asRare)) return;
     if(STATE.owned[id]){
       addSoul(id, DUP_SOULS[m.rarity] || 1);
     }else{

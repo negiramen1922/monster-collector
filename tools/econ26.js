@@ -1,10 +1,12 @@
 const load=require('./harness.js');
-const api=load('game.js', src => src + `;global.__e={expToNext,expNeeded,levelUpMonster,breakWall,atWall,levelStop,upgradeSkillLevel,skillCostList,promoteMonster,openRandomBox,openSelectBox,craftMat,collectFacility,upgradeFacility,idleAmount,baseState,dungeonStage,grantDungeonRewards,grantStageRewards,matOpenToday,getItem,addItem,addGold,wallCost,expPotTotal,missionEntries,claimMission,STAGE_BY_ID,findStage,giveSouls,RECRUIT_CHANCE,UNLOCK_SOULS,DUP_SOULS,get b(){return battleUI}};`);
+const api=load('game.js', src => src + `;global.__e={expToNext,expNeeded,levelUpMonster,breakWall,atWall,levelStop,upgradeSkillLevel,skillCostList,promoteMonster,openRandomBox,openSelectBox,craftMat,collectFacility,upgradeFacility,idleAmount,baseState,dungeonStage,grantDungeonRewards,grantStageRewards,matOpenToday,getItem,addItem,addGold,wallCost,expPotTotal,missionEntries,claimMission,STAGE_BY_ID,findStage,giveSouls,RECRUIT_CHANCE,RECRUIT_CHANCE_RARE,UNLOCK_SOULS,DUP_SOULS,get b(){return battleUI}};`);
 const E=global.__e;
 const ok=(name, cond, info)=>console.log((cond?'✅':'❌')+' '+name+(info!==undefined?'  '+JSON.stringify(info):''));
 // クリア時の「仲間になる」抽選は乱数なので、個数を数える検証のあいだは止める
 const recruitRates={...E.RECRUIT_CHANCE};
-const setRecruit=on=>Object.keys(E.RECRUIT_CHANCE).forEach(k=>{ E.RECRUIT_CHANCE[k]= on?recruitRates[k]:0; });
+const rareRates={...E.RECRUIT_CHANCE_RARE};
+const setRecruit=on=>{ Object.keys(E.RECRUIT_CHANCE).forEach(k=>{ E.RECRUIT_CHANCE[k]= on?recruitRates[k]:0; });
+  Object.keys(E.RECRUIT_CHANCE_RARE).forEach(k=>{ E.RECRUIT_CHANCE_RARE[k]= on?rareRates[k]:0; }); };
 setRecruit(false);
 const sum=n=>{let t=0; for(let L=1;L<n;L++) t+=E.expToNext(L); return t;};
 ok('経験値: Lv100まで約7,500', Math.abs(sum(100)-7526)<30, sum(100));

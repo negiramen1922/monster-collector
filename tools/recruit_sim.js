@@ -1,7 +1,7 @@
 /* クリアでモンスターが仲間になるまでの周回数を測る。
    使い方: node recruit_sim.js [ステージID…]  (省略時は代表ステージ) */
 const load = require('./harness.js');
-const api = load('game.js', src => src + ';global.__e={grantStageRewards,STAGE_BY_ID,MON_BY_ID,RECRUIT_CHANCE,DUP_SOULS,UNLOCK_SOULS,RARE_SPAWN_PER_WAVE,DEFAULT_STATE};');
+const api = load('game.js', src => src + ';global.__e={grantStageRewards,STAGE_BY_ID,MON_BY_ID,RECRUIT_CHANCE,RECRUIT_CHANCE_RARE,DUP_SOULS,UNLOCK_SOULS,RARE_SPAWN_PER_WAVE,DEFAULT_STATE};');
 const E = global.__e;
 const TRIALS = Number(process.env.N || 400);
 

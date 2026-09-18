@@ -1,7 +1,8 @@
 const load=require('./harness.js');
-const api=load('game.js', src => src + `;global.__s={battleRank,rankRoundLimit,sweepAllowed,runSweep,stageStars,findStage,STAGE_BY_ID,getItem,RECRUIT_CHANCE,get b(){return battleUI}};`);
+const api=load('game.js', src => src + `;global.__s={battleRank,rankRoundLimit,sweepAllowed,runSweep,stageStars,findStage,STAGE_BY_ID,getItem,RECRUIT_CHANCE,RECRUIT_CHANCE_RARE,get b(){return battleUI}};`);
 const F=global.__s;
-Object.keys(F.RECRUIT_CHANCE).forEach(k => F.RECRUIT_CHANCE[k] = 0);   // 個数を数えるので抽選は止める
+Object.keys(F.RECRUIT_CHANCE).forEach(k => F.RECRUIT_CHANCE[k] = 0);
+Object.keys(F.RECRUIT_CHANCE_RARE).forEach(k => F.RECRUIT_CHANCE_RARE[k] = 0);   // 個数を数えるので抽選は止める
 const ok=(name, cond, info)=>console.log((cond?'✅':'❌')+' '+name+(info!==undefined?'  '+JSON.stringify(info):''));
 const st=F.STAGE_BY_ID.q1_01;
 ok('★3のラウンド上限: 3ウェーブで12', F.rankRoundLimit(st)===12);
