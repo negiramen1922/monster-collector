@@ -3934,8 +3934,11 @@ const RARE_SPAWN_PER_WAVE = 0.08;        // a ★3/★4 from the stage's rare li
    lower than the same monster appearing in the rare slot. */
 const RECRUIT_CHANCE = { 1: 0.30, 2: 0.30, 3: 0.05, 4: 0.01, 5: 0.002 };
 const RECRUIT_CHANCE_RARE = { 3: 0.15, 4: 0.01, 5: 0.002 };
-const recruitChanceOf = (mon, asRare) =>
-  (asRare && RECRUIT_CHANCE_RARE[mon.rarity]) || RECRUIT_CHANCE[mon.rarity] || 0;
+const recruitChanceOf = (mon, asRare, stage) => {
+  const override = stage && stage.recruitOverride && stage.recruitOverride[mon.id];
+  if(override != null) return override;
+  return (asRare && RECRUIT_CHANCE_RARE[mon.rarity]) || RECRUIT_CHANCE[mon.rarity] || 0;
+};
 /* The souls that drop along the way are the safety net: collect this many of a monster you
    do not own and it joins anyway, however unlucky the rolls have been. */
 const UNLOCK_SOULS = { 1: 10, 2: 25, 3: 60, 4: 250, 5: 400 };
@@ -4199,32 +4202,48 @@ const TUTORIAL_PAGES = {
 const STAGES = buildQuestStages();
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(st => [st.id, st]));
 
-// event stage: hand-built rather than run through buildQuestStages() since it isn't
-// part of the tu/q1-q3 progression (no `requires`, so it's always open while the
-// event is running - see eventActive()). Its boss is the event's pickup monster,
-// shown at its real ★ so it feels like the showcase it is.
-function buildEventStage(){
-  const rec = 78;
-  return {
-    id: EVENT.key, type: 'event', tier: 'event', name: '狐火の祭壇', terrain: 'lava', element: 'fire',
-    rec, stamina: 15, power: 1, enemySkill: 5,
-    firstClear: 500, boss: true,
-    desc: `期間限定。「${MON_BY_ID[EVENT.pickup].name}」が守る祭壇に挑む。`,
-    waves: [
-      [{ ref: 'm128', level: rec, star: 3 }, { ref: 'm59', level: rec, star: 3 },
-       { ref: 'm127', level: rec, star: 3 }, { ref: 'm129', level: rec, star: 3 }],
-      [{ ref: 'm59', level: rec + 1, star: 3 }, { ref: 'm33', level: rec + 1, star: 3 },
-       { ref: 'm127', level: rec + 1, star: 3 }, { ref: 'm129', level: rec + 1, star: 3 }],
-      [{ ref: EVENT.pickup, level: rec + 2, star: 4, boss: true },
-       { ref: 'm59', level: rec + 2, star: 3 }, { ref: 'm127', level: rec + 2, star: 3 }],
-    ],
-    gold: 8000, pots: { exp2: 4 },
-    bossReward: [{ type: 'item', key: 'box_sel_4', n: 1 }],
-  };
+// event stages: hand-built rather than run through buildQuestStages() since they
+// aren't part of the tu/q1-q3 progression (no `requires`, so all 7 are open at once
+// while the event is running - see eventActive()). Seven difficulty tiers, each a
+// 5-wave gauntlet ending in the event's pickup monster as the boss; the recruit
+// chance for that boss rises tier by tier (recruitOverride, read by recruitChanceOf).
+const EVENT_TIERS = [
+  { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+  { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+  { lv: 60,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+  { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+  { lv: 140, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+  { lv: 170, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+  { lv: 200, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
+];
+const EVENT_ESCORTS = ['m128', 'm59', 'm127', 'm33', 'm129'];
+function buildEventStages(){
+  return EVENT_TIERS.map((t, i) => {
+    const n = i + 1;
+    const rec = t.lv;
+    const escort = (ref, wave) => ({ ref, level: rec, star: t.bossStar });
+    const waves = [0, 1, 2, 3].map(w => [
+      escort(EVENT_ESCORTS[w % EVENT_ESCORTS.length], w),
+      escort(EVENT_ESCORTS[(w + 1) % EVENT_ESCORTS.length], w),
+    ]);
+    waves.push([
+      { ref: EVENT.pickup, level: rec + 2, star: t.bossStar, boss: true },
+      escort(EVENT_ESCORTS[0], 4), escort(EVENT_ESCORTS[1], 4),
+    ]);
+    return {
+      id: `${EVENT.key}_${n}`, type: 'event', tier: 'event', name: `狐火の祭壇・${n}層`,
+      terrain: 'lava', element: 'fire', rec, stamina: 10 + n, power: 1, enemySkill: Math.min(10, 2 + n),
+      firstClear: 100 * n, boss: true,
+      desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[EVENT.pickup].name}」が守る祭壇に挑む。`,
+      waves,
+      gold: 1500 * n, pots: { exp2: Math.max(1, n) },
+      bossReward: [{ type: 'item', key: n >= 6 ? 'box_sel_4' : 'box_sel_3', n: 1 }],
+      recruitOverride: { [EVENT.pickup]: t.rate },
+    };
+  });
 }
-const EVENT_STAGE = buildEventStage();
-STAGES.push(EVENT_STAGE);
-STAGE_BY_ID[EVENT_STAGE.id] = EVENT_STAGE;
+const EVENT_STAGES = buildEventStages();
+EVENT_STAGES.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
 
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
 function bossOf(stage){
@@ -4615,10 +4634,8 @@ function homeBanners(){
   const dungeonMon = MONSTERS.find(m => m.rarity === 4) || pickup;
   const banners = [];
   if(eventActive()){
-    const evStage = STAGE_BY_ID[EVENT.key];
-    const boss = bossOf(evStage);
     banners.push({ tag: 'EVENT', cls: 'b-event', title: EVENT.name,
-      sub: `期間限定クエスト「${evStage.name}」開催中`, go: '挑戦する', img: boss.id, attr: `data-stage-open="${EVENT.key}"` });
+      sub: `期間限定クエスト「狐火の祭壇」全7層 開催中`, go: '挑戦する', img: EVENT.pickup, attr: 'data-nav="battle"' });
   }
   banners.push(
     { tag: 'PICK UP', cls: 'b-pick', title: `${pickup.name} ★${pickup.rarity} ピックアップ`,
@@ -5973,7 +5990,7 @@ function renderStageSheet(){
           <div>
             <div class="bh-name">${'★'.repeat(boss.rarity)} ${boss.name}</div>
             <div class="bh-tags">${ELEM_ICON[boss.element]}${ELEM_LABEL[boss.element]}・${ROLE_ICON[boss.role]}${ROLE_LABEL[boss.role]}</div>
-            <div class="bh-tags">🤝 仲間になる ${pctText(RECRUIT_CHANCE[boss.rarity] || 0)}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)</div>
+            <div class="bh-tags">🤝 仲間になる ${pctText(recruitChanceOf(boss, false, st))}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)</div>
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -5983,7 +6000,7 @@ function renderStageSheet(){
             const m = MON_BY_ID[id];
             return `<span class="enemy-chip ${STATE.owned[id] ? 'have' : ''}" title="${m.name}${STATE.owned[id] ? '(所持済み: 重複はソウルに)' : ''}">
               <img src="${imgSrc(id)}" alt="">
-              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(recruitChanceOf(m, false))}</small></span>`;
+              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(recruitChanceOf(m, false, st))}</small></span>`;
           }).join('')}
         </div>
       </div>
@@ -5991,7 +6008,7 @@ function renderStageSheet(){
         <div class="ss-block">
           <div class="ss-label">レア出現(各ウェーブ${Math.round(RARE_SPAWN_PER_WAVE * 100)}%)</div>
           <div class="rare-row">
-            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(recruitChanceOf(MON_BY_ID[id], true))}</small></span>`).join('')}
+            ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(recruitChanceOf(MON_BY_ID[id], true, st))}</small></span>`).join('')}
           </div>
         </div>` : ''}
       <div class="ss-block">
@@ -6054,21 +6071,16 @@ function renderDungeons(){
 }
 
 function renderEventCard(){
-  const st = STAGE_BY_ID[EVENT.key];
-  if(!st) return '';
-  const boss = bossOf(st);
+  if(!EVENT_STAGES.length) return '';
   const msLeft = new Date(EVENT.endAt).getTime() - Date.now();
   return `
-    <div class="panel event-card" data-stage-open="${EVENT.key}" role="button">
-      <div class="row-between" style="margin-bottom:8px;">
+    <div class="panel event-card">
+      <div class="row-between" style="margin-bottom:6px;">
         <div class="mc-head">🔥 ${EVENT.name}</div>
         <div class="mc-reset">残り ${formatDuration(Math.max(0, msLeft))}</div>
       </div>
-      <div class="mc-row">
-        <img src="${imgSrc(boss.id)}" alt="" style="width:36px;height:36px;object-fit:contain;border-radius:8px;">
-        <span class="mc-label">${st.name}<div class="mc-reset">推奨Lv${st.rec}・⚡${st.stamina}</div></span>
-        <span class="mc-go">›</span>
-      </div>
+      <div class="screen-sub" style="margin:0 0 8px;">「${MON_BY_ID[EVENT.pickup].name}」が守る祭壇に挑む。層が上がるほど仲間になる確率も上がる。</div>
+      ${EVENT_STAGES.map(renderStageRow).join('')}
     </div>`;
 }
 function renderBattleSelect(){
@@ -8933,7 +8945,7 @@ function grantStageRewards(stage, spawned){
   [...new Set(spawned.map(u => u.ref))].forEach(id => {
     const m = MON_BY_ID[id];
     const asRare = spawned.some(u => u.ref === id && u.rare);
-    if(!m || Math.random() >= recruitChanceOf(m, asRare)) return;
+    if(!m || Math.random() >= recruitChanceOf(m, asRare, stage)) return;
     if(STATE.owned[id]){
       addSoul(id, DUP_SOULS[m.rarity] || 1);
     }else{
