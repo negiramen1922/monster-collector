@@ -1679,6 +1679,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 #toast.show{ opacity:.95; transform:translate(-50%, 0); }
 
+/* ---------- guide toast: mascot tips, pinned above the nav bar ---------- */
+#guide-toast{
+  position:absolute; left:12px; right:12px; bottom:86px; z-index:55;
+  opacity:0; pointer-events:none; transform:translateY(8px); transition:all .25s ease;
+}
+#guide-toast.show{ opacity:1; pointer-events:auto; transform:translateY(0); }
+#guide-toast .guide-banner{ margin-bottom:0; box-shadow:0 10px 24px -8px rgba(0,0,0,.6); }
+
 @media (prefers-reduced-motion: reduce){
   .uni-summary, .point-summary{ animation:none; opacity:1; transform:none; }
   .unit.ready, .unit.ready.acting-ally{ animation:none; box-shadow:0 0 14px -2px rgba(232,180,85,.8); }
@@ -5185,16 +5193,6 @@ function showMonsterDetail(id){
         </div>
       </div>
 
-      ${(STATE.guidesSeen && STATE.guidesSeen.monsterDetail) ? '' : `
-      <div class="guide-banner">
-        <img class="guide-avatar sm" src="${imgSrc(MASCOTS.hanoko.id)}" alt="${MASCOTS.hanoko.name}">
-        <div class="guide-banner-body">
-          <div class="guide-name">${MASCOTS.hanoko.name}</div>
-          <p>${GUIDE_CONTENT.monsterDetail.body}</p>
-        </div>
-        <button class="guide-close" data-dismiss-guide="monsterDetail">×</button>
-      </div>`}
-
       ${levelBox}
 
       <div class="panel panel-tight detail-stats">
@@ -5242,6 +5240,7 @@ function showMonsterDetail(id){
   // keep the place the player was looking at: level-ups re-render this modal
   const nowEl = layer.querySelector('.detail-modal');
   if(nowEl && keepScroll) nowEl.scrollTop = keepScroll;
+  renderGuideToast('monsterDetail');
 }
 
 /* ---------------- DEX ---------------- */
@@ -9009,16 +9008,15 @@ function handlePhoneClick(ev){
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
     layer.innerHTML = '';
+    clearGuideToast();
     return;
   }
   const guideEl = t.closest('[data-dismiss-guide]');
   if(guideEl){
     const key = guideEl.dataset.dismissGuide;
     dismissGuide(key);
-    if(key === 'monsterDetail'){
-      const openId = document.querySelector('.detail-modal')?.dataset.mon;
-      if(openId) showMonsterDetail(openId);
-    }else closeModal();
+    if(key === 'welcome') closeModal();
+    else clearGuideToast();
     return;
   }
 
@@ -10107,7 +10105,7 @@ const GUIDE_CONTENT = {
   },
   monsterDetail: {
     mascot: 'hanoko',
-    body: 'わたしはハノコだよ。ここがモンスターの詳細画面。ステータスの確認や、レベル上げ・昇格・スキル強化が、全部ここでできるの。困ったらいつでも呼んでね。',
+    body: 'わたしハノコ。ここがモンスターの詳細画面。ステータスの確認や、レベル上げ・昇格・スキル強化が、全部ここでできるの。困ったらいつでも呼んでね。',
   },
 };
 function showGuideModal(key){
@@ -10134,6 +10132,29 @@ function dismissGuide(key){
   STATE.guidesSeen = STATE.guidesSeen || {};
   STATE.guidesSeen[key] = true;
   saveState();
+}
+
+// a mascot tip pinned above the nav bar, independent of whatever modal/screen is on top
+function renderGuideToast(key){
+  const el = document.getElementById('guide-toast');
+  if(!el) return;
+  if(STATE.guidesSeen && STATE.guidesSeen[key]){ clearGuideToast(); return; }
+  const g = GUIDE_CONTENT[key];
+  const mascot = MASCOTS[g.mascot];
+  el.innerHTML = `
+    <div class="guide-banner">
+      <img class="guide-avatar sm" src="${imgSrc(mascot.id)}" alt="${mascot.name}">
+      <div class="guide-banner-body">
+        <div class="guide-name">${mascot.name}</div>
+        <p>${g.body}</p>
+      </div>
+      <button class="guide-close" data-dismiss-guide="${key}">×</button>
+    </div>`;
+  el.classList.add('show');
+}
+function clearGuideToast(){
+  const el = document.getElementById('guide-toast');
+  if(el){ el.classList.remove('show'); el.innerHTML = ''; }
 }
 
 function wireGlobalEvents(){
@@ -10220,6 +10241,7 @@ function buildShell(){
     <div id="stage-fx"></div>
     <div id="log-sheet" aria-hidden="true" role="dialog" aria-label="バトルログ"></div>
     <div id="modal-layer"></div>
+    <div id="guide-toast"></div>
     <div id="toast"></div>
     <div id="nav">
       ${NAV.map(n => `<button class="nav-btn" data-key="${n.key}" data-nav="${n.key}"><span class="ic">${n.icon}</span>${n.label}</button>`).join('')}
