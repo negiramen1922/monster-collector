@@ -939,6 +939,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .su-bar i{ display:block; height:100%; background:linear-gradient(90deg,var(--gold-deep),var(--gold)); }
 .skill-desc.elem-flavor{ color:var(--dim); margin-top:3px; }
 .skill-desc.skill-note{ color:var(--dim); font-size:10.5px; margin-top:3px; font-style:italic; }
+.skill-desc.lv-scaled{ margin-top:3px; }
+.lv-scale-val{ color:var(--gold); font-weight:800; }
 
 .upgrade-section-title{ font-weight:800; font-size:12.5px; margin:4px 0 8px; color:var(--gold); }
 .upgrade-row{}
@@ -981,6 +983,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .formation.compact .party-slot{ margin:0 2.5px; }
 .party-slot .warn-mini{ position:absolute; left:4px; top:3px; font-size:11px; }
 .party-slot.penalty{ border-color:rgba(255,179,92,.7); border-style:dashed; }
+.party-slot .help-mini{ position:absolute; right:4px; top:3px; font-size:11px; }
+.party-slot.helped{ border-color:rgba(90,166,200,.7); border-style:dashed; }
 .warn-box{
   font-size:11.5px; line-height:1.7; color:#ffcf99; margin:0 0 12px;
   background:rgba(255,179,92,.08); border:1px solid rgba(255,179,92,.4); border-radius:12px; padding:8px 12px;
@@ -1154,6 +1158,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .stage-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
 .stage-tab{ font-family:inherit; font-size:12.5px; font-weight:800; padding:9px; border-radius:12px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; }
 .stage-tab.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
+.stage-tab.locked{ opacity:.5; }
 .tab-count{ font-size:10.5px; opacity:.85; margin-left:4px; }
 .debug-row{ display:flex; gap:8px; justify-content:center; margin:14px 0 4px; opacity:.7; }
 .fx-rare-line{ font-size:12px; font-weight:800; color:#e3b8ff; margin-top:6px; text-shadow:0 0 10px rgba(176,111,224,.8); }
@@ -1802,8 +1807,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .lv-hint{ margin:6px 0 0; }
 .skill-upgrade{ display:flex; align-items:center; justify-content:space-between; gap:9px;
   margin:9px 0 0; padding:9px 0 0; border-top:1px dashed var(--line); }
-.skill-upgrade .btn{ flex:none; max-width:56%; font-size:10.5px; padding:7px 10px; white-space:nowrap; }
-.skill-upgrade .cost-item{ margin-left:4px; }
+.skill-upgrade .btn{ flex:none; font-size:10.5px; padding:7px 14px; white-space:nowrap; }
+.skill-up-modal{ text-align:left; }
+.su-cost-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:4px; }
+.su-cost-chip{ width:100%; display:flex; align-items:center; gap:8px; font-family:inherit;
+  font-size:12px; padding:9px 10px; border-radius:11px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--text); cursor:pointer; text-align:left; }
+.su-cost-chip.short{ border-color:rgba(214,90,90,.5); }
+.su-cost-chip.open{ border-color:var(--gold); }
+.su-cost-name{ flex:1; min-width:0; }
+.su-cost-n{ font-weight:800; color:var(--text); }
+.su-cost-chip.short .su-cost-n{ color:var(--danger); }
+.su-shortcuts{ display:flex; flex-direction:column; gap:6px; margin:2px 0 2px 4px; padding-left:10px; border-left:2px solid var(--line); }
 
 /* ---------- party coverage + battle header/telop ---------- */
 #phone.in-battle #statusbar, #phone.in-battle #nav{ display:none; }
@@ -1849,6 +1864,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; white-space:nowrap; }
 .tier-tab.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
 .tier-tab.locked{ opacity:.45; }
+.tier-progress{ margin-bottom:8px; gap:8px; }
+.tp-stars{ font-size:13px; font-weight:800; color:var(--gold); white-space:nowrap; }
+.tier-chests{ display:flex; gap:6px; }
+.tier-chest{ display:flex; flex-direction:column; align-items:center; gap:1px; font-family:inherit;
+  padding:4px 8px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
+  color:var(--dim); cursor:pointer; line-height:1.3; }
+.tier-chest .tc-ic{ font-size:15px; }
+.tier-chest .tc-star{ font-size:9px; font-weight:800; }
+.tier-chest.ready{ border-color:var(--gold); background:rgba(232,180,85,.14); color:var(--gold);
+  animation:guide-pulse 1.6s ease-in-out infinite; }
+.tier-chest.done{ opacity:.5; }
+.tier-chest.locked{ opacity:.55; cursor:default; }
 .stage-row{ width:100%; display:flex; align-items:center; gap:10px; text-align:left; margin-bottom:9px;
   padding:12px; border-radius:15px; border:1px solid var(--line); background:var(--panel); cursor:pointer;
   font-family:inherit; color:var(--text); }
@@ -1861,7 +1888,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
-.explore-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:10px; }
+.explore-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px; }
+.gacha-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.gacha-tabs .stage-tab{ flex:1; min-width:100px; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
 .af-cycle{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--panel2); border:1px dashed var(--line);
   border-radius:12px; padding:9px 10px; margin-bottom:7px; }
@@ -2090,11 +2119,13 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .title-msg.ok{ color:#7fd6a2; }
 .title-form{ display:flex; flex-direction:column; gap:6px; }
 .title-form label{ font-size:11px; color:var(--dim); }
-.title-form input, .acct-modal .snd-row input{
+.title-form input, .acct-modal .snd-row input, .friend-code-input{
   background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:11px 12px;
   color:var(--text); font-family:inherit; font-size:14px; min-width:0;
 }
-.title-form input:focus, .acct-modal .snd-row input:focus{ outline:none; border-color:var(--gold); }
+.title-form input:focus, .acct-modal .snd-row input:focus, .friend-code-input:focus{ outline:none; border-color:var(--gold); }
+.friend-add-row{ display:flex; gap:8px; }
+.friend-add-row .friend-code-input{ flex:1; }
 .title-form .btn{ margin-top:4px; }
 .acct-line{ font-size:11px; color:var(--dim); margin-top:3px; }
 .acct-modal .snd-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -2313,6 +2344,7 @@ const HIGH_PITY_PULLS = 50;      // ★4+ guaranteed on the 50th pull without on
 const TEN_PULL_MIN_STAR = 3;     // 10th slot of a 10-pull is ★3+ if the first 9 weren't
 const SPARK_POINTS = 200;        // summon points (1 per pull, carried over) → pickup ★5
 const DEFAULT_BANNER = {
+  key: 'default',
   name: '星霜の呼び声',
   pickup: 'm31',
   featured: ['m31', 'm24', 'm08'],
@@ -2375,11 +2407,25 @@ function activeEvents(){
 function eventActive(){ return activeEvents().length > 0; }
 // when several events overlap, the most recently started one is the gacha's featured pickup
 // (ties go to whichever is later in EVENTS, i.e. the one added most recently)
+// every pickup the gacha screen could show right now: one per active event, or the
+// evergreen default when no event is running. Always at least one entry.
+function activeBanners(){
+  const evs = activeEvents();
+  return evs.length ? evs.map(ev => ({ key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured })) : [DEFAULT_BANNER];
+}
+let gachaBannerKey = null; // player's tab pick among activeBanners(); null = auto (most recent)
+// when several events overlap, default to the most recently started one (ties go to
+// whichever is later in EVENTS) unless the player has picked a tab themselves
 function currentBanner(){
+  const banners = activeBanners();
+  if(gachaBannerKey){
+    const picked = banners.find(b => b.key === gachaBannerKey);
+    if(picked) return picked;
+  }
   const evs = activeEvents();
   if(!evs.length) return DEFAULT_BANNER;
   const ev = evs.reduce((a, b) => new Date(b.startAt) >= new Date(a.startAt) ? b : a);
-  return { name: ev.name, pickup: ev.pickup, featured: ev.featured };
+  return { key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured };
 }
 
 
@@ -2392,6 +2438,27 @@ const PARTY_MAX = 5;
 const COLS = 4;
 function isMeleeRole(role){ return role === 'tank' || role === 'attacker'; }
 function preferredRow(role){ return isMeleeRole(role) ? 'front' : 'back'; }
+
+/* ---- friends & the "お助け" (support) character they lend out ---- */
+const FRIEND_MAX = 30;
+const HELP_SLOT_ID = '__help__';       // sentinel STATE.slots value for a borrowed helper
+const HELP_STAMINA_SURCHARGE = 5;      // PvE only; sweep doesn't touch the player's party so it's exempt
+// MON_BY_ID is a static lookup, never saved - aliasing the sentinel onto it (instead of
+// STATE.owned, which IS saved) lets every existing MON_BY_ID[slotId] callsite (formation
+// rendering, role checks, synergy/coverage, buildUnit) resolve the borrowed monster for free.
+function syncHelperMon(){
+  if(STATE.borrowed && MON_BY_ID[STATE.borrowed.mon.id]) MON_BY_ID[HELP_SLOT_ID] = MON_BY_ID[STATE.borrowed.mon.id];
+  else delete MON_BY_ID[HELP_SLOT_ID];
+}
+// the "owned" half (star/level/skill levels) for a slot id, real or borrowed
+function slotOwnedLike(id){
+  return id === HELP_SLOT_ID && STATE.borrowed ? STATE.borrowed.mon : STATE.owned[id];
+}
+function stageStaminaCost(stage){
+  // stages that are already stamina-free (tutorials) stay free regardless of party
+  if(!stage.stamina) return 0;
+  return stage.stamina + (STATE.slots.includes(HELP_SLOT_ID) ? HELP_STAMINA_SURCHARGE : 0);
+}
 
 // melee roles placed in the back row deal less damage
 const BACK_ROW_MELEE_PENALTY = 0.3;
@@ -2768,6 +2835,16 @@ const firebaseBackend = {
     await fs.setDoc(ref, { uid, at: Date.now() });
     return true;
   },
+  // friend code -> public profile (players/{uid} is readable by any signed-in user)
+  async lookupPlayer(code){
+    const { fs, db } = await this.load();
+    const idSnap = await fs.getDoc(fs.doc(db, 'playerIds', code));
+    if(!idSnap.exists()) return null;
+    const uid = idSnap.data().uid;
+    const pSnap = await fs.getDoc(fs.doc(db, 'players', uid));
+    if(!pSnap.exists()) return null;
+    return { uid, ...pSnap.data() };
+  },
 };
 
 /* Analytics. Never throws and never blocks: without a backend (offline, tests, ad blocker)
@@ -2850,20 +2927,83 @@ async function ensurePlayerId(){
     }catch(e){ console.warn('player id: could not claim', e); return; }
   }
 }
-// public profile, for the friend list and PVP opponent cards later
+// public profile, for the friend list and PVP opponent cards later. `support` is a
+// snapshot of the favorites[0] monster (the "お助けキャラ" a friend can borrow for PvE).
 async function publishProfile(){
   const be = authBackend();
   if(!ACCOUNT || !be.cloudProfile) return;
   try{
+    const favId = STATE && profileState().favorites[0];
+    const favOwned = favId && STATE.owned[favId];
+    const support = favOwned ? {
+      id: favId, star: favOwned.star, level: favOwned.level,
+      skillLv: favOwned.skillLv, ultLv: favOwned.ultLv, passiveLv: favOwned.passiveLv,
+    } : null;
     await be.cloudProfile(ACCOUNT.uid, {
       playerId: ACCOUNT.playerId,
       name: ACCOUNT.name,
       provider: ACCOUNT.provider,
+      level: STATE ? tamerLevel().lv : 1,
       monsters: STATE ? Object.keys(STATE.owned).length : 0,
       cleared: STATE ? STATE.clearedStages.length : 0,
+      support,
       updatedAt: Date.now(),
     });
   }catch(e){ console.warn('profile: not published', e); }
+}
+
+/* ---- friends & the お助けキャラ they lend out ---- */
+const friendsAvailable = () => typeof authBackend().lookupPlayer === 'function';
+// untrusted cross-account data (another player's published doc): validate every field
+// before trusting it, since a crafted doc must never be able to crash the friends screen
+// or hand out absurd stats.
+function sanitizeSupport(raw){
+  if(!raw || !MON_BY_ID[raw.id]) return null;
+  const clamp = (v, lo, hi, dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt; };
+  return {
+    id: raw.id,
+    star: clamp(raw.star, 1, MAX_STAR, 1),
+    level: clamp(raw.level, 1, 200, 1),
+    skillLv: clamp(raw.skillLv, 1, 12, 1),
+    ultLv: clamp(raw.ultLv, 1, 12, 1),
+    passiveLv: clamp(raw.passiveLv, 1, 12, 1),
+  };
+}
+async function addFriendByCode(code){
+  if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
+  code = String(code || '').trim().toUpperCase();
+  if(!code) return;
+  if(ACCOUNT && code === ACCOUNT.playerId){ toast('自分のコードは追加できません'); return; }
+  if(STATE.friends.some(f => f.playerId === code)){ toast('すでに追加しています'); return; }
+  if(STATE.friends.length >= FRIEND_MAX){ toast(`フレンドは最大${FRIEND_MAX}人です`); return; }
+  try{
+    const p = await authBackend().lookupPlayer(code);
+    if(!p){ toast('そのコードのプレイヤーが見つかりません'); return; }
+    STATE.friends.push({
+      uid: p.uid, playerId: String(p.playerId || code).slice(0, 12),
+      name: String(p.name || 'テイマー').slice(0, 20),
+      level: Math.max(1, Math.min(999, Number(p.level) || 1)),
+      support: sanitizeSupport(p.support),
+    });
+    saveState();
+    toast(`${p.name}をフレンドに追加しました`);
+    render();
+  }catch(e){ toast('通信に失敗しました'); }
+}
+function removeFriend(uid){
+  STATE.friends = STATE.friends.filter(f => f.uid !== uid);
+  if(STATE.borrowed && STATE.borrowed.uid === uid) returnBorrowed();
+  saveState();
+  render();
+}
+function borrowFriendHelper(uid){
+  const f = STATE.friends.find(x => x.uid === uid);
+  if(!f || !f.support){ toast('お助けキャラが設定されていません'); return; }
+  STATE.borrowed = { uid: f.uid, name: f.name, mon: { ...f.support } };
+  syncHelperMon();
+  saveState();
+  toast(`${f.name}の${MON_BY_ID[f.support.id].name}を借りました`);
+  render();
 }
 
 /* ---- cloud save ---- */
@@ -2939,7 +3079,7 @@ async function syncOnLogin(){
 
 const DEFAULT_STATE = () => ({
   version: STATE_VERSION,
-  crystals: 3200,
+  crystals: 0, // no more free starter crystals - tu3's firstClear (3200) replaces it
   gold: 20000,
   bgm: null,               // { on, vol }
   items: { exp1: 60, box_sel_1: 2 },
@@ -2977,6 +3117,9 @@ const DEFAULT_STATE = () => ({
   autoUlt: false,   // false: tap a unit with full SP to reserve its ultimate
   battleSpeed: 1,   // 1 / 2 / 3
   vip: false,
+  friends: [],      // [{ uid, playerId, name, level, support:{id,star,level,skillLv,ultLv,passiveLv}|null }]
+  borrowed: null,   // { uid, name, mon:{...} } - the friend's お助けキャラ currently on loan
+  tierChests: {},   // `${tierKey}_${stars}` → true once that milestone chest is claimed
 });
 
 let STATE = null;
@@ -3026,7 +3169,12 @@ function normalizeState(){
   // monsters removed from the roster (v4.4 cleanup)
   Object.keys(STATE.owned).forEach(id => { if(!MON_BY_ID[id]) delete STATE.owned[id]; });
   Object.keys(STATE.pendingSouls).forEach(id => { if(!MON_BY_ID[id]) delete STATE.pendingSouls[id]; });
-  if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id => (id && MON_BY_ID[id]) ? id : null);
+  if(!STATE.friends) STATE.friends = [];
+  if(STATE.borrowed === undefined) STATE.borrowed = null;
+  if(!STATE.tierChests) STATE.tierChests = {};
+  syncHelperMon();
+  if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
+    id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
   STATE.clearedStages = (STATE.clearedStages || []).filter(id => STAGE_BY_ID[id]);
   refreshStamina();
   if(STATE.daily && !STATE.daily.counts) STATE.daily = null; // saves from before missions
@@ -3263,6 +3411,71 @@ function upgradeSkillLevel(id, field){
   saveState();
   showMonsterDetail(id);
   render();
+}
+
+// skill/passive/ult level-up confirm modal: the material list can run to 6-8 chips
+// (2 families × up to 4 tiers), which used to overflow the inline upgrade button.
+let skillUpgradeModal = null; // { id, field } while this modal is open
+let skillUpgradeShort = null; // which cost chip's box/quest shortcuts are expanded
+function openSkillUpgradeModal(id, field){
+  skillUpgradeModal = { id, field };
+  skillUpgradeShort = null;
+  renderSkillUpgradeModal();
+}
+function closeSkillUpgradeModal(){
+  const m = skillUpgradeModal;
+  skillUpgradeModal = null;
+  skillUpgradeShort = null;
+  if(m) showMonsterDetail(m.id);
+}
+function renderSkillUpgradeModal(){
+  const { id, field } = skillUpgradeModal;
+  const owned = STATE.owned[id];
+  const m = MON_BY_ID[id];
+  if(!owned || !m){ closeSkillUpgradeModal(); return; }
+  const lv = owned[field];
+  const cap = skillCapOf(owned);
+  const maxed = lv >= cap;
+  const list = maxed ? [] : skillCostList(m, field, lv);
+  const allOk = list.every(c => getItem(c.key) >= c.n);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal skill-up-modal" role="dialog" aria-label="${SKILL_KINDS[field].label}アップ">
+      <button class="fs-close" data-close-skill-up="1" aria-label="閉じる">×</button>
+      <h3>${SKILL_KINDS[field].label} Lv${lv} → Lv${lv + 1}</h3>
+      ${maxed ? `<p class="fs-note">これ以上は上げられません。</p>` : `
+      <p class="fs-note">消費素材(タップでショートカット)</p>
+      <div class="su-cost-list">
+        ${list.map(c => {
+          const have = getItem(c.key);
+          const short = have < c.n;
+          const info = parseMat(c.key);
+          const boxKey = info ? `box_sel_${info.tier}` : null;
+          const hasBox = boxKey ? getItem(boxKey) > 0 : false;
+          const open = skillUpgradeShort === c.key;
+          return `
+            <div class="su-cost-row">
+              <button class="su-cost-chip ${short ? 'short' : ''} ${open ? 'open' : ''}" data-cost-toggle="${c.key}">
+                <span class="su-cost-ic">${itemIcon(c.key)}</span>
+                <span class="su-cost-name">${itemName(c.key)}</span>
+                <b class="su-cost-n">${have} / ${c.n}</b>
+              </button>
+              ${open ? `
+                <div class="su-shortcuts">
+                  <button class="btn btn-sm ${hasBox ? '' : 'btn-ghost'}" data-use-box="${boxKey}:${info.fam}:${info.kind}" ${hasBox ? '' : 'disabled'}>
+                    選択BOXを消費 ${itemName(boxKey)}(所持${getItem(boxKey)})
+                  </button>
+                  <button class="btn btn-ghost btn-sm" data-goto-mat-quest="1">素材クエストに行く</button>
+                </div>` : ''}
+            </div>`;
+        }).join('')}
+      </div>`}
+      <div class="ss-actions">
+        <button class="btn btn-ghost" data-close-skill-up="1">閉じる</button>
+        <button class="btn ${maxed || !allOk ? 'btn-ghost' : ''}" data-confirm-skill-up="1" ${maxed || !allOk ? 'disabled' : ''}>レベルアップする</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
 }
 
 /* ---- boxes ---- */
@@ -3946,7 +4159,7 @@ function updateMissionBadge(){
 // a single "how strong is this unit" number for sorting and at-a-glance comparison
 function battlePower(id){
   const m = MON_BY_ID[id];
-  const o = STATE.owned[id];
+  const o = slotOwnedLike(id);
   if(!m || !o) return 0;
   const st = scaledStats(m, o.star, o.level);
   const base = st.hp * 0.6 + st.str * 4 + (st.pdef + st.mdef) * 4 + st.spd * 1.5;
@@ -4186,7 +4399,7 @@ function buildQuestStages(){
       });
       const stage = {
         id, type: 'main', tier: t.key, no: i + 1, name: sp.name, terrain: sp.terrain, element: sp.element,
-        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 300][i] : isBoss ? 300 : 50 + i * 5,
+        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 3200][i] : isBoss ? 300 : 50 + i * 5,
         requires: prev, boss: isBoss, gimmick: sp.gimmick || null, tutorial: sp.tutorial || null,
         desc: isBoss ? `${TERRAIN[sp.terrain].label}の主「${MON_BY_ID[bossRef].name}」が待ち受ける。`
           : `${TERRAIN[sp.terrain].label}エリア。${ELEM_LABEL[sp.element]}属性の敵が多い。`,
@@ -4211,6 +4424,37 @@ function tierUnlocked(key){
   return first ? stageUnlocked(first) : false;
 }
 
+// per-tier star milestone chests: each difficulty tier is 10 stages × ★3 = ★30 max
+const TIER_STAR_CHESTS = [{ stars: 10, crystals: 300 }, { stars: 20, crystals: 500 }, { stars: 30, crystals: 800 }];
+function tierStarsOf(key){ return STAGES.filter(st => st.tier === key).reduce((a, st) => a + stageStars(st.id), 0); }
+function tierChestClaimed(key, stars){ return !!(STATE.tierChests && STATE.tierChests[`${key}_${stars}`]); }
+function claimTierChest(key, stars){
+  const chest = TIER_STAR_CHESTS.find(c => c.stars === stars);
+  if(!chest || tierChestClaimed(key, stars)) return;
+  if(tierStarsOf(key) < stars){ toast(`★${stars}が必要です`); return; }
+  if(!STATE.tierChests) STATE.tierChests = {};
+  STATE.tierChests[`${key}_${stars}`] = true;
+  grantRewards([{ type: 'crystal', n: chest.crystals }]);
+  track('upgrade');
+  playSfx('confirm');
+  toast(`💎${chest.crystals}を受け取りました`);
+  saveState();
+  render();
+}
+function renderTierChests(key, stars){
+  return `
+    <div class="tier-chests">
+      ${TIER_STAR_CHESTS.map(c => {
+        const claimed = tierChestClaimed(key, c.stars);
+        const ready = !claimed && stars >= c.stars;
+        return `<button class="tier-chest ${claimed ? 'done' : ready ? 'ready' : 'locked'}" data-tier-chest="${key}:${c.stars}" ${ready ? '' : 'disabled'} title="★${c.stars}で💎${c.crystals}">
+          <span class="tc-ic">${claimed ? '✅' : '🎁'}</span>
+          <span class="tc-star">★${c.stars}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
 /* ---- guide mascots: small friendly monsters that narrate onboarding ---- */
 const MASCOTS = {
   hinoko: { id: 'm129', name: 'ヒノコ' },   // battle tutorial (energetic, tu1-3)
@@ -4224,7 +4468,7 @@ const TUTORIAL_PAGES = {
   flow: [
     ['戦闘の流れ', 'やっほー、案内役のヒノコだよ!クエストでは敵のウェーブを順番にやっつけていくよ。戦闘はオートで進んで、すばやさ(SPD)の高い子から動いていくんだ。'],
     ['ターンとラウンド', '全員が1回ずつ動くと1ラウンド。画面の上に、次に動く順番が出るから見ててね。'],
-    ['勝利と報酬', 'ウェーブを全部倒せばクリア!ゴールドや育成素材、仲間にできるモンスターのソウルがもらえるよ。'],
+    ['勝利と報酬', 'ウェーブを全部倒せばクリア!ゴールドや育成素材、仲間にできるモンスターのソウルがもらえるよ。ステージによっては★3・4・5の高レアなモンスターが仲間になるチャンスもあるかも!?'],
   ],
   ult: [
     ['スキル', 'ここからは必殺技のお話。モンスターは決まったターンごとに、自動でスキルを使うよ。効果は詳細画面で確認できるんだ。'],
@@ -4280,6 +4524,11 @@ EVENTS.forEach(ev => {
 });
 
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
+// early-game gating: too many choices at once confuses a brand new player
+const TUTORIAL_LAST_STAGE = 'tu3';
+const SPEED_UNLOCK_STAGE = 'q1_05';
+function tutorialCleared(){ return STATE.clearedStages.includes(TUTORIAL_LAST_STAGE); }
+function speedUnlocked(){ return STATE.clearedStages.includes(SPEED_UNLOCK_STAGE); }
 function bossOf(stage){
   for(const wave of stage.waves){ const e = wave.find(x => x.boss); if(e) return MON_BY_ID[e.ref]; }
   return null;
@@ -4515,7 +4764,8 @@ function toast(msg){
 }
 
 function ensurePartyValid(){
-  STATE.slots = STATE.slots.map(id => (id && STATE.owned[id]) ? id : null);
+  STATE.slots = STATE.slots.map(id =>
+    id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && STATE.owned[id]) ? id : null);
 }
 
 function render(){
@@ -4680,7 +4930,7 @@ function homeBanners(){
       go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle" data-stage-tab-set="dungeon"' },
     { tag: 'DAILY', cls: 'b-daily', title: left ? `今日の日課 あと${left}件` : '今日の日課は完了',
       sub: `リセットまで ${formatDuration(msToDailyReset())}`, go: 'ミッションへ',
-      img: STATE.slots.find(Boolean) || pickup.id, attr: 'data-nav="missions"' },
+      img: STATE.slots.find(id => id && id !== HELP_SLOT_ID) || pickup.id, attr: 'data-nav="missions"' },
   );
   return banners;
 }
@@ -4887,7 +5137,9 @@ function renderHome(){
 /* ---------------- GACHA ---------------- */
 
 function renderGacha(){
-  const pickup = MON_BY_ID[currentBanner().pickup];
+  const banners = activeBanners();
+  const banner = currentBanner();
+  const pickup = MON_BY_ID[banner.pickup];
   const pullsToHigh = Math.max(1, HIGH_PITY_PULLS - STATE.pitySinceRare);
   const highPct = Math.min(100, Math.round((STATE.pitySinceRare / HIGH_PITY_PULLS) * 100));
   const sparkPct = Math.min(100, Math.round((STATE.summonPoints / SPARK_POINTS) * 100));
@@ -4896,11 +5148,15 @@ function renderGacha(){
   const rates = Object.entries(RARITY_WEIGHTS).map(([r, w]) => `★${r} ${w}%`).join('　');   // 下の「詳しい仕様」で使う
 
   return `
+    ${banners.length >= 2 ? `
+    <div class="gacha-tabs" role="tablist">
+      ${banners.map(b => `<button class="stage-tab ${banner.key === b.key ? 'on' : ''}" data-gacha-banner="${b.key}" role="tab" aria-selected="${banner.key === b.key}">${b.name}</button>`).join('')}
+    </div>` : ''}
     <div class="gc-hero">
       <div class="pixel gc-tag">PICK UP</div>
       <div class="gc-hero-row">
         <div class="gc-hero-body">
-          <div class="gc-name">${currentBanner().name}</div>
+          <div class="gc-name">${banner.name}</div>
           <div class="gc-sub">★${pickup.rarity}「${pickup.name}」${ELEM_LABEL[pickup.element]}・${ROLE_LABEL[pickup.role]}
             <br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
@@ -5359,28 +5615,37 @@ function showGachaResults(results, before){
 /* ---------------- MONSTER DETAIL ---------------- */
 
 // one line per action for the detail modal
-function kitLinesHtml(m, star, after){
+function kitLinesHtml(m, star, owned, after){
   const kit = kitOf(m);
   const slots = skillSlotsOf(m, star);
   const typeOf = act => act.atk ? ATK_TYPE_LABEL[act.atk] : '―';
-  const card = (tag, kind, act, meta, upgrade) => `
+  // skills/ults scale +5%/level (lvScale); the base desc text is written for Lv1, so the
+  // power % it quotes goes stale the moment the player upgrades - show the live number too.
+  const scaledPowLine = (kind, act, lv) => {
+    if((kind !== 'skill' && kind !== 'ult') || act.pow == null || (lv || 1) <= 1) return '';
+    const pct = Math.round(act.pow * lvScale(lv) * 100);
+    return `<div class="skill-desc lv-scaled">現在の威力: <b class="lv-scale-val">${pct}%</b>(${kind === 'ult' ? '必殺技' : 'スキル'}Lv${lv})</div>`;
+  };
+  const card = (tag, kind, act, meta, upgrade, lv) => `
     <div class="skill-card k-${kind}">
       <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-${kind}">${tag}</span>${act.name}</span><span class="skill-ct">${meta}</span></div>
       <div class="skill-desc">${act.desc || ''}</div>
+      ${scaledPowLine(kind, act, lv)}
       ${act.tgt || act.tgtText ? `<div class="skill-desc elem-flavor">🎯 ${act.tgtText || TGT_TEXT[act.tgt] || ''}${act.atk && !act.tgtText ? `・${typeOf(act)}` : ''}</div>` : ''}
       ${upgrade || ''}
     </div>`;
   const skill2 = kit.skill2 || kit.skill1;
   const two = slots.length >= 2;
   const a = after || {};
+  const o = owned || {};
   return [
     card('通常', 'normal', kit.normal, typeOf(kit.normal), ''),
-    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill),
+    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill, o.skillLv),
     two
-      ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill)
+      ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill, o.skillLv)
       : `<div class="skill-card locked-slot">🔒 ★${SECOND_SKILL_STAR}に昇格すると、スキル2「${skill2.name}」が使えるようになります</div>`,
     card('パッシブ', 'passive', kit.passive, '常時', a.passive),
-    card('必殺技', 'ult', kit.ult, `SP ${kit.ult.sp}`, a.ult),
+    card('必殺技', 'ult', kit.ult, `SP ${kit.ult.sp}`, a.ult, o.ultLv),
   ].join('');
 }
 
@@ -5479,8 +5744,6 @@ function showMonsterDetail(id){
   const upgradeBox = field => {
     const lv = owned[field];
     const maxed = lv >= skillCap;
-    const list = maxed ? [] : skillCostList(m, field, lv);
-    const ok = list.every(c => getItem(c.key) >= c.n);
     const pct = Math.min(100, Math.round(lv / skillCap * 100));
     return `
       <div class="skill-upgrade">
@@ -5488,9 +5751,8 @@ function showMonsterDetail(id){
           <span class="su-lv">${SKILL_KINDS[field].label} <b class="lv-stat">${lv}</b><span class="lv-note">/ ${skillCap}</span></span>
           <span class="su-bar"><i style="width:${pct}%;"></i></span>
         </div>
-        <button class="btn btn-sm ${maxed || !ok ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed || !ok ? 'disabled' : ''}>
-          ${maxed ? (lv >= 12 ? 'MAX' : `★${lv >= 10 && owned.star < 6 ? 6 : 7}で解放`)
-            : `Lv${lv + 1}へ ${list.map(c => `<span class="cost-item ${getItem(c.key) >= c.n ? '' : 'short'}" title="${itemName(c.key)}">${itemIcon(c.key)}×${c.n}</span>`).join('')}`}
+        <button class="btn btn-sm ${maxed ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed ? 'disabled' : ''}>
+          ${maxed ? (lv >= 12 ? 'MAX' : `★${lv >= 10 && owned.star < 6 ? 6 : 7}で解放`) : `Lv${lv + 1}へ`}
         </button>
       </div>`;
   };
@@ -5531,7 +5793,7 @@ function showMonsterDetail(id){
 
       <div class="panel panel-tight detail-skill-box">
         <div class="mc-head">スキル</div>
-        ${kitLinesHtml(m, owned.star, { skill: upgradeBox('skillLv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
+        ${kitLinesHtml(m, owned.star, owned, { skill: upgradeBox('skillLv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
       </div>
 
       <div class="detail-level-box promo-box">
@@ -5618,6 +5880,7 @@ function renderFormationGrid(compact){
   const f = currentFormation();
   const cell = (i, gridRow) => {
     const id = STATE.slots[i];
+    const isHelp = id === HELP_SLOT_ID;
     const m = id ? MON_BY_ID[id] : null;
     const sel = !compact && formationPick === i ? 'selected' : '';
     const menuOpen = !compact && slotMenu === i && m;
@@ -5625,13 +5888,15 @@ function renderFormationGrid(compact){
     const slotAttr = compact ? '' : `data-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${m.name}` : ' 空き'}"`;
     if(!m) return `<div class="party-slot ${sel}" ${pos} ${slotAttr}><span class="empty-plus">+</span></div>`;
     const penalty = slotRowIn(f, i) === 'back' && isMeleeRole(m.role);
-    return `<div class="party-slot ${sel} ${menuOpen ? 'menu-open' : ''} ${penalty ? 'penalty' : ''}" ${pos} ${slotAttr}>
+    return `<div class="party-slot ${sel} ${menuOpen ? 'menu-open' : ''} ${penalty ? 'penalty' : ''} ${isHelp ? 'helped' : ''}" ${pos} ${slotAttr}>
       <img src="${imgSrc(m.id)}" alt="${m.name}">
+      ${isHelp ? '<span class="help-mini" title="お助けキャラ">🤝</span>' : ''}
       ${menuOpen ? `
         <div class="slot-menu" role="menu" aria-label="${m.name} の操作">
-          <div class="sm-name">${m.name}</div>
+          <div class="sm-name">${m.name}${isHelp ? ' 🤝' : ''}</div>
+          ${isHelp ? '' : `
           <button class="primary" role="menuitem" data-slot-action="detail" data-slot-idx="${i}">詳細</button>
-          <button role="menuitem" data-slot-action="move" data-slot-idx="${i}">移動</button>
+          <button role="menuitem" data-slot-action="move" data-slot-idx="${i}">移動</button>`}
           <button class="danger" role="menuitem" data-slot-action="remove" data-slot-idx="${i}">外す</button>
         </div>` : ''}
       ${penalty ? '<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">⚠</span>' : ''}
@@ -5857,6 +6122,53 @@ function tapFormationSlot(i){
   formationPick = null;
 }
 
+function placeHelperInSlot(){
+  if(!STATE.borrowed){ toast('お助けキャラを借りてください'); return; }
+  if(STATE.slots.includes(HELP_SLOT_ID)) return;
+  const f = currentFormation();
+  const role = MON_BY_ID[STATE.borrowed.mon.id].role;
+  const slot = emptySlotIn(STATE.slots, f, role);
+  if(slot < 0){ toast('パーティが満員です。1体外してからお試しください'); return; }
+  STATE.slots[slot] = HELP_SLOT_ID;
+  saveState();
+  render();
+}
+function removeHelperFromSlot(){
+  STATE.slots = STATE.slots.map(id => id === HELP_SLOT_ID ? null : id);
+  saveState();
+  render();
+}
+function returnBorrowed(){
+  if(!STATE.borrowed) return;
+  removeHelperFromSlot();
+  STATE.borrowed = null;
+  syncHelperMon();
+  saveState();
+  render();
+}
+function renderHelperCard(){
+  const b = STATE.borrowed;
+  const placed = STATE.slots.includes(HELP_SLOT_ID);
+  return `
+    <div class="panel facility" style="margin-bottom:10px;">
+      <div class="fc-head">
+        <div class="fc-ic">${b ? `<img src="${imgSrc(b.mon.id)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '🤝'}</div>
+        <div class="fc-body">
+          <div class="fc-name">お助けキャラ</div>
+          <div class="fc-line">${b
+            ? `${MON_BY_ID[b.mon.id].name} ★${b.mon.star} Lv${b.mon.level}・${escapeHtml(b.name)}から借用中`
+            : `フレンドから借りられます(お気に入り1枠目)。編成に入れると出撃時のスタミナ+${HELP_STAMINA_SURCHARGE}`}</div>
+        </div>
+        <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
+          ${b
+            ? `<button class="btn btn-sm ${placed ? 'btn-ghost' : ''}" data-toggle-helper-slot="1">${placed ? '編成から外す' : '編成に入れる'}</button>
+               <button class="btn btn-ghost btn-sm" data-return-helper="1">返却</button>`
+            : `<button class="btn btn-sm" data-overlay="friends">フレンドから借りる</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderParty(){
   const partyIds = getPartyIds();
   const coverage = {};
@@ -5887,6 +6199,7 @@ function renderParty(){
       <div class="party-count">${partyIds.length} / ${PARTY_MAX}体<span class="bp">総合BP ${totalBp.toLocaleString()}</span></div>
     </div>
     <div class="screen-sub" style="margin-bottom:6px;">${guide}</div>
+    ${renderHelperCard()}
 
     ${renderFormationPicker()}
     <div class="enemy-side-cap">▲ 敵側</div>
@@ -5938,6 +6251,7 @@ let stageTab = 'main';
 let questTier = null;  // selected difficulty (null = difficulty list)
 let stageSheet = null; // stage whose details are shown
 let dungeonTab = 'exp';
+let eventKey = null;   // which event's stage list is shown when 2+ events are running
 
 function dropIconsHtml(st){
   if(!st.drops) return '';
@@ -5981,7 +6295,7 @@ function renderStageRow(st){
         <span class="sr-title">
           <span class="terrain-tag" style="background:${TERRAIN[st.terrain].color};">${TERRAIN[st.terrain].label}</span>
           ${unlocked ? '' : '🔒 '}${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</span>
-        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・⚡${st.stamina}</span>
+        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・⚡${stageStaminaCost(st)}</span>
         <span class="sr-state ${cleared ? 'done' : ''}">${cleared ? 'クリア済み' : unlocked ? `未クリア${st.boss ? '・ボスあり' : ''}` : '前のステージをクリアすると挑戦できます'}</span>
       </span>
       <span class="sr-right">${starsText(stageStars(st.id))}<span class="mc-go">›</span></span>
@@ -5998,7 +6312,7 @@ function renderStageSheet(){
   const enemyIds = [...new Set(st.waves.flat().filter(e => !e.boss).map(e => e.ref))];
   const enemyElems = [...new Set(st.waves.flat().map(e => MON_BY_ID[e.ref].element))].filter(e => e !== 'none');
   const goodElems = ELEM_ORDER.filter(a => a !== 'none' && enemyElems.some(d => elementMultiplier(a, d) > 1));
-  const disabled = STATE.stamina < st.stamina;
+  const disabled = STATE.stamina < stageStaminaCost(st);
   const cleared = STATE.clearedStages.includes(st.id);
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
@@ -6055,7 +6369,7 @@ function renderStageSheet(){
       <div class="ss-actions">
         ${sweepButton(st)}
         <button class="btn ss-go ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
-          出撃する${st.stamina ? `<span class="go-cost">⚡${st.stamina}</span>` : ''}
+          出撃する${st.stamina ? `<span class="go-cost">⚡${stageStaminaCost(st)}</span>` : ''}
         </button>
       </div>
     </div>`;
@@ -6084,7 +6398,8 @@ function renderDungeons(){
     ${d.rewards.map((r, t) => {
       const unlocked = dungeonTierUnlocked(t);
       const req = STAGE_BY_ID[DUNGEON_TIER_UNLOCK[t]];
-      const disabled = !unlocked || STATE.stamina < DUNGEON_STAMINA;
+      const cost = stageStaminaCost({ stamina: DUNGEON_STAMINA });
+      const disabled = !unlocked || STATE.stamina < cost;
       return `
         <div class="stage-card dungeon ${unlocked ? '' : 'locked'}">
           <div class="row-between">
@@ -6097,7 +6412,7 @@ function renderDungeons(){
             <div class="stage-btns">
               ${sweepButton(dungeonStage(dungeonTab, t))}
               <button class="btn btn-sm ${disabled ? 'btn-ghost' : ''}" data-stage="dg_${dungeonTab}_${t}" ${disabled ? 'disabled' : ''}>
-                ${unlocked ? `挑戦 ⚡${DUNGEON_STAMINA}` : `「${req ? req.name : '？'}」クリアで解放`}
+                ${unlocked ? `挑戦 ⚡${cost}` : `「${req ? req.name : '？'}」クリアで解放`}
               </button>
             </div>
           </div>
@@ -6120,7 +6435,14 @@ function renderEventCard(ev){
 function renderEventTab(){
   const evs = activeEvents();
   if(!evs.length) return `<div class="screen-sub" style="margin:28px 0;text-align:center;">現在開催中のイベントはありません</div>`;
-  return evs.map(renderEventCard).join('');
+  if(evs.length === 1) return renderEventCard(evs[0]);
+  if(!evs.some(e => e.key === eventKey)) eventKey = evs[0].key;
+  return `
+    <div class="tier-tabs" role="tablist">
+      ${evs.map(e => `<button class="tier-tab ${eventKey === e.key ? 'on' : ''}" data-event-tier="${e.key}" role="tab" aria-selected="${eventKey === e.key}">${e.icon || '✨'}${e.name}</button>`).join('')}
+    </div>
+    ${renderEventCard(evs.find(e => e.key === eventKey))}
+  `;
 }
 function renderBattleSelect(){
   refreshStamina();
@@ -6139,15 +6461,12 @@ function renderBattleSelect(){
     </div>
     <div class="explore-tabs" role="tablist">
       <button class="stage-tab ${stageTab === 'main' ? 'on' : ''}" data-stage-tab="main" role="tab" aria-selected="${stageTab === 'main'}">クエスト</button>
-      <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">育成</button>
-      <button class="stage-tab ${stageTab === 'event' ? 'on' : ''}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">イベント${evCount ? ` 🔥${evCount}` : ''}</button>
+      <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''} ${tutorialCleared() ? '' : 'locked'}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">${tutorialCleared() ? '' : '🔒'}育成</button>
+      <button class="stage-tab ${stageTab === 'event' ? 'on' : ''} ${tutorialCleared() ? '' : 'locked'}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">${tutorialCleared() ? '' : '🔒'}イベント${evCount && tutorialCleared() ? ` 🔥${evCount}` : ''}</button>
     </div>
     ${stageTab === 'event' ? renderEventTab() : ''}
-    ${stageTab === 'dungeon' ? `
-      <div class="screen-sub" style="margin-bottom:8px;">⚡${STATE.stamina} / ${STAMINA_MAX}</div>
-      ${renderDungeons()}` : ''}
+    ${stageTab === 'dungeon' ? renderDungeons() : ''}
     ${stageTab === 'main' ? `
-    <div class="screen-sub" style="margin-bottom:9px;">難易度を選んでください。最後のボスを倒すと次の難易度が解放されます。</div>
     <div class="tier-tabs" role="tablist">
       ${QUEST_TIERS.filter(t => !t.hidden).map(t => {
         const open = tierUnlocked(t.key);
@@ -6156,9 +6475,14 @@ function renderBattleSelect(){
           ${open && !t.disabled ? '' : '🔒'}${t.short || t.label}</button>`;
       }).join('')}
     </div>
+    ${questTier !== 'tu' ? `
+    <div class="tier-progress row-between">
+      <div class="tp-stars">★${tierStars} / ${list2.length * 3}</div>
+      ${renderTierChests(questTier, tierStars)}
+    </div>` : ''}
     <div class="screen-sub" style="margin-bottom:9px;">
       ${questTier === 'tu' ? 'ゲームの遊び方を順番に覚えましょう。スタミナは使いません。'
-        : `${tier2.label}　推奨Lv${tier2.lv[0]}〜${tier2.lv[1]}　★${tierStars}/${list2.length * 3}・★3クリアで周回できます(VIP限定)`}
+        : `${tier2.label}　推奨Lv${tier2.lv[0]}〜${tier2.lv[1]}・★3クリアで周回できます(VIP限定)`}
     </div>
     ${list2.map(st => renderStageRow(st)).join('')}` : ''}
 
@@ -6418,8 +6742,9 @@ function startBattle(stageId, opts){
   if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
   if(stage.tutorial && !(opts && opts.skipIntro) && stageUnlocked(stage)){ showTutorial(stageId, 0); return; }
   if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
-  if(!spendStamina(stage.stamina)){ toast(`スタミナが足りません(必要 ${stage.stamina})`); return; }
-  track('staminaUsed', stage.stamina);
+  const cost = stageStaminaCost(stage);
+  if(!spendStamina(cost)){ toast(`スタミナが足りません(必要 ${cost})`); return; }
+  track('staminaUsed', cost);
   logEvent('stage_start', { stage_id: stage.id, tier: stage.tier, type: stage.type || 'main' });
   if(stage.id === 'tu1') logEvent('tutorial_begin', {});
   if(stage.tutorial === 'ult') STATE.autoUlt = false;
@@ -6433,7 +6758,7 @@ function startBattle(stageId, opts){
   STATE.slots.forEach((id, i) => {
     if(!id) return;
     const m = MON_BY_ID[id];
-    const owned = STATE.owned[id];
+    const owned = slotOwnedLike(id);
     const u = buildUnit(m, 1, false, owned.star, false, owned.level, {
       skillLv: owned.skillLv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
     });
@@ -6464,7 +6789,7 @@ function startBattle(stageId, opts){
     waveResults: [],
     waveStartRound: 1,
     spawned: [],
-    staminaSpent: stage.stamina,
+    staminaSpent: cost,
     deathCounter: 0,
     firstStrike: null,
   };
@@ -8504,6 +8829,7 @@ function toggleAutoUlt(){
 }
 
 function cycleSpeed(){
+  if(!speedUnlocked()){ toast(`「初級5」クリアで倍速が解放されます`); return; }
   const cur = STATE.battleSpeed || 1;
   let next = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(cur) + 1) % SPEED_OPTIONS.length];
   if(next === 3 && SPEED_3X_VIP_ONLY && !STATE.vip){
@@ -8701,7 +9027,10 @@ function finishBattle(win){
     STATE.stageStars[battleUI.stage.id] = Math.max(battleUI.prevRank, battleUI.rank);
     logEvent('stage_clear', { stage_id: battleUI.stage.id, tier: battleUI.stage.tier,
       type: battleUI.stage.type || 'main', rank: battleUI.rank, rounds: battleUI.round, first: !battleUI.prevRank });
-    if(battleUI.stage.id === 'tu3') logEvent('tutorial_complete', {});
+    if(battleUI.stage.id === 'tu3'){
+      logEvent('tutorial_complete', {});
+      if(!battleUI.prevRank) battleUI.tutorialJustDone = true;
+    }
     logLine(`${battleUI.stage.name} を制覇した!`, 'ult');
   }else{
     logEvent('stage_fail', { stage_id: battleUI.stage.id, tier: battleUI.stage.tier,
@@ -9307,7 +9636,7 @@ function handlePhoneClick(ev){
   }
   const navEl = t.closest('[data-nav]');
   if(navEl){
-    if(navEl.dataset.stageTabSet) stageTab = navEl.dataset.stageTabSet;
+    if(navEl.dataset.stageTabSet && (navEl.dataset.stageTabSet === 'main' || tutorialCleared())) stageTab = navEl.dataset.stageTabSet;
     goto(navEl.dataset.nav);
     return;
   }
@@ -9349,7 +9678,43 @@ function handlePhoneClick(ev){
   const wallEl = t.closest('[data-break-wall]');
   if(wallEl){ breakWall(wallEl.dataset.breakWall); return; }
   const skEl = t.closest('[data-skill-up]');
-  if(skEl){ upgradeSkillLevel(skEl.dataset.skillUp, skEl.dataset.field); return; }
+  if(skEl){ openSkillUpgradeModal(skEl.dataset.skillUp, skEl.dataset.field); return; }
+  if(skillUpgradeModal){
+    if(t.closest('[data-close-skill-up]')){ closeSkillUpgradeModal(); return; }
+    if(t.closest('[data-confirm-skill-up]')){
+      const { id, field } = skillUpgradeModal;
+      skillUpgradeModal = null;
+      upgradeSkillLevel(id, field);
+      return;
+    }
+    const costToggleEl = t.closest('[data-cost-toggle]');
+    if(costToggleEl){
+      const key = costToggleEl.dataset.costToggle;
+      skillUpgradeShort = skillUpgradeShort === key ? null : key;
+      renderSkillUpgradeModal();
+      return;
+    }
+    const useBoxEl = t.closest('[data-use-box]');
+    if(useBoxEl){
+      const [boxKey, fam, kind] = useBoxEl.dataset.useBox.split(':');
+      const tier = Number(boxKey.split('_')[2]);
+      const got = openSelectBox(tier, fam, kind);
+      if(got){ const [k, n] = Object.entries(got)[0]; playSfx('confirm'); toast(`${itemName(k)}を${n}個受け取りました`); }
+      skillUpgradeShort = null;
+      renderSkillUpgradeModal();
+      return;
+    }
+    if(t.closest('[data-goto-mat-quest]')){
+      if(!tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
+      skillUpgradeModal = null;
+      skillUpgradeShort = null;
+      stageTab = 'dungeon';
+      dungeonTab = 'mat';
+      closeModal();
+      goto('battle');
+      return;
+    }
+  }
   const colEl = t.closest('[data-collect]');
   if(colEl){ collectFacility(colEl.dataset.collect); saveState(); render(); return; }
   const fupEl = t.closest('[data-facility-up]');
@@ -9397,6 +9762,28 @@ function handlePhoneClick(ev){
     if(action === 'detail'){ render(); if(id) showMonsterDetail(id); return; }
     if(action === 'move'){ formationPick = i; render(); return; }
     if(action === 'remove'){ STATE.slots[i] = null; formationPick = null; saveState(); render(); return; }
+  }
+
+  // party screen: お助けキャラ (borrowed support character)
+  if(t.closest('[data-toggle-helper-slot]')){
+    if(STATE.slots.includes(HELP_SLOT_ID)) removeHelperFromSlot();
+    else placeHelperInSlot();
+    return;
+  }
+  if(t.closest('[data-return-helper]')){ returnBorrowed(); return; }
+  const borrowEl = t.closest('[data-borrow-friend]');
+  if(borrowEl){
+    const uid = borrowEl.dataset.borrowFriend;
+    if(STATE.borrowed && STATE.borrowed.uid === uid) returnBorrowed();
+    else borrowFriendHelper(uid);
+    return;
+  }
+  const removeFriendEl = t.closest('[data-remove-friend]');
+  if(removeFriendEl){ removeFriend(removeFriendEl.dataset.removeFriend); return; }
+  if(t.closest('[data-add-friend]')){
+    const input = document.getElementById('friend-code-input');
+    addFriendByCode(input ? input.value : '');
+    return;
   }
   // any other tap closes an open menu (the tap itself is still handled below)
   if(slotMenu !== null && !t.closest('.slot-menu')){
@@ -9527,11 +9914,21 @@ function handlePhoneClick(ev){
   const qtEl = t.closest('[data-quest-tier]');
   if(qtEl){ questTier = qtEl.dataset.questTier; render(); return; }
   if(t.closest('[data-quest-back]')){ questTier = null; render(); return; }
+  const evtEl = t.closest('[data-event-tier]');
+  if(evtEl){ eventKey = evtEl.dataset.eventTier; render(); return; }
+  const chestEl = t.closest('[data-tier-chest]');
+  if(chestEl){ const [key, stars] = chestEl.dataset.tierChest.split(':'); claimTierChest(key, Number(stars)); return; }
   const openEl = t.closest('[data-stage-open]');
   if(openEl){ stageSheet = openEl.dataset.stageOpen; renderStageSheet(); return; }
   if(t.closest('[data-close-sheet]')){ stageSheet = null; closeModal(); return; }
   const tabEl = t.closest('[data-stage-tab]');
-  if(tabEl){ stageTab = tabEl.dataset.stageTab; render(); return; }
+  if(tabEl){
+    const tab = tabEl.dataset.stageTab;
+    if(tab !== 'main' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
+    stageTab = tab; render(); return;
+  }
+  const gachaBannerEl = t.closest('[data-gacha-banner]');
+  if(gachaBannerEl){ gachaBannerKey = gachaBannerEl.dataset.gachaBanner; render(); return; }
   const debugEl = t.closest('[data-debug]');
   if(debugEl){
     if(debugEl.dataset.debug === 'stamina'){ STATE.stamina = STAMINA_MAX; STATE.staminaAt = Date.now(); }
@@ -9561,7 +9958,13 @@ function handlePhoneClick(ev){
     closeModal(); startBattle(startEl.dataset.startStage); return;
   }
   const resultNavEl = t.closest('[data-result-nav]');
-  if(resultNavEl){ closeModal(); goto(resultNavEl.dataset.resultNav); return; }
+  if(resultNavEl){
+    const tutorialJustDone = battleUI && battleUI.tutorialJustDone;
+    closeModal();
+    goto(resultNavEl.dataset.resultNav);
+    if(tutorialJustDone) openGuideToast('hinoko', GUIDE_CONTENT.tutorialDone.steps, { key: 'tutorialDone', doneLabel: 'ありがとう!' });
+    return;
+  }
   if(t.closest('[data-show-result]')){ showBattleResult(); return; }
   const resultTabEl = t.closest('[data-result-tab]');
   if(resultTabEl){ showBattleResult(resultTabEl.dataset.resultTab); return; }
@@ -9701,7 +10104,7 @@ function renderTopBar(){
       : `<span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>`}
     <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
     <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
-    <button class="tb-btn" data-overlay="settings" aria-label="設定">⚙${
+    <button class="tb-btn" data-overlay="menu" aria-label="メニュー">☰${
       unreadNotices() ? `<span class="tb-dot">${unreadNotices()}</span>` : ''}</button>`;
 }
 function updateSoundButton(){ /* the gear lives in the top bar now; render() keeps it in step */ }
@@ -9900,7 +10303,7 @@ function profileState(){
 }
 function profileAvatar(){
   const p = profileState();
-  return (p.avatar && STATE.owned[p.avatar]) ? p.avatar : (STATE.slots.find(id => id) || Object.keys(STATE.owned)[0] || null);
+  return (p.avatar && STATE.owned[p.avatar]) ? p.avatar : (STATE.slots.find(id => id && id !== HELP_SLOT_ID) || Object.keys(STATE.owned)[0] || null);
 }
 // 称号: 受け取り済みの実績から
 function earnedTitles(){
@@ -10046,7 +10449,8 @@ function renderSettingsOverlay(){
           <div class="mc-head" style="margin-bottom:11px;">戦闘</div>
           <div class="set-row">
             <div class="set-k wide">既定の速度</div>
-            <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''}" data-set-speed="${n}">${n}倍</button>`).join('')}</div>
+            <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''} ${n > 1 && !speedUnlocked() ? 'btn-ghost' : ''}" data-set-speed="${n}" ${n > 1 && !speedUnlocked() ? 'disabled' : ''}>${n}倍</button>`).join('')}</div>
+            ${speedUnlocked() ? '' : '<div class="screen-sub" style="margin-top:6px;">「初級5」クリアで倍速が解放されます</div>'}
           </div>
           <div class="set-row"><div class="set-k wide">必殺技オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
@@ -10101,6 +10505,54 @@ function renderPickOverlay(){
     </div>`;
 }
 
+function renderMenuOverlay(){
+  return `
+    <div class="ov-screen">
+      ${overlayHead('メニュー')}
+      <div class="ov-body">
+        <div class="ov-links">
+          <button class="ov-link" data-overlay="notices">🔔 お知らせ${unreadNotices() ? `<span class="rank-new">${unreadNotices()}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="friends">🤝 フレンド${STATE.friends.length ? `<span class="rank-new">${STATE.friends.length}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="settings">⚙️ 設定</button>
+        </div>
+      </div>
+    </div>`;
+}
+function renderFriendsOverlay(){
+  const avail = friendsAvailable();
+  return `
+    <div class="ov-screen">
+      ${overlayHead('フレンド')}
+      <div class="ov-body">
+        ${!avail ? '<div class="screen-sub" style="margin:16px 0;">この機能はログイン中のみ利用できます。</div>' : `
+        <div class="panel panel-tight" style="margin-bottom:10px;">
+          <div class="mc-head" style="margin-bottom:8px;">コードでフレンド追加</div>
+          <div class="friend-add-row">
+            <input type="text" id="friend-code-input" class="friend-code-input" placeholder="フレンドコード" maxlength="12">
+            <button class="btn btn-sm" data-add-friend="1">追加</button>
+          </div>
+        </div>
+        ${STATE.friends.length === 0
+          ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。コードを教え合って追加しましょう。</div>'
+          : STATE.friends.map(f => `
+          <div class="panel facility" style="margin-bottom:8px;">
+            <div class="fc-head">
+              <div class="fc-ic">${f.support ? `<img src="${imgSrc(f.support.id)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
+              <div class="fc-body">
+                <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
+                <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けキャラ未設定'}</div>
+              </div>
+              <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
+                ${f.support ? `<button class="btn btn-sm ${STATE.borrowed && STATE.borrowed.uid === f.uid ? 'btn-ghost' : ''}" data-borrow-friend="${f.uid}">${STATE.borrowed && STATE.borrowed.uid === f.uid ? '返却' : '借りる'}</button>` : ''}
+                <button class="btn btn-ghost btn-sm" data-remove-friend="${f.uid}">削除</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        <div class="screen-sub" style="margin-top:10px;">あなたのコード: <b>${ACCOUNT ? ACCOUNT.playerId : '-'}</b>(プロフィールから共有できます)</div>
+        `}
+      </div>
+    </div>`;
+}
 function renderOverlay(){
   const el = document.getElementById('overlay');
   if(!el) return;
@@ -10108,6 +10560,8 @@ function renderOverlay(){
   el.innerHTML = overlayView === 'profile' ? renderProfileOverlay()
     : overlayView === 'settings' ? renderSettingsOverlay()
     : overlayView === 'notices' ? renderNoticesOverlay()
+    : overlayView === 'menu' ? renderMenuOverlay()
+    : overlayView === 'friends' ? renderFriendsOverlay()
     : renderPickOverlay();
   el.classList.add('show');
 }
@@ -10123,7 +10577,11 @@ async function handleOverlayAction(el){
     render();
     return;
   }
-  if(el.dataset.setSpeed){ STATE.battleSpeed = Number(el.dataset.setSpeed); saveState(); render(); return; }
+  if(el.dataset.setSpeed){
+    const n = Number(el.dataset.setSpeed);
+    if(n > 1 && !speedUnlocked()){ toast('「初級5」クリアで倍速が解放されます'); return; }
+    STATE.battleSpeed = n; saveState(); render(); return;
+  }
   if(el.dataset.pick){ pickTarget = el.dataset.pick; overlayView = 'pick'; render(); return; }
   if(el.dataset.picked){
     const p = profileState();
@@ -10133,6 +10591,7 @@ async function handleOverlayAction(el){
       p.favorites = (p.favorites || []).filter(id => STATE.owned[id]);
       p.favorites[i] = el.dataset.picked;
       p.favorites = [...new Set(p.favorites.filter(Boolean))].slice(0, 3);
+      publishProfile(); // favorites[0] is the お助けキャラ friends can borrow - republish it
     }
     saveState();
     overlayView = 'profile';
@@ -10442,6 +10901,11 @@ const GUIDE_CONTENT = {
       { body: 'ここでステータスが見られるよ。HPや攻撃力、防御力なんかが確認できるの。', highlight: '.detail-stats' },
       { body: 'こっちはスキル。通常攻撃やスキル、必殺技の効果がここに書いてあるよ。', highlight: '.detail-skill-box' },
       { body: '最後はここ、昇格。ソウルを集めると★を上げられて、もっと強くなれるの。困ったらいつでも呼んでね。', highlight: '.promo-box' },
+    ],
+  },
+  tutorialDone: {
+    steps: [
+      { title: 'おつかれさま!', body: '戦闘チュートリアルはここまで!おつかれさまでした。これからの冒険の足しに、💎3200個を受け取ってね。ここから先は自分の力で進んでいこう!' },
     ],
   },
 };
