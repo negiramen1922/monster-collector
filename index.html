@@ -1000,6 +1000,20 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .pvp-result-modal{ text-align:center; }
 .pvp-result-line{ font-size:13px; margin:10px 0; }
 
+/* ---------- shop ---------- */
+.shop-section-title{ font-weight:800; font-size:12.5px; margin:14px 0 6px; color:var(--gold); }
+.shop-row{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:8px 0; border-top:1px dashed var(--line);
+}
+.shop-row:first-child{ border-top:none; }
+.shop-item{ display:flex; align-items:center; gap:6px; min-width:0; flex:1; }
+.shop-item-name{ font-size:12px; font-weight:700; }
+.shop-price{ font-size:11.5px; font-weight:800; color:var(--gold); white-space:nowrap; }
+.shop-old-price{ font-size:10px; color:var(--dim); text-decoration:line-through; margin-right:4px; }
+.shop-sale-badge{ font-size:9px; background:var(--danger); color:#fff; border-radius:6px; padding:1px 4px; margin-left:4px; }
+.shop-row .btn{ min-width:72px; }
+
 .upgrade-section-title{ font-weight:800; font-size:12.5px; margin:4px 0 8px; color:var(--gold); }
 .upgrade-row{}
 .mat-need{ font-size:11px; color:var(--dim); font-weight:700; }
@@ -3249,6 +3263,7 @@ const DEFAULT_STATE = () => ({
   pvpDaily: null,          // { key, used } - up to PVP_DAILY_MAX challenges/day
   pvpDefenseSlots: null,   // snapshot published as the defense others fight; null = not set yet
   pvpDefenseFormation: null,
+  shopDaily: null,         // { key, bought: { [sku]: true } } - 1商品1回/日
 });
 
 let STATE = null;
@@ -3305,6 +3320,7 @@ function normalizeState(){
   if(!STATE.pvpPoints) STATE.pvpPoints = 0;
   if(STATE.pvpDefenseSlots === undefined) STATE.pvpDefenseSlots = null;
   if(STATE.pvpDefenseFormation === undefined) STATE.pvpDefenseFormation = null;
+  if(STATE.shopDaily === undefined) STATE.shopDaily = null;
   syncHelperMon();
   if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
     id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
@@ -3658,6 +3674,64 @@ function craftMat(fam, kind, toTier, times){
   track('craft', n);
   playSfx('buff');
   toast(`${itemName(matKey(fam, kind, toTier))}を${n}個合成しました`);
+  saveState();
+  render();
+}
+
+/* ---- shop: gold-shop and PVP-points-shop SKUs, 1回/日ずつ購入可 ---- */
+const SHOP_MAT_PRICE = { 1: 300, 2: 800, 3: 2000 }; // 育成素材(el/sp/ro) Tier I-III、種類共通の単価
+const SHOP_GOLD_ITEMS = [
+  { sku: 'scrap', itemKey: 'relic_scrap', qty: 50, price: 500 },
+  { sku: 'core1', itemKey: 'relic_core_1', qty: 1, price: 3000 },
+  { sku: 'exp1', itemKey: 'exp1', qty: 1, price: 20 },
+  { sku: 'exp2', itemKey: 'exp2', qty: 1, price: 200 },
+  { sku: 'exp3', itemKey: 'exp3', qty: 1, price: 2000 },
+  { sku: 'box_sel_1', itemKey: 'box_sel_1', qty: 1, price: 1500 },
+  { sku: 'box_sel_2', itemKey: 'box_sel_2', qty: 1, price: 6000 },
+  { sku: 'box_sel_3', itemKey: 'box_sel_3', qty: 1, price: 20000 },
+  { sku: 'box_rnd_1', itemKey: 'box_rnd_1', qty: 1, price: 1000 },
+  { sku: 'box_rnd_2', itemKey: 'box_rnd_2', qty: 1, price: 4000 },
+  { sku: 'box_rnd_3', itemKey: 'box_rnd_3', qty: 1, price: 14000 },
+];
+const SHOP_PVP_ITEMS = [
+  { sku: 'pvp_core1', itemKey: 'relic_core_1', qty: 1, price: 80 },
+  { sku: 'pvp_core2', itemKey: 'relic_core_2', qty: 1, price: 200 },
+  { sku: 'pvp_core3', itemKey: 'relic_core_3', qty: 1, price: 500 },
+];
+const SHOP_SALE_DISCOUNT = 0.4; // 本日の特売: ゴールドショップの中から1品、日替わりで4割引
+function dayHash(str){ let h = 0; for(let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
+function todaysSaleSku(){ return SHOP_GOLD_ITEMS[dayHash(currentDayKey()) % SHOP_GOLD_ITEMS.length].sku; }
+function shopDailyState(){
+  const key = currentDayKey();
+  if(!STATE.shopDaily || STATE.shopDaily.key !== key) STATE.shopDaily = { key, bought: {} };
+  return STATE.shopDaily;
+}
+function shopBought(sku){ return !!shopDailyState().bought[sku]; }
+function matShopSku(fam, kind, tier){ return `mat:${fam}:${kind}:${tier}`; }
+function shopGoldPrice(def){ return def.sku === todaysSaleSku() ? Math.max(1, Math.round(def.price * (1 - SHOP_SALE_DISCOUNT))) : def.price; }
+function buyShopItem(currency, sku){
+  const st = shopDailyState();
+  if(st.bought[sku]){ toast('本日は購入済みです'); return; }
+  let itemKey, qty, price;
+  const matM = /^mat:(el|sp|ro):([a-z]+):([1-3])$/.exec(sku);
+  if(matM){
+    itemKey = matKey(matM[1], matM[2], Number(matM[3]));
+    qty = 1;
+    price = SHOP_MAT_PRICE[Number(matM[3])];
+  }else{
+    const list = currency === 'gold' ? SHOP_GOLD_ITEMS : SHOP_PVP_ITEMS;
+    const def = list.find(x => x.sku === sku);
+    if(!def) return;
+    itemKey = def.itemKey; qty = def.qty;
+    price = currency === 'gold' ? shopGoldPrice(def) : def.price;
+  }
+  const balance = currency === 'gold' ? (STATE.gold || 0) : (STATE.pvpPoints || 0);
+  if(balance < price){ toast(currency === 'gold' ? 'ゴールドが足りません' : 'PVPポイントが足りません'); return; }
+  if(currency === 'gold') addGold(-price); else STATE.pvpPoints -= price;
+  addItem(itemKey, qty);
+  st.bought[sku] = true;
+  playSfx('buff');
+  toast(`${itemName(itemKey)}${qty > 1 ? `×${qty}` : ''}を購入しました`);
   saveState();
   render();
 }
@@ -5275,10 +5349,80 @@ function renderBase(){
       <div class="base-wallet">${goldText(STATE.gold || 0)}</div>
     </div>
     <div class="screen-sub">施設を強化すると素材とEXPが自動で溜まります(最大24時間分)</div>
+    <div class="panel facility" data-nav="shop" role="button">
+      <div class="fc-head">
+        <span class="fc-ic">🛒</span>
+        <div class="fc-body"><div class="fc-name">ショップ</div>
+        <div class="fc-line">ゴールド・PVPポイントで素材やアイテムと交換できます</div></div>
+      </div>
+    </div>
     ${facilityCard('mine')}
     ${facilityCard('lab')}
     ${facilityCard('smithy')}
     ${alchemy}`;
+}
+
+let shopTab = 'gold';
+let shopMatFam = 'el';
+function renderShop(){
+  const saleSku = todaysSaleSku();
+  const goldRow = def => {
+    const bought = shopBought(def.sku);
+    const onSale = def.sku === saleSku;
+    const price = onSale ? shopGoldPrice(def) : def.price;
+    return `
+      <div class="shop-row">
+        <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}${def.qty > 1 ? `×${def.qty}` : ''}</span></span>
+        <span class="shop-price">${onSale ? `<span class="shop-old-price">${goldText(def.price)}</span>` : ''}${goldText(price)}${onSale ? '<span class="shop-sale-badge">特売</span>' : ''}</span>
+        <button class="btn btn-sm ${bought || (STATE.gold || 0) < price ? 'btn-ghost' : ''}" data-shop-buy="gold:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
+      </div>`;
+  };
+  const pvpRow = def => {
+    const bought = shopBought(def.sku);
+    return `
+      <div class="shop-row">
+        <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}${def.qty > 1 ? `×${def.qty}` : ''}</span></span>
+        <span class="shop-price">🏆${def.price}</span>
+        <button class="btn btn-sm ${bought || (STATE.pvpPoints || 0) < def.price ? 'btn-ghost' : ''}" data-shop-buy="pvp:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
+      </div>`;
+  };
+  const fam = MAT_FAMILIES[shopMatFam];
+  const matGrid = `
+    <div class="shop-section-title">育成素材</div>
+    <div class="alc-tabs">
+      ${Object.entries(MAT_FAMILIES).map(([k, x]) => `<button class="stage-tab ${shopMatFam === k ? 'on' : ''}" data-shop-mat-fam="${k}">${x.label}</button>`).join('')}
+    </div>
+    <div class="alc-list">
+      ${fam.kinds().map(kind => `
+        <div class="alc-row">
+          <span class="alc-name">${fam.icon(kind)}${fam.name(kind)}</span>
+          <span class="alc-btns">
+            ${[1, 2, 3].map(t => {
+              const sku = matShopSku(shopMatFam, kind, t);
+              const bought = shopBought(sku);
+              const price = SHOP_MAT_PRICE[t];
+              return `<button class="btn btn-sm ${bought || (STATE.gold || 0) < price ? 'btn-ghost' : ''}" data-shop-buy="gold:${sku}" ${bought ? 'disabled' : ''} title="${fam.name(kind)} Tier${TIER_LABEL[t]}">${TIER_LABEL[t]} ${goldText(price)}</button>`;
+            }).join('')}
+          </span>
+        </div>`).join('')}
+    </div>`;
+  return `
+    <div class="screen-head">
+      <div class="screen-title">ショップ</div>
+      <div class="base-wallet">${goldText(STATE.gold || 0)}　🏆${STATE.pvpPoints || 0}</div>
+    </div>
+    <div class="alc-tabs">
+      <button class="stage-tab ${shopTab === 'gold' ? 'on' : ''}" data-shop-tab="gold">ゴールドショップ</button>
+      <button class="stage-tab ${shopTab === 'pvp' ? 'on' : ''}" data-shop-tab="pvp">PVPポイントショップ</button>
+    </div>
+    ${shopTab === 'gold' ? `
+      <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。本日の特売品は${Math.round(SHOP_SALE_DISCOUNT * 100)}%引きです。</div>
+      <div class="panel facility">${SHOP_GOLD_ITEMS.map(goldRow).join('')}</div>
+      <div class="panel facility">${matGrid}</div>
+    ` : `
+      <div class="screen-sub">PVPの勝敗で得たPVPポイントと交換できます(1商品1日1回まで)。</div>
+      <div class="panel facility">${SHOP_PVP_ITEMS.map(pvpRow).join('')}</div>
+    `}`;
 }
 
 // inventory modal (with box opening)
@@ -5424,7 +5568,7 @@ function render(){
   renderOverlay();
 
   app.classList.toggle('in-battle', currentScreen === 'battle-fight');
-  const activeKey = currentScreen === 'battle-fight' ? 'battle' : currentScreen === 'missions' ? 'home' : currentScreen;
+  const activeKey = currentScreen === 'battle-fight' ? 'battle' : currentScreen === 'missions' ? 'home' : currentScreen === 'shop' ? 'base' : currentScreen;
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.key === activeKey);
   });
@@ -5442,6 +5586,7 @@ function renderScreen(screen){
     case 'pvp': return renderPvp();
     case 'missions': return renderMissions();
     case 'base': return renderBase();
+    case 'shop': return renderShop();
     case 'battle-fight': return battleUI ? renderBattleFight() : renderBattleSelect();
     default: return '';
   }
@@ -10682,6 +10827,17 @@ function handlePhoneClick(ev){
   if(alcEl){ alchemyFam = alcEl.dataset.alcFam; render(); return; }
   const craftEl = t.closest('[data-craft]');
   if(craftEl){ const [f, k, tier] = craftEl.dataset.craft.split(':'); craftMat(f, k, Number(tier), 'max'); return; }
+  const shopTabEl = t.closest('[data-shop-tab]');
+  if(shopTabEl){ shopTab = shopTabEl.dataset.shopTab; render(); return; }
+  const shopMatFamEl = t.closest('[data-shop-mat-fam]');
+  if(shopMatFamEl){ shopMatFam = shopMatFamEl.dataset.shopMatFam; render(); return; }
+  const shopBuyEl = t.closest('[data-shop-buy]');
+  if(shopBuyEl){
+    const raw = shopBuyEl.dataset.shopBuy;
+    const i = raw.indexOf(':');
+    buyShopItem(raw.slice(0, i), raw.slice(i + 1));
+    return;
+  }
   const dtabEl = t.closest('[data-dungeon-tab]');
   if(dtabEl){ dungeonTab = dtabEl.dataset.dungeonTab; render(); return; }
   if(t.closest('[data-open-bag]')){ bagSelect = null; renderBag(); return; }
@@ -11050,7 +11206,7 @@ function uiSfxFor(t){
   if(hit('#pull1, #pull10, #spark-btn, [data-stage], [data-start-stage], [data-claim], [data-claim-all]')) return 'confirm';
   if(hit('[data-sweep-run]')) return null; // the sweep plays its own sound
   if(hit('[data-promote]')) return 'promote';
-  if(hit('[data-levelup], [data-skill-up], [data-break-wall], [data-craft], [data-facility-up]')) return 'buff';
+  if(hit('[data-levelup], [data-skill-up], [data-break-wall], [data-craft], [data-facility-up], [data-shop-buy]')) return 'buff';
   if(hit('[data-detail], [data-slot-action="detail"], [data-rf-open], [data-open-log], .mission-card')) return 'open';
   return 'tap';
 }
