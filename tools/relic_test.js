@@ -5,10 +5,10 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   STATE_ref: () => STATE, DEFAULT_STATE, RELICS, grantRelic, equipRelic, unequipRelic, equippedRelicOf,
   levelUpRelic, atRelicWall, breakRelicWall, relicLevelCap, relicLevelStop, relicWallGold, relicWallScrap,
-  useRelicDupe, RELIC_MAX_DUPE_USE,
-  upgradeRelicSkill, relicSkillMult, relicSkillCoreTier, RELIC_SKILL_MAX, relicEffectMatches, applyRelicToUnit,
+  useRelicDupe, RELIC_MAX_DUPE_USE, RELIC_DISTRIBUTED_WALL_DISCOUNT,
+  upgradeRelicSkill, relicSkillMult, relicSkillCoreTier, RELIC_SKILL_MAX, relicEffectMatches, relicCondLabel, applyRelicToUnit,
   itemName, idleAmount, idleCoreAmount, collectFacility, baseState, FACILITIES,
-  getItem, addItem, addGold, buildUnit, MON_BY_ID, run: api => api,
+  getItem, addItem, addGold, buildUnit, MON_BY_ID, relicsOfStar, grantRewards, rewardHtml, run: api => api,
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -109,5 +109,59 @@ ok('遺物装備でSTRも上がる(ヒュームなのでエルフ条件は乗ら
 
 // --- weekly mission tracking: レベル上げ・スキルLv上げどちらも relicUpgrade をカウント ---
 ok('週間ミッション用カウンタが両方の行動で増える', (S.weekly.counts.relicUpgrade || 0) > 0, S.weekly.counts.relicUpgrade);
+
+// --- 'mon' condition: ★5 per-character exclusives match only their own monster id ---
+const titan = { id:'m54', element:'earth', role:'tank', species:'dwarf' };
+const otherTank = { id:'m99', element:'earth', role:'tank', species:'hume' };
+ok('mon条件: 本人には一致', E.relicEffectMatches({ type:'mon', value:'m54' }, titan));
+ok('mon条件: 別モンスターには不一致', !E.relicEffectMatches({ type:'mon', value:'m54' }, otherTank));
+ok('mon条件のラベルにモンスター名が入る', E.relicCondLabel({ type:'mon', value:'m54' }).includes(api.MON_BY_ID['m54'].name));
+
+// --- distributed relics never appear in the gacha pool ---
+ok('★1のガチャ排出に配布遺物(rel_charm)は含まれない', !E.relicsOfStar(1).some(r => r.id === 'rel_charm'), E.relicsOfStar(1).map(r => r.id));
+ok('★1のガチャ排出に既存のみずのしずくは含まれる', E.relicsOfStar(1).some(r => r.id === 'rel_droplet'));
+ok('★5のガチャ排出にキャラ専用遺物(rel_titan_heart)は含まれる', E.relicsOfStar(5).some(r => r.id === 'rel_titan_heart'));
+
+// --- 配布(distributed)遺物は壁の突破コストが半額 ---
+const gachaWallGold = E.relicWallGold(30, E.RELICS.rel_droplet);
+const distWallGold = E.relicWallGold(30, E.RELICS.rel_charm);
+ok('配布遺物の壁突破ゴールドは半額', distWallGold === Math.round(gachaWallGold * E.RELIC_DISTRIBUTED_WALL_DISCOUNT), [gachaWallGold, distWallGold]);
+const gachaWallScrap = E.relicWallScrap(30, E.RELICS.rel_droplet);
+const distWallScrap = E.relicWallScrap(30, E.RELICS.rel_charm);
+ok('配布遺物の壁突破スクラップも半額', distWallScrap < gachaWallScrap, [gachaWallScrap, distWallScrap]);
+
+// --- grantRewards/rewardHtml: 新しい 'relic' 報酬タイプ(実績配布用) ---
+S.relics = {};
+E.grantRewards([{ type:'relic', key:'rel_charm' }]);
+ok('type:relic の報酬で遺物が付与される', !!S.relics.rel_charm);
+ok('rewardHtml が遺物報酬を表示できる(クラッシュしない)', E.rewardHtml([{ type:'relic', key:'rel_charm' }]).includes('旅人の護符'));
+
+// --- balance: ideal-use total effect% at skill cap lands in the intended band ---
+// (skillLv = RELIC_SKILL_MAX → relicSkillMult = 2, so pct sums below are doubled).
+// Sum each matching effect's pct directly from the def - this is exactly what
+// applyRelicCore/applyStatBonus do internally, just without needing a full battle unit.
+const capMult = E.relicSkillMult(E.RELIC_SKILL_MAX);
+const sumPct = (def, mon) => Math.round((def.effects || []).filter(e => E.relicEffectMatches(e.cond, mon)).reduce((s, e) => s + e.pct, 0) * capMult * 100);
+const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
+const darkMon = { id:'zzz', element:'dark', role:'support', species:'hume' };
+const grimoirePct = sumPct(E.RELICS.rel_grimoire, darkMon);
+ok('rel_grimoire: 闇属性の理想値がskillLv上限で30-35%', inBand(grimoirePct, 30, 35), grimoirePct);
+const attackerMon = { id:'zzz', element:'fire', role:'attacker', species:'hume' };
+const grimoireUltPct = sumPct({ effects: E.RELICS.rel_grimoire.effects.filter(e => e.stat === 'ultDmg') }, attackerMon);
+ok('rel_grimoire: アタッカーのultDmg理想値も30-35%', inBand(grimoireUltPct, 30, 35), grimoireUltPct);
+
+// ★5 exclusive (rel_titan_heart): owner m54 (30-35%) > same-species non-owner (matches
+// only the middle tier) > an unrelated monster that matches neither conditional tier.
+const sameSpeciesNotOwner = { id:'m99', element:'earth', role:'attacker', species:'dwarf' };
+const unrelated = { id:'zzz', element:'fire', role:'attacker', species:'hume' };
+const titanPct = sumPct(E.RELICS.rel_titan_heart, titan);
+const sameSpeciesPct = sumPct(E.RELICS.rel_titan_heart, sameSpeciesNotOwner);
+const unrelatedPct = sumPct(E.RELICS.rel_titan_heart, unrelated);
+ok('rel_titan_heart: 本人(m54)は30-35%', inBand(titanPct, 30, 35), titanPct);
+ok('rel_titan_heart: 同種族(ドワーフ)だが本人でなければそれより弱い', sameSpeciesPct < titanPct, [sameSpeciesPct, titanPct]);
+ok('rel_titan_heart: 無関係なモンスターは常時効果分だけでさらに弱い', unrelatedPct < sameSpeciesPct, [unrelatedPct, sameSpeciesPct]);
+
+// 配布(rel_charm): unconditional, should land 15-20% for anyone
+ok('rel_charm(配布): skillLv上限で15-20%', inBand(sumPct(E.RELICS.rel_charm, unrelated), 15, 20), sumPct(E.RELICS.rel_charm, unrelated));
 
 console.log('done');

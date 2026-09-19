@@ -3884,12 +3884,13 @@ function upgradeFacility(key){
    Lv100の壁を超えて120→150→180→200まで上限を伸ばすのに使う。
    壁のレベルはモンスターと共通のLEVEL_WALLS。Lv30/50/100は素材のみ、
    Lv120/150/180/200は素材+凸を1個ずつ消費する。 */
-const RELIC_STAT_LABEL = { hp:'HP', atk:'STR', spd:'SPD', pdef:'物理防御', mdef:'魔法防御', skillDmg:'スキル攻撃力', ultDmg:'必殺技攻撃力' };
+const RELIC_STAT_LABEL = { hp:'HP', atk:'STR', spd:'SPD', pdef:'物理防御', mdef:'魔法防御', def:'物理・魔法防御', critRate:'会心率', skillDmg:'スキル攻撃力', ultDmg:'必殺技攻撃力' };
 function relicCondLabel(cond){
   if(!cond) return '誰でも';
   if(cond.type === 'species') return `種族が${SPECIES_LABEL[cond.value]}なら`;
   if(cond.type === 'role') return `ロールが${ROLE_LABEL[cond.value]}なら`;
   if(cond.type === 'element') return `属性が${ELEM_LABEL[cond.value]}なら`;
+  if(cond.type === 'mon') return `${MON_BY_ID[cond.value].name}なら`;
   return '';
 }
 function relicEffectMatches(cond, mon){
@@ -3897,6 +3898,7 @@ function relicEffectMatches(cond, mon){
   if(cond.type === 'species') return speciesOf(mon) === cond.value;
   if(cond.type === 'role') return mon.role === cond.value;
   if(cond.type === 'element') return mon.element === cond.value;
+  if(cond.type === 'mon') return mon.id === cond.value;
   return false;
 }
 function relicEffectText(e){ return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%`; }
@@ -3908,6 +3910,12 @@ function relicEffectText(e){ return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL
 // bonus lands at roughly the target %(of a same-star character's own stat at Lv200) noted
 // in each comment - since it's a flat number, actual % will drift a bit by role/character,
 // unlike the %-based effects below.
+// two acquisition channels, balanced around ideal-use total effect-% at skillLv cap
+// (skillLv10, relicSkillMult=2.0 → x2 whatever's shown below):
+//   - channel:'distributed' (missions/achievements, never in the gacha pool): ~15-20%
+//     at cap, compensated with a cheaper wall-break cost (see relicWallGold/Scrap).
+//   - gacha pool (no channel field, incl. the ★5 per-character exclusives below): ~30-35%
+//     at cap on the ideal target (matching role/species/mon), stronger but pricier walls.
 const RELICS = {
   rel_droplet: { id:'rel_droplet', name:'みずのしずく', star:1, icon:'💧',
     base:{ hp:0.77 }, effects:[ { stat:'hp', pct:0.05, cond:null } ] }, // hp: ★1 target +20% of avg HP at Lv200
@@ -3919,23 +3927,85 @@ const RELICS = {
   rel_ygg_leaf: { id:'rel_ygg_leaf', name:'ユグドラシルの葉っぱ', star:4, icon:'🍃',
     base:{ hp:3.00, atk:0.20 }, // ★4 target hp+60%・atk+20%
     effects:[ { stat:'hp', pct:0.15, cond:null }, { stat:'atk', pct:0.15, cond:{ type:'species', value:'elf' } } ] },
+  // ★5 gacha relics (not character-exclusive): rebalanced so the ideal target's total
+  // lands at ~32% at skill cap (was up to 50% before this pass).
   rel_grimoire: { id:'rel_grimoire', name:'終焉のグリモワール', star:5, icon:'📖',
     base:{ hp:3.77, atk:0.27 }, // ★5 target hp+70%・atk+25%
     effects:[
-      { stat:'skillDmg', pct:0.10, cond:null },
-      { stat:'skillDmg', pct:0.15, cond:{ type:'element', value:'dark' } },
-      { stat:'ultDmg', pct:0.20, cond:{ type:'role', value:'attacker' } },
+      { stat:'skillDmg', pct:0.07, cond:null },
+      { stat:'skillDmg', pct:0.09, cond:{ type:'element', value:'dark' } },
+      { stat:'ultDmg', pct:0.16, cond:{ type:'role', value:'attacker' } },
     ] },
   rel_dragon_scale: { id:'rel_dragon_scale', name:'竜王の逆鱗', star:5, icon:'🐉',
     base:{ hp:3.77, atk:0.27 }, // ★5 target hp+70%・atk+25%
     effects:[
-      { stat:'hp', pct:0.10, cond:null },
-      { stat:'hp', pct:0.15, cond:{ type:'species', value:'draconia' } },
-      { stat:'atk', pct:0.15, cond:{ type:'species', value:'draconia' } },
+      { stat:'hp', pct:0.07, cond:null },
+      { stat:'hp', pct:0.09, cond:{ type:'species', value:'draconia' } },
+      { stat:'atk', pct:0.16, cond:{ type:'species', value:'draconia' } },
     ] },
+  // ★5 per-character exclusives (still pulled from the same gacha pool as any other ★5):
+  // 3 layered effects on one signature stat - unconditional(誰でも) → same role/species
+  // (medium) → that exact character(cond:'mon', strongest) - so anyone can use it, but it
+  // peaks at ~32% at skill cap only on its own character (10% / 18% / 32% at cap).
+  rel_slime_core: { id:'rel_slime_core', name:'深海のスライムコア', star:5, icon:'🫧', // m31 シースライム
+    base:{ hp:3.77, atk:0.27 },
+    effects:[
+      { stat:'atk', pct:0.05, cond:null },
+      { stat:'atk', pct:0.04, cond:{ type:'species', value:'amorphous' } },
+      { stat:'atk', pct:0.07, cond:{ type:'mon', value:'m31' } },
+    ] },
+  rel_titan_heart: { id:'rel_titan_heart', name:'巨神の心臓', star:5, icon:'🪨', // m54 タイタン
+    base:{ hp:3.77, atk:0.27 },
+    effects:[
+      { stat:'def', pct:0.05, cond:null },
+      { stat:'def', pct:0.04, cond:{ type:'species', value:'dwarf' } },
+      { stat:'def', pct:0.07, cond:{ type:'mon', value:'m54' } },
+    ] },
+  rel_wolf_howl: { id:'rel_wolf_howl', name:'銀狼の遠吠え', star:5, icon:'🌙', // m68 フェンリル
+    base:{ hp:3.77, atk:0.27 },
+    effects:[
+      { stat:'spd', pct:0.05, cond:null },
+      { stat:'spd', pct:0.04, cond:{ type:'species', value:'beast' } },
+      { stat:'spd', pct:0.07, cond:{ type:'mon', value:'m68' } },
+    ] },
+  rel_dragon_dust: { id:'rel_dragon_dust', name:'聖竜の鱗粉', star:5, icon:'✨', // m113 ホーリードラゴン
+    base:{ hp:3.77, atk:0.27 },
+    effects:[
+      { stat:'mdef', pct:0.05, cond:null },
+      { stat:'mdef', pct:0.04, cond:{ type:'species', value:'draconia' } },
+      { stat:'mdef', pct:0.07, cond:{ type:'mon', value:'m113' } },
+    ] },
+  rel_kitsune_orb: { id:'rel_kitsune_orb', name:'九尾の尾玉', star:5, icon:'🦊', // m116 九尾の狐
+    base:{ hp:3.77, atk:0.27 },
+    effects:[
+      { stat:'critRate', pct:0.05, cond:null },
+      { stat:'critRate', pct:0.04, cond:{ type:'role', value:'shooter' } },
+      { stat:'critRate', pct:0.07, cond:{ type:'mon', value:'m116' } },
+    ] },
+  rel_raiden_scale: { id:'rel_raiden_scale', name:'雷神の逆鱗', star:5, icon:'⚡', // m125 雷電
+    base:{ hp:3.77, atk:0.27 },
+    effects:[
+      { stat:'ultDmg', pct:0.05, cond:null },
+      { stat:'ultDmg', pct:0.04, cond:{ type:'role', value:'attacker' } },
+      { stat:'ultDmg', pct:0.07, cond:{ type:'mon', value:'m125' } },
+    ] },
+  // distributed(配布): mission/achievement rewards only, never in the gacha pool. Single
+  // unconditional effect, ideal-cap ~18%; the tradeoff for being weaker+free is a cheaper
+  // wall-break cost (RELIC_DISTRIBUTED_WALL_DISCOUNT).
+  rel_charm: { id:'rel_charm', name:'旅人の護符', star:1, icon:'🧿', channel:'distributed',
+    base:{ hp:0.77 }, effects:[ { stat:'hp', pct:0.09, cond:null } ] },
+  rel_dagger: { id:'rel_dagger', name:'見習いの短剣', star:1, icon:'🗡️', channel:'distributed',
+    base:{ atk:0.17 }, effects:[ { stat:'atk', pct:0.09, cond:null } ] },
+  rel_helm: { id:'rel_helm', name:'頑丈な兜', star:2, icon:'🪖', channel:'distributed',
+    base:{ hp:1.16 }, effects:[ { stat:'def', pct:0.09, cond:null } ] },
+  rel_feather: { id:'rel_feather', name:'軽やかな羽根飾り', star:2, icon:'🪶', channel:'distributed',
+    base:{ atk:0.26 }, effects:[ { stat:'spd', pct:0.09, cond:null } ] },
+  rel_ring: { id:'rel_ring', name:'熟練の指輪', star:3, icon:'💍', channel:'distributed',
+    base:{ hp:1.85, atk:0.09 }, effects:[ { stat:'critRate', pct:0.09, cond:null } ] },
 };
 const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
-function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star); }
+// distributed relics never appear in the gacha pool - they only come from missions/achievements.
+function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star && r.channel !== 'distributed'); }
 
 /* ---- ownership: singular per definition; equipping moves it, duplicates become 凸(dupe) ---- */
 function newRelicState(){ return { level:1, wall:0, skillLv:1, dupe:0, dupeUsed:0, equippedTo:null }; }
@@ -3971,8 +4041,11 @@ function relicLevelStop(st){
   return Math.min(cap, nextWall);
 }
 function relicLevelCost(L){ return Math.round(5 * Math.pow(L, 1.15)); } // 遺物のスクラップ, L→L+1
-function relicWallGold(L){ return wallCost(L) * 2; }
-function relicWallScrap(L){ return Math.round(40 * Math.pow(L / 30, 1.2) / 10) * 10; }
+// 配布(distributed)遺物は突破しやすい: 壁の突破コストだけ半額(レベルアップ自体の
+// スクラップ消費や上限は他の遺物と同じ)
+const RELIC_DISTRIBUTED_WALL_DISCOUNT = 0.5;
+function relicWallGold(L, def){ return Math.round(wallCost(L) * 2 * (def && def.channel === 'distributed' ? RELIC_DISTRIBUTED_WALL_DISCOUNT : 1)); }
+function relicWallScrap(L, def){ return Math.round(Math.round(40 * Math.pow(L / 30, 1.2) / 10) * 10 * (def && def.channel === 'distributed' ? RELIC_DISTRIBUTED_WALL_DISCOUNT : 1)); }
 function levelUpRelic(id, mode){
   const st = STATE.relics[id];
   if(!st) return 0;
@@ -3998,7 +4071,7 @@ function levelUpRelic(id, mode){
 function breakRelicWall(id){
   const st = STATE.relics[id];
   if(!st || !atRelicWall(st)) return;
-  const gCost = relicWallGold(st.level), mCost = relicWallScrap(st.level);
+  const gCost = relicWallGold(st.level, RELICS[id]), mCost = relicWallScrap(st.level, RELICS[id]);
   if((STATE.gold || 0) < gCost){ toast('ゴールドが足りません'); return; }
   if(getItem('relic_scrap') < mCost){ toast('遺物のスクラップが足りません'); return; }
   addGold(-gCost);
@@ -4173,7 +4246,7 @@ function renderRelicUpgrade(){
   const skillMaxed = (st.skillLv || 1) >= RELIC_SKILL_MAX;
   const skCost = skillMaxed ? null : relicSkillCost(st.skillLv || 1);
   const mult = relicSkillMult(st.skillLv);
-  const wallGold = relicWallGold(st.level), wallScrap = relicWallScrap(st.level);
+  const wallGold = relicWallGold(st.level, def), wallScrap = relicWallScrap(st.level, def);
   const wallReady = (STATE.gold || 0) >= wallGold && scrapHave >= wallScrap;
   const dupeSpare = (st.dupe || 0) - (st.dupeUsed || 0);
   const dupeMaxed = (st.dupeUsed || 0) >= RELIC_MAX_DUPE_USE;
@@ -4562,15 +4635,15 @@ const ACHIEVEMENTS = [
     tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }, { type:'item', key:'box_sel_4', n:2 }] }] },
   // each tier's two boss stages pay their own reward: 💎500 for the earlier boss, 💎900 for the final one
   { id:'a_boss_q1_05', label:() => '初級「猪王の縄張り」のボスを倒す', value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_charm' }] }] },
   { id:'a_boss_q1_10', label:() => '初級「森の主」のボスを倒す', value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_dagger' }] }] },
   { id:'a_boss_q2_05', label:() => '中級「鉱山の主」のボスを倒す', value:() => STATE.clearedStages.includes('q2_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_helm' }] }] },
   { id:'a_boss_q2_10', label:() => '中級「首なし騎士の墓所」のボスを倒す', value:() => STATE.clearedStages.includes('q2_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_feather' }] }] },
   { id:'a_boss_q3_05', label:() => '上級「炎の巨人の玉座」のボスを倒す', value:() => STATE.clearedStages.includes('q3_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_ring' }] }] },
   { id:'a_boss_q3_10', label:() => '上級「氷の城塞」のボスを倒す', value:() => STATE.clearedStages.includes('q3_10') ? 1 : 0,
     tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }] }] },
   { id:'a_clears', label:n => `探索を${n}回クリアする`, value:() => stat('stageClear'),
@@ -4709,6 +4782,7 @@ function grantRewards(list){
     else if(r.type === 'mat' || r.type === 'item') addItem(r.key, r.n);
     else if(r.type === 'gold') addGold(r.n);
     else if(r.type === 'monster') grantMonster(MON_BY_ID[r.id]);
+    else if(r.type === 'relic') grantRelic(RELICS[r.key]);
   });
 }
 function rewardHtml(list){
@@ -4718,6 +4792,7 @@ function rewardHtml(list){
     if(r.type === 'mat' || r.type === 'item') return `<span class="rw" title="${itemName(r.key)}">${itemIcon(r.key)}${r.n}</span>`;
     if(r.type === 'gold') return `<span class="rw">${goldText(r.n)}</span>`;
     if(r.type === 'monster'){ const m = MON_BY_ID[r.id]; return `<span class="rw rw-mon"><img src="${imgSrc(m.id)}" alt="">★${m.rarity} ${m.name}</span>`; }
+    if(r.type === 'relic'){ const d = RELICS[r.key]; return `<span class="rw" title="${d.name}">${d.icon}★${d.star} ${d.name}</span>`; }
     return '';
   }).join('');
 }
