@@ -942,6 +942,52 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .skill-desc.lv-scaled{ margin-top:3px; }
 .lv-scale-val{ color:var(--gold); font-weight:800; }
 
+/* ---------- relics (装備遺物) ---------- */
+.relic-box{ margin-top:11px; }
+.relic-slot{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:9px 11px;
+  color:var(--text); cursor:pointer;
+}
+.relic-slot.filled{ border-color:rgba(232,180,85,.5); }
+.relic-ic{ font-size:22px; flex:none; width:34px; text-align:center; }
+.relic-slot-body{ flex:1; min-width:0; }
+.relic-slot-name{ font-size:12.5px; font-weight:800; }
+.relic-star{ font-size:10px; color:var(--gold); font-weight:700; margin-left:6px; }
+.relic-slot-sub{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+.relic-slot-arrow{ color:var(--dim); font-size:16px; flex:none; }
+
+.relic-picker-modal, .relic-upgrade-modal, .relic-pull-result{ text-align:left; }
+.relic-list{ display:flex; flex-direction:column; gap:8px; margin-top:8px; max-height:60vh; overflow-y:auto; }
+.relic-row{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:9px 11px;
+  color:var(--text); cursor:pointer;
+}
+.relic-row.on{ border-color:var(--gold); box-shadow:0 0 14px -8px rgba(232,180,85,.7); }
+.relic-row-body{ flex:1; min-width:0; }
+.relic-row-name{ font-size:12.5px; font-weight:800; }
+.relic-row-sub{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+
+.relic-effects{ margin:8px 0 12px; }
+.relic-eff-line{ font-size:11.5px; padding:5px 0; border-bottom:1px dashed var(--line); }
+.relic-eff-line small{ color:var(--dim); margin-left:6px; }
+
+.gacha-kind-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+.gacha-kind-tabs .stage-tab{ flex:1; }
+.relic-recent-ic{ font-size:22px; }
+.relic-pull-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin:10px 0 14px; }
+.relic-pull-cell{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 6px;
+  text-align:center;
+}
+.relic-pull-cell.r5{ border-color:var(--r5); box-shadow:0 0 16px -8px rgba(232,180,85,.7); }
+.relic-pull-cell.r4{ border-color:var(--r4); }
+.relic-pull-ic{ font-size:26px; }
+.relic-pull-name{ font-size:10.5px; font-weight:700; margin-top:4px; }
+.relic-pull-star{ font-size:10px; color:var(--gold); margin-top:2px; }
+.relic-pull-tag{ font-size:9px; color:var(--dim); margin-top:2px; }
+
 .upgrade-section-title{ font-weight:800; font-size:12.5px; margin:4px 0 8px; color:var(--gold); }
 .upgrade-row{}
 .mat-need{ font-size:11px; color:var(--dim); font-weight:700; }
@@ -2550,19 +2596,23 @@ function applyFormationBonus(u, f){
   applyStatBonus(u, u.row === 'front' ? f.frontBonus : f.backBonus);
 }
 
-// generic bonus: hp / atk(STR) / def(both DEFs) / spd = +ratio, cut = damage taken −ratio,
+// generic bonus: hp / atk(STR) / def(both DEFs) / pdef / mdef / spd = +ratio, cut = damage taken −ratio,
 // pierce = DEF ignored, critRate, spGain = SP gained +ratio, regen = HP% healed at round end,
-// ctTurns = skill cooldown −N turns
+// ctTurns = skill cooldown −N turns, skillDmg / ultDmg = skill・必殺技のダメージ +ratio (relics)
 function applyStatBonus(u, bonus){
   if(bonus.hp){ u.maxHp = Math.round(u.maxHp * (1 + bonus.hp)); u.hp = u.maxHp; }
   if(bonus.atk) u.str = Math.round(u.str * (1 + bonus.atk));
   if(bonus.def){ u.pdef = Math.round(u.pdef * (1 + bonus.def)); u.mdef = Math.round(u.mdef * (1 + bonus.def)); }
+  if(bonus.pdef) u.pdef = Math.round(u.pdef * (1 + bonus.pdef));
+  if(bonus.mdef) u.mdef = Math.round(u.mdef * (1 + bonus.mdef));
   if(bonus.spd) u.spd = Math.round(u.spd * (1 + bonus.spd));
   if(bonus.cut) u.dmgCut = (u.dmgCut || 0) + bonus.cut;
   if(bonus.pierce) u.pierce = (u.pierce || 0) + bonus.pierce;
   if(bonus.critRate) u.bonusCrit = (u.bonusCrit || 0) + bonus.critRate;
   if(bonus.spGain) u.spGain = (u.spGain || 0) + bonus.spGain;
   if(bonus.regen) u.regen = (u.regen || 0) + bonus.regen;
+  if(bonus.skillDmg) u.skillDmgBonus = (u.skillDmgBonus || 0) + bonus.skillDmg;
+  if(bonus.ultDmg) u.ultDmgBonus = (u.ultDmgBonus || 0) + bonus.ultDmg;
   if(bonus.ctTurns){
     u.ctReduce = bonus.ctTurns;
     u.skillCd = initialSkillCds(u);
@@ -3111,6 +3161,7 @@ const DEFAULT_STATE = () => ({
   totalPulls: 0,
   savedAt: 0,       // when this save was last written (cloud sync compares it)
   recentPulls: [],  // the last few monsters pulled, shown on the gacha screen
+  recentRelicPulls: [], // the last few relics pulled, shown on the relic gacha screen
   profile: null,    // { avatar, favorites:[id] }
   noticeSeen: 0,    // highest notice id the player has seen
   showDamage: true, // damage numbers over the units
@@ -3120,6 +3171,7 @@ const DEFAULT_STATE = () => ({
   friends: [],      // [{ uid, playerId, name, level, support:{id,star,level,skillLv,ultLv,passiveLv}|null }]
   borrowed: null,   // { uid, name, mon:{...} } - the friend's お助けキャラ currently on loan
   tierChests: {},   // `${tierKey}_${stars}` → true once that milestone chest is claimed
+  relics: {},       // defId → { level, wall, skillLv, dupe, dupeUsed, equippedTo }
 });
 
 let STATE = null;
@@ -3172,6 +3224,7 @@ function normalizeState(){
   if(!STATE.friends) STATE.friends = [];
   if(STATE.borrowed === undefined) STATE.borrowed = null;
   if(!STATE.tierChests) STATE.tierChests = {};
+  if(!STATE.relics) STATE.relics = {};
   syncHelperMon();
   if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
     id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
@@ -3235,6 +3288,7 @@ function addItem(key, n){
   STATE.items[key] = Math.max(0, (STATE.items[key] || 0) + n);
 }
 function itemName(key){
+  if(key === 'relic_scrap') return '遺物のスクラップ';
   if(EXP_POT_VALUE[key]) return `EXPポット Tier${TIER_LABEL[Number(key.slice(3))]}`;
   const b = /^box_(sel|rnd)_([1-4])$/.exec(key);
   if(b) return `育成素材BOX(${b[1] === 'sel' ? '選択' : 'ランダム'}) Tier${TIER_LABEL[b[2]]}`;
@@ -3244,6 +3298,7 @@ function itemName(key){
 }
 function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</span>`; }
 function itemIcon(key){
+  if(key === 'relic_scrap') return `<span class="item-ic">🔩</span>`;
   if(EXP_POT_VALUE[key]) return `<span class="item-ic">🧪${tierBadge(Number(key.slice(3)))}</span>`;
   const b = /^box_(sel|rnd)_([1-4])$/.exec(key);
   if(b) return `<span class="item-ic">${b[1] === 'sel' ? '🎁' : '📦'}${tierBadge(Number(b[2]))}</span>`;
@@ -3264,14 +3319,14 @@ function expToNext(L){
   }
   return EXP_ANCHORS[EXP_ANCHORS.length - 1][1];
 }
-// every 10 levels the character has to break through with gold
-const WALL_EVERY = 10;
+// at these levels the character has to break through with gold
+const LEVEL_WALLS = [30, 50, 100, 120, 150, 180, 200];
 function wallCost(L){ return Math.round(500 * Math.pow(L / 10, 1.3) / 10) * 10; }
-function atWall(owned){ return owned.level % WALL_EVERY === 0 && owned.level < 200 && (owned.wall || 0) < owned.level; }
+function atWall(owned){ return LEVEL_WALLS.includes(owned.level) && owned.level < 200 && (owned.wall || 0) < owned.level; }
 // the level we can reach before the next wall / star cap stops us
 function levelStop(owned){
   const cap = levelCapOf(owned);
-  const nextWall = Math.ceil((owned.level + (atWall(owned) ? 0 : 1)) / WALL_EVERY) * WALL_EVERY;
+  const nextWall = atWall(owned) ? owned.level : (LEVEL_WALLS.find(w => w > owned.level) || cap);
   return Math.min(cap, nextWall);
 }
 function expPotTotal(){ return Object.keys(EXP_POT_VALUE).reduce((s, k) => s + getItem(k) * EXP_POT_VALUE[k], 0); }
@@ -3528,16 +3583,17 @@ const IDLE_MAX_MS = 24 * 3600 * 1000;
 const FACILITIES = {
   mine: { name: '鉱山', icon: '⛏️', desc: 'ゴールドを生産します', perHour: [0, 1000, 2000, 4000, 7000, 10000] },
   lab: { name: '研究所', icon: '⚗️', desc: 'EXPポットを生産します(EXP換算)', perHour: [0, 5, 15, 40, 100, 200], maxTier: [0, 1, 1, 2, 3, 3] },
+  smithy: { name: '鍛冶場', icon: '🔨', desc: '遺物のスクラップを生産します', perHour: [0, 4, 8, 16, 28, 45] },
   alchemy: { name: '錬金術', icon: '🔮', desc: '育成素材を合成します(下位5個 → 上位1個)' },
 };
 const FACILITY_MAX_LV = 5;
 const FACILITY_UPGRADE_GOLD = [0, 0, 10000, 50000, 200000, 600000]; // to reach that level
 // unlocks by main-stage progress (stage id that must be cleared); provisional until the stages are rebuilt
-const FACILITY_UNLOCK = { mine: null, lab: 'q1_03', alchemy: 'q1_03' };
+const FACILITY_UNLOCK = { mine: null, lab: 'q1_03', alchemy: 'q1_03', smithy: 'q2_10' };
 const FACILITY_LV_UNLOCK = [null, null, 'q1_05', 'q1_10', 'q2_10', 'q3_10'];
 function baseState(){
   if(!STATE.base) STATE.base = {};
-  ['mine', 'lab'].forEach(k => { if(!STATE.base[k]) STATE.base[k] = { lv: 1, at: Date.now(), carry: 0 }; });
+  ['mine', 'lab', 'smithy'].forEach(k => { if(!STATE.base[k]) STATE.base[k] = { lv: 1, at: Date.now(), carry: 0 }; });
   return STATE.base;
 }
 function facilityUnlocked(key){ const req = FACILITY_UNLOCK[key]; return !req || STATE.clearedStages.includes(req); }
@@ -3570,6 +3626,13 @@ function collectFacility(key, silent){
     if(!silent && g > 0) toast(`ゴールドを${g.toLocaleString()}受け取りました`);
     return { gold: g };
   }
+  if(key === 'smithy'){
+    const n = Math.floor(amount);
+    f.carry = amount - n;
+    addItem('relic_scrap', n);
+    if(!silent && n > 0) toast(`${itemName('relic_scrap')}を${n}個受け取りました`);
+    return { scrap: n };
+  }
   const { pots, rest } = expToPots(amount, FACILITIES.lab.maxTier[f.lv]);
   f.carry = amount - Math.floor(amount) + rest;
   Object.entries(pots).forEach(([k, n]) => addItem(k, n));
@@ -3591,6 +3654,322 @@ function upgradeFacility(key){
   toast(`${FACILITIES[key].name}がLv${next}になりました`);
   saveState();
   render();
+}
+
+/* ================= RELICS (装備遺物) =================
+   モンスター1体につき1個装備。効果は手作り(ランダム抽選のサブステータスなし):
+   常時ボーナス+条件付きボーナスの組み合わせ。条件は種族/ロール/属性のいずれかで、
+   これら3つはモンスターが必ず1つずつ持つ独立した固定属性なので、3条件をフルに
+   満たすキャラも必ず作れる(前衛/後衛は陣形で変わる可変条件なので使わない)。
+   所持は定義ごとに単体(同じ遺物は世界に1つ)。重複入手は「凸」として蓄積し、
+   Lv100の壁を超えて120→150→180→200まで上限を伸ばすのに使う。
+   壁のレベルはモンスターと共通のLEVEL_WALLS。Lv30/50/100は素材のみ、
+   Lv120/150/180/200は素材+凸を1個ずつ消費する。 */
+const RELIC_STAT_LABEL = { hp:'HP', atk:'STR', spd:'SPD', pdef:'物理防御', mdef:'魔法防御', skillDmg:'スキル攻撃力', ultDmg:'必殺技攻撃力' };
+function relicCondLabel(cond){
+  if(!cond) return '誰でも';
+  if(cond.type === 'species') return `種族が${SPECIES_LABEL[cond.value]}なら`;
+  if(cond.type === 'role') return `ロールが${ROLE_LABEL[cond.value]}なら`;
+  if(cond.type === 'element') return `属性が${ELEM_LABEL[cond.value]}なら`;
+  return '';
+}
+function relicEffectMatches(cond, mon){
+  if(!cond) return true;
+  if(cond.type === 'species') return speciesOf(mon) === cond.value;
+  if(cond.type === 'role') return mon.role === cond.value;
+  if(cond.type === 'element') return mon.element === cond.value;
+  return false;
+}
+function relicEffectText(e){ return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%`; }
+
+// ★1〜2は常時効果のみ、★3〜4は常時+条件1、★5は常時+条件2 という本数の目安で手作り
+const RELICS = {
+  rel_droplet: { id:'rel_droplet', name:'みずのしずく', star:1, icon:'💧',
+    base:{ hp:5 }, effects:[ { stat:'hp', pct:0.05, cond:null } ] },
+  rel_hourglass: { id:'rel_hourglass', name:'ちからの砂時計', star:2, icon:'⏳',
+    base:{ atk:2 }, effects:[ { stat:'atk', pct:0.08, cond:null } ] },
+  rel_giant_shield: { id:'rel_giant_shield', name:'巨人の盾のかけら', star:3, icon:'🛡️',
+    base:{ hp:8, atk:1 },
+    effects:[ { stat:'pdef', pct:0.10, cond:null }, { stat:'pdef', pct:0.15, cond:{ type:'role', value:'tank' } } ] },
+  rel_ygg_leaf: { id:'rel_ygg_leaf', name:'ユグドラシルの葉っぱ', star:4, icon:'🍃',
+    base:{ hp:10, atk:2 },
+    effects:[ { stat:'hp', pct:0.15, cond:null }, { stat:'atk', pct:0.15, cond:{ type:'species', value:'elf' } } ] },
+  rel_grimoire: { id:'rel_grimoire', name:'終焉のグリモワール', star:5, icon:'📖',
+    base:{ hp:12, atk:3 },
+    effects:[
+      { stat:'skillDmg', pct:0.10, cond:null },
+      { stat:'skillDmg', pct:0.15, cond:{ type:'element', value:'dark' } },
+      { stat:'ultDmg', pct:0.20, cond:{ type:'role', value:'attacker' } },
+    ] },
+  rel_dragon_scale: { id:'rel_dragon_scale', name:'竜王の逆鱗', star:5, icon:'🐉',
+    base:{ hp:15, atk:4 },
+    effects:[
+      { stat:'hp', pct:0.10, cond:null },
+      { stat:'hp', pct:0.15, cond:{ type:'species', value:'draconia' } },
+      { stat:'atk', pct:0.15, cond:{ type:'species', value:'draconia' } },
+    ] },
+};
+const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
+function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star); }
+
+/* ---- ownership: singular per definition; equipping moves it, duplicates become 凸(dupe) ---- */
+function newRelicState(){ return { level:1, wall:0, skillLv:1, dupe:0, dupeUsed:0, equippedTo:null }; }
+function ownedRelicIds(){ return Object.keys(STATE.relics || {}); }
+function equippedRelicOf(monId){ return ownedRelicIds().find(id => STATE.relics[id].equippedTo === monId) || null; }
+function equipRelic(relicId, monId){
+  if(!STATE.relics[relicId]) return;
+  Object.values(STATE.relics).forEach(st => { if(st.equippedTo === monId) st.equippedTo = null; });
+  STATE.relics[relicId].equippedTo = monId;
+  track('upgrade');
+  playSfx('buff');
+  saveState();
+  relicPicker = null; relicUpgrade = null;
+  showMonsterDetail(monId);
+  render();
+}
+function unequipRelic(monId){
+  const id = equippedRelicOf(monId);
+  if(!id) return;
+  STATE.relics[id].equippedTo = null;
+  saveState();
+  relicPicker = null; relicUpgrade = null;
+  showMonsterDetail(monId);
+  render();
+}
+
+/* ---- level / walls (Lv1-100 base; 凸 raises the cap to 120/150/180/200) ---- */
+const RELIC_DUPE_CAP = [100, 120, 150, 180, 200];
+const RELIC_AWAKEN_WALLS = [120, 150, 180, 200]; // these walls also consume 1 凸 each
+function relicLevelCap(st){ return RELIC_DUPE_CAP[Math.min(st.dupeUsed || 0, RELIC_DUPE_CAP.length - 1)]; }
+function atRelicWall(st){ return LEVEL_WALLS.includes(st.level) && st.level < relicLevelCap(st) && (st.wall || 0) < st.level; }
+function relicLevelStop(st){
+  const cap = relicLevelCap(st);
+  const nextWall = atRelicWall(st) ? st.level : (LEVEL_WALLS.find(w => w > st.level) || cap);
+  return Math.min(cap, nextWall);
+}
+function relicLevelCost(L){ return Math.round(5 * Math.pow(L, 1.15)); } // 遺物のスクラップ, L→L+1
+function relicWallGold(L){ return wallCost(L) * 2; }
+function relicWallScrap(L){ return Math.round(40 * Math.pow(L / 30, 1.2) / 10) * 10; }
+function levelUpRelic(id, mode){
+  const st = STATE.relics[id];
+  if(!st) return 0;
+  if(atRelicWall(st)){ toast(`Lv${st.level}の壁です。突破してください`); return 0; }
+  if(st.level >= relicLevelCap(st)){ toast('レベル上限です'); return 0; }
+  const stop = relicLevelStop(st);
+  const target = mode === 'max' ? stop : Math.min(stop, st.level + Number(mode || 1));
+  let ups = 0;
+  while(st.level < target){
+    const cost = relicLevelCost(st.level);
+    if(getItem('relic_scrap') < cost) break;
+    addItem('relic_scrap', -cost);
+    st.level += 1;
+    ups += 1;
+  }
+  if(ups === 0){ toast('遺物のスクラップが足りません'); return 0; }
+  track('upgrade');
+  saveState();
+  if(relicUpgrade && relicUpgrade.relicId === id) renderRelicUpgrade();
+  return ups;
+}
+function breakRelicWall(id){
+  const st = STATE.relics[id];
+  if(!st || !atRelicWall(st)) return;
+  const needsDupe = RELIC_AWAKEN_WALLS.includes(st.level);
+  if(needsDupe && (st.dupe || 0) <= (st.dupeUsed || 0)){ toast('凸(重複所持)が足りません'); return; }
+  const gCost = relicWallGold(st.level), mCost = relicWallScrap(st.level);
+  if((STATE.gold || 0) < gCost){ toast('ゴールドが足りません'); return; }
+  if(getItem('relic_scrap') < mCost){ toast('遺物のスクラップが足りません'); return; }
+  addGold(-gCost);
+  addItem('relic_scrap', -mCost);
+  if(needsDupe) st.dupeUsed = (st.dupeUsed || 0) + 1;
+  st.wall = st.level;
+  track('upgrade');
+  playSfx('promote');
+  toast(`Lv${st.level}の壁を突破しました`);
+  saveState();
+  if(relicUpgrade && relicUpgrade.relicId === id) renderRelicUpgrade();
+  render();
+}
+
+/* ---- skill level (1-10): scales every effect's % linearly, ×1.0 at Lv1 → ×2.0 at Lv10 ---- */
+const RELIC_SKILL_MAX = 10;
+function relicSkillMult(skillLv){ return 1 + ((skillLv || 1) - 1) / (RELIC_SKILL_MAX - 1); }
+function relicSkillCost(lv){ return { gold: 1500 * lv, scrap: 25 * lv }; }
+function upgradeRelicSkill(id){
+  const st = STATE.relics[id];
+  if(!st) return false;
+  if((st.skillLv || 1) >= RELIC_SKILL_MAX){ toast('スキルLv上限です'); return false; }
+  const cost = relicSkillCost(st.skillLv || 1);
+  if((STATE.gold || 0) < cost.gold){ toast('ゴールドが足りません'); return false; }
+  if(getItem('relic_scrap') < cost.scrap){ toast('遺物のスクラップが足りません'); return false; }
+  addGold(-cost.gold);
+  addItem('relic_scrap', -cost.scrap);
+  st.skillLv = (st.skillLv || 1) + 1;
+  track('upgrade');
+  playSfx('buff');
+  toast(`スキルLv${st.skillLv}になりました`);
+  saveState();
+  if(relicUpgrade && relicUpgrade.relicId === id) renderRelicUpgrade();
+  render();
+  return true;
+}
+
+/* ---- battle: apply an equipped relic's bonuses to an ally unit ---- */
+function applyRelicToUnit(u, mon, relicId){
+  const st = STATE.relics[relicId];
+  const def = RELICS[relicId];
+  if(!st || !def) return;
+  const lv = st.level || 1;
+  if(def.base){
+    if(def.base.hp){ const add = Math.round(def.base.hp * lv); u.maxHp += add; u.hp += add; }
+    if(def.base.atk) u.str += Math.round(def.base.atk * lv);
+  }
+  const mult = relicSkillMult(st.skillLv);
+  const bonus = {};
+  (def.effects || []).forEach(e => {
+    if(!relicEffectMatches(e.cond, mon)) return;
+    bonus[e.stat] = (bonus[e.stat] || 0) + e.pct * mult;
+  });
+  applyStatBonus(u, bonus);
+}
+
+/* ---- gacha: separate crystal-consuming banner, same rate curve as the monster gacha ---- */
+function rollRelicStar(){
+  const entries = Object.entries(RELIC_RARITY_WEIGHTS).map(([r, w]) => [Number(r), w]);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let roll = Math.random() * total;
+  for(const [r, w] of entries){ if(roll < w) return r; roll -= w; }
+  return entries[entries.length - 1][0];
+}
+function grantRelic(def){
+  if(!STATE.relics) STATE.relics = {};
+  const existing = STATE.relics[def.id];
+  if(existing){ existing.dupe = (existing.dupe || 0) + 1; return { def, isNew:false }; }
+  STATE.relics[def.id] = newRelicState();
+  return { def, isNew:true };
+}
+function pullRelicOne(){
+  let star = rollRelicStar();
+  let pool = relicsOfStar(star);
+  while(pool.length === 0 && star > 1){ star -= 1; pool = relicsOfStar(star); }
+  const def = pool[Math.floor(Math.random() * pool.length)];
+  return grantRelic(def);
+}
+function doRelicPull(times, cost){
+  if((STATE.crystals || 0) < cost){ toast('結晶が足りません'); return null; }
+  STATE.crystals -= cost;
+  const results = [];
+  for(let i = 0; i < times; i++) results.push(pullRelicOne());
+  track('relicGachaPull', times);
+  if(times === 10) track('relicGacha10');
+  STATE.recentRelicPulls = [...results.map(r => r.def.id), ...(STATE.recentRelicPulls || [])].slice(0, 4);
+  saveState();
+  return results;
+}
+
+/* ---- relic picker / strengthen modals (opened from a monster's relic slot) ---- */
+let relicPicker = null;  // { monId } while the "choose a relic" sheet is open
+let relicUpgrade = null; // { relicId, monId } while the level/skill/wall sheet is open
+function openRelicPicker(monId){ relicPicker = { monId }; renderRelicPicker(); }
+function closeRelicPicker(){ const p = relicPicker; relicPicker = null; if(p) showMonsterDetail(p.monId); }
+function openRelicUpgrade(relicId, monId){ relicUpgrade = { relicId, monId }; renderRelicUpgrade(); }
+function closeRelicUpgrade(){ const u = relicUpgrade; relicUpgrade = null; if(u) relicPicker ? renderRelicPicker() : showMonsterDetail(u.monId); }
+function renderRelicPicker(){
+  const { monId } = relicPicker;
+  const ids = ownedRelicIds();
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal relic-picker-modal" role="dialog" aria-label="遺物を選ぶ">
+      <button class="fs-close" data-close-relic-picker="1" aria-label="閉じる">×</button>
+      <h3>遺物を選ぶ</h3>
+      ${ids.length === 0 ? `
+        <p class="fs-note">まだ遺物を持っていません。ガチャで手に入れましょう。</p>
+        <button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : `
+      <div class="relic-list">
+        ${ids.map(id => {
+          const def = RELICS[id];
+          const st = STATE.relics[id];
+          const here = st.equippedTo === monId;
+          const elsewhere = st.equippedTo && !here ? MON_BY_ID[st.equippedTo] : null;
+          return `
+            <button class="relic-row r${def.star} ${here ? 'on' : ''}" data-relic-row="${id}">
+              <span class="relic-ic">${def.icon}</span>
+              <div class="relic-row-body">
+                <div class="relic-row-name">${def.name}<span class="relic-star">★${def.star}</span></div>
+                <div class="relic-row-sub">Lv${st.level} / スキルLv${st.skillLv}${here ? '・この子に装備中' : elsewhere ? `・装備中: ${elsewhere.name}` : ''}</div>
+              </div>
+            </button>`;
+        }).join('')}
+      </div>`}
+    </div>`;
+  layer.classList.add('show');
+}
+function renderRelicUpgrade(){
+  const { relicId, monId } = relicUpgrade;
+  const def = RELICS[relicId];
+  const st = STATE.relics[relicId];
+  const mon = MON_BY_ID[monId];
+  if(!def || !st || !mon){ closeRelicUpgrade(); return; }
+  const cap = relicLevelCap(st);
+  const maxed = st.level >= cap;
+  const wall = atRelicWall(st);
+  const stop = relicLevelStop(st);
+  const scrapHave = getItem('relic_scrap');
+  const equippedHere = st.equippedTo === monId;
+  const skillMaxed = (st.skillLv || 1) >= RELIC_SKILL_MAX;
+  const skCost = skillMaxed ? null : relicSkillCost(st.skillLv || 1);
+  const mult = relicSkillMult(st.skillLv);
+  const wallGold = relicWallGold(st.level), wallScrap = relicWallScrap(st.level);
+  const needsDupe = RELIC_AWAKEN_WALLS.includes(st.level);
+  const dupeSpare = (st.dupe || 0) - (st.dupeUsed || 0);
+  const wallReady = (STATE.gold || 0) >= wallGold && scrapHave >= wallScrap && (!needsDupe || dupeSpare > 0);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal relic-upgrade-modal" role="dialog" aria-label="${def.name}">
+      <button class="fs-close" data-close-relic-upgrade="1" aria-label="閉じる">×</button>
+      <h3>${def.icon} ${def.name}<span class="relic-star">★${def.star}</span></h3>
+      <div class="relic-effects">
+        ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectText(e)}<small>(現在 ${Math.round(e.pct * mult * 100)}%)</small></div>`).join('')}
+      </div>
+
+      <div class="detail-level-box lv-card">
+        <div class="row-between" style="margin-bottom:7px;">
+          <div class="mc-head">レベル</div>
+          <div class="mat-need">上限 Lv${cap}</div>
+        </div>
+        <div class="row-between lv-step">
+          <div class="pixel lv-step-num">Lv${st.level}${maxed ? '' : ` <span class="arrow">→</span> <b>Lv${st.level + 1}</b>`}</div>
+          <div class="mat-need">所持 ${itemIcon('relic_scrap')}${scrapHave.toLocaleString()}</div>
+        </div>
+        ${wall ? `
+          <button class="btn btn-sm btn-block ${wallReady ? '' : 'btn-ghost'}" data-relic-wall="${relicId}">
+            Lv${st.level}の壁を突破(${goldText(wallGold)}・${itemName('relic_scrap')}×${wallScrap}${needsDupe ? `・凸×1(所持${dupeSpare})` : ''})
+          </button>` : maxed ? `<div class="promo-note">レベル上限です${cap < 200 ? '(凸で上限を伸ばせます)' : ''}</div>` : `
+          <div class="lv-btns three">
+            <button class="btn btn-sm btn-ghost" data-relic-levelup="${relicId}" data-times="1">＋1</button>
+            <button class="btn btn-sm btn-ghost" data-relic-levelup="${relicId}" data-times="10">＋10</button>
+            <button class="btn btn-sm" data-relic-levelup="${relicId}" data-times="max">最大まで(Lv${stop})</button>
+          </div>`}
+      </div>
+
+      <div class="detail-level-box lv-card">
+        <div class="row-between" style="margin-bottom:7px;">
+          <div class="mc-head">スキルLv</div>
+          <div class="mat-need">${st.skillLv || 1} / ${RELIC_SKILL_MAX}</div>
+        </div>
+        ${skillMaxed ? '<div class="promo-note">スキルLv上限です</div>' : `
+          <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= skCost.gold && scrapHave >= skCost.scrap ? '' : 'btn-ghost'}" data-relic-skillup="${relicId}">
+            スキルLv${(st.skillLv || 1) + 1}へ(${goldText(skCost.gold)}・${itemName('relic_scrap')}×${skCost.scrap})
+          </button>`}
+      </div>
+
+      <div class="ss-actions">
+        ${equippedHere
+          ? `<button class="btn btn-ghost" data-unequip-relic="${monId}">外す</button>`
+          : `<button class="btn" data-equip-relic="${relicId}:${monId}">${mon.name}に装着する</button>`}
+      </div>
+    </div>`;
+  layer.classList.add('show');
 }
 
 /* ---- clear rank (★1–3) and sweeping ---- */
@@ -4614,9 +4993,14 @@ function renderBase(){
     const lvLocked = canUp && !facilityLvUnlocked(next);
     const cost = canUp ? FACILITY_UPGRADE_GOLD[next] : 0;
     const stored = key === 'mine' ? goldText(Math.floor(amount))
+      : key === 'smithy' ? (Math.floor(amount) > 0 ? `${itemIcon('relic_scrap')}×${Math.floor(amount)}` : 'まだありません')
       : Object.entries(expToPots(amount, FACILITIES.lab.maxTier[st.lv]).pots).map(([k, n]) => `${itemIcon(k)}×${n}`).join(' ') || 'まだありません';
-    const rate = key === 'mine' ? `${goldText(f.perHour[st.lv])}/時` : `EXP ${f.perHour[st.lv]}/時(Tier${TIER_LABEL[f.maxTier[st.lv]]}まで)`;
-    const nextRate = canUp ? (key === 'mine' ? `${goldText(f.perHour[next])}/時` : `EXP ${f.perHour[next]}/時・Tier${TIER_LABEL[f.maxTier[next]]}まで`) : '';
+    const rate = key === 'mine' ? `${goldText(f.perHour[st.lv])}/時`
+      : key === 'smithy' ? `${itemName('relic_scrap')} ${f.perHour[st.lv]}/時`
+      : `EXP ${f.perHour[st.lv]}/時(Tier${TIER_LABEL[f.maxTier[st.lv]]}まで)`;
+    const nextRate = canUp ? (key === 'mine' ? `${goldText(f.perHour[next])}/時`
+      : key === 'smithy' ? `${itemName('relic_scrap')} ${f.perHour[next]}/時`
+      : `EXP ${f.perHour[next]}/時・Tier${TIER_LABEL[f.maxTier[next]]}まで`) : '';
     const ready = amount > 0;
     return `
       <div class="panel facility ${ready ? 'ready' : ''}">
@@ -4676,6 +5060,7 @@ function renderBase(){
     <div class="screen-sub">施設を強化すると素材とEXPが自動で溜まります(最大24時間分)</div>
     ${facilityCard('mine')}
     ${facilityCard('lab')}
+    ${facilityCard('smithy')}
     ${alchemy}`;
 }
 
@@ -5177,7 +5562,90 @@ function renderHome(){
 
 /* ---------------- GACHA ---------------- */
 
+let gachaKind = 'mon'; // 'mon' | 'relic'
 function renderGacha(){
+  return `
+    <div class="gacha-kind-tabs" role="tablist">
+      <button class="stage-tab ${gachaKind === 'mon' ? 'on' : ''}" data-gacha-kind="mon" role="tab" aria-selected="${gachaKind === 'mon'}">モンスター</button>
+      <button class="stage-tab ${gachaKind === 'relic' ? 'on' : ''}" data-gacha-kind="relic" role="tab" aria-selected="${gachaKind === 'relic'}">遺物</button>
+    </div>
+    ${gachaKind === 'relic' ? renderRelicGacha() : renderMonGacha()}
+  `;
+}
+function renderRelicGacha(){
+  const recent = (STATE.recentRelicPulls || []).map(id => RELICS[id]).filter(Boolean).slice(0, 4);
+  return `
+    <div class="panel">
+      <div class="mc-head" style="margin-bottom:8px;">遺物ガチャ</div>
+      <div class="screen-sub">モンスターに1個装備できる「遺物」が手に入ります。同じ遺物が出ると「凸」が増え、Lv100を超える強化に使えます。</div>
+    </div>
+    <div class="panel">
+      <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
+      <div class="gc-rates">
+        ${[5, 4, 3, 2, 1].map(r => `
+          <div class="gc-rate r${r} ${r === 5 ? 'top' : ''}">
+            <div class="gc-rate-star">★${r}</div>
+            <div class="gc-rate-pct">${RELIC_RARITY_WEIGHTS[r]}%</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    ${recent.length ? `
+    <div class="panel">
+      <div class="mc-head" style="margin-bottom:8px;">最近の結果</div>
+      <div class="gc-recent">
+        ${recent.map(def => `
+          <div class="gc-recent-cell r${def.star}">
+            <div class="relic-recent-ic">${def.icon}</div>
+            <div class="gc-recent-star">★${def.star}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+    <div class="gc-btns">
+      <button class="btn gc-pull1" id="relic-pull1" ${(STATE.crystals || 0) < PULL_COST ? 'disabled' : ''}>
+        1回<small>💎 ${PULL_COST}</small>
+      </button>
+      <button class="btn gc-pull10" id="relic-pull10" ${(STATE.crystals || 0) < PULL10_COST ? 'disabled' : ''}>
+        10連<small>💎 ${PULL10_COST}</small>
+      </button>
+    </div>
+    <div class="panel panel-tight">
+      <div class="gacha-rules">
+        <b>排出率</b>　${[5, 4, 3, 2, 1].map(r => `★${r} ${RELIC_RARITY_WEIGHTS[r]}%`).join('　')}<br>
+        <b>かぶり</b>　同じ遺物が出ると「凸」が1個増えます。Lv100を超えて強化する時に消費します。<br>
+        <b>装備</b>　モンスター詳細画面の「遺物」枠からどのモンスターにでも装備できます(1体につき1個)。
+      </div>
+    </div>
+  `;
+}
+function doRelicPullAndShow(times, cost){
+  const results = doRelicPull(times, cost);
+  if(!results) return;
+  showRelicPullResult(results);
+  render();
+}
+function showRelicPullResult(results){
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal relic-pull-result" role="dialog" aria-label="遺物ガチャ結果">
+      <button class="fs-close" id="close-result" aria-label="閉じる">×</button>
+      <h3>遺物ガチャ結果</h3>
+      <div class="relic-pull-grid">
+        ${results.map(r => `
+          <div class="relic-pull-cell r${r.def.star}">
+            <div class="relic-pull-ic">${r.def.icon}</div>
+            <div class="relic-pull-name">${r.def.name}</div>
+            <div class="relic-pull-star">★${r.def.star}</div>
+            <div class="relic-pull-tag">${r.isNew ? 'NEW' : '凸+1'}</div>
+          </div>`).join('')}
+      </div>
+      <div class="ss-actions">
+        <button class="btn btn-ghost" id="close-result">閉じる</button>
+        <button class="btn" data-relic-pull-again="${results.length}">もう一度引く</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
+}
+function renderMonGacha(){
   const banners = activeBanners();
   const banner = currentBanner();
   const pickup = MON_BY_ID[banner.pickup];
@@ -5741,6 +6209,9 @@ function showMonsterDetail(id){
   const expPct = Math.min(100, Math.round((owned.exp || 0) / expToNext(owned.level) * 100));
   const stop = levelStop(owned);
   const potTotal = expPotTotal();
+  const equippedRelicId = equippedRelicOf(id);
+  const equippedRelicDef = equippedRelicId ? RELICS[equippedRelicId] : null;
+  const equippedRelicSt = equippedRelicId ? STATE.relics[equippedRelicId] : null;
 
   // highlight the numbers that just went up (level-up, promotion)
   const before = showMonsterDetail._prev && showMonsterDetail._prev.id === id ? showMonsterDetail._prev.stats : null;
@@ -5778,7 +6249,7 @@ function showMonsterDetail(id){
           <button class="btn btn-sm btn-ghost ${potTotal ? '' : 'off'}" data-levelup="${id}" data-times="10" ${potTotal ? '' : 'disabled'}>＋10</button>
           <button class="btn btn-sm ${potTotal ? '' : 'btn-ghost'}" data-levelup="${id}" data-times="max" ${potTotal ? '' : 'disabled'}>最大まで(Lv${stop})</button>
         </div>
-        <div class="promo-note lv-hint">長押しで連続レベルアップ・10レベルごとにゴールドで限界突破</div>`}
+        <div class="promo-note lv-hint">長押しで連続レベルアップ・節目のレベルでゴールドにより限界突破</div>`}
     </div>`;
 
   // スキルの強化ボタンは、その説明のすぐ下に置く
@@ -5858,6 +6329,18 @@ function showMonsterDetail(id){
               </button>
             </div>
           </div>`}
+      </div>
+
+      <div class="detail-level-box relic-box">
+        <div class="mc-head" style="margin-bottom:8px;">遺物</div>
+        <button class="relic-slot ${equippedRelicDef ? 'filled' : 'empty'}" data-relic-slot="${id}">
+          <span class="relic-ic">${equippedRelicDef ? equippedRelicDef.icon : '➕'}</span>
+          <div class="relic-slot-body">
+            <div class="relic-slot-name">${equippedRelicDef ? `${equippedRelicDef.name}<span class="relic-star">★${equippedRelicDef.star}</span>` : '未装備'}</div>
+            <div class="relic-slot-sub">${equippedRelicDef ? `Lv${equippedRelicSt.level} / スキルLv${equippedRelicSt.skillLv}` : 'タップして遺物を選ぶ'}</div>
+          </div>
+          <span class="relic-slot-arrow">›</span>
+        </button>
       </div>
     </div>
   `;
@@ -6807,6 +7290,8 @@ function startBattle(stageId, opts){
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
+    const relicId = equippedRelicOf(id);
+    if(relicId) applyRelicToUnit(u, m, relicId);
     applyFormationBonus(u, formation);
     party.push(u);
   });
@@ -8330,7 +8815,8 @@ function strike(ctx, target, o){
   }
   const crit = o.raw === undefined && !o.noCrit && chance(BASE_CRIT_RATE + passiveMod(actor, 'critBonus', target) + buffV(actor, 'critUp') + (actor.bonusCrit || 0) + (act.critBonus || 0));
   let bonus = passiveMod(actor, 'dmgBonus', target, act, kind) + (actor.flags.fireBoost || 0)
-    + (actor.gimmick === 'scorch' && hasStatus(target, 'burn') ? 0.2 : 0);
+    + (actor.gimmick === 'scorch' && hasStatus(target, 'burn') ? 0.2 : 0)
+    + (kind === 'skill' ? (actor.skillDmgBonus || 0) : 0) + (kind === 'ult' ? (actor.ultDmgBonus || 0) : 0);
   (act.bonusIf || []).forEach(b => { if(conditionMet(b.cond, actor, target)) bonus += b.add; });
   let raw = o.raw !== undefined
     ? o.raw
@@ -9691,6 +10177,17 @@ function handlePhoneClick(ev){
   }
   if(t.closest('#pull1')){ doPull(1, PULL_COST); return; }
   if(t.closest('#pull10')){ doPull(10, PULL10_COST); return; }
+  const gkEl = t.closest('[data-gacha-kind]');
+  if(gkEl){ gachaKind = gkEl.dataset.gachaKind; render(); return; }
+  if(t.closest('#relic-pull1')){ doRelicPullAndShow(1, PULL_COST); return; }
+  if(t.closest('#relic-pull10')){ doRelicPullAndShow(10, PULL10_COST); return; }
+  const relicAgainEl = t.closest('[data-relic-pull-again]');
+  if(relicAgainEl){
+    const n = Number(relicAgainEl.dataset.relicPullAgain);
+    closeModal();
+    doRelicPullAndShow(n, n === 10 ? PULL10_COST : PULL_COST);
+    return;
+  }
   if(t.closest('#close-result')){
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
@@ -9709,6 +10206,34 @@ function handlePhoneClick(ev){
   if(t.closest('[data-guide-next]')){ guideToastNext(); return; }
   if(t.closest('[data-guide-back]')){ guideToastBack(); return; }
   if(t.closest('[data-guide-close]')){ finishGuideToast(); return; }
+
+  const relicSlotEl = t.closest('[data-relic-slot]');
+  if(relicSlotEl){ openRelicPicker(relicSlotEl.dataset.relicSlot); return; }
+  if(t.closest('[data-goto-relic-gacha]')){
+    relicPicker = null; relicUpgrade = null;
+    closeModal();
+    gachaKind = 'relic';
+    goto('gacha');
+    return;
+  }
+  if(relicPicker){
+    if(t.closest('[data-close-relic-picker]')){ closeRelicPicker(); return; }
+    const rowEl = t.closest('[data-relic-row]');
+    if(rowEl){ openRelicUpgrade(rowEl.dataset.relicRow, relicPicker.monId); return; }
+  }
+  if(relicUpgrade){
+    if(t.closest('[data-close-relic-upgrade]')){ closeRelicUpgrade(); return; }
+    const rLvEl = t.closest('[data-relic-levelup]');
+    if(rLvEl){ levelUpRelic(rLvEl.dataset.relicLevelup, rLvEl.dataset.times); return; }
+    const rWallEl = t.closest('[data-relic-wall]');
+    if(rWallEl){ breakRelicWall(rWallEl.dataset.relicWall); return; }
+    const rSkEl = t.closest('[data-relic-skillup]');
+    if(rSkEl){ upgradeRelicSkill(rSkEl.dataset.relicSkillup); return; }
+    const eqEl = t.closest('[data-equip-relic]');
+    if(eqEl){ const [rid, mid] = eqEl.dataset.equipRelic.split(':'); equipRelic(rid, mid); return; }
+    const uneqEl = t.closest('[data-unequip-relic]');
+    if(uneqEl){ unequipRelic(uneqEl.dataset.unequipRelic); return; }
+  }
 
   const levelUpEl = t.closest('[data-levelup]');
   if(levelUpEl){
