@@ -1001,6 +1001,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .pvp-result-line{ font-size:13px; margin:10px 0; }
 
 /* ---------- shop ---------- */
+.shop-tabs{ display:grid; grid-template-columns:repeat(2,1fr); gap:5px; margin:6px 0 8px; }
+.shop-tabs .stage-tab{ font-size:11px; padding:6px 2px; white-space:nowrap; }
 .shop-section-title{ font-weight:800; font-size:12.5px; margin:14px 0 6px; color:var(--gold); }
 .shop-row{
   display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -5197,6 +5199,154 @@ const NAV = [
 /* ---------------- PVP screen ---------------- */
 let pvpOpponents = [];      // last-fetched candidate list (not persisted, runtime only)
 let pvpSearching = false;
+let pvpDefenseEdit = false;       // whether the defense-formation editor is open within the PVP screen
+let defenseFormationPick = null;  // slot chosen as a move source / placement target, while editing
+let pvpDefenseEditBackup = null;  // { slots, formationKey } snapshot to restore on cancel
+
+function ensureDefenseSlots(){
+  if(!Array.isArray(STATE.pvpDefenseSlots) || STATE.pvpDefenseSlots.length !== PARTY_MAX) STATE.pvpDefenseSlots = Array(PARTY_MAX).fill(null);
+  STATE.pvpDefenseSlots = STATE.pvpDefenseSlots.map(id => (id && id !== HELP_SLOT_ID && STATE.owned[id]) ? id : null);
+  return STATE.pvpDefenseSlots;
+}
+function defenseFormation(){ return getFormation(STATE.pvpDefenseFormation || STATE.formationKey); }
+
+function openPvpDefenseEdit(){
+  ensureDefenseSlots();
+  if(!STATE.pvpDefenseFormation) STATE.pvpDefenseFormation = STATE.formationKey;
+  pvpDefenseEditBackup = { slots: [...STATE.pvpDefenseSlots], formationKey: STATE.pvpDefenseFormation };
+  pvpDefenseEdit = true;
+  defenseFormationPick = null;
+  render();
+}
+function cancelPvpDefenseEdit(){
+  if(pvpDefenseEditBackup){ STATE.pvpDefenseSlots = pvpDefenseEditBackup.slots; STATE.pvpDefenseFormation = pvpDefenseEditBackup.formationKey; }
+  pvpDefenseEdit = false;
+  defenseFormationPick = null;
+  pvpDefenseEditBackup = null;
+  render();
+}
+function saveDefenseEdit(){
+  if(!ensureDefenseSlots().some(Boolean)){ toast('1体以上編成してください'); return; }
+  pvpDefenseEdit = false;
+  defenseFormationPick = null;
+  pvpDefenseEditBackup = null;
+  saveState();
+  publishProfile();
+  toast('防衛編成を保存しました');
+  render();
+}
+function copyPartyIntoDefenseEdit(){
+  if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
+  STATE.pvpDefenseSlots = [...STATE.slots];
+  STATE.pvpDefenseFormation = STATE.formationKey;
+  defenseFormationPick = null;
+  render();
+}
+function changeDefenseFormation(key){
+  const from = defenseFormation();
+  const to = getFormation(key);
+  if(from.key === to.key) return;
+  STATE.pvpDefenseSlots = reflowSlots(ensureDefenseSlots(), from, to);
+  STATE.pvpDefenseFormation = to.key;
+  defenseFormationPick = null;
+  toast(`陣形を「${to.name}」に変更しました`);
+}
+function tapDefenseSlot(i){
+  const slots = ensureDefenseSlots();
+  if(defenseFormationPick === null){ defenseFormationPick = i; return; }
+  if(defenseFormationPick === i){ defenseFormationPick = null; return; }
+  [slots[defenseFormationPick], slots[i]] = [slots[i], slots[defenseFormationPick]];
+  defenseFormationPick = null;
+}
+function removeDefenseSlot(i){
+  ensureDefenseSlots()[i] = null;
+  defenseFormationPick = null;
+}
+function placeInDefense(id){
+  const slots = ensureDefenseSlots();
+  const f = defenseFormation();
+  const m = MON_BY_ID[id];
+  const cur = slots.indexOf(id);
+  if(defenseFormationPick !== null){
+    const target = defenseFormationPick;
+    if(cur >= 0){ [slots[cur], slots[target]] = [slots[target], slots[cur]]; }
+    else{ slots[target] = id; }
+    defenseFormationPick = null;
+    return;
+  }
+  if(cur >= 0){ slots[cur] = null; return; }
+  if(slots.filter(Boolean).length >= PARTY_MAX){ toast(`防衛編成は最大${PARTY_MAX}体です`); return; }
+  const slot = emptySlotIn(slots, f, m.role);
+  if(slot >= 0) slots[slot] = id;
+}
+function renderDefenseEditGrid(){
+  const f = defenseFormation();
+  const slots = ensureDefenseSlots();
+  const cell = (i, gridRow) => {
+    const id = slots[i];
+    const m = id ? MON_BY_ID[id] : null;
+    const sel = defenseFormationPick === i ? 'selected' : '';
+    const pos = `style="grid-row:${gridRow}; grid-column:${slotHalfCol(f, i) + 1} / span 2;"`;
+    const slotAttr = `data-defense-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${m.name}` : ' 空き'}"`;
+    if(!m) return `<div class="party-slot ${sel}" ${pos} ${slotAttr}><span class="empty-plus">+</span></div>`;
+    const penalty = slotRowIn(f, i) === 'back' && isMeleeRole(m.role);
+    return `<div class="party-slot ${sel} ${penalty ? 'penalty' : ''}" ${pos} ${slotAttr}>
+      <img src="${imgSrc(m.id)}" alt="${m.name}">
+      ${penalty ? '<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">⚠</span>' : ''}
+      <span class="role-mini">${tagsHtml(m)}</span>
+      <div class="remove-x" data-defense-remove="${i}" aria-label="${m.name} を外す">×</div>
+    </div>`;
+  };
+  return `
+    <div class="formation">
+      <div class="row-tag front" style="grid-row:1; grid-column:1;">前衛</div>
+      ${slotsOfRow(f, 'front').map(i => cell(i, 1)).join('')}
+      <div class="row-tag" style="grid-row:2; grid-column:1;">後衛</div>
+      ${slotsOfRow(f, 'back').map(i => cell(i, 2)).join('')}
+    </div>`;
+}
+function renderDefenseFormationPicker(){
+  const cur = defenseFormation();
+  const mini = f => [...Array(PARTY_MAX).keys()].map(i =>
+    `<i class="${slotRowIn(f, i)}" style="grid-row:${slotRowIn(f, i) === 'front' ? 1 : 2}; grid-column-start:${slotHalfCol(f, i)};"></i>`
+  ).join('');
+  return `
+    <div class="fm-picker" role="radiogroup" aria-label="防衛編成の陣形を選ぶ">
+      ${FORMATIONS.map(f => `
+        <button class="fm-card ${f.key === cur.key ? 'on' : ''}" data-defense-formation="${f.key}" role="radio" aria-checked="${f.key === cur.key}">
+          <div class="fm-mini" aria-hidden="true">${mini(f)}</div>
+          <div class="fm-name">${f.name}</div>
+          <div class="fm-shape">前${f.front}・後${f.back}</div>
+        </button>`).join('')}
+    </div>
+    <div class="fm-bonus"><b>${cur.name}</b>のボーナス: ${formationDesc(cur)}</div>`;
+}
+function renderDefenseRoster(){
+  const defIds = ensureDefenseSlots();
+  const ownedAll = Object.keys(STATE.owned).map(id => MON_BY_ID[id]);
+  const ownedList = sortedRoster(ownedAll.filter(m => matchesRosterFilter(m, rosterFilter) && (!rosterPromoOnly || canPromoteNow(m.id))));
+  const f = defenseFormation();
+  return `
+    ${renderRosterControls(ownedList.length, ownedAll.length)}
+    ${ownedList.length === 0 ? '<div class="roster-empty">条件に合うモンスターがいません。絞り込みを変えてください。</div>' : ''}
+    ${ownedList.map(m => {
+      const slot = defIds.indexOf(m.id);
+      const inParty = slot >= 0;
+      const owned = STATE.owned[m.id];
+      const full = defIds.filter(Boolean).length >= PARTY_MAX && !inParty && defenseFormationPick === null;
+      const where = inParty ? `・${slotRowIn(f, slot) === 'front' ? '前衛' : '後衛'}に編成中` : '';
+      return `
+        <div class="roster-row ${inParty ? 'selected' : ''} ${full ? 'disabled' : ''}" data-defense-toggle="${m.id}"
+          style="--elem:${ELEM_COLOR[m.element]};">
+          <img src="${imgSrc(m.id)}" alt="${m.name}">
+          <div class="info">
+            <div class="name">${m.name} ${starsHtml(m.rarity, owned.star)}</div>
+            <div class="meta"><span class="roster-bp">BP ${battlePower(m.id).toLocaleString()}</span>・Lv${owned.level}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${SPECIES_LABEL[speciesOf(m)]}${where}</div>
+          </div>
+          <div class="detail-btn" data-detail="${m.id}">詳細</div>
+        </div>`;
+    }).join('')}`;
+}
 async function searchPvpOpponents(){
   if(!pvpAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
   if(!ACCOUNT || pvpSearching) return;
@@ -5221,6 +5371,7 @@ function renderPvp(){
       <div class="screen-title">PVP</div>
       <div class="screen-sub" style="margin:28px 0;text-align:center;">ログインするとPVPに挑戦できます</div>`;
   }
+  if(pvpDefenseEdit) return renderPvpDefenseEdit();
   const left = pvpChallengesLeft();
   const myDefenseCount = hasPvpDefense() ? STATE.pvpDefenseSlots.filter(Boolean).length : 0;
   return `
@@ -5238,8 +5389,9 @@ function renderPvp(){
         <div class="mc-head">防衛編成</div>
         <span class="mat-need ${hasPvpDefense() ? '' : 'short'}">${hasPvpDefense() ? `設定済み(${myDefenseCount}体)` : '未設定'}</span>
       </div>
-      <div class="screen-sub" style="margin-bottom:8px;">他のプレイヤーがあなたに挑戦する時に戦う編成です。現在の編成(パーティ画面)がそのまま公開されます。</div>
-      <button class="btn btn-block" data-pvp-set-defense="1">現在の編成を防衛編成に設定</button>
+      <div class="screen-sub" style="margin-bottom:8px;">他のプレイヤーがあなたに挑戦する時に戦う編成です。</div>
+      ${hasPvpDefense() ? renderFormationGrid(true, { slots: STATE.pvpDefenseSlots, formationKey: STATE.pvpDefenseFormation || STATE.formationKey }) : ''}
+      <button class="btn btn-block" data-pvp-defense-edit="1" style="margin-top:${hasPvpDefense() ? '10px' : '0'};">${hasPvpDefense() ? '編集する' : '防衛編成を設定する'}</button>
     </div>
     <div class="panel">
       <div class="row-between" style="margin-bottom:8px;">
@@ -5258,6 +5410,23 @@ function renderPvp(){
           </div>`).join('')}
       </div>`}
     </div>
+  `;
+}
+
+function renderPvpDefenseEdit(){
+  return `
+    <div class="row-between" style="margin:10px 0 4px;">
+      <div class="screen-title" style="margin:0;">防衛編成の編集</div>
+      <button class="btn btn-ghost btn-sm" data-pvp-defense-cancel="1">‹ 戻る</button>
+    </div>
+    <div class="screen-sub" style="margin-bottom:6px;">スロットをタップして入れ替え、所持モンスターをタップして配置します。他のプレイヤーはこの編成と戦います。</div>
+    ${renderDefenseFormationPicker()}
+    ${renderDefenseEditGrid()}
+    <div class="row-between" style="gap:8px; margin:10px 0;">
+      <button class="btn btn-ghost btn-sm" data-pvp-defense-copy="1">現在の編成をコピー</button>
+      <button class="btn btn-sm" data-pvp-defense-save="1">保存する</button>
+    </div>
+    ${renderDefenseRoster()}
   `;
 }
 
@@ -5411,7 +5580,7 @@ function renderShop(){
       <div class="screen-title">ショップ</div>
       <div class="base-wallet">${goldText(STATE.gold || 0)}　🏆${STATE.pvpPoints || 0}</div>
     </div>
-    <div class="alc-tabs">
+    <div class="shop-tabs">
       <button class="stage-tab ${shopTab === 'gold' ? 'on' : ''}" data-shop-tab="gold">ゴールドショップ</button>
       <button class="stage-tab ${shopTab === 'pvp' ? 'on' : ''}" data-shop-tab="pvp">PVPポイントショップ</button>
     </div>
@@ -5535,6 +5704,10 @@ function goto(screen){
   currentScreen = screen;
   formationPick = null;
   slotMenu = null;
+  if(pvpDefenseEdit && pvpDefenseEditBackup){ STATE.pvpDefenseSlots = pvpDefenseEditBackup.slots; STATE.pvpDefenseFormation = pvpDefenseEditBackup.formationKey; }
+  pvpDefenseEdit = false;
+  defenseFormationPick = null;
+  pvpDefenseEditBackup = null;
   if(battleUI) clearTimeout(battleUI.tickTimer);
   battleUI = null;
   clearStageFx();
@@ -6646,9 +6819,10 @@ function showMonsterDetail(id){
           <div class="detail-tags">
             <span class="elem-tag elem-${m.element}">${ELEM_ICON[m.element]} ${ELEM_LABEL[m.element]}</span>
             <span class="role-tag">${ROLE_ICON[m.role]}${ROLE_LABEL[m.role]}</span>
+            <span class="role-tag species-tag">${SPECIES_ICON[speciesOf(m)]}${SPECIES_LABEL[speciesOf(m)]}</span>
             <span class="role-tag">BP ${battlePower(id).toLocaleString()}</span>
           </div>
-          <div class="detail-family">${SPECIES_LABEL[speciesOf(m)]}${m.tribe ? `・${m.tribe}` : ''}・HATE ${m.hate}(${hateLabel(m.hate)})</div>
+          <div class="detail-family">${m.tribe ? `${m.tribe}・` : ''}HATE ${m.hate}(${hateLabel(m.hate)})</div>
         </div>
       </div>
 
@@ -6763,10 +6937,11 @@ function renderDex(){
 
 /* ---------------- PARTY ---------------- */
 
-function renderFormationGrid(compact){
-  const f = currentFormation();
+function renderFormationGrid(compact, src){
+  const slots = src ? src.slots : STATE.slots;
+  const f = src ? getFormation(src.formationKey) : currentFormation();
   const cell = (i, gridRow) => {
-    const id = STATE.slots[i];
+    const id = slots[i];
     const isHelp = id === HELP_SLOT_ID;
     const m = id ? MON_BY_ID[id] : null;
     const sel = !compact && formationPick === i ? 'selected' : '';
@@ -10900,7 +11075,6 @@ function handlePhoneClick(ev){
     addFriendByCode(input ? input.value : '');
     return;
   }
-  if(t.closest('[data-pvp-set-defense]')){ setPvpDefense(); return; }
   if(t.closest('[data-pvp-search]')){ searchPvpOpponents(); return; }
   const pvpFightEl = t.closest('[data-pvp-fight]');
   if(pvpFightEl){
@@ -10908,6 +11082,18 @@ function handlePhoneClick(ev){
     if(o) startPvpBattle(o);
     return;
   }
+  if(t.closest('[data-pvp-defense-edit]')){ openPvpDefenseEdit(); return; }
+  if(t.closest('[data-pvp-defense-cancel]')){ cancelPvpDefenseEdit(); return; }
+  if(t.closest('[data-pvp-defense-copy]')){ copyPartyIntoDefenseEdit(); return; }
+  if(t.closest('[data-pvp-defense-save]')){ saveDefenseEdit(); return; }
+  const defFormationEl = t.closest('[data-defense-formation]');
+  if(defFormationEl){ changeDefenseFormation(defFormationEl.dataset.defenseFormation); render(); return; }
+  const defRemoveEl = t.closest('[data-defense-remove]');
+  if(defRemoveEl){ removeDefenseSlot(Number(defRemoveEl.dataset.defenseRemove)); render(); return; }
+  const defSlotEl = t.closest('[data-defense-slot]');
+  if(defSlotEl){ tapDefenseSlot(Number(defSlotEl.dataset.defenseSlot)); render(); return; }
+  const defToggleEl = t.closest('[data-defense-toggle]');
+  if(defToggleEl){ placeInDefense(defToggleEl.dataset.defenseToggle); render(); return; }
   // any other tap closes an open menu (the tap itself is still handled below)
   if(slotMenu !== null && !t.closest('.slot-menu')){
     const tappedSlot = t.closest('[data-slot]');
