@@ -3289,6 +3289,8 @@ function addItem(key, n){
 }
 function itemName(key){
   if(key === 'relic_scrap') return '遺物のスクラップ';
+  const rc = /^relic_core_([1-3])$/.exec(key);
+  if(rc) return `遺物のコア Tier${TIER_LABEL[rc[1]]}`;
   if(EXP_POT_VALUE[key]) return `EXPポット Tier${TIER_LABEL[Number(key.slice(3))]}`;
   const b = /^box_(sel|rnd)_([1-4])$/.exec(key);
   if(b) return `育成素材BOX(${b[1] === 'sel' ? '選択' : 'ランダム'}) Tier${TIER_LABEL[b[2]]}`;
@@ -3299,6 +3301,8 @@ function itemName(key){
 function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</span>`; }
 function itemIcon(key){
   if(key === 'relic_scrap') return `<span class="item-ic">🔩</span>`;
+  const rc = /^relic_core_([1-3])$/.exec(key);
+  if(rc) return `<span class="item-ic">🔮${tierBadge(Number(rc[1]))}</span>`;
   if(EXP_POT_VALUE[key]) return `<span class="item-ic">🧪${tierBadge(Number(key.slice(3)))}</span>`;
   const b = /^box_(sel|rnd)_([1-4])$/.exec(key);
   if(b) return `<span class="item-ic">${b[1] === 'sel' ? '🎁' : '📦'}${tierBadge(Number(b[2]))}</span>`;
@@ -3578,6 +3582,26 @@ function craftMat(fam, kind, toTier, times){
   render();
 }
 
+/* ---- relic core crafting: scrap → コアTier1 → コアTier2 (Tier3はこの経路では作れない) ---- */
+const RELIC_CORE_RATIO = { 1: 300, 2: 5 }; // toTier: 1=relic_scrapの個数、2=relic_core_1の個数(5個→1個の既存パターン踏襲)
+const RELIC_CORE_GOLD = { 1: 500, 2: 2000 };
+function craftRelicCore(toTier, times){
+  const from = toTier === 1 ? 'relic_scrap' : `relic_core_${toTier - 1}`;
+  const ratio = RELIC_CORE_RATIO[toTier];
+  if(!ratio) return; // Tier3はこの経路では作れない
+  const can = Math.min(Math.floor(getItem(from) / ratio), Math.floor((STATE.gold || 0) / RELIC_CORE_GOLD[toTier]));
+  const n = Math.min(can, times === 'max' ? can : Number(times || 1));
+  if(n <= 0){ toast(getItem(from) < ratio ? `${itemName(from)}が足りません` : 'ゴールドが足りません'); return; }
+  addItem(from, -n * ratio);
+  addGold(-n * RELIC_CORE_GOLD[toTier]);
+  addItem(`relic_core_${toTier}`, n);
+  track('craft', n);
+  playSfx('buff');
+  toast(`${itemName(`relic_core_${toTier}`)}を${n}個合成しました`);
+  saveState();
+  render();
+}
+
 /* ---- base facilities (idle production, up to 24 h) ---- */
 const IDLE_MAX_MS = 24 * 3600 * 1000;
 const FACILITIES = {
@@ -3808,19 +3832,23 @@ function useRelicDupe(id){
   render();
 }
 
-/* ---- skill level (1-10): scales every effect's % linearly, ×1.0 at Lv1 → ×2.0 at Lv10 ---- */
+/* ---- skill level (1-10): scales every effect's % linearly, ×1.0 at Lv1 → ×2.0 at Lv10 ----
+   consumes 遺物のコア(全遺物共通・レベル上げのスクラップとは別素材) instead of scrap:
+   Lv1-3はTier1、Lv4-6はTier2、Lv7-9はTier3を要求する ---- */
 const RELIC_SKILL_MAX = 10;
 function relicSkillMult(skillLv){ return 1 + ((skillLv || 1) - 1) / (RELIC_SKILL_MAX - 1); }
-function relicSkillCost(lv){ return { gold: 1500 * lv, scrap: 25 * lv }; }
+function relicSkillCoreTier(lv){ return lv <= 3 ? 1 : lv <= 6 ? 2 : 3; }
+function relicSkillCost(lv){ return { gold: 1500 * lv, coreTier: relicSkillCoreTier(lv), coreN: 2 }; }
 function upgradeRelicSkill(id){
   const st = STATE.relics[id];
   if(!st) return false;
   if((st.skillLv || 1) >= RELIC_SKILL_MAX){ toast('スキルLv上限です'); return false; }
   const cost = relicSkillCost(st.skillLv || 1);
+  const coreKey = `relic_core_${cost.coreTier}`;
   if((STATE.gold || 0) < cost.gold){ toast('ゴールドが足りません'); return false; }
-  if(getItem('relic_scrap') < cost.scrap){ toast('遺物のスクラップが足りません'); return false; }
+  if(getItem(coreKey) < cost.coreN){ toast(`${itemName(coreKey)}が足りません`); return false; }
   addGold(-cost.gold);
-  addItem('relic_scrap', -cost.scrap);
+  addItem(coreKey, -cost.coreN);
   st.skillLv = (st.skillLv || 1) + 1;
   track('upgrade');
   playSfx('buff');
@@ -3992,8 +4020,8 @@ function renderRelicUpgrade(){
           <div class="mat-need">${st.skillLv || 1} / ${RELIC_SKILL_MAX}</div>
         </div>
         ${skillMaxed ? '<div class="promo-note">スキルLv上限です</div>' : `
-          <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= skCost.gold && scrapHave >= skCost.scrap ? '' : 'btn-ghost'}" data-relic-skillup="${relicId}">
-            スキルLv${(st.skillLv || 1) + 1}へ(${goldText(skCost.gold)}・${itemName('relic_scrap')}×${skCost.scrap})
+          <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= skCost.gold && getItem(`relic_core_${skCost.coreTier}`) >= skCost.coreN ? '' : 'btn-ghost'}" data-relic-skillup="${relicId}">
+            スキルLv${(st.skillLv || 1) + 1}へ(${goldText(skCost.gold)}・${itemName(`relic_core_${skCost.coreTier}`)}×${skCost.coreN}・所持${getItem(`relic_core_${skCost.coreTier}`)})
           </button>`}
       </div>
 
@@ -4298,7 +4326,7 @@ const WEEKLY_MISSIONS = [
   { id:'w_stamina', label:'スタミナを600使う',                   event:'staminaUsed',   goal:600, reward:[{ type:'crystal', n:50 }, { type:'item', key:'exp2', n:30 }] },
   { id:'w_dungeon', label:'育成ダンジョンを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:150 }, { type:'item', key:'box_rnd_4', n:1 }] },
   { id:'w_gacha',   label:'ガチャを20回引く',                    event:'gachaPull',     goal:20, reward:[{ type:'crystal', n:150 }, { type:'universal', n:30 }] },
-  { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 }] },
+  { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_core_1', n:1 }] },
 ];
 // achievements: tiered chains. value() reads lifetime stats or the current state.
 const ownedCount = () => Object.keys(STATE.owned).length;
@@ -5086,6 +5114,28 @@ function renderBase(){
             </div>`).join('')}
         </div>
       </div>`;
+  const relicCoreCraft = !facilityUnlocked('smithy') ? '' : `
+      <div class="panel facility">
+        <div class="fc-head"><span class="fc-ic">🔮</span>
+          <div class="fc-body"><div class="fc-name">遺物のコア錬成</div></div>
+        </div>
+        <div class="fc-sub">遺物のスキル強化に使う素材(遺物ごとの区別なし)。TierIIIはこの錬成では作れません。</div>
+        <div class="alc-list">
+          ${[1, 2].map(t => {
+            const from = t === 1 ? 'relic_scrap' : 'relic_core_1';
+            const ratio = RELIC_CORE_RATIO[t];
+            const n = Math.min(Math.floor(getItem(from) / ratio), Math.floor((STATE.gold || 0) / RELIC_CORE_GOLD[t]));
+            return `
+            <div class="alc-row">
+              <span class="alc-name">${itemIcon(from)}${itemName(from)}×${ratio}</span>
+              <span class="alc-have">所持 ${getItem(from)}</span>
+              <span class="alc-btns">
+                <button class="btn btn-sm ${n ? '' : 'btn-ghost'}" data-craft-core="${t}" ${n ? '' : 'disabled'} title="まとめて合成">→${itemName(`relic_core_${t}`)}${n ? `×${n}` : ''}(${goldText(RELIC_CORE_GOLD[t])})</button>
+              </span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
   return `
     <div class="screen-head">
       <div class="screen-title">拠点</div>
@@ -5095,7 +5145,8 @@ function renderBase(){
     ${facilityCard('mine')}
     ${facilityCard('lab')}
     ${facilityCard('smithy')}
-    ${alchemy}`;
+    ${alchemy}
+    ${relicCoreCraft}`;
 }
 
 // inventory modal (with box opening)
@@ -10325,6 +10376,8 @@ function handlePhoneClick(ev){
   if(alcEl){ alchemyFam = alcEl.dataset.alcFam; render(); return; }
   const craftEl = t.closest('[data-craft]');
   if(craftEl){ const [f, k, tier] = craftEl.dataset.craft.split(':'); craftMat(f, k, Number(tier), 'max'); return; }
+  const craftCoreEl = t.closest('[data-craft-core]');
+  if(craftCoreEl){ craftRelicCore(Number(craftCoreEl.dataset.craftCore), 'max'); return; }
   const dtabEl = t.closest('[data-dungeon-tab]');
   if(dtabEl){ dungeonTab = dtabEl.dataset.dungeonTab; render(); return; }
   if(t.closest('[data-open-bag]')){ bagSelect = null; renderBag(); return; }

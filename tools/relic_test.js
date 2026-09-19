@@ -6,7 +6,8 @@ const api = load('game.js', src => src + `;global.__e = {
   STATE_ref: () => STATE, DEFAULT_STATE, RELICS, grantRelic, equipRelic, unequipRelic, equippedRelicOf,
   levelUpRelic, atRelicWall, breakRelicWall, relicLevelCap, relicLevelStop, relicWallGold, relicWallScrap,
   useRelicDupe, RELIC_MAX_DUPE_USE,
-  upgradeRelicSkill, relicSkillMult, RELIC_SKILL_MAX, relicEffectMatches, applyRelicToUnit,
+  upgradeRelicSkill, relicSkillMult, relicSkillCoreTier, RELIC_SKILL_MAX, relicEffectMatches, applyRelicToUnit,
+  craftRelicCore, itemName,
   getItem, addItem, addGold, buildUnit, MON_BY_ID, run: api => api,
 };`);
 const E = global.__e;
@@ -65,12 +66,27 @@ ok('凸すると dupeUsed が増える', st.dupeUsed === 1, st.dupeUsed);
 E.useRelicDupe('rel_ygg_leaf'); // no more spare dupes (dupe=1, dupeUsed=1 already)
 ok('凸の在庫がなければ増えない', st.dupeUsed === 1);
 
-// --- skill level scaling: ×1.0 at Lv1 → ×2.0 at Lv10 ---
+// --- skill level scaling: ×1.0 at Lv1 → ×2.0 at Lv10, consumes 遺物のコア (Tier1-3) ---
 ok('スキルLv1は等倍', E.relicSkillMult(1) === 1);
 ok('スキルLv10は2倍', E.relicSkillMult(E.RELIC_SKILL_MAX) === 2);
+S.items.relic_core_1 = 1000;
+S.items.relic_core_2 = 1000;
+S.items.relic_core_3 = 1000;
 for(let i = 1; i < E.RELIC_SKILL_MAX; i++) E.upgradeRelicSkill('rel_ygg_leaf');
 ok('スキルLv10まで上げられる', st.skillLv === 10, st.skillLv);
 ok('上限を超えては上げられない', E.upgradeRelicSkill('rel_ygg_leaf') === false);
+ok('コアのティア: Lv1-3はTier1・4-6はTier2・7-9はTier3', E.relicSkillCoreTier(1) === 1 && E.relicSkillCoreTier(4) === 2 && E.relicSkillCoreTier(7) === 3);
+
+// --- relic core crafting: scrap → コアTier1 → コアTier2 (Tier3はこの経路では作れない) ---
+S.items.relic_scrap = 100000;
+S.items.relic_core_1 = 0;
+S.gold = 1e9;
+E.craftRelicCore(1, 'max');
+ok('スクラップからコアTier1を錬成できる', E.getItem('relic_core_1') > 0, E.getItem('relic_core_1'));
+const core1Before = E.getItem('relic_core_1');
+E.craftRelicCore(2, 'max');
+ok('コアTier1からコアTier2を錬成できる', E.getItem('relic_core_2') > 0 && E.getItem('relic_core_1') < core1Before);
+ok('コアTier3の名称表示', E.itemName('relic_core_3') === '遺物のコア TierIII');
 
 // --- condition matching ---
 const elfMon = { element: 'grass', role: 'support' };
