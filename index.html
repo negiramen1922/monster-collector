@@ -4400,6 +4400,15 @@ function scaledStats(mon, star, level){
 
   };
 }
+// scaledStats() plus the equipped relic's bonus, via the same applyRelicCore battle uses
+// (so the character-detail screen and BP always match what actually fights in battle).
+function statsWithRelic(mon, star, level, relicId){
+  const base = scaledStats(mon, star, level);
+  if(!relicId || !RELICS[relicId] || !STATE.relics[relicId]) return base;
+  const u = { maxHp: base.hp, hp: base.hp, str: base.str, pdef: base.pdef, mdef: base.mdef, spd: base.spd };
+  applyRelicToUnit(u, mon, relicId);
+  return { hp: u.maxHp, str: u.str, pdef: u.pdef, mdef: u.mdef, spd: u.spd };
+}
 
 /* ---------------- stamina & daily counters ---------------- */
 
@@ -4764,7 +4773,7 @@ function battlePower(id){
   const m = MON_BY_ID[id];
   const o = slotOwnedLike(id);
   if(!m || !o) return 0;
-  const st = scaledStats(m, o.star, o.level);
+  const st = statsWithRelic(m, o.star, o.level, equippedRelicOf(id));
   const base = st.hp * 0.6 + st.str * 4 + (st.pdef + st.mdef) * 4 + st.spd * 1.5;
   const kit = 1
     + ((o.skillLv || 1) - 1) * 0.04
@@ -6731,7 +6740,8 @@ function showMonsterDetail(id){
   const m = MON_BY_ID[id];
   const owned = STATE.owned[id];
   if(!m || !owned) return;
-  const stats = scaledStats(m, owned.star, owned.level);
+  const equippedRelicId = equippedRelicOf(id);
+  const stats = statsWithRelic(m, owned.star, owned.level, equippedRelicId);
   const need = soulsToNext(owned);
   const canPromote = need !== null && owned.souls >= need;
   const shortSouls = need === null ? 0 : Math.max(0, need - owned.souls);
@@ -6745,7 +6755,6 @@ function showMonsterDetail(id){
   const expPct = Math.min(100, Math.round((owned.exp || 0) / expToNext(owned.level) * 100));
   const stop = levelStop(owned);
   const potTotal = expPotTotal();
-  const equippedRelicId = equippedRelicOf(id);
   const equippedRelicDef = equippedRelicId ? RELICS[equippedRelicId] : null;
   const equippedRelicSt = equippedRelicId ? STATE.relics[equippedRelicId] : null;
 
@@ -6753,7 +6762,7 @@ function showMonsterDetail(id){
   const before = showMonsterDetail._prev && showMonsterDetail._prev.id === id ? showMonsterDetail._prev.stats : null;
   const up = k => (before && stats[k] > before[k]) ? ' up' : '';
   showMonsterDetail._prev = { id, stats };
-  const nextStats = scaledStats(m, owned.star, Math.min(lvCap, owned.level + 1));
+  const nextStats = statsWithRelic(m, owned.star, Math.min(lvCap, owned.level + 1), equippedRelicId);
   const statRow = (label, key) => {
     const grow = nextStats[key] - stats[key];
     return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}</b>${grow > 0 ? `<i class="stat-grow">+${grow}/Lv</i>` : ''}</div>`;
