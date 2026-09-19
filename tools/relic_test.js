@@ -7,7 +7,7 @@ const api = load('game.js', src => src + `;global.__e = {
   levelUpRelic, atRelicWall, breakRelicWall, relicLevelCap, relicLevelStop, relicWallGold, relicWallScrap,
   useRelicDupe, RELIC_MAX_DUPE_USE,
   upgradeRelicSkill, relicSkillMult, relicSkillCoreTier, RELIC_SKILL_MAX, relicEffectMatches, applyRelicToUnit,
-  craftRelicCore, itemName,
+  itemName, idleAmount, idleCoreAmount, collectFacility, baseState, FACILITIES,
   getItem, addItem, addGold, buildUnit, MON_BY_ID, run: api => api,
 };`);
 const E = global.__e;
@@ -77,15 +77,19 @@ ok('スキルLv10まで上げられる', st.skillLv === 10, st.skillLv);
 ok('上限を超えては上げられない', E.upgradeRelicSkill('rel_ygg_leaf') === false);
 ok('コアのティア: Lv1-3はTier1・4-6はTier2・7-9はTier3', E.relicSkillCoreTier(1) === 1 && E.relicSkillCoreTier(4) === 2 && E.relicSkillCoreTier(7) === 3);
 
-// --- relic core crafting: scrap → コアTier1 → コアTier2 (Tier3はこの経路では作れない) ---
-S.items.relic_scrap = 100000;
-S.items.relic_core_1 = 0;
-S.gold = 1e9;
-E.craftRelicCore(1, 'max');
-ok('スクラップからコアTier1を錬成できる', E.getItem('relic_core_1') > 0, E.getItem('relic_core_1'));
-const core1Before = E.getItem('relic_core_1');
-E.craftRelicCore(2, 'max');
-ok('コアTier1からコアTier2を錬成できる', E.getItem('relic_core_2') > 0 && E.getItem('relic_core_1') < core1Before);
+// --- アーティファクト工房(旧鍛冶場): scrap and core come only from idle production, no crafting ---
+ok('アーティファクト工房に改名', E.FACILITIES.smithy.name === 'アーティファクト工房');
+S.clearedStages.push('q2_10'); // unlocks the workshop facility
+const bs = E.baseState().smithy;
+bs.at = Date.now() - 3 * 3600 * 1000; // 3 hours ago, at facility Lv1
+bs.carry = 0; bs.coreCarry = 0;
+const scrapIdle = E.idleAmount('smithy');
+const coreIdle = E.idleCoreAmount();
+ok('Lv1で3時間経過するとコアTierIが約1個貯まる', Math.abs(coreIdle - 1) < 0.05, coreIdle);
+const before2 = { scrap: E.getItem('relic_scrap'), core: E.getItem('relic_core_1') };
+E.collectFacility('smithy', true);
+ok('工房を回収するとスクラップとコアが両方増える', E.getItem('relic_scrap') > before2.scrap && E.getItem('relic_core_1') > before2.core,
+  [before2, { scrap: E.getItem('relic_scrap'), core: E.getItem('relic_core_1') }]);
 ok('コアTier3の名称表示', E.itemName('relic_core_3') === '遺物のコア TierIII');
 
 // --- condition matching ---
@@ -102,5 +106,8 @@ const withRelic = E.buildUnit(mon, 1, false, mon.rarity, false, 30, { skillLv:1,
 E.applyRelicToUnit(withRelic, mon, 'rel_ygg_leaf');
 ok('遺物装備でmaxHpが上がる', withRelic.maxHp > plain.maxHp, [plain.maxHp, withRelic.maxHp]);
 ok('遺物装備でSTRも上がる(ヒュームなのでエルフ条件は乗らない)', withRelic.str > plain.str, [plain.str, withRelic.str]);
+
+// --- weekly mission tracking: レベル上げ・スキルLv上げどちらも relicUpgrade をカウント ---
+ok('週間ミッション用カウンタが両方の行動で増える', (S.weekly.counts.relicUpgrade || 0) > 0, S.weekly.counts.relicUpgrade);
 
 console.log('done');

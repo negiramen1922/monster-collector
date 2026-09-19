@@ -3582,32 +3582,13 @@ function craftMat(fam, kind, toTier, times){
   render();
 }
 
-/* ---- relic core crafting: scrap → コアTier1 → コアTier2 (Tier3はこの経路では作れない) ---- */
-const RELIC_CORE_RATIO = { 1: 300, 2: 5 }; // toTier: 1=relic_scrapの個数、2=relic_core_1の個数(5個→1個の既存パターン踏襲)
-const RELIC_CORE_GOLD = { 1: 500, 2: 2000 };
-function craftRelicCore(toTier, times){
-  const from = toTier === 1 ? 'relic_scrap' : `relic_core_${toTier - 1}`;
-  const ratio = RELIC_CORE_RATIO[toTier];
-  if(!ratio) return; // Tier3はこの経路では作れない
-  const can = Math.min(Math.floor(getItem(from) / ratio), Math.floor((STATE.gold || 0) / RELIC_CORE_GOLD[toTier]));
-  const n = Math.min(can, times === 'max' ? can : Number(times || 1));
-  if(n <= 0){ toast(getItem(from) < ratio ? `${itemName(from)}が足りません` : 'ゴールドが足りません'); return; }
-  addItem(from, -n * ratio);
-  addGold(-n * RELIC_CORE_GOLD[toTier]);
-  addItem(`relic_core_${toTier}`, n);
-  track('craft', n);
-  playSfx('buff');
-  toast(`${itemName(`relic_core_${toTier}`)}を${n}個合成しました`);
-  saveState();
-  render();
-}
-
 /* ---- base facilities (idle production, up to 24 h) ---- */
 const IDLE_MAX_MS = 24 * 3600 * 1000;
 const FACILITIES = {
   mine: { name: '鉱山', icon: '⛏️', desc: 'ゴールドを生産します', perHour: [0, 1000, 2000, 4000, 7000, 10000] },
   lab: { name: '研究所', icon: '⚗️', desc: 'EXPポットを生産します(EXP換算)', perHour: [0, 5, 15, 40, 100, 200], maxTier: [0, 1, 1, 2, 3, 3] },
-  smithy: { name: '鍛冶場', icon: '🔨', desc: '遺物のスクラップを生産します', perHour: [0, 4, 8, 16, 28, 45] },
+  smithy: { name: 'アーティファクト工房', icon: '🔨', desc: '遺物のスクラップとコアを生産します',
+    perHour: [0, 4, 8, 16, 28, 45], corePerHour: [0, 1 / 3, 2 / 3, 1.25, 2, 3] },
   alchemy: { name: '錬金術', icon: '🔮', desc: '育成素材を合成します(下位5個 → 上位1個)' },
 };
 const FACILITY_MAX_LV = 5;
@@ -3617,7 +3598,7 @@ const FACILITY_UNLOCK = { mine: null, lab: 'q1_03', alchemy: 'q1_03', smithy: 'q
 const FACILITY_LV_UNLOCK = [null, null, 'q1_05', 'q1_10', 'q2_10', 'q3_10'];
 function baseState(){
   if(!STATE.base) STATE.base = {};
-  ['mine', 'lab', 'smithy'].forEach(k => { if(!STATE.base[k]) STATE.base[k] = { lv: 1, at: Date.now(), carry: 0 }; });
+  ['mine', 'lab', 'smithy'].forEach(k => { if(!STATE.base[k]) STATE.base[k] = { lv: 1, at: Date.now(), carry: 0, coreCarry: 0 }; });
   return STATE.base;
 }
 function facilityUnlocked(key){ const req = FACILITY_UNLOCK[key]; return !req || STATE.clearedStages.includes(req); }
@@ -3626,6 +3607,12 @@ function idleAmount(key){
   const f = baseState()[key];
   const ms = Math.min(IDLE_MAX_MS, Date.now() - f.at);
   return (ms / 3600000) * FACILITIES[key].perHour[f.lv] + (f.carry || 0);
+}
+// smithy's second track: 遺物のコアTierI, produced alongside relic_scrap from the same timer
+function idleCoreAmount(){
+  const f = baseState().smithy;
+  const ms = Math.min(IDLE_MAX_MS, Date.now() - f.at);
+  return (ms / 3600000) * FACILITIES.smithy.corePerHour[f.lv] + (f.coreCarry || 0);
 }
 // lab EXP → pots, using the highest tier the lab can make
 function expToPots(exp, maxTier){
@@ -3642,6 +3629,7 @@ function collectFacility(key, silent){
   if(!facilityUnlocked(key)) return null;
   const f = baseState()[key];
   const amount = idleAmount(key);
+  const coreAmount = key === 'smithy' ? idleCoreAmount() : 0;
   f.at = Date.now();
   if(key === 'mine'){
     const g = Math.floor(amount);
@@ -3654,8 +3642,16 @@ function collectFacility(key, silent){
     const n = Math.floor(amount);
     f.carry = amount - n;
     addItem('relic_scrap', n);
-    if(!silent && n > 0) toast(`${itemName('relic_scrap')}を${n}個受け取りました`);
-    return { scrap: n };
+    const cn = Math.floor(coreAmount);
+    f.coreCarry = coreAmount - cn;
+    addItem('relic_core_1', cn);
+    if(!silent && (n > 0 || cn > 0)){
+      const parts = [];
+      if(n > 0) parts.push(`${itemName('relic_scrap')}×${n}`);
+      if(cn > 0) parts.push(`${itemName('relic_core_1')}×${cn}`);
+      toast(`${parts.join('・')}を受け取りました`);
+    }
+    return { scrap: n, core: cn };
   }
   const { pots, rest } = expToPots(amount, FACILITIES.lab.maxTier[f.lv]);
   f.carry = amount - Math.floor(amount) + rest;
@@ -3795,6 +3791,7 @@ function levelUpRelic(id, mode){
   }
   if(ups === 0){ toast('遺物のスクラップが足りません'); return 0; }
   track('upgrade');
+  track('relicUpgrade', ups);
   saveState();
   if(relicUpgrade && relicUpgrade.relicId === id) renderRelicUpgrade();
   return ups;
@@ -3851,6 +3848,7 @@ function upgradeRelicSkill(id){
   addItem(coreKey, -cost.coreN);
   st.skillLv = (st.skillLv || 1) + 1;
   track('upgrade');
+  track('relicUpgrade', 1);
   playSfx('buff');
   toast(`スキルLv${st.skillLv}になりました`);
   saveState();
@@ -4326,7 +4324,8 @@ const WEEKLY_MISSIONS = [
   { id:'w_stamina', label:'スタミナを600使う',                   event:'staminaUsed',   goal:600, reward:[{ type:'crystal', n:50 }, { type:'item', key:'exp2', n:30 }] },
   { id:'w_dungeon', label:'育成ダンジョンを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:150 }, { type:'item', key:'box_rnd_4', n:1 }] },
   { id:'w_gacha',   label:'ガチャを20回引く',                    event:'gachaPull',     goal:20, reward:[{ type:'crystal', n:150 }, { type:'universal', n:30 }] },
-  { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_core_1', n:1 }] },
+  { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 } ] },
+  { id:'w_relic',   label:'遺物を合計10回強化する',              event:'relicUpgrade',  goal:10, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_core_1', n:5 }] },
 ];
 // achievements: tiered chains. value() reads lifetime stats or the current state.
 const ownedCount = () => Object.keys(STATE.owned).length;
@@ -5048,6 +5047,7 @@ function renderBase(){
         </div></div>`;
     }
     const amount = idleAmount(key);
+    const coreAmount = key === 'smithy' ? idleCoreAmount() : 0;
     const pct = Math.min(100, (Date.now() - st.at) / IDLE_MAX_MS * 100);
     const full = pct >= 100;
     const next = st.lv + 1;
@@ -5055,15 +5055,15 @@ function renderBase(){
     const lvLocked = canUp && !facilityLvUnlocked(next);
     const cost = canUp ? FACILITY_UPGRADE_GOLD[next] : 0;
     const stored = key === 'mine' ? goldText(Math.floor(amount))
-      : key === 'smithy' ? (Math.floor(amount) > 0 ? `${itemIcon('relic_scrap')}×${Math.floor(amount)}` : 'まだありません')
+      : key === 'smithy' ? [Math.floor(amount) > 0 ? `${itemIcon('relic_scrap')}×${Math.floor(amount)}` : '', Math.floor(coreAmount) > 0 ? `${itemIcon('relic_core_1')}×${Math.floor(coreAmount)}` : ''].filter(Boolean).join(' ') || 'まだありません'
       : Object.entries(expToPots(amount, FACILITIES.lab.maxTier[st.lv]).pots).map(([k, n]) => `${itemIcon(k)}×${n}`).join(' ') || 'まだありません';
     const rate = key === 'mine' ? `${goldText(f.perHour[st.lv])}/時`
-      : key === 'smithy' ? `${itemName('relic_scrap')} ${f.perHour[st.lv]}/時`
+      : key === 'smithy' ? `${itemName('relic_scrap')} ${f.perHour[st.lv]}/時・${itemName('relic_core_1')} ${f.corePerHour[st.lv].toFixed(2)}/時`
       : `EXP ${f.perHour[st.lv]}/時(Tier${TIER_LABEL[f.maxTier[st.lv]]}まで)`;
     const nextRate = canUp ? (key === 'mine' ? `${goldText(f.perHour[next])}/時`
-      : key === 'smithy' ? `${itemName('relic_scrap')} ${f.perHour[next]}/時`
+      : key === 'smithy' ? `${itemName('relic_scrap')} ${f.perHour[next]}/時・${itemName('relic_core_1')} ${f.corePerHour[next].toFixed(2)}/時`
       : `EXP ${f.perHour[next]}/時・Tier${TIER_LABEL[f.maxTier[next]]}まで`) : '';
-    const ready = amount > 0;
+    const ready = amount > 0 || coreAmount > 0;
     return `
       <div class="panel facility ${ready ? 'ready' : ''}">
         <div class="fc-head">
@@ -5114,28 +5114,6 @@ function renderBase(){
             </div>`).join('')}
         </div>
       </div>`;
-  const relicCoreCraft = !facilityUnlocked('smithy') ? '' : `
-      <div class="panel facility">
-        <div class="fc-head"><span class="fc-ic">🔮</span>
-          <div class="fc-body"><div class="fc-name">遺物のコア錬成</div></div>
-        </div>
-        <div class="fc-sub">遺物のスキル強化に使う素材(遺物ごとの区別なし)。TierIIIはこの錬成では作れません。</div>
-        <div class="alc-list">
-          ${[1, 2].map(t => {
-            const from = t === 1 ? 'relic_scrap' : 'relic_core_1';
-            const ratio = RELIC_CORE_RATIO[t];
-            const n = Math.min(Math.floor(getItem(from) / ratio), Math.floor((STATE.gold || 0) / RELIC_CORE_GOLD[t]));
-            return `
-            <div class="alc-row">
-              <span class="alc-name">${itemIcon(from)}${itemName(from)}×${ratio}</span>
-              <span class="alc-have">所持 ${getItem(from)}</span>
-              <span class="alc-btns">
-                <button class="btn btn-sm ${n ? '' : 'btn-ghost'}" data-craft-core="${t}" ${n ? '' : 'disabled'} title="まとめて合成">→${itemName(`relic_core_${t}`)}${n ? `×${n}` : ''}(${goldText(RELIC_CORE_GOLD[t])})</button>
-              </span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`;
   return `
     <div class="screen-head">
       <div class="screen-title">拠点</div>
@@ -5145,8 +5123,7 @@ function renderBase(){
     ${facilityCard('mine')}
     ${facilityCard('lab')}
     ${facilityCard('smithy')}
-    ${alchemy}
-    ${relicCoreCraft}`;
+    ${alchemy}`;
 }
 
 // inventory modal (with box opening)
@@ -10376,8 +10353,6 @@ function handlePhoneClick(ev){
   if(alcEl){ alchemyFam = alcEl.dataset.alcFam; render(); return; }
   const craftEl = t.closest('[data-craft]');
   if(craftEl){ const [f, k, tier] = craftEl.dataset.craft.split(':'); craftMat(f, k, Number(tier), 'max'); return; }
-  const craftCoreEl = t.closest('[data-craft-core]');
-  if(craftCoreEl){ craftRelicCore(Number(craftCoreEl.dataset.craftCore), 'max'); return; }
   const dtabEl = t.closest('[data-dungeon-tab]');
   if(dtabEl){ dungeonTab = dtabEl.dataset.dungeonTab; render(); return; }
   if(t.closest('[data-open-bag]')){ bagSelect = null; renderBag(); return; }
