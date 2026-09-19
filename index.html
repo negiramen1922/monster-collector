@@ -1864,6 +1864,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; white-space:nowrap; }
 .tier-tab.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
 .tier-tab.locked{ opacity:.45; }
+.tier-progress{ margin-bottom:8px; gap:8px; }
+.tp-stars{ font-size:13px; font-weight:800; color:var(--gold); white-space:nowrap; }
+.tier-chests{ display:flex; gap:6px; }
+.tier-chest{ display:flex; flex-direction:column; align-items:center; gap:1px; font-family:inherit;
+  padding:4px 8px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
+  color:var(--dim); cursor:pointer; line-height:1.3; }
+.tier-chest .tc-ic{ font-size:15px; }
+.tier-chest .tc-star{ font-size:9px; font-weight:800; }
+.tier-chest.ready{ border-color:var(--gold); background:rgba(232,180,85,.14); color:var(--gold);
+  animation:guide-pulse 1.6s ease-in-out infinite; }
+.tier-chest.done{ opacity:.5; }
+.tier-chest.locked{ opacity:.55; cursor:default; }
 .stage-row{ width:100%; display:flex; align-items:center; gap:10px; text-align:left; margin-bottom:9px;
   padding:12px; border-radius:15px; border:1px solid var(--line); background:var(--panel); cursor:pointer;
   font-family:inherit; color:var(--text); }
@@ -3107,6 +3119,7 @@ const DEFAULT_STATE = () => ({
   vip: false,
   friends: [],      // [{ uid, playerId, name, level, support:{id,star,level,skillLv,ultLv,passiveLv}|null }]
   borrowed: null,   // { uid, name, mon:{...} } - the friend's お助けキャラ currently on loan
+  tierChests: {},   // `${tierKey}_${stars}` → true once that milestone chest is claimed
 });
 
 let STATE = null;
@@ -3158,6 +3171,7 @@ function normalizeState(){
   Object.keys(STATE.pendingSouls).forEach(id => { if(!MON_BY_ID[id]) delete STATE.pendingSouls[id]; });
   if(!STATE.friends) STATE.friends = [];
   if(STATE.borrowed === undefined) STATE.borrowed = null;
+  if(!STATE.tierChests) STATE.tierChests = {};
   syncHelperMon();
   if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
     id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
@@ -4408,6 +4422,37 @@ function tierOf(stage){ return QUEST_TIERS.find(t => t.key === stage.tier); }
 function tierUnlocked(key){
   const first = STAGES.find(st => st.tier === key);
   return first ? stageUnlocked(first) : false;
+}
+
+// per-tier star milestone chests: each difficulty tier is 10 stages × ★3 = ★30 max
+const TIER_STAR_CHESTS = [{ stars: 10, crystals: 300 }, { stars: 20, crystals: 500 }, { stars: 30, crystals: 800 }];
+function tierStarsOf(key){ return STAGES.filter(st => st.tier === key).reduce((a, st) => a + stageStars(st.id), 0); }
+function tierChestClaimed(key, stars){ return !!(STATE.tierChests && STATE.tierChests[`${key}_${stars}`]); }
+function claimTierChest(key, stars){
+  const chest = TIER_STAR_CHESTS.find(c => c.stars === stars);
+  if(!chest || tierChestClaimed(key, stars)) return;
+  if(tierStarsOf(key) < stars){ toast(`★${stars}が必要です`); return; }
+  if(!STATE.tierChests) STATE.tierChests = {};
+  STATE.tierChests[`${key}_${stars}`] = true;
+  grantRewards([{ type: 'crystal', n: chest.crystals }]);
+  track('upgrade');
+  playSfx('confirm');
+  toast(`💎${chest.crystals}を受け取りました`);
+  saveState();
+  render();
+}
+function renderTierChests(key, stars){
+  return `
+    <div class="tier-chests">
+      ${TIER_STAR_CHESTS.map(c => {
+        const claimed = tierChestClaimed(key, c.stars);
+        const ready = !claimed && stars >= c.stars;
+        return `<button class="tier-chest ${claimed ? 'done' : ready ? 'ready' : 'locked'}" data-tier-chest="${key}:${c.stars}" ${ready ? '' : 'disabled'} title="★${c.stars}で💎${c.crystals}">
+          <span class="tc-ic">${claimed ? '✅' : '🎁'}</span>
+          <span class="tc-star">★${c.stars}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
 }
 
 /* ---- guide mascots: small friendly monsters that narrate onboarding ---- */
@@ -6430,9 +6475,14 @@ function renderBattleSelect(){
           ${open && !t.disabled ? '' : '🔒'}${t.short || t.label}</button>`;
       }).join('')}
     </div>
+    ${questTier !== 'tu' ? `
+    <div class="tier-progress row-between">
+      <div class="tp-stars">★${tierStars} / ${list2.length * 3}</div>
+      ${renderTierChests(questTier, tierStars)}
+    </div>` : ''}
     <div class="screen-sub" style="margin-bottom:9px;">
       ${questTier === 'tu' ? 'ゲームの遊び方を順番に覚えましょう。スタミナは使いません。'
-        : `${tier2.label}　推奨Lv${tier2.lv[0]}〜${tier2.lv[1]}　★${tierStars}/${list2.length * 3}・★3クリアで周回できます(VIP限定)`}
+        : `${tier2.label}　推奨Lv${tier2.lv[0]}〜${tier2.lv[1]}・★3クリアで周回できます(VIP限定)`}
     </div>
     ${list2.map(st => renderStageRow(st)).join('')}` : ''}
 
@@ -9866,6 +9916,8 @@ function handlePhoneClick(ev){
   if(t.closest('[data-quest-back]')){ questTier = null; render(); return; }
   const evtEl = t.closest('[data-event-tier]');
   if(evtEl){ eventKey = evtEl.dataset.eventTier; render(); return; }
+  const chestEl = t.closest('[data-tier-chest]');
+  if(chestEl){ const [key, stars] = chestEl.dataset.tierChest.split(':'); claimTierChest(key, Number(stars)); return; }
   const openEl = t.closest('[data-stage-open]');
   if(openEl){ stageSheet = openEl.dataset.stageOpen; renderStageSheet(); return; }
   if(t.closest('[data-close-sheet]')){ stageSheet = null; closeModal(); return; }
