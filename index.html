@@ -1807,8 +1807,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .lv-hint{ margin:6px 0 0; }
 .skill-upgrade{ display:flex; align-items:center; justify-content:space-between; gap:9px;
   margin:9px 0 0; padding:9px 0 0; border-top:1px dashed var(--line); }
-.skill-upgrade .btn{ flex:none; max-width:56%; font-size:10.5px; padding:7px 10px; white-space:nowrap; }
-.skill-upgrade .cost-item{ margin-left:4px; }
+.skill-upgrade .btn{ flex:none; font-size:10.5px; padding:7px 14px; white-space:nowrap; }
+.skill-up-modal{ text-align:left; }
+.su-cost-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:4px; }
+.su-cost-chip{ width:100%; display:flex; align-items:center; gap:8px; font-family:inherit;
+  font-size:12px; padding:9px 10px; border-radius:11px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--text); cursor:pointer; text-align:left; }
+.su-cost-chip.short{ border-color:rgba(214,90,90,.5); }
+.su-cost-chip.open{ border-color:var(--gold); }
+.su-cost-name{ flex:1; min-width:0; }
+.su-cost-n{ font-weight:800; color:var(--text); }
+.su-cost-chip.short .su-cost-n{ color:var(--danger); }
+.su-shortcuts{ display:flex; flex-direction:column; gap:6px; margin:2px 0 2px 4px; padding-left:10px; border-left:2px solid var(--line); }
 
 /* ---------- party coverage + battle header/telop ---------- */
 #phone.in-battle #statusbar, #phone.in-battle #nav{ display:none; }
@@ -3387,6 +3397,71 @@ function upgradeSkillLevel(id, field){
   saveState();
   showMonsterDetail(id);
   render();
+}
+
+// skill/passive/ult level-up confirm modal: the material list can run to 6-8 chips
+// (2 families × up to 4 tiers), which used to overflow the inline upgrade button.
+let skillUpgradeModal = null; // { id, field } while this modal is open
+let skillUpgradeShort = null; // which cost chip's box/quest shortcuts are expanded
+function openSkillUpgradeModal(id, field){
+  skillUpgradeModal = { id, field };
+  skillUpgradeShort = null;
+  renderSkillUpgradeModal();
+}
+function closeSkillUpgradeModal(){
+  const m = skillUpgradeModal;
+  skillUpgradeModal = null;
+  skillUpgradeShort = null;
+  if(m) showMonsterDetail(m.id);
+}
+function renderSkillUpgradeModal(){
+  const { id, field } = skillUpgradeModal;
+  const owned = STATE.owned[id];
+  const m = MON_BY_ID[id];
+  if(!owned || !m){ closeSkillUpgradeModal(); return; }
+  const lv = owned[field];
+  const cap = skillCapOf(owned);
+  const maxed = lv >= cap;
+  const list = maxed ? [] : skillCostList(m, field, lv);
+  const allOk = list.every(c => getItem(c.key) >= c.n);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal skill-up-modal" role="dialog" aria-label="${SKILL_KINDS[field].label}アップ">
+      <button class="fs-close" data-close-skill-up="1" aria-label="閉じる">×</button>
+      <h3>${SKILL_KINDS[field].label} Lv${lv} → Lv${lv + 1}</h3>
+      ${maxed ? `<p class="fs-note">これ以上は上げられません。</p>` : `
+      <p class="fs-note">消費素材(タップでショートカット)</p>
+      <div class="su-cost-list">
+        ${list.map(c => {
+          const have = getItem(c.key);
+          const short = have < c.n;
+          const info = parseMat(c.key);
+          const boxKey = info ? `box_sel_${info.tier}` : null;
+          const hasBox = boxKey ? getItem(boxKey) > 0 : false;
+          const open = skillUpgradeShort === c.key;
+          return `
+            <div class="su-cost-row">
+              <button class="su-cost-chip ${short ? 'short' : ''} ${open ? 'open' : ''}" data-cost-toggle="${c.key}">
+                <span class="su-cost-ic">${itemIcon(c.key)}</span>
+                <span class="su-cost-name">${itemName(c.key)}</span>
+                <b class="su-cost-n">${have} / ${c.n}</b>
+              </button>
+              ${open ? `
+                <div class="su-shortcuts">
+                  <button class="btn btn-sm ${hasBox ? '' : 'btn-ghost'}" data-use-box="${boxKey}:${info.fam}:${info.kind}" ${hasBox ? '' : 'disabled'}>
+                    選択BOXを消費 ${itemName(boxKey)}(所持${getItem(boxKey)})
+                  </button>
+                  <button class="btn btn-ghost btn-sm" data-goto-mat-quest="1">素材クエストに行く</button>
+                </div>` : ''}
+            </div>`;
+        }).join('')}
+      </div>`}
+      <div class="ss-actions">
+        <button class="btn btn-ghost" data-close-skill-up="1">閉じる</button>
+        <button class="btn ${maxed || !allOk ? 'btn-ghost' : ''}" data-confirm-skill-up="1" ${maxed || !allOk ? 'disabled' : ''}>レベルアップする</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
 }
 
 /* ---- boxes ---- */
@@ -5624,8 +5699,6 @@ function showMonsterDetail(id){
   const upgradeBox = field => {
     const lv = owned[field];
     const maxed = lv >= skillCap;
-    const list = maxed ? [] : skillCostList(m, field, lv);
-    const ok = list.every(c => getItem(c.key) >= c.n);
     const pct = Math.min(100, Math.round(lv / skillCap * 100));
     return `
       <div class="skill-upgrade">
@@ -5633,9 +5706,8 @@ function showMonsterDetail(id){
           <span class="su-lv">${SKILL_KINDS[field].label} <b class="lv-stat">${lv}</b><span class="lv-note">/ ${skillCap}</span></span>
           <span class="su-bar"><i style="width:${pct}%;"></i></span>
         </div>
-        <button class="btn btn-sm ${maxed || !ok ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed || !ok ? 'disabled' : ''}>
-          ${maxed ? (lv >= 12 ? 'MAX' : `★${lv >= 10 && owned.star < 6 ? 6 : 7}で解放`)
-            : `Lv${lv + 1}へ ${list.map(c => `<span class="cost-item ${getItem(c.key) >= c.n ? '' : 'short'}" title="${itemName(c.key)}">${itemIcon(c.key)}×${c.n}</span>`).join('')}`}
+        <button class="btn btn-sm ${maxed ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed ? 'disabled' : ''}>
+          ${maxed ? (lv >= 12 ? 'MAX' : `★${lv >= 10 && owned.star < 6 ? 6 : 7}で解放`) : `Lv${lv + 1}へ`}
         </button>
       </div>`;
   };
@@ -9556,7 +9628,43 @@ function handlePhoneClick(ev){
   const wallEl = t.closest('[data-break-wall]');
   if(wallEl){ breakWall(wallEl.dataset.breakWall); return; }
   const skEl = t.closest('[data-skill-up]');
-  if(skEl){ upgradeSkillLevel(skEl.dataset.skillUp, skEl.dataset.field); return; }
+  if(skEl){ openSkillUpgradeModal(skEl.dataset.skillUp, skEl.dataset.field); return; }
+  if(skillUpgradeModal){
+    if(t.closest('[data-close-skill-up]')){ closeSkillUpgradeModal(); return; }
+    if(t.closest('[data-confirm-skill-up]')){
+      const { id, field } = skillUpgradeModal;
+      skillUpgradeModal = null;
+      upgradeSkillLevel(id, field);
+      return;
+    }
+    const costToggleEl = t.closest('[data-cost-toggle]');
+    if(costToggleEl){
+      const key = costToggleEl.dataset.costToggle;
+      skillUpgradeShort = skillUpgradeShort === key ? null : key;
+      renderSkillUpgradeModal();
+      return;
+    }
+    const useBoxEl = t.closest('[data-use-box]');
+    if(useBoxEl){
+      const [boxKey, fam, kind] = useBoxEl.dataset.useBox.split(':');
+      const tier = Number(boxKey.split('_')[2]);
+      const got = openSelectBox(tier, fam, kind);
+      if(got){ const [k, n] = Object.entries(got)[0]; playSfx('confirm'); toast(`${itemName(k)}を${n}個受け取りました`); }
+      skillUpgradeShort = null;
+      renderSkillUpgradeModal();
+      return;
+    }
+    if(t.closest('[data-goto-mat-quest]')){
+      if(!tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
+      skillUpgradeModal = null;
+      skillUpgradeShort = null;
+      stageTab = 'dungeon';
+      dungeonTab = 'mat';
+      closeModal();
+      goto('battle');
+      return;
+    }
+  }
   const colEl = t.closest('[data-collect]');
   if(colEl){ collectFacility(colEl.dataset.collect); saveState(); render(); return; }
   const fupEl = t.closest('[data-facility-up]');
