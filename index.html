@@ -939,6 +939,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .su-bar i{ display:block; height:100%; background:linear-gradient(90deg,var(--gold-deep),var(--gold)); }
 .skill-desc.elem-flavor{ color:var(--dim); margin-top:3px; }
 .skill-desc.skill-note{ color:var(--dim); font-size:10.5px; margin-top:3px; font-style:italic; }
+.skill-desc.lv-scaled{ margin-top:3px; }
+.lv-scale-val{ color:var(--gold); font-weight:800; }
 
 .upgrade-section-title{ font-weight:800; font-size:12.5px; margin:4px 0 8px; color:var(--gold); }
 .upgrade-row{}
@@ -1864,7 +1866,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
-.explore-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:10px; }
+.explore-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px; }
+.gacha-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.gacha-tabs .stage-tab{ flex:1; min-width:100px; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
 .af-cycle{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--panel2); border:1px dashed var(--line);
   border-radius:12px; padding:9px 10px; margin-bottom:7px; }
@@ -2318,6 +2322,7 @@ const HIGH_PITY_PULLS = 50;      // ★4+ guaranteed on the 50th pull without on
 const TEN_PULL_MIN_STAR = 3;     // 10th slot of a 10-pull is ★3+ if the first 9 weren't
 const SPARK_POINTS = 200;        // summon points (1 per pull, carried over) → pickup ★5
 const DEFAULT_BANNER = {
+  key: 'default',
   name: '星霜の呼び声',
   pickup: 'm31',
   featured: ['m31', 'm24', 'm08'],
@@ -2380,11 +2385,25 @@ function activeEvents(){
 function eventActive(){ return activeEvents().length > 0; }
 // when several events overlap, the most recently started one is the gacha's featured pickup
 // (ties go to whichever is later in EVENTS, i.e. the one added most recently)
+// every pickup the gacha screen could show right now: one per active event, or the
+// evergreen default when no event is running. Always at least one entry.
+function activeBanners(){
+  const evs = activeEvents();
+  return evs.length ? evs.map(ev => ({ key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured })) : [DEFAULT_BANNER];
+}
+let gachaBannerKey = null; // player's tab pick among activeBanners(); null = auto (most recent)
+// when several events overlap, default to the most recently started one (ties go to
+// whichever is later in EVENTS) unless the player has picked a tab themselves
 function currentBanner(){
+  const banners = activeBanners();
+  if(gachaBannerKey){
+    const picked = banners.find(b => b.key === gachaBannerKey);
+    if(picked) return picked;
+  }
   const evs = activeEvents();
   if(!evs.length) return DEFAULT_BANNER;
   const ev = evs.reduce((a, b) => new Date(b.startAt) >= new Date(a.startAt) ? b : a);
-  return { name: ev.name, pickup: ev.pickup, featured: ev.featured };
+  return { key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured };
 }
 
 
@@ -4998,7 +5017,9 @@ function renderHome(){
 /* ---------------- GACHA ---------------- */
 
 function renderGacha(){
-  const pickup = MON_BY_ID[currentBanner().pickup];
+  const banners = activeBanners();
+  const banner = currentBanner();
+  const pickup = MON_BY_ID[banner.pickup];
   const pullsToHigh = Math.max(1, HIGH_PITY_PULLS - STATE.pitySinceRare);
   const highPct = Math.min(100, Math.round((STATE.pitySinceRare / HIGH_PITY_PULLS) * 100));
   const sparkPct = Math.min(100, Math.round((STATE.summonPoints / SPARK_POINTS) * 100));
@@ -5007,11 +5028,15 @@ function renderGacha(){
   const rates = Object.entries(RARITY_WEIGHTS).map(([r, w]) => `★${r} ${w}%`).join('　');   // 下の「詳しい仕様」で使う
 
   return `
+    ${banners.length >= 2 ? `
+    <div class="gacha-tabs" role="tablist">
+      ${banners.map(b => `<button class="stage-tab ${banner.key === b.key ? 'on' : ''}" data-gacha-banner="${b.key}" role="tab" aria-selected="${banner.key === b.key}">${b.name}</button>`).join('')}
+    </div>` : ''}
     <div class="gc-hero">
       <div class="pixel gc-tag">PICK UP</div>
       <div class="gc-hero-row">
         <div class="gc-hero-body">
-          <div class="gc-name">${currentBanner().name}</div>
+          <div class="gc-name">${banner.name}</div>
           <div class="gc-sub">★${pickup.rarity}「${pickup.name}」${ELEM_LABEL[pickup.element]}・${ROLE_LABEL[pickup.role]}
             <br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
@@ -5470,28 +5495,37 @@ function showGachaResults(results, before){
 /* ---------------- MONSTER DETAIL ---------------- */
 
 // one line per action for the detail modal
-function kitLinesHtml(m, star, after){
+function kitLinesHtml(m, star, owned, after){
   const kit = kitOf(m);
   const slots = skillSlotsOf(m, star);
   const typeOf = act => act.atk ? ATK_TYPE_LABEL[act.atk] : '―';
-  const card = (tag, kind, act, meta, upgrade) => `
+  // skills/ults scale +5%/level (lvScale); the base desc text is written for Lv1, so the
+  // power % it quotes goes stale the moment the player upgrades - show the live number too.
+  const scaledPowLine = (kind, act, lv) => {
+    if((kind !== 'skill' && kind !== 'ult') || act.pow == null || (lv || 1) <= 1) return '';
+    const pct = Math.round(act.pow * lvScale(lv) * 100);
+    return `<div class="skill-desc lv-scaled">現在の威力: <b class="lv-scale-val">${pct}%</b>(${kind === 'ult' ? '必殺技' : 'スキル'}Lv${lv})</div>`;
+  };
+  const card = (tag, kind, act, meta, upgrade, lv) => `
     <div class="skill-card k-${kind}">
       <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-${kind}">${tag}</span>${act.name}</span><span class="skill-ct">${meta}</span></div>
       <div class="skill-desc">${act.desc || ''}</div>
+      ${scaledPowLine(kind, act, lv)}
       ${act.tgt || act.tgtText ? `<div class="skill-desc elem-flavor">🎯 ${act.tgtText || TGT_TEXT[act.tgt] || ''}${act.atk && !act.tgtText ? `・${typeOf(act)}` : ''}</div>` : ''}
       ${upgrade || ''}
     </div>`;
   const skill2 = kit.skill2 || kit.skill1;
   const two = slots.length >= 2;
   const a = after || {};
+  const o = owned || {};
   return [
     card('通常', 'normal', kit.normal, typeOf(kit.normal), ''),
-    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill),
+    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill, o.skillLv),
     two
-      ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill)
+      ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill, o.skillLv)
       : `<div class="skill-card locked-slot">🔒 ★${SECOND_SKILL_STAR}に昇格すると、スキル2「${skill2.name}」が使えるようになります</div>`,
     card('パッシブ', 'passive', kit.passive, '常時', a.passive),
-    card('必殺技', 'ult', kit.ult, `SP ${kit.ult.sp}`, a.ult),
+    card('必殺技', 'ult', kit.ult, `SP ${kit.ult.sp}`, a.ult, o.ultLv),
   ].join('');
 }
 
@@ -5642,7 +5676,7 @@ function showMonsterDetail(id){
 
       <div class="panel panel-tight detail-skill-box">
         <div class="mc-head">スキル</div>
-        ${kitLinesHtml(m, owned.star, { skill: upgradeBox('skillLv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
+        ${kitLinesHtml(m, owned.star, owned, { skill: upgradeBox('skillLv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
       </div>
 
       <div class="detail-level-box promo-box">
@@ -6100,6 +6134,7 @@ let stageTab = 'main';
 let questTier = null;  // selected difficulty (null = difficulty list)
 let stageSheet = null; // stage whose details are shown
 let dungeonTab = 'exp';
+let eventKey = null;   // which event's stage list is shown when 2+ events are running
 
 function dropIconsHtml(st){
   if(!st.drops) return '';
@@ -6283,7 +6318,14 @@ function renderEventCard(ev){
 function renderEventTab(){
   const evs = activeEvents();
   if(!evs.length) return `<div class="screen-sub" style="margin:28px 0;text-align:center;">現在開催中のイベントはありません</div>`;
-  return evs.map(renderEventCard).join('');
+  if(evs.length === 1) return renderEventCard(evs[0]);
+  if(!evs.some(e => e.key === eventKey)) eventKey = evs[0].key;
+  return `
+    <div class="tier-tabs" role="tablist">
+      ${evs.map(e => `<button class="tier-tab ${eventKey === e.key ? 'on' : ''}" data-event-tier="${e.key}" role="tab" aria-selected="${eventKey === e.key}">${e.icon || '✨'}${e.name}</button>`).join('')}
+    </div>
+    ${renderEventCard(evs.find(e => e.key === eventKey))}
+  `;
 }
 function renderBattleSelect(){
   refreshStamina();
@@ -6306,11 +6348,8 @@ function renderBattleSelect(){
       <button class="stage-tab ${stageTab === 'event' ? 'on' : ''} ${tutorialCleared() ? '' : 'locked'}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">${tutorialCleared() ? '' : '🔒'}イベント${evCount && tutorialCleared() ? ` 🔥${evCount}` : ''}</button>
     </div>
     ${stageTab === 'event' ? renderEventTab() : ''}
-    ${stageTab === 'dungeon' ? `
-      <div class="screen-sub" style="margin-bottom:8px;">⚡${STATE.stamina} / ${STAMINA_MAX}</div>
-      ${renderDungeons()}` : ''}
+    ${stageTab === 'dungeon' ? renderDungeons() : ''}
     ${stageTab === 'main' ? `
-    <div class="screen-sub" style="margin-bottom:9px;">難易度を選んでください。最後のボスを倒すと次の難易度が解放されます。</div>
     <div class="tier-tabs" role="tablist">
       ${QUEST_TIERS.filter(t => !t.hidden).map(t => {
         const open = tierUnlocked(t.key);
@@ -9717,6 +9756,8 @@ function handlePhoneClick(ev){
   const qtEl = t.closest('[data-quest-tier]');
   if(qtEl){ questTier = qtEl.dataset.questTier; render(); return; }
   if(t.closest('[data-quest-back]')){ questTier = null; render(); return; }
+  const evtEl = t.closest('[data-event-tier]');
+  if(evtEl){ eventKey = evtEl.dataset.eventTier; render(); return; }
   const openEl = t.closest('[data-stage-open]');
   if(openEl){ stageSheet = openEl.dataset.stageOpen; renderStageSheet(); return; }
   if(t.closest('[data-close-sheet]')){ stageSheet = null; closeModal(); return; }
@@ -9726,6 +9767,8 @@ function handlePhoneClick(ev){
     if(tab !== 'main' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
     stageTab = tab; render(); return;
   }
+  const gachaBannerEl = t.closest('[data-gacha-banner]');
+  if(gachaBannerEl){ gachaBannerKey = gachaBannerEl.dataset.gachaBanner; render(); return; }
   const debugEl = t.closest('[data-debug]');
   if(debugEl){
     if(debugEl.dataset.debug === 'stamina'){ STATE.stamina = STAMINA_MAX; STATE.staminaAt = Date.now(); }
