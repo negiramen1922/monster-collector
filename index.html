@@ -4205,13 +4205,17 @@ const DEBUG_TOOLS = false;               // test buttons (stamina refill) on the
 const QUEST_TIERS = [
   { key: 'tu', label: 'チュートリアル', short: '入門', lv: [1, 1],   star: [1, 1], bossStar: 1, skill: 1,  waves: 3 },
   { key: 'q1', label: '初級',   lv: [1, 28],    star: [1, 1], bossStar: 4, skill: 1,  waves: 3, drops: [3, 0, 0], pots: { exp1: 5 } },
+  { key: 'q1h', label: '初級ハード', short: '💀初級', lv: [1, 28],  star: [4, 4], bossStar: 5, skill: 1, waves: 3, hard: 'q1' },
   { key: 'q2', label: '中級',   lv: [30, 58],   star: [2, 2], bossStar: 4, skill: 3,  waves: 3, drops: [4, 2, 0], pots: { exp1: 8, exp2: 2 } },
+  { key: 'q2h', label: '中級ハード', short: '💀中級', lv: [30, 58], star: [4, 4], bossStar: 5, skill: 3, waves: 3, hard: 'q2' },
   { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [4, 3, 1], pots: { exp2: 4 } },
+  { key: 'q3h', label: '上級ハード', short: '💀上級', lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
   // not built yet: rebuilt from the bottom up as more monsters are implemented
   { key: 'q4', label: '超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8,  waves: 4, drops: [5, 3, 2], pots: { exp2: 6, exp3: 1 }, disabled: true },
   { key: 'q5', label: '極上級', lv: [150, 196], star: [6, 7], bossStar: 7, skill: 10, waves: 4, drops: [5, 4, 3], pots: { exp3: 3 }, disabled: true },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
+const HARD_TIERS = QUEST_TIERS_ACTIVE.filter(t => t.hard);
 const TERRAIN = {
   plains:  { label: '草原', color: '#5f9c4a' }, forest: { label: '森', color: '#3f7d52' },
   cave:    { label: '洞窟', color: '#6b5a86' }, ruins:  { label: '遺跡', color: '#9a8a62' },
@@ -4350,6 +4354,7 @@ function buildQuestStages(){
   const out = [];
   let prev = null;
   QUEST_TIERS_ACTIVE.forEach(t => {
+    if(t.hard) return; // hard-mode tiers are derived from the normal stages, see buildHardStages()
     QUEST_SPEC[t.key].forEach((sp, i) => {
       const id = t.key === 'tu' ? `tu${i + 1}` : `${t.key}_${String(i + 1).padStart(2, '0')}`;
       const rec = t.key === 'tu' ? 1 : questRec(t.key, i);
@@ -4485,6 +4490,42 @@ const TUTORIAL_PAGES = {
 
 const STAGES = buildQuestStages();
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(st => [st.id, st]));
+
+// hard-mode stages: same composition (terrain/pool/boss/gimmick/pots) as the matching
+// normal quest stage, cloned from the already-built stage objects rather than re-run
+// through buildQuestStages(), with only the difficulty-relevant fields bumped: enemy
+// stars (★1・2→★4、★3・4→★5、★5→★6), gold, firstClear, drop tier and the box rank
+// of boss rewards. The first hard stage of a tier requires a full clear of the normal
+// tier; the rest chain sequentially like normal stages.
+const HARD_STAR_MAP = { 1: 4, 2: 4, 3: 5, 4: 5, 5: 6, 6: 7, 7: 7 };
+function hardStar(star){ return HARD_STAR_MAP[star] || star; }
+function bumpBoxTier(key){
+  const m = /^box_sel_([1-4])$/.exec(key);
+  return m ? `box_sel_${Math.min(4, Number(m[1]) + 1)}` : key;
+}
+function buildHardStages(){
+  const out = [];
+  HARD_TIERS.forEach(t => {
+    const list = STAGES.filter(st => st.tier === t.hard);
+    let prev = list.length ? list[list.length - 1].id : null;
+    list.forEach(src => {
+      const id = `${src.id}h`;
+      const waves = src.waves.map(w => w.map(e => ({ ...e, star: hardStar(e.star) })));
+      out.push({
+        ...src,
+        id, tier: t.key, waves, requires: prev,
+        gold: Math.round(src.gold * 1.5),
+        firstClear: src.firstClear ? src.firstClear * 2 : 0,
+        drops: src.drops ? { kinds: src.drops.kinds, tiers: [0, ...src.drops.tiers.slice(0, -1)] } : null,
+        bossReward: src.bossReward ? src.bossReward.map(r => r.type === 'item' ? { ...r, key: bumpBoxTier(r.key) } : r) : null,
+        desc: `${src.desc}(ハードモード:敵の★上昇)`,
+      });
+      prev = id;
+    });
+  });
+  return out;
+}
+buildHardStages().forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
 
 // event stages: hand-built rather than run through buildQuestStages() since they
 // aren't part of the tu/q1-q3 progression (no `requires`, so all of an event's tiers
