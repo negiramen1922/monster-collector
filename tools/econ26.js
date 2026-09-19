@@ -15,15 +15,15 @@ api.STATE=api.DEFAULT_STATE(); const S=api.STATE; S.clearedStages=[];
 const o=S.owned.m06; // ★1 slime
 S.items={exp1:2000}; S.gold=0;
 E.levelUpMonster('m06','max');
-ok('レベル上げ: Lv10の壁で止まる', o.level===10 && E.atWall(o), [o.level]);
+ok('レベル上げ: Lv30の壁で止まる', o.level===30 && E.atWall(o), [o.level]);
 E.levelUpMonster('m06',1);
-ok('壁の間はレベルが上がらない', o.level===10);
+ok('壁の間はレベルが上がらない', o.level===30);
 E.breakWall('m06');
 ok('ゴールド不足では突破できない', E.atWall(o));
 S.gold=100000; E.breakWall('m06');
-ok('ゴールドで突破', !E.atWall(o) && S.gold===100000-E.wallCost(10), [S.gold]);
+ok('ゴールドで突破', !E.atWall(o) && S.gold===100000-E.wallCost(30), [S.gold]);
 E.levelUpMonster('m06','max');
-ok('次の壁(Lv20)まで上がる', o.level===20, o.level);
+ok('次の壁(Lv50)まで上がる', o.level===50, o.level);
 for(let i=0;i<5;i++){ E.breakWall('m06'); E.levelUpMonster('m06','max'); }
 ok('★1の上限はLv50', o.level===50, o.level);
 const potBefore=E.expPotTotal();
