@@ -5,6 +5,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   STATE_ref: () => STATE, DEFAULT_STATE, RELICS, grantRelic, equipRelic, unequipRelic, equippedRelicOf,
   levelUpRelic, atRelicWall, breakRelicWall, relicLevelCap, relicLevelStop, relicWallGold, relicWallScrap,
+  useRelicDupe, RELIC_MAX_DUPE_USE,
   upgradeRelicSkill, relicSkillMult, RELIC_SKILL_MAX, relicEffectMatches, applyRelicToUnit,
   getItem, addItem, addGold, buildUnit, MON_BY_ID, run: api => api,
 };`);
@@ -31,8 +32,8 @@ E.equipRelic('rel_ygg_leaf', 'm21');
 ok('別モンスターに装備できる(単体所持なので同時に2箇所には付けられない設計)', E.equippedRelicOf('m21') === 'rel_ygg_leaf');
 
 // --- leveling: consumes relic_scrap, stops at Lv30 wall ---
-S.items.relic_scrap = 100000;
-S.gold = 100000000;
+S.items.relic_scrap = 1e9;
+S.gold = 1e12;
 E.levelUpRelic('rel_ygg_leaf', 'max');
 const st = S.relics.rel_ygg_leaf;
 ok('Lv30の壁で止まる', st.level === 30 && E.atRelicWall(st), [st.level]);
@@ -42,18 +43,27 @@ ok('壁を突破(ゴールド+スクラップ消費)', !E.atRelicWall(st) && E.g
 E.levelUpRelic('rel_ygg_leaf', 'max');
 ok('次の壁(Lv50)まで上がる', st.level === 50, st.level);
 
-// --- upper walls need 凸(dupe) beyond what's already been used ---
+// --- every wall up to the absolute Lv200 cap is reachable by leveling + gold/scrap alone, no 凸 needed ---
 E.breakRelicWall('rel_ygg_leaf');
 E.levelUpRelic('rel_ygg_leaf', 'max');
 ok('Lv100まで凸なしで到達できる', st.level === 100, st.level);
-ok('Lv100は上限(凸0のため)', E.relicLevelCap(st) === 100);
-E.breakRelicWall('rel_ygg_leaf'); // should no-op: not at a wall (100 IS the cap, not <cap)
-ok('凸なしでは100の先に進めない', st.wall !== 100 || st.level === 100);
-// grant one more duplicate, now dupe=1 available (unspent)
-S.gold = 100000000;
+ok('上限は常にLv200', E.relicLevelCap(st) === 200);
+E.breakRelicWall('rel_ygg_leaf');
+E.levelUpRelic('rel_ygg_leaf', 'max');
+E.breakRelicWall('rel_ygg_leaf');
+E.levelUpRelic('rel_ygg_leaf', 'max');
+E.breakRelicWall('rel_ygg_leaf');
+E.levelUpRelic('rel_ygg_leaf', 'max');
+E.breakRelicWall('rel_ygg_leaf');
+E.levelUpRelic('rel_ygg_leaf', 'max');
+ok('凸なしでもLv200(絶対上限)まで到達できる', st.level === 200 && st.dupeUsed === 0, [st.level, st.dupeUsed]);
+
+// --- 凸(dupe) is now a separate, optional action: up to 4 uses, each +10%, gated only by spare dupes ---
 ok('凸(未使用)が1個ある', st.dupe === 1 && st.dupeUsed === 0);
-// Lv100 itself is the cap while dupeUsed=0, so atRelicWall is false there (nothing to break through to)
-ok('Lv100ちょうどでは壁判定にならない(capと同値のため)', E.atRelicWall(st) === false);
+E.useRelicDupe('rel_ygg_leaf');
+ok('凸すると dupeUsed が増える', st.dupeUsed === 1, st.dupeUsed);
+E.useRelicDupe('rel_ygg_leaf'); // no more spare dupes (dupe=1, dupeUsed=1 already)
+ok('凸の在庫がなければ増えない', st.dupeUsed === 1);
 
 // --- skill level scaling: ×1.0 at Lv1 → ×2.0 at Lv10 ---
 ok('スキルLv1は等倍', E.relicSkillMult(1) === 1);

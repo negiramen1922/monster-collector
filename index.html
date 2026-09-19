@@ -3737,10 +3737,8 @@ function unequipRelic(monId){
   render();
 }
 
-/* ---- level / walls (Lv1-100 base; 凸 raises the cap to 120/150/180/200) ---- */
-const RELIC_DUPE_CAP = [100, 120, 150, 180, 200];
-const RELIC_AWAKEN_WALLS = [120, 150, 180, 200]; // these walls also consume 1 凸 each
-function relicLevelCap(st){ return RELIC_DUPE_CAP[Math.min(st.dupeUsed || 0, RELIC_DUPE_CAP.length - 1)]; }
+/* ---- level / walls (Lv1-200 reachable by leveling alone; 凸 is a separate bonus, see below) ---- */
+function relicLevelCap(st){ return 200; }
 function atRelicWall(st){ return LEVEL_WALLS.includes(st.level) && st.level < relicLevelCap(st) && (st.wall || 0) < st.level; }
 function relicLevelStop(st){
   const cap = relicLevelCap(st);
@@ -3774,18 +3772,31 @@ function levelUpRelic(id, mode){
 function breakRelicWall(id){
   const st = STATE.relics[id];
   if(!st || !atRelicWall(st)) return;
-  const needsDupe = RELIC_AWAKEN_WALLS.includes(st.level);
-  if(needsDupe && (st.dupe || 0) <= (st.dupeUsed || 0)){ toast('凸(重複所持)が足りません'); return; }
   const gCost = relicWallGold(st.level), mCost = relicWallScrap(st.level);
   if((STATE.gold || 0) < gCost){ toast('ゴールドが足りません'); return; }
   if(getItem('relic_scrap') < mCost){ toast('遺物のスクラップが足りません'); return; }
   addGold(-gCost);
   addItem('relic_scrap', -mCost);
-  if(needsDupe) st.dupeUsed = (st.dupeUsed || 0) + 1;
   st.wall = st.level;
   track('upgrade');
   playSfx('promote');
   toast(`Lv${st.level}の壁を突破しました`);
+  saveState();
+  if(relicUpgrade && relicUpgrade.relicId === id) renderRelicUpgrade();
+  render();
+}
+
+/* ---- 凸(dupe): a separate, optional +10%/回 bonus on top of leveling, up to 4 times ---- */
+const RELIC_MAX_DUPE_USE = 4;
+function useRelicDupe(id){
+  const st = STATE.relics[id];
+  if(!st) return;
+  if((st.dupeUsed || 0) >= RELIC_MAX_DUPE_USE){ toast('凸は上限です'); return; }
+  if((st.dupe || 0) <= (st.dupeUsed || 0)){ toast('凸(重複所持)が足りません'); return; }
+  st.dupeUsed = (st.dupeUsed || 0) + 1;
+  track('upgrade');
+  playSfx('promote');
+  toast(`凸${st.dupeUsed}/${RELIC_MAX_DUPE_USE}: +${Math.round(RELIC_DUPE_BONUS * 100)}%`);
   saveState();
   if(relicUpgrade && relicUpgrade.relicId === id) renderRelicUpgrade();
   render();
@@ -3934,9 +3945,9 @@ function renderRelicUpgrade(){
   const skCost = skillMaxed ? null : relicSkillCost(st.skillLv || 1);
   const mult = relicSkillMult(st.skillLv);
   const wallGold = relicWallGold(st.level), wallScrap = relicWallScrap(st.level);
-  const needsDupe = RELIC_AWAKEN_WALLS.includes(st.level);
+  const wallReady = (STATE.gold || 0) >= wallGold && scrapHave >= wallScrap;
   const dupeSpare = (st.dupe || 0) - (st.dupeUsed || 0);
-  const wallReady = (STATE.gold || 0) >= wallGold && scrapHave >= wallScrap && (!needsDupe || dupeSpare > 0);
+  const dupeMaxed = (st.dupeUsed || 0) >= RELIC_MAX_DUPE_USE;
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
     <div class="result-modal relic-upgrade-modal" role="dialog" aria-label="${def.name}">
@@ -3958,13 +3969,24 @@ function renderRelicUpgrade(){
         </div>
         ${wall ? `
           <button class="btn btn-sm btn-block ${wallReady ? '' : 'btn-ghost'}" data-relic-wall="${relicId}">
-            Lv${st.level}の壁を突破(${goldText(wallGold)}・${itemName('relic_scrap')}×${wallScrap}${needsDupe ? `・凸×1(所持${dupeSpare})` : ''})
-          </button>` : maxed ? `<div class="promo-note">レベル上限です${cap < 200 ? '(凸で上限を伸ばせます)' : ''}</div>` : `
+            Lv${st.level}の壁を突破(${goldText(wallGold)}・${itemName('relic_scrap')}×${wallScrap})
+          </button>` : maxed ? `<div class="promo-note">レベル上限です</div>` : `
           <div class="lv-btns three">
             <button class="btn btn-sm btn-ghost" data-relic-levelup="${relicId}" data-times="1">＋1</button>
             <button class="btn btn-sm btn-ghost" data-relic-levelup="${relicId}" data-times="10">＋10</button>
             <button class="btn btn-sm" data-relic-levelup="${relicId}" data-times="max">最大まで(Lv${stop})</button>
           </div>`}
+      </div>
+
+      <div class="detail-level-box lv-card">
+        <div class="row-between" style="margin-bottom:7px;">
+          <div class="mc-head">凸(重複ボーナス)</div>
+          <div class="mat-need">${st.dupeUsed || 0} / ${RELIC_MAX_DUPE_USE}</div>
+        </div>
+        ${dupeMaxed ? '<div class="promo-note">凸は上限です</div>' : `
+          <button class="btn btn-sm btn-block ${dupeSpare > 0 ? '' : 'btn-ghost'}" data-relic-dupe="${relicId}" ${dupeSpare > 0 ? '' : 'disabled'}>
+            凸する(+${Math.round(RELIC_DUPE_BONUS * 100)}%・所持${dupeSpare})
+          </button>`}
       </div>
 
       <div class="detail-level-box lv-card">
@@ -10242,6 +10264,8 @@ function handlePhoneClick(ev){
     if(rLvEl){ levelUpRelic(rLvEl.dataset.relicLevelup, rLvEl.dataset.times); return; }
     const rWallEl = t.closest('[data-relic-wall]');
     if(rWallEl){ breakRelicWall(rWallEl.dataset.relicWall); return; }
+    const rDupeEl = t.closest('[data-relic-dupe]');
+    if(rDupeEl){ useRelicDupe(rDupeEl.dataset.relicDupe); return; }
     const rSkEl = t.closest('[data-relic-skillup]');
     if(rSkEl){ upgradeRelicSkill(rSkEl.dataset.relicSkillup); return; }
     const eqEl = t.closest('[data-equip-relic]');
