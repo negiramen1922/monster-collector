@@ -2364,7 +2364,7 @@ const STAR_TABLE = {
   7: { lvCap: 200, soulsToNext: null, skillCap: 12 },
 };
 const PROMOTION_STAT_BONUS = 0.10; // +10% base HP/STR/DEF per promotion (SPD unaffected)
-const LEVEL_STAT_BONUS = 0.01;     // +1% per level above 1
+const LEVEL_STAT_BONUS = 0.03;     // +3% per level above 1 (also scales enemy toughness by stage-recommended level)
 const SECOND_SKILL_STAR = 4;       // the 2nd skill slot opens at ★4 (current ★)
 const DUP_SOULS = { 1:1, 2:3, 3:30, 4:50, 5:150 };      // by initial ★
 const UNIVERSAL_SOULS = { 1:1, 2:1, 3:2, 4:5, 5:10 };   // every pull, new or duplicate
@@ -3321,7 +3321,7 @@ function expToNext(L){
 }
 // at these levels the character has to break through with gold
 const LEVEL_WALLS = [30, 50, 100, 120, 150, 180, 200];
-function wallCost(L){ return Math.round(500 * Math.pow(L / 10, 1.3) / 10) * 10; }
+function wallCost(L){ return Math.round(1500 * Math.pow(L / 10, 1.3) / 10) * 10; } // 3x: matches the LEVEL_STAT_BONUS bump so gold stays a meaningful gate
 function atWall(owned){ return LEVEL_WALLS.includes(owned.level) && owned.level < 200 && (owned.wall || 0) < owned.level; }
 // the level we can reach before the next wall / star cap stops us
 function levelStop(owned){
@@ -3814,15 +3814,24 @@ function upgradeRelicSkill(id){
   return true;
 }
 
+// base growth uses the exact same shape as character progression (LEVEL_STAT_BONUS +
+// per-level, PROMOTION_STAT_BONUS-style +10% per 凸 used) so a relic's flat "seed" stat
+// never outgrows the character it's equipped on. final stat = キャラの素のステータス +
+// (遺物のプラス(seed) × 遺物の％倍率(relicBaseMult)) — this flat sum is what shields/heals
+// that read u.maxHp (added after, in applyStatBonus below) end up based on too.
+const RELIC_LEVEL_GROWTH = LEVEL_STAT_BONUS; // 3%/level, same rate as characters
+const RELIC_DUPE_BONUS = PROMOTION_STAT_BONUS; // +10% per 凸 used, same rate as a character promotion
+function relicBaseMult(st){ return 1 + ((st.level || 1) - 1) * RELIC_LEVEL_GROWTH + (st.dupeUsed || 0) * RELIC_DUPE_BONUS; }
+
 /* ---- battle: apply an equipped relic's bonuses to an ally unit ---- */
 function applyRelicToUnit(u, mon, relicId){
   const st = STATE.relics[relicId];
   const def = RELICS[relicId];
   if(!st || !def) return;
-  const lv = st.level || 1;
+  const bmult = relicBaseMult(st);
   if(def.base){
-    if(def.base.hp){ const add = Math.round(def.base.hp * lv); u.maxHp += add; u.hp += add; }
-    if(def.base.atk) u.str += Math.round(def.base.atk * lv);
+    if(def.base.hp){ const add = Math.round(def.base.hp * bmult); u.maxHp += add; u.hp += add; }
+    if(def.base.atk) u.str += Math.round(def.base.atk * bmult);
   }
   const mult = relicSkillMult(st.skillLv);
   const bonus = {};
@@ -3929,6 +3938,7 @@ function renderRelicUpgrade(){
       <button class="fs-close" data-close-relic-upgrade="1" aria-label="閉じる">×</button>
       <h3>${def.icon} ${def.name}<span class="relic-star">★${def.star}</span></h3>
       <div class="relic-effects">
+        ${def.base ? `<div class="relic-eff-line">基礎ステータス<small>(現在 ${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicBaseMult(st))}`).join('・')})</small></div>` : ''}
         ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectText(e)}<small>(現在 ${Math.round(e.pct * mult * 100)}%)</small></div>`).join('')}
       </div>
 

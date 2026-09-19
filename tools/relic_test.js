@@ -32,6 +32,7 @@ ok('別モンスターに装備できる(単体所持なので同時に2箇所�
 
 // --- leveling: consumes relic_scrap, stops at Lv30 wall ---
 S.items.relic_scrap = 100000;
+S.gold = 100000000;
 E.levelUpRelic('rel_ygg_leaf', 'max');
 const st = S.relics.rel_ygg_leaf;
 ok('Lv30の壁で止まる', st.level === 30 && E.atRelicWall(st), [st.level]);
