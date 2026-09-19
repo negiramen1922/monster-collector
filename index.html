@@ -988,6 +988,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-pull-star{ font-size:10px; color:var(--gold); margin-top:2px; }
 .relic-pull-tag{ font-size:9px; color:var(--dim); margin-top:2px; }
 
+/* ---------- PVP ---------- */
+.pvp-opp-list{ display:flex; flex-direction:column; gap:8px; }
+.pvp-opp-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:9px 11px;
+}
+.pvp-opp-body{ flex:1; min-width:0; }
+.pvp-opp-name{ font-size:12.5px; font-weight:800; }
+.pvp-opp-sub{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+.pvp-result-modal{ text-align:center; }
+.pvp-result-line{ font-size:13px; margin:10px 0; }
+
 .upgrade-section-title{ font-weight:800; font-size:12.5px; margin:4px 0 8px; color:var(--gold); }
 .upgrade-row{}
 .mat-need{ font-size:11px; color:var(--dim); font-weight:700; }
@@ -2895,6 +2907,21 @@ const firebaseBackend = {
     if(!pSnap.exists()) return null;
     return { uid, ...pSnap.data() };
   },
+  // PVP: a handful of random opponents with a defense set, via the standard Firestore
+  // "random doc" trick (every published profile carries a rand:0-1 field; query from a
+  // random cut point, wrap around to the start if that side comes up short).
+  async fetchPvpOpponents(selfUid, n){
+    const { fs, db } = await this.load();
+    const col = fs.collection(db, 'players');
+    const r = Math.random();
+    const take = async op => {
+      const snap = await fs.getDocs(fs.query(col, fs.where('rand', op, r), fs.orderBy('rand'), fs.limit(n + 5)));
+      return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    };
+    let list = await take('>=');
+    if(list.length < n) list = list.concat(await take('<'));
+    return list.filter(p => p.uid !== selfUid && p.defense).slice(0, n);
+  },
 };
 
 /* Analytics. Never throws and never blocks: without a backend (offline, tests, ad blocker)
@@ -2977,6 +3004,26 @@ async function ensurePlayerId(){
     }catch(e){ console.warn('player id: could not claim', e); return; }
   }
 }
+// PVP: the party+formation+relics published for others to auto-battle against offline.
+// null until the player has explicitly set a defense (setPvpDefense saves it into STATE
+// and republishes) - see renderPvp().
+function buildDefenseSnapshot(){
+  if(!STATE || !STATE.pvpDefenseSlots) return null;
+  const slots = STATE.pvpDefenseSlots.map(id => {
+    if(!id || id === HELP_SLOT_ID) return null;
+    const owned = STATE.owned[id];
+    if(!owned) return null;
+    const relicId = equippedRelicOf(id);
+    const relicSt = relicId ? STATE.relics[relicId] : null;
+    return {
+      id, star: owned.star, level: owned.level,
+      skillLv: owned.skillLv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
+      relic: relicSt ? { defId: relicId, level: relicSt.level, skillLv: relicSt.skillLv, dupeUsed: relicSt.dupeUsed } : null,
+    };
+  });
+  if(!slots.some(Boolean)) return null;
+  return { formationKey: STATE.pvpDefenseFormation || STATE.formationKey, slots };
+}
 // public profile, for the friend list and PVP opponent cards later. `support` is a
 // snapshot of the favorites[0] monster (the "お助けキャラ" a friend can borrow for PvE).
 async function publishProfile(){
@@ -2997,6 +3044,8 @@ async function publishProfile(){
       monsters: STATE ? Object.keys(STATE.owned).length : 0,
       cleared: STATE ? STATE.clearedStages.length : 0,
       support,
+      defense: buildDefenseSnapshot(),
+      rand: Math.random(),
       updatedAt: Date.now(),
     });
   }catch(e){ console.warn('profile: not published', e); }
@@ -3004,20 +3053,44 @@ async function publishProfile(){
 
 /* ---- friends & the お助けキャラ they lend out ---- */
 const friendsAvailable = () => typeof authBackend().lookupPlayer === 'function';
-// untrusted cross-account data (another player's published doc): validate every field
-// before trusting it, since a crafted doc must never be able to crash the friends screen
-// or hand out absurd stats.
+const pvpAvailable = () => typeof authBackend().fetchPvpOpponents === 'function';
+// shared by every sanitizer below: untrusted cross-account data (another player's
+// published doc) must never be able to crash a screen or hand out absurd stats.
+function clampInt(v, lo, hi, dflt){ const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt; }
 function sanitizeSupport(raw){
   if(!raw || !MON_BY_ID[raw.id]) return null;
-  const clamp = (v, lo, hi, dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt; };
   return {
     id: raw.id,
-    star: clamp(raw.star, 1, MAX_STAR, 1),
-    level: clamp(raw.level, 1, 200, 1),
-    skillLv: clamp(raw.skillLv, 1, 12, 1),
-    ultLv: clamp(raw.ultLv, 1, 12, 1),
-    passiveLv: clamp(raw.passiveLv, 1, 12, 1),
+    star: clampInt(raw.star, 1, MAX_STAR, 1),
+    level: clampInt(raw.level, 1, 200, 1),
+    skillLv: clampInt(raw.skillLv, 1, 12, 1),
+    ultLv: clampInt(raw.ultLv, 1, 12, 1),
+    passiveLv: clampInt(raw.passiveLv, 1, 12, 1),
   };
+}
+// PVP: a whole opposing party (5 slots + formation), each slot the same shape as
+// sanitizeSupport plus an optional equipped-relic snapshot. Same "never trust it" rule.
+function sanitizeRelicSnap(raw){
+  if(!raw || !RELICS[raw.defId]) return null;
+  return {
+    defId: raw.defId,
+    level: clampInt(raw.level, 1, 200, 1),
+    skillLv: clampInt(raw.skillLv, 1, RELIC_SKILL_MAX, 1),
+    dupeUsed: clampInt(raw.dupeUsed, 0, RELIC_MAX_DUPE_USE, 0),
+  };
+}
+function sanitizeDefenseSlot(raw){
+  const base = sanitizeSupport(raw);
+  if(!base) return null;
+  return { ...base, relic: sanitizeRelicSnap(raw.relic) };
+}
+function sanitizeDefense(raw){
+  if(!raw || !Array.isArray(raw.slots)) return null;
+  const formationKey = FORMATIONS.some(f => f.key === raw.formationKey) ? raw.formationKey : DEFAULT_FORMATION;
+  const slots = raw.slots.slice(0, PARTY_MAX).map(sanitizeDefenseSlot);
+  while(slots.length < PARTY_MAX) slots.push(null);
+  if(!slots.some(Boolean)) return null;
+  return { formationKey, slots };
 }
 async function addFriendByCode(code){
   if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
@@ -3172,6 +3245,10 @@ const DEFAULT_STATE = () => ({
   borrowed: null,   // { uid, name, mon:{...} } - the friend's お助けキャラ currently on loan
   tierChests: {},   // `${tierKey}_${stars}` → true once that milestone chest is claimed
   relics: {},       // defId → { level, wall, skillLv, dupe, dupeUsed, equippedTo }
+  pvpPoints: 0,
+  pvpDaily: null,          // { key, used } - up to PVP_DAILY_MAX challenges/day
+  pvpDefenseSlots: null,   // snapshot published as the defense others fight; null = not set yet
+  pvpDefenseFormation: null,
 });
 
 let STATE = null;
@@ -3225,6 +3302,9 @@ function normalizeState(){
   if(STATE.borrowed === undefined) STATE.borrowed = null;
   if(!STATE.tierChests) STATE.tierChests = {};
   if(!STATE.relics) STATE.relics = {};
+  if(!STATE.pvpPoints) STATE.pvpPoints = 0;
+  if(STATE.pvpDefenseSlots === undefined) STATE.pvpDefenseSlots = null;
+  if(STATE.pvpDefenseFormation === undefined) STATE.pvpDefenseFormation = null;
   syncHelperMon();
   if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
     id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
@@ -3859,13 +3939,13 @@ function upgradeRelicSkill(id){
 
 const RELIC_DUPE_BONUS = PROMOTION_STAT_BONUS; // +10% per 凸 used, multiplies the flat base bonus below
 
-/* ---- battle: apply an equipped relic's bonuses to an ally unit ---- */
+/* ---- battle: apply a relic's bonuses to a unit ---- */
 // base is a flat stat addition (base.hp × relic level, see RELICS above), NOT a % of the
 // character's own stat - a genuine gear-style flat bonus, scaled further by 凸 (+10%/use).
 // effects (below) are the separate %-of-character's-stat layer, scaled by skillLv instead.
-function applyRelicToUnit(u, mon, relicId){
-  const st = STATE.relics[relicId];
-  const def = RELICS[relicId];
+// st just needs {level, skillLv, dupeUsed} - either a live STATE.relics entry (applyRelicToUnit)
+// or a sanitized opponent snapshot from a PVP defense formation (applyRelicSnapToUnit).
+function applyRelicCore(u, mon, def, st){
   if(!st || !def) return;
   const dupeMult = 1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS;
   if(def.base){
@@ -3879,6 +3959,13 @@ function applyRelicToUnit(u, mon, relicId){
     bonus[e.stat] = (bonus[e.stat] || 0) + e.pct * skillMult;
   });
   applyStatBonus(u, bonus);
+}
+function applyRelicToUnit(u, mon, relicId){
+  applyRelicCore(u, mon, RELICS[relicId], STATE.relics[relicId]);
+}
+function applyRelicSnapToUnit(u, mon, relicSnap){
+  if(!relicSnap) return;
+  applyRelicCore(u, mon, RELICS[relicSnap.defId], relicSnap);
 }
 
 /* ---- gacha: separate crystal-consuming banner, same rate curve as the monster gacha ---- */
@@ -5028,9 +5115,77 @@ const NAV = [
   { key: 'home', label: 'ホーム', icon: '🏠' },
   { key: 'battle', label: '探索', icon: '⚔️' },
   { key: 'party', label: '編成', icon: '🧩' },
+  { key: 'pvp', label: 'PVP', icon: '🏆' },
   { key: 'gacha', label: 'ガチャ', icon: '🎰' },
   { key: 'base', label: '拠点', icon: '🏯' },
 ];
+
+/* ---------------- PVP screen ---------------- */
+let pvpOpponents = [];      // last-fetched candidate list (not persisted, runtime only)
+let pvpSearching = false;
+async function searchPvpOpponents(){
+  if(!pvpAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
+  if(!ACCOUNT || pvpSearching) return;
+  pvpSearching = true;
+  render();
+  try{
+    const list = await authBackend().fetchPvpOpponents(ACCOUNT.uid, 5);
+    pvpOpponents = list.map(p => ({
+      uid: p.uid,
+      name: String(p.name || 'テイマー').slice(0, 20),
+      level: Math.max(1, Math.min(999, Number(p.level) || 1)),
+      defense: sanitizeDefense(p.defense),
+    })).filter(p => p.defense);
+    if(pvpOpponents.length === 0) toast('対戦相手が見つかりませんでした');
+  }catch(e){ toast('通信に失敗しました'); }
+  pvpSearching = false;
+  render();
+}
+function renderPvp(){
+  if(!pvpAvailable()){
+    return `
+      <div class="screen-title">PVP</div>
+      <div class="screen-sub" style="margin:28px 0;text-align:center;">ログインするとPVPに挑戦できます</div>`;
+  }
+  const left = pvpChallengesLeft();
+  const myDefenseCount = hasPvpDefense() ? STATE.pvpDefenseSlots.filter(Boolean).length : 0;
+  return `
+    <div class="screen-head">
+      <div class="screen-title">PVP</div>
+      <div class="base-wallet">🏆${(STATE.pvpPoints || 0).toLocaleString()}</div>
+    </div>
+    <div class="panel">
+      <div class="row-between">
+        <span>本日の挑戦回数</span><b>${left} / ${PVP_DAILY_MAX}</b>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="row-between" style="margin-bottom:8px;">
+        <div class="mc-head">防衛編成</div>
+        <span class="mat-need ${hasPvpDefense() ? '' : 'short'}">${hasPvpDefense() ? `設定済み(${myDefenseCount}体)` : '未設定'}</span>
+      </div>
+      <div class="screen-sub" style="margin-bottom:8px;">他のプレイヤーがあなたに挑戦する時に戦う編成です。現在の編成(パーティ画面)がそのまま公開されます。</div>
+      <button class="btn btn-block" data-pvp-set-defense="1">現在の編成を防衛編成に設定</button>
+    </div>
+    <div class="panel">
+      <div class="row-between" style="margin-bottom:8px;">
+        <div class="mc-head">対戦相手</div>
+        <button class="btn btn-sm ${pvpSearching ? 'btn-ghost' : ''}" data-pvp-search="1" ${pvpSearching ? 'disabled' : ''}>${pvpSearching ? '検索中…' : '探す'}</button>
+      </div>
+      ${pvpOpponents.length === 0 ? `<div class="screen-sub" style="text-align:center;margin:20px 0;">「探す」を押すと対戦相手が表示されます</div>` : `
+      <div class="pvp-opp-list">
+        ${pvpOpponents.map(o => `
+          <div class="pvp-opp-row">
+            <div class="pvp-opp-body">
+              <div class="pvp-opp-name">${o.name}</div>
+              <div class="pvp-opp-sub">Lv${o.level}・${o.defense.slots.filter(Boolean).length}体編成</div>
+            </div>
+            <button class="btn btn-sm ${left > 0 ? '' : 'btn-ghost'}" data-pvp-fight="${o.uid}" ${left > 0 ? '' : 'disabled'}>挑戦する</button>
+          </div>`).join('')}
+      </div>`}
+    </div>
+  `;
+}
 
 let alchemyFam = 'el';
 
@@ -5284,6 +5439,7 @@ function renderScreen(screen){
     case 'dex': return renderDex();
     case 'party': return renderParty();
     case 'battle': return renderBattleSelect();
+    case 'pvp': return renderPvp();
     case 'missions': return renderMissions();
     case 'base': return renderBase();
     case 'battle-fight': return battleUI ? renderBattleFight() : renderBattleSelect();
@@ -7307,6 +7463,32 @@ function spawnWave(stage, waveIndex){
   return units;
 }
 
+// PVP: build the opponent's party from their sanitized defense snapshot exactly like a
+// real ally (isEnemy stays false during buildUnit so no ENEMY_POWER stage-difficulty buff
+// applies - a fair fight, not a scripted encounter), then flip the isEnemy flag after.
+function buildPvpEnemyParty(defense){
+  const formation = getFormation(defense.formationKey);
+  const units = [];
+  defense.slots.forEach((slot, i) => {
+    if(!slot) return;
+    const mon = MON_BY_ID[slot.id];
+    if(!mon) return;
+    const u = buildUnit(mon, 1, false, slot.star, false, slot.level, {
+      skillLv: slot.skillLv, ultLv: slot.ultLv, passiveLv: slot.passiveLv,
+    });
+    u.isEnemy = true;
+    u.slot = i;
+    u.row = slotRowIn(formation, i);
+    u.x = slotX(formation, i);
+    u.penalty = u.row === 'back' && isMeleeRole(u.role);
+    if(slot.relic) applyRelicSnapToUnit(u, mon, slot.relic);
+    applyFormationBonus(u, formation);
+    units.push(u);
+  });
+  if(ENEMY_SYNERGY) applySynergies(units);
+  return units;
+}
+
 function speedFactor(){ return STATE.battleSpeed || 1; }
 
 function findStage(id){
@@ -7321,6 +7503,152 @@ function showTutorial(stageId, page){
     dismissible: false, onDone: () => startBattle(stageId, { skipIntro: true }),
   };
   renderGuideToastStep();
+}
+/* ---------------- PVP: async battle against another player's saved defense ---------------- */
+const PVP_DAILY_MAX = 5;
+const PVP_WIN_REWARD = [{ type:'gold', n:3000 }];
+const PVP_WIN_POINTS = 30;
+const PVP_LOSE_POINTS = 5;
+function ensurePvpDaily(){
+  const key = currentDayKey();
+  if(!STATE.pvpDaily || STATE.pvpDaily.key !== key) STATE.pvpDaily = { key, used: 0 };
+  return STATE.pvpDaily;
+}
+function pvpChallengesLeft(){ return Math.max(0, PVP_DAILY_MAX - ensurePvpDaily().used); }
+function hasPvpDefense(){ return !!(STATE.pvpDefenseSlots && STATE.pvpDefenseSlots.some(Boolean)); }
+function setPvpDefense(){
+  if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
+  STATE.pvpDefenseSlots = [...STATE.slots];
+  STATE.pvpDefenseFormation = STATE.formationKey;
+  saveState();
+  publishProfile();
+  toast('現在の編成を防衛編成に設定しました');
+  render();
+}
+function startPvpBattle(opponent){
+  if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
+  if(pvpChallengesLeft() <= 0){ toast('本日の挑戦回数は使い切りました'); return; }
+  const defense = sanitizeDefense(opponent.defense);
+  if(!defense){ toast('この相手には挑戦できません'); return; }
+  ensurePvpDaily().used += 1;
+  if(battleUI) clearTimeout(battleUI.tickTimer);
+  clearStageFx();
+  closeLogSheet();
+
+  const formation = currentFormation();
+  const party = [];
+  STATE.slots.forEach((id, i) => {
+    if(!id) return;
+    const m = MON_BY_ID[id];
+    const owned = slotOwnedLike(id);
+    const u = buildUnit(m, 1, false, owned.star, false, owned.level, {
+      skillLv: owned.skillLv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
+    });
+    u.slot = i;
+    u.row = slotRowIn(formation, i);
+    u.x = slotX(formation, i);
+    u.penalty = u.row === 'back' && isMeleeRole(u.role);
+    const relicId = equippedRelicOf(id);
+    if(relicId) applyRelicToUnit(u, m, relicId);
+    applyFormationBonus(u, formation);
+    party.push(u);
+  });
+  const synergies = applySynergies(party);
+  const enemies = buildPvpEnemyParty(defense);
+  const enemyFormation = getFormation(defense.formationKey);
+  const stage = { id: 'pvp', type: 'pvp', name: `${(opponent.name || 'プレイヤー').slice(0, 20)}の防衛編成`, terrain: 'field', waves: [[]] };
+
+  saveState();
+  battleUI = {
+    stage, party,
+    waveIndex: 0,
+    enemies: [],
+    log: [`${stage.name} に挑戦した!`],
+    finished: false, win: null,
+    tickTimer: null,
+    transitioning: false,
+    round: 0,
+    queue: [],
+    actionCount: 0,
+    fxEvents: [], fxActor: null, fxCutIn: null,
+    frontFell: { party: false, enemies: false },
+    formation,
+    enemyFormation,
+    waveResults: [],
+    waveStartRound: 1,
+    spawned: [],
+    staminaSpent: 0,
+    deathCounter: 0,
+    firstStrike: null,
+    pvp: opponent,
+  };
+  battleUI.enemies = enemies;
+  battleUI.spawned.push(...battleUI.enemies);
+  logLine(`陣形「${formation.name}」発動! ${formationDesc(formation)}`, 'wave');
+  synergies.forEach(x => logLine(`${x.kind === 'element' ? `${ELEM_LABEL[x.key]}属性` : SPECIES_LABEL[x.key]}ボーナス(${x.n}体): ${bonusText(x.active.bonus)}`, 'wave'));
+  logLine(`相手の陣形は「${enemyFormation.name}」`, 'wave');
+  party.filter(u => u.penalty).forEach(u =>
+    logLine(`⚠ ${nm(u)} は後衛のため与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%`, 'debuff'));
+  [...party, ...battleUI.enemies].forEach(u => runPassive(u, 'onBattleStart'));
+  [...party, ...battleUI.enemies].forEach(u => {
+    const p = u.passive;
+    if(!p || !p.name || typeof p.onBattleStart !== 'function') return;
+    const stacks = Object.values(u.stacks || {}).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0);
+    logLine(`⚡${nm(u)} のパッシブ「${p.name}」${stacks ? `(${stacks}段)` : ''}${p.desc ? ` ${p.desc}` : ''}`, 'skill');
+  });
+  currentScreen = 'battle-fight';
+  battleUI.transitioning = true;
+  render();
+  const b = battleUI;
+  playWaveIntro(b, () => {
+    if(battleUI !== b) return;
+    b.transitioning = false;
+    scheduleNextTick(300);
+  });
+}
+function finishPvpBattle(win){
+  battleUI.finished = true;
+  battleUI.win = win;
+  clearTimeout(battleUI.tickTimer);
+  const points = win ? PVP_WIN_POINTS : PVP_LOSE_POINTS;
+  STATE.pvpPoints = (STATE.pvpPoints || 0) + points;
+  battleUI.pvpPointsGained = points;
+  if(win){
+    grantRewards(PVP_WIN_REWARD);
+    battleUI.rewards = PVP_WIN_REWARD;
+    logLine(`${battleUI.stage.name} に勝利した!`, 'ult');
+  }else{
+    if(allDead(battleUI.party)) logLine('パーティは全滅してしまった…', 'ko');
+    logLine('敗北した…', 'ko');
+  }
+  saveState();
+  renderBattleScreenOnly();
+  const finished = battleUI;
+  setTimeout(() => {
+    if(battleUI !== finished || currentScreen !== 'battle-fight') return;
+    closeLogSheet();
+    if(win) playSfx('win');
+    playStageFx({
+      kind: win ? 'clear' : 'lose',
+      eyebrow: win ? 'VICTORY' : 'DEFEAT',
+      title: win ? '勝利!' : '敗北…',
+      sub: `PVPポイント+${points}`,
+      duration: 1500,
+    }, () => { if(battleUI === finished && currentScreen === 'battle-fight') showPvpResult(); });
+  }, 450);
+}
+function showPvpResult(){
+  const b = battleUI;
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal pvp-result-modal" role="dialog" aria-label="PVP結果">
+      <h3>${b.win ? '勝利!' : '敗北…'}</h3>
+      <div class="screen-sub" style="text-align:center;">${b.stage.name}</div>
+      <div class="pvp-result-line">PVPポイント <b>+${b.pvpPointsGained}</b>(累計 ${STATE.pvpPoints.toLocaleString()})</div>
+      ${b.win ? `<div class="pvp-result-line">${rewardHtml(b.rewards || [])}</div>` : ''}
+      <button class="btn btn-block" data-result-nav="pvp">閉じる</button>
+    </div>`;
+  layer.classList.add('show');
 }
 function startBattle(stageId, opts){
   const stage = findStage(stageId);
@@ -9604,6 +9932,7 @@ function advanceWave(){
 }
 
 function finishBattle(win){
+  if(battleUI.pvp) return finishPvpBattle(win);
   battleUI.finished = true;
   battleUI.win = win;
   clearTimeout(battleUI.tickTimer);
@@ -10413,6 +10742,14 @@ function handlePhoneClick(ev){
   if(t.closest('[data-add-friend]')){
     const input = document.getElementById('friend-code-input');
     addFriendByCode(input ? input.value : '');
+    return;
+  }
+  if(t.closest('[data-pvp-set-defense]')){ setPvpDefense(); return; }
+  if(t.closest('[data-pvp-search]')){ searchPvpOpponents(); return; }
+  const pvpFightEl = t.closest('[data-pvp-fight]');
+  if(pvpFightEl){
+    const o = pvpOpponents.find(x => x.uid === pvpFightEl.dataset.pvpFight);
+    if(o) startPvpBattle(o);
     return;
   }
   // any other tap closes an open menu (the tap itself is still handled below)

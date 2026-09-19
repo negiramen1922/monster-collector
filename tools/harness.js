@@ -23,5 +23,12 @@ module.exports=function load(file, extra){
     let n=0; while(q.length&&n<10000){const t=q.shift(); if(t.f){t.f();n++;} if(api.battleUI.finished)break;}
     return api.battleUI;
   };
+  // for battle flows other than api.run's own startBattle (e.g. PVP's startPvpBattle):
+  // call the flow yourself, then drain the same setTimeout-backed tick queue it scheduled.
+  api.resetQueue = () => { q = []; };
+  api.drainQueue = () => {
+    let n = 0;
+    while(q.length && n < 10000){ const t = q.shift(); if(t.f){ t.f(); n++; } if(api.battleUI.finished) break; }
+  };
   return api;
 };
