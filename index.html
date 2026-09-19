@@ -1156,6 +1156,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .stage-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
 .stage-tab{ font-family:inherit; font-size:12.5px; font-weight:800; padding:9px; border-radius:12px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; }
 .stage-tab.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
+.stage-tab.locked{ opacity:.5; }
 .tab-count{ font-size:10.5px; opacity:.85; margin-left:4px; }
 .debug-row{ display:flex; gap:8px; justify-content:center; margin:14px 0 4px; opacity:.7; }
 .fx-rare-line{ font-size:12px; font-weight:800; color:#e3b8ff; margin-top:6px; text-shadow:0 0 10px rgba(176,111,224,.8); }
@@ -3037,7 +3038,7 @@ async function syncOnLogin(){
 
 const DEFAULT_STATE = () => ({
   version: STATE_VERSION,
-  crystals: 3200,
+  crystals: 0, // no more free starter crystals - tu3's firstClear (3200) replaces it
   gold: 20000,
   bgm: null,               // { on, vol }
   items: { exp1: 60, box_sel_1: 2 },
@@ -4290,7 +4291,7 @@ function buildQuestStages(){
       });
       const stage = {
         id, type: 'main', tier: t.key, no: i + 1, name: sp.name, terrain: sp.terrain, element: sp.element,
-        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 300][i] : isBoss ? 300 : 50 + i * 5,
+        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 3200][i] : isBoss ? 300 : 50 + i * 5,
         requires: prev, boss: isBoss, gimmick: sp.gimmick || null, tutorial: sp.tutorial || null,
         desc: isBoss ? `${TERRAIN[sp.terrain].label}の主「${MON_BY_ID[bossRef].name}」が待ち受ける。`
           : `${TERRAIN[sp.terrain].label}エリア。${ELEM_LABEL[sp.element]}属性の敵が多い。`,
@@ -4328,7 +4329,7 @@ const TUTORIAL_PAGES = {
   flow: [
     ['戦闘の流れ', 'やっほー、案内役のヒノコだよ!クエストでは敵のウェーブを順番にやっつけていくよ。戦闘はオートで進んで、すばやさ(SPD)の高い子から動いていくんだ。'],
     ['ターンとラウンド', '全員が1回ずつ動くと1ラウンド。画面の上に、次に動く順番が出るから見ててね。'],
-    ['勝利と報酬', 'ウェーブを全部倒せばクリア!ゴールドや育成素材、仲間にできるモンスターのソウルがもらえるよ。'],
+    ['勝利と報酬', 'ウェーブを全部倒せばクリア!ゴールドや育成素材、仲間にできるモンスターのソウルがもらえるよ。ステージによっては★3・4・5の高レアなモンスターが仲間になるチャンスもあるかも!?'],
   ],
   ult: [
     ['スキル', 'ここからは必殺技のお話。モンスターは決まったターンごとに、自動でスキルを使うよ。効果は詳細画面で確認できるんだ。'],
@@ -4384,6 +4385,11 @@ EVENTS.forEach(ev => {
 });
 
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
+// early-game gating: too many choices at once confuses a brand new player
+const TUTORIAL_LAST_STAGE = 'tu3';
+const SPEED_UNLOCK_STAGE = 'q1_05';
+function tutorialCleared(){ return STATE.clearedStages.includes(TUTORIAL_LAST_STAGE); }
+function speedUnlocked(){ return STATE.clearedStages.includes(SPEED_UNLOCK_STAGE); }
 function bossOf(stage){
   for(const wave of stage.waves){ const e = wave.find(x => x.boss); if(e) return MON_BY_ID[e.ref]; }
   return null;
@@ -6296,8 +6302,8 @@ function renderBattleSelect(){
     </div>
     <div class="explore-tabs" role="tablist">
       <button class="stage-tab ${stageTab === 'main' ? 'on' : ''}" data-stage-tab="main" role="tab" aria-selected="${stageTab === 'main'}">クエスト</button>
-      <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">育成</button>
-      <button class="stage-tab ${stageTab === 'event' ? 'on' : ''}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">イベント${evCount ? ` 🔥${evCount}` : ''}</button>
+      <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''} ${tutorialCleared() ? '' : 'locked'}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">${tutorialCleared() ? '' : '🔒'}育成</button>
+      <button class="stage-tab ${stageTab === 'event' ? 'on' : ''} ${tutorialCleared() ? '' : 'locked'}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">${tutorialCleared() ? '' : '🔒'}イベント${evCount && tutorialCleared() ? ` 🔥${evCount}` : ''}</button>
     </div>
     ${stageTab === 'event' ? renderEventTab() : ''}
     ${stageTab === 'dungeon' ? `
@@ -8662,6 +8668,7 @@ function toggleAutoUlt(){
 }
 
 function cycleSpeed(){
+  if(!speedUnlocked()){ toast(`「初級5」クリアで倍速が解放されます`); return; }
   const cur = STATE.battleSpeed || 1;
   let next = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(cur) + 1) % SPEED_OPTIONS.length];
   if(next === 3 && SPEED_3X_VIP_ONLY && !STATE.vip){
@@ -8859,7 +8866,10 @@ function finishBattle(win){
     STATE.stageStars[battleUI.stage.id] = Math.max(battleUI.prevRank, battleUI.rank);
     logEvent('stage_clear', { stage_id: battleUI.stage.id, tier: battleUI.stage.tier,
       type: battleUI.stage.type || 'main', rank: battleUI.rank, rounds: battleUI.round, first: !battleUI.prevRank });
-    if(battleUI.stage.id === 'tu3') logEvent('tutorial_complete', {});
+    if(battleUI.stage.id === 'tu3'){
+      logEvent('tutorial_complete', {});
+      if(!battleUI.prevRank) battleUI.tutorialJustDone = true;
+    }
     logLine(`${battleUI.stage.name} を制覇した!`, 'ult');
   }else{
     logEvent('stage_fail', { stage_id: battleUI.stage.id, tier: battleUI.stage.tier,
@@ -9465,7 +9475,7 @@ function handlePhoneClick(ev){
   }
   const navEl = t.closest('[data-nav]');
   if(navEl){
-    if(navEl.dataset.stageTabSet) stageTab = navEl.dataset.stageTabSet;
+    if(navEl.dataset.stageTabSet && (navEl.dataset.stageTabSet === 'main' || tutorialCleared())) stageTab = navEl.dataset.stageTabSet;
     goto(navEl.dataset.nav);
     return;
   }
@@ -9711,7 +9721,11 @@ function handlePhoneClick(ev){
   if(openEl){ stageSheet = openEl.dataset.stageOpen; renderStageSheet(); return; }
   if(t.closest('[data-close-sheet]')){ stageSheet = null; closeModal(); return; }
   const tabEl = t.closest('[data-stage-tab]');
-  if(tabEl){ stageTab = tabEl.dataset.stageTab; render(); return; }
+  if(tabEl){
+    const tab = tabEl.dataset.stageTab;
+    if(tab !== 'main' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
+    stageTab = tab; render(); return;
+  }
   const debugEl = t.closest('[data-debug]');
   if(debugEl){
     if(debugEl.dataset.debug === 'stamina'){ STATE.stamina = STAMINA_MAX; STATE.staminaAt = Date.now(); }
@@ -9741,7 +9755,13 @@ function handlePhoneClick(ev){
     closeModal(); startBattle(startEl.dataset.startStage); return;
   }
   const resultNavEl = t.closest('[data-result-nav]');
-  if(resultNavEl){ closeModal(); goto(resultNavEl.dataset.resultNav); return; }
+  if(resultNavEl){
+    const tutorialJustDone = battleUI && battleUI.tutorialJustDone;
+    closeModal();
+    goto(resultNavEl.dataset.resultNav);
+    if(tutorialJustDone) openGuideToast('hinoko', GUIDE_CONTENT.tutorialDone.steps, { key: 'tutorialDone', doneLabel: 'ありがとう!' });
+    return;
+  }
   if(t.closest('[data-show-result]')){ showBattleResult(); return; }
   const resultTabEl = t.closest('[data-result-tab]');
   if(resultTabEl){ showBattleResult(resultTabEl.dataset.resultTab); return; }
@@ -10226,7 +10246,8 @@ function renderSettingsOverlay(){
           <div class="mc-head" style="margin-bottom:11px;">戦闘</div>
           <div class="set-row">
             <div class="set-k wide">既定の速度</div>
-            <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''}" data-set-speed="${n}">${n}倍</button>`).join('')}</div>
+            <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''} ${n > 1 && !speedUnlocked() ? 'btn-ghost' : ''}" data-set-speed="${n}" ${n > 1 && !speedUnlocked() ? 'disabled' : ''}>${n}倍</button>`).join('')}</div>
+            ${speedUnlocked() ? '' : '<div class="screen-sub" style="margin-top:6px;">「初級5」クリアで倍速が解放されます</div>'}
           </div>
           <div class="set-row"><div class="set-k wide">必殺技オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
@@ -10353,7 +10374,11 @@ async function handleOverlayAction(el){
     render();
     return;
   }
-  if(el.dataset.setSpeed){ STATE.battleSpeed = Number(el.dataset.setSpeed); saveState(); render(); return; }
+  if(el.dataset.setSpeed){
+    const n = Number(el.dataset.setSpeed);
+    if(n > 1 && !speedUnlocked()){ toast('「初級5」クリアで倍速が解放されます'); return; }
+    STATE.battleSpeed = n; saveState(); render(); return;
+  }
   if(el.dataset.pick){ pickTarget = el.dataset.pick; overlayView = 'pick'; render(); return; }
   if(el.dataset.picked){
     const p = profileState();
@@ -10673,6 +10698,11 @@ const GUIDE_CONTENT = {
       { body: 'ここでステータスが見られるよ。HPや攻撃力、防御力なんかが確認できるの。', highlight: '.detail-stats' },
       { body: 'こっちはスキル。通常攻撃やスキル、必殺技の効果がここに書いてあるよ。', highlight: '.detail-skill-box' },
       { body: '最後はここ、昇格。ソウルを集めると★を上げられて、もっと強くなれるの。困ったらいつでも呼んでね。', highlight: '.promo-box' },
+    ],
+  },
+  tutorialDone: {
+    steps: [
+      { title: 'おつかれさま!', body: '戦闘チュートリアルはここまで!おつかれさまでした。これからの冒険の足しに、💎3200個を受け取ってね。ここから先は自分の力で進んでいこう!' },
     ],
   },
 };
