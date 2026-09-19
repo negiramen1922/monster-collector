@@ -3683,26 +3683,32 @@ function relicEffectMatches(cond, mon){
 function relicEffectText(e){ return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%`; }
 
 // ★1〜2は常時効果のみ、★3〜4は常時+条件1、★5は常時+条件2 という本数の目安で手作り
+// base = flat stat points per relic level (NOT a %), same as the very first design: "Lv1で
+// HP+10・STR+2" etc. Growth is linear (base.hp × level), scaled further by 凸 (see
+// applyRelicToUnit). Seed values below are calibrated so that a Lv200/凸0 relic's flat
+// bonus lands at roughly the target %(of a same-star character's own stat at Lv200) noted
+// in each comment - since it's a flat number, actual % will drift a bit by role/character,
+// unlike the %-based effects below.
 const RELICS = {
   rel_droplet: { id:'rel_droplet', name:'みずのしずく', star:1, icon:'💧',
-    base:{ hp:0.20 }, effects:[ { stat:'hp', pct:0.05, cond:null } ] },
+    base:{ hp:0.77 }, effects:[ { stat:'hp', pct:0.05, cond:null } ] }, // hp: ★1 target +20% of avg HP at Lv200
   rel_hourglass: { id:'rel_hourglass', name:'ちからの砂時計', star:2, icon:'⏳',
-    base:{ atk:0.30 }, effects:[ { stat:'atk', pct:0.08, cond:null } ] },
+    base:{ atk:0.26 }, effects:[ { stat:'atk', pct:0.08, cond:null } ] }, // atk: ★2 target +30%
   rel_giant_shield: { id:'rel_giant_shield', name:'巨人の盾のかけら', star:3, icon:'🛡️',
-    base:{ hp:0.40, atk:0.10 },
+    base:{ hp:1.85, atk:0.09 }, // ★3 target hp+40%・atk+10%
     effects:[ { stat:'pdef', pct:0.10, cond:null }, { stat:'pdef', pct:0.15, cond:{ type:'role', value:'tank' } } ] },
   rel_ygg_leaf: { id:'rel_ygg_leaf', name:'ユグドラシルの葉っぱ', star:4, icon:'🍃',
-    base:{ hp:0.60, atk:0.20 },
+    base:{ hp:3.00, atk:0.20 }, // ★4 target hp+60%・atk+20%
     effects:[ { stat:'hp', pct:0.15, cond:null }, { stat:'atk', pct:0.15, cond:{ type:'species', value:'elf' } } ] },
   rel_grimoire: { id:'rel_grimoire', name:'終焉のグリモワール', star:5, icon:'📖',
-    base:{ hp:0.70, atk:0.25 },
+    base:{ hp:3.77, atk:0.27 }, // ★5 target hp+70%・atk+25%
     effects:[
       { stat:'skillDmg', pct:0.10, cond:null },
       { stat:'skillDmg', pct:0.15, cond:{ type:'element', value:'dark' } },
       { stat:'ultDmg', pct:0.20, cond:{ type:'role', value:'attacker' } },
     ] },
   rel_dragon_scale: { id:'rel_dragon_scale', name:'竜王の逆鱗', star:5, icon:'🐉',
-    base:{ hp:0.70, atk:0.25 },
+    base:{ hp:3.77, atk:0.27 }, // ★5 target hp+70%・atk+25%
     effects:[
       { stat:'hp', pct:0.10, cond:null },
       { stat:'hp', pct:0.15, cond:{ type:'species', value:'draconia' } },
@@ -3825,32 +3831,23 @@ function upgradeRelicSkill(id){
   return true;
 }
 
-// base growth uses the exact same shape as character progression (LEVEL_STAT_BONUS per
-// level, PROMOTION_STAT_BONUS-style +10% per 凸 used). def.base values are the % bonus a
-// stat reaches at the relic's true ceiling - Lv200 with all 4 凸 spent (the same level a
-// fully-promoted character of that star would reach) - e.g. base:{hp:0.70} means a fully
-// maxed relic's HP contribution equals 70% of a same-star Lv200 character's own HP. Below
-// that ceiling it scales down proportionally (Lv100/凸0 lands at well under half of it).
-// This is a plain % bonus like effects, so it folds into the same applyStatBonus() bonus
-// object - keeping it role-independent (a fixed % of the character's OWN stat, not a flat
-// number that would land differently on a tanky HP pool vs. a squishy one).
-const RELIC_LEVEL_GROWTH = LEVEL_STAT_BONUS; // 3%/level, same rate as characters
-const RELIC_DUPE_BONUS = PROMOTION_STAT_BONUS; // +10% per 凸 used, on top of the level curve below - not part of the def.base target itself
-const RELIC_BASE_MULT_AT_MAX = 1 + 199 * RELIC_LEVEL_GROWTH; // Lv200, no 凸 - the pure leveling ceiling def.base is calibrated against
-function relicBaseMult(st){ return 1 + ((st.level || 1) - 1) * RELIC_LEVEL_GROWTH + (st.dupeUsed || 0) * RELIC_DUPE_BONUS; }
-function relicBaseFraction(st){ return relicBaseMult(st) / RELIC_BASE_MULT_AT_MAX; }
+const RELIC_DUPE_BONUS = PROMOTION_STAT_BONUS; // +10% per 凸 used, multiplies the flat base bonus below
 
 /* ---- battle: apply an equipped relic's bonuses to an ally unit ---- */
+// base is a flat stat addition (base.hp × relic level, see RELICS above), NOT a % of the
+// character's own stat - a genuine gear-style flat bonus, scaled further by 凸 (+10%/use).
+// effects (below) are the separate %-of-character's-stat layer, scaled by skillLv instead.
 function applyRelicToUnit(u, mon, relicId){
   const st = STATE.relics[relicId];
   const def = RELICS[relicId];
   if(!st || !def) return;
-  const baseFrac = relicBaseFraction(st);
+  const dupeMult = 1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS;
+  if(def.base){
+    if(def.base.hp){ const add = Math.round(def.base.hp * st.level * dupeMult); u.maxHp += add; u.hp += add; }
+    if(def.base.atk){ const add = Math.round(def.base.atk * st.level * dupeMult); u.str += add; }
+  }
   const skillMult = relicSkillMult(st.skillLv);
   const bonus = {};
-  Object.entries(def.base || {}).forEach(([stat, pctAt100]) => {
-    bonus[stat] = (bonus[stat] || 0) + pctAt100 * baseFrac;
-  });
   (def.effects || []).forEach(e => {
     if(!relicEffectMatches(e.cond, mon)) return;
     bonus[e.stat] = (bonus[e.stat] || 0) + e.pct * skillMult;
@@ -3954,7 +3951,7 @@ function renderRelicUpgrade(){
       <button class="fs-close" data-close-relic-upgrade="1" aria-label="閉じる">×</button>
       <h3>${def.icon} ${def.name}<span class="relic-star">★${def.star}</span></h3>
       <div class="relic-effects">
-        ${def.base ? `<div class="relic-eff-line">基礎ステータス(Lv200・凸なしで最大値、凸はさらに上乗せ)<small>(現在 ${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicBaseFraction(st) * 100)}%`).join('・')})</small></div>` : ''}
+        ${def.base ? `<div class="relic-eff-line">基礎ステータス(Lvで線形成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)<small>(現在 ${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * st.level * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')})</small></div>` : ''}
         ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectText(e)}<small>(現在 ${Math.round(e.pct * mult * 100)}%)</small></div>`).join('')}
       </div>
 
