@@ -1334,6 +1334,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   padding:2px 4px 3px; text-align:center; border-radius:10px;
 }
 .battle-field .unit .uname{ margin:0 0 1px; font-size:9px; line-height:1.2; }
+.battle-field .unit .ulv{ font-size:7px; margin:0 0 1px; }
 .battle-field .unit .ult-bg{ margin-top:2px; }
 /* status icons float over the sprite instead of taking a row */
 .battle-field .status-row{
@@ -1367,6 +1368,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .unit.ready{ border-color:var(--gold); box-shadow:0 0 14px -2px rgba(232,180,85,.7); }
 .unit img{ width:100%; aspect-ratio:1/1; object-fit:contain; image-rendering:pixelated;}
 .unit .uname{ font-size:9px; margin-top:3px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.unit .ulv{ font-size:7.5px; color:var(--dim); line-height:1.1; white-space:nowrap; }
 .hp-bg{ height:5px; border-radius:999px; background:#0e0b18; margin-top:4px; overflow:hidden;}
 .hp-fill{ height:100%; background:linear-gradient(90deg,#5cab52,#8bd67f); border-radius:999px; transition:width .3s ease;}
 .hp-fill.low{ background:linear-gradient(90deg,var(--danger),#ff8a6b); }
@@ -8112,7 +8114,7 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     hp: Math.round(s.hp * mult), maxHp: Math.round(s.hp * mult),
     str: Math.round(s.str * mult), pdef: Math.round(s.pdef * mult), mdef: Math.round(s.mdef * mult),
     spd: s.spd,
-    star: curStar,
+    star: curStar, level: isEnemy ? (stageLevel || 1) : (charLevel || 1),
     skillLv: up.skillLv || 1, ultLv: up.ultLv || 1, passiveLv: up.passiveLv || 1,
     isEnemy, boss: !!boss, alive: true, vanished: false,
     kit, normal: kit.normal, skills: skillSlotsOf(mon, curStar), skillCd: [], ctReduce: 0,
@@ -11018,6 +11020,7 @@ function renderBattleFight(){
         ${popups}
         ${u.vanished ? '<div class="vanish-tag">離脱中</div>' : ''}
         <div class="uname">${ELEM_ICON[u.element]}${u.name}</div>
+        <div class="ulv">★${u.star} Lv${u.level}</div>
         <img src="${imgSrc(u.ref)}" alt="${u.name}">
         <div class="ubody">
           ${shield > 0 ? `<div class="shield-num">${shield}</div>` : ''}
