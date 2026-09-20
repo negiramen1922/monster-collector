@@ -4,6 +4,9 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   STATE_ref: () => STATE, DEFAULT_STATE, addFriendByCode, sanitizeSupport, borrowFriendHelper,
   returnBorrowed, friendsAvailable, MON_BY_ID, setAccount: a => { ACCOUNT = a; },
+  sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND,
+  pullFriendMon, pullFriendMat, doFriendPull, FRIEND_CHAR_GACHA_COST, FRIEND_MAT_GACHA_COST,
+  getItem, addItem, MONSTERS,
 };`);
 const E = global.__e;
 
@@ -54,4 +57,44 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   console.log('sanitizeSupport(null):', E.sanitizeSupport(null));
   console.log('sanitizeSupport(bad id):', E.sanitizeSupport({ id: 'zzz', star: 3, level: 50 }));
   console.log('sanitizeSupport(out-of-range clamps):', JSON.stringify(E.sanitizeSupport({ id: 'm54', star: 999, level: -10, skillLv: 'nope' })));
+
+  // --- friend points: sending is capped once/day/friend, only affects the sender ---
+  const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
+  const S = api.STATE;
+  ok('未送信ならfriendPointSentToday=false', E.friendPointSentToday('u-good') === false);
+  const before = S.friendPoints || 0;
+  E.sendFriendPoint('u-good');
+  ok('送信するとフレンドポイントが増える', S.friendPoints === before + E.FRIEND_POINT_PER_SEND, [before, S.friendPoints]);
+  ok('送信後はfriendPointSentToday=true', E.friendPointSentToday('u-good') === true);
+  const afterFirst = S.friendPoints;
+  E.sendFriendPoint('u-good');
+  ok('同じフレンドには1日1回までしか送れない', S.friendPoints === afterFirst, [afterFirst, S.friendPoints]);
+  E.sendFriendPoint('u-evil');
+  ok('別のフレンドには別枠で送れる', S.friendPoints === afterFirst + E.FRIEND_POINT_PER_SEND, S.friendPoints);
+  E.sendFriendPoint('u-not-a-friend');
+  ok('フレンドでないuidを送っても増えない(存在チェック)', S.friendPoints === afterFirst + E.FRIEND_POINT_PER_SEND);
+
+  // --- friend gacha: ★1-3 only, spends friendPoints, grants via the normal reward pipeline ---
+  for(let i = 0; i < 50; i++){
+    const r = E.pullFriendMon();
+    if(E.MONSTERS.find(m => m.id === r.id).rarity > 3){ ok('friendキャラガチャは★1-3のみ(50回中1つでも★4+があれば失敗)', false, r); break; }
+  }
+  ok('friendキャラガチャは★1-3のみ(50回とも★3以下)', true);
+
+  S.friendPoints = 1000;
+  const goldBefore = S.gold;
+  const ownedBefore = Object.keys(S.owned).length;
+  E.doFriendPull('char', 1);
+  ok('フレンドキャラガチャでポイントが消費される', S.friendPoints === 1000 - E.FRIEND_CHAR_GACHA_COST, S.friendPoints);
+  ok('フレンドキャラガチャでモンスターが増える(所持済みならソウル)', Object.keys(S.owned).length >= ownedBefore);
+
+  S.friendPoints = 1000;
+  const scrapBefore = E.getItem('relic_scrap');
+  E.doFriendPull('mat', 10);
+  ok('フレンド素材ガチャで10連分のポイントが消費される', S.friendPoints === 1000 - E.FRIEND_MAT_GACHA_COST * 10, S.friendPoints);
+
+  S.friendPoints = 0;
+  const ptsBefore2 = S.friendPoints;
+  E.doFriendPull('char', 1);
+  ok('ポイント不足だと何も起きない', S.friendPoints === ptsBefore2);
 })();
