@@ -2425,12 +2425,15 @@ function starsHtml(initial, current){
   const cur = current || initial;
   return `<span class="stars">${'★'.repeat(initial)}${cur > initial ? `<span class="promo">${'★'.repeat(cur - initial)}</span>` : ''}</span>`;
 }
-// compact battle-card variant: stars 1-5 (the normal rarity range) in the default
-// (near-white) color, and any star past the 5th - only reachable via promotion, since
-// MAX_STAR(7) exceeds the highest gacha rarity(5) - in gold.
+// compact battle-card variant: always shows exactly 5 stars (the normal rarity range).
+// At ★5 or below they're all the default (near-white) color. Past ★5 - only reachable
+// via promotion, since MAX_STAR(7) exceeds the highest gacha rarity(5) - the row stays
+// at 5 stars, but that many are turned gold from the left instead of growing to 6/7 stars.
 function battleStarsHtml(rarity, star){
   const n = star || rarity;
-  return `<span class="bstars">${Array.from({ length:n }, (_, i) => `<i class="${i >= 5 ? 'gold' : ''}">★</i>`).join('')}</span>`;
+  const shown = Math.min(n, 5);
+  const gold = Math.max(0, n - 5);
+  return `<span class="bstars">${Array.from({ length:shown }, (_, i) => `<i class="${i < gold ? 'gold' : ''}">★</i>`).join('')}</span>`;
 }
 
 /* ---- gacha (B plan) ---- */
