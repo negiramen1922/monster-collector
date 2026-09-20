@@ -2338,6 +2338,36 @@ const SPECIES_LABEL = {
 };
 const SPECIES_ICON = Object.fromEntries(SPECIES_ORDER.map(k =>
   [k, iconImg(ICON_DATA[`tribe_${k}`], 'ico-species', SPECIES_LABEL[k])]));
+
+/* ---- currency/material icons (provisional flat-SVG, same swap-in pattern as
+   ELEM_ICON/ROLE_ICON/SPECIES_ICON above): ICON_DATA[key] (real pixel art) wins once it
+   arrives, otherwise a hand-drawn SVG badge - replaces the plain emoji these used to be. ---- */
+function svgIcon(body){ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${body}</svg>`; }
+function dataIcon(key, svgBody, cls, label){
+  const src = ICON_DATA[key] ? `data:image/png;base64,${ICON_DATA[key]}` : `data:image/svg+xml;utf8,${encodeURIComponent(svgIcon(svgBody))}`;
+  return iconImg(src, cls, label);
+}
+const CURRENCY_SVG_BODY = {
+  gold: '<circle cx="50" cy="50" r="40" fill="#e8b455" stroke="#8a5f16" stroke-width="7"/><circle cx="50" cy="50" r="29" fill="none" stroke="#8a5f16" stroke-width="4"/><path d="M50 32l5.5 13.5H70L58.5 54l4.5 14L50 59.5 37 68l4.5-14L30 45.5h14.5z" fill="#fff4c2"/>',
+  crystal: '<path d="M50 8 L80 32 L64 92 L36 92 L20 32 Z" fill="#3aa6f2" stroke="#1c5f8a" stroke-width="6" stroke-linejoin="round"/><path d="M50 8 L64 92 L36 92 Z" fill="#bfe6ff" opacity=".6"/><path d="M20 32 L50 8 L80 32 Z" fill="#8fd8ff" opacity=".85"/>',
+  universal: '<rect x="28" y="28" width="44" height="44" rx="10" fill="#b27cf2" stroke="#6a3fa0" stroke-width="6" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="12" fill="#f1e3ff"/>',
+};
+const CURRENCY_LABEL = { gold: 'ゴールド', crystal: '結晶', universal: '万能ソウル' };
+const CURRENCY_ICON = Object.fromEntries(Object.keys(CURRENCY_SVG_BODY).map(k =>
+  [k, dataIcon(`cur_${k}`, CURRENCY_SVG_BODY[k], `ico-currency ico-${k}`, CURRENCY_LABEL[k])]));
+const GOLD_ICON = CURRENCY_ICON.gold, CRYSTAL_ICON = CURRENCY_ICON.crystal, UNIVERSAL_ICON = CURRENCY_ICON.universal;
+
+// generic item icons (rewards/inventory): same pixel-art-ready fallback as currency above.
+const ITEM_SVG_BODY = {
+  scrap: '<path d="M22 60 L34 30 L52 38 L60 22 L78 34 L70 58 L54 52 L46 74 L30 68 Z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="50" r="7" fill="#5a5a68"/>',
+  core: '<circle cx="50" cy="50" r="32" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="40" cy="40" r="9" fill="#ffffff" opacity=".65"/>',
+  pot: '<rect x="40" y="10" width="20" height="10" rx="3" fill="#4a4560"/><path d="M42 20h16v16l14 32c3 7-2 14-10 14H38c-8 0-13-7-10-14l14-32z" fill="#e8e3f5" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><path d="M34 64h32l5 12c2 5-1 10-7 10H36c-6 0-9-5-7-10z" fill="#7ecbe8"/>',
+  box_sel: '<rect x="16" y="42" width="68" height="42" rx="4" fill="#c98f2e" stroke="#7a5416" stroke-width="6"/><rect x="16" y="30" width="68" height="16" rx="4" fill="#e8b455" stroke="#7a5416" stroke-width="6"/><rect x="44" y="20" width="12" height="64" fill="#e2572b"/>',
+  box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
+};
+const ITEM_ICON_LABEL = { scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX' };
+const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
+  [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const FAMILY_TO_SPECIES = { // provisional
   'デミヒューマン科':'hume', 'ジャイアント科':'hume',
   'プラント科':'elf',
@@ -3573,17 +3603,17 @@ function itemName(key){
 }
 function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</span>`; }
 function itemIcon(key){
-  if(key === 'relic_scrap') return `<span class="item-ic">🔩</span>`;
+  if(key === 'relic_scrap') return `<span class="item-ic">${ITEM_ICON.scrap}</span>`;
   const rc = /^relic_core_([1-3])$/.exec(key);
-  if(rc) return `<span class="item-ic">🔮${tierBadge(Number(rc[1]))}</span>`;
-  if(EXP_POT_VALUE[key]) return `<span class="item-ic">🧪${tierBadge(Number(key.slice(3)))}</span>`;
+  if(rc) return `<span class="item-ic">${ITEM_ICON.core}${tierBadge(Number(rc[1]))}</span>`;
+  if(EXP_POT_VALUE[key]) return `<span class="item-ic">${ITEM_ICON.pot}${tierBadge(Number(key.slice(3)))}</span>`;
   const b = /^box_(sel|rnd)_([1-4])$/.exec(key);
-  if(b) return `<span class="item-ic">${b[1] === 'sel' ? '🎁' : '📦'}${tierBadge(Number(b[2]))}</span>`;
+  if(b) return `<span class="item-ic">${b[1] === 'sel' ? ITEM_ICON.box_sel : ITEM_ICON.box_rnd}${tierBadge(Number(b[2]))}</span>`;
   const m = parseMat(key);
   if(m) return `<span class="item-ic">${MAT_FAMILIES[m.fam].icon(m.kind)}${tierBadge(m.tier)}</span>`;
   return '';
 }
-function goldText(n){ return `💰${Number(n).toLocaleString()}`; }
+function goldText(n){ return `${GOLD_ICON}${Number(n).toLocaleString()}`; }
 function addGold(n){ STATE.gold = Math.max(0, (STATE.gold || 0) + n); }
 
 /* ---- character level: EXP curve (TierI units) and level walls ---- */
@@ -4675,7 +4705,7 @@ function renderSweepModal(){
         <div class="promo-note">1回 ⚡${stage.stamina}・いまは最大 ${max}回${
           STATE.stamina >= STAMINA_MAX ? '' : `・全回復まで ${formatDuration(msToFullStamina())}`}</div>
       </div>
-      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・🧪EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
+      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・${ITEM_ICON.pot}EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
       ${opts.length ? `<div class="sweep-opts">${opts.map(n => `
         <button class="btn" data-sweep-run="${n}">
           <b>${n === max && n > 10 ? `最大 ${n}回` : `${n}回`}</b>
@@ -5088,8 +5118,8 @@ function grantRewards(list){
 }
 function rewardHtml(list){
   return list.map(r => {
-    if(r.type === 'crystal') return `<span class="rw">💎${r.n}</span>`;
-    if(r.type === 'universal') return `<span class="rw">💠${r.n}</span>`;
+    if(r.type === 'crystal') return `<span class="rw">${CRYSTAL_ICON}${r.n}</span>`;
+    if(r.type === 'universal') return `<span class="rw">${UNIVERSAL_ICON}${r.n}</span>`;
     if(r.type === 'mat' || r.type === 'item') return `<span class="rw" title="${itemName(r.key)}">${itemIcon(r.key)}${r.n}</span>`;
     if(r.type === 'gold') return `<span class="rw">${goldText(r.n)}</span>`;
     if(r.type === 'monster'){ const m = MON_BY_ID[r.id]; return `<span class="rw rw-mon"><img src="${imgSrc(m.id)}" alt="">★${m.rarity} ${m.name}</span>`; }
@@ -6240,7 +6270,7 @@ function renderMissions(){
 
   const resetText = missionTab === 'daily' ? `リセットまで ${formatDuration(msToDailyReset())}`
     : missionTab === 'weekly' ? `リセットまで ${formatDuration(msToWeeklyReset())}(毎週月曜${DAY_RESET_HOUR}時)`
-    : missionTab === 'beginner' ? `${Math.min(STATE.beginnerStep || 0, BEGINNER_MISSIONS.length)} / ${BEGINNER_MISSIONS.length} 達成。すべて終えると10連分の結晶(💎1350)`
+    : missionTab === 'beginner' ? `${Math.min(STATE.beginnerStep || 0, BEGINNER_MISSIONS.length)} / ${BEGINNER_MISSIONS.length} 達成。すべて終えると10連分の結晶(${CRYSTAL_ICON}1350)`
     : '段階をクリアするごとに、次の目標が現れます';
 
   const row = e => {
@@ -6486,7 +6516,7 @@ function renderDailyLoginCard(){
         return `
           <button class="login-day ${claimed ? 'done' : ''} ${isReady ? 'ready' : ''}" data-daily-login-day="${day}" ${isReady ? '' : 'disabled'}>
             <span class="ld-no">${day}日目</span>
-            <span class="ld-rw">${claimed ? '✓' : `💎${n}`}</span>
+            <span class="ld-rw">${claimed ? '✓' : `${CRYSTAL_ICON}${n}`}</span>
           </button>`;
       }).join('')}
     </div>`;
@@ -6644,10 +6674,10 @@ function renderRelicGacha(){
     </div>` : ''}
     <div class="gc-btns">
       <button class="btn gc-pull1" id="relic-pull1" ${(STATE.crystals || 0) < PULL_COST ? 'disabled' : ''}>
-        1回<small>💎 ${PULL_COST}</small>
+        1回<small>${CRYSTAL_ICON} ${PULL_COST}</small>
       </button>
       <button class="btn gc-pull10" id="relic-pull10" ${(STATE.crystals || 0) < PULL10_COST ? 'disabled' : ''}>
-        10連<small>💎 ${PULL10_COST}</small>
+        10連<small>${CRYSTAL_ICON} ${PULL10_COST}</small>
       </button>
     </div>
     <div class="panel panel-tight">
@@ -6781,7 +6811,7 @@ function renderMonGacha(){
       <button class="btn btn-block btn-sm ${canSpark ? '' : 'btn-ghost'}" id="spark-btn" ${canSpark ? '' : 'disabled'} style="margin-top:9px;">
         ${canSpark ? `${SPARK_POINTS}ポイントで「${pickup.name}」と交換する` : `あと ${SPARK_POINTS - STATE.summonPoints}ポイントで「${pickup.name}」と交換できます`}
       </button>
-      <div class="gc-soul">💠 万能ソウル <b>${STATE.universalSouls.toLocaleString()}</b>
+      <div class="gc-soul">${UNIVERSAL_ICON} 万能ソウル <b>${STATE.universalSouls.toLocaleString()}</b>
         <small>${UNIVERSAL_PER_SOUL}個で好きなモンスターのソウル1個に交換できます</small></div>
     </div>
 
@@ -6810,10 +6840,10 @@ function renderMonGacha(){
 
     <div class="gc-btns">
       <button class="btn gc-pull1" id="pull1" ${STATE.crystals < PULL_COST ? 'disabled' : ''}>
-        1回<small>💎 ${PULL_COST}</small>
+        1回<small>${CRYSTAL_ICON} ${PULL_COST}</small>
       </button>
       <button class="btn gc-pull10" id="pull10" ${STATE.crystals < PULL10_COST ? 'disabled' : ''}>
-        10連<small>💎 ${PULL10_COST}・10枠目★${TEN_PULL_MIN_STAR}以上</small>
+        10連<small>${CRYSTAL_ICON} ${PULL10_COST}・10枠目★${TEN_PULL_MIN_STAR}以上</small>
       </button>
     </div>
 
@@ -7050,7 +7080,7 @@ function cutInHtml(r, kind){
       <div class="cut-body">
         <div class="cut-badges">
           <span class="cut-star pixel">★ ${m.rarity}</span>
-          ${r.isNew ? '<span class="cut-new">NEW</span>' : `<span class="cut-dup">重複 💠+${r.universal}</span>`}
+          ${r.isNew ? '<span class="cut-new">NEW</span>' : `<span class="cut-dup">重複 ${UNIVERSAL_ICON}+${r.universal}</span>`}
         </div>
         <img class="cut-mon ${kind}" src="${imgSrc(m.id)}" alt="${m.name}">
         <div class="cut-name ${kind}">${m.name}</div>
@@ -7230,7 +7260,7 @@ function showGachaResults(results, before){
             <div class="result-card r${r.mon.rarity} ${r.isNew ? '' : 'dup'}" style="animation-delay:${i * 60}ms" title="${r.mon.name}">
               <img src="${imgSrc(r.mon.id)}" alt="${r.mon.name}">
               <div class="star">${'★'.repeat(r.mon.rarity)}</div>
-              <div class="rc-badge ${r.isNew ? 'new' : ''}">${r.isNew ? 'NEW' : `💠+${r.universal}`}</div>
+              <div class="rc-badge ${r.isNew ? 'new' : ''}">${r.isNew ? 'NEW' : `${UNIVERSAL_ICON}+${r.universal}`}</div>
             </div>
           `).join('')}
         </div>
@@ -7238,7 +7268,7 @@ function showGachaResults(results, before){
 
       ${dupCount ? `
         <div class="panel panel-tight gr-convert">
-          <span class="sc-ic">💠</span>
+          <span class="sc-ic">${UNIVERSAL_ICON}</span>
           <div class="sc-body">
             <div class="sc-name">重複 ${dupCount}体 → 万能ソウルに自動変換</div>
             <div class="sc-sub">${before.universal.toLocaleString()} → <b>${STATE.universalSouls.toLocaleString()}</b></div>
@@ -7254,7 +7284,7 @@ function showGachaResults(results, before){
       <div class="br-buttons">
         <button class="btn btn-ghost" id="close-result">閉じる</button>
         <button class="btn ${STATE.crystals >= again ? '' : 'btn-ghost'}" data-pull-again="${results.length}" ${STATE.crystals >= again ? '' : 'disabled'}>
-          もう一度 💎${again.toLocaleString()}
+          もう一度 ${CRYSTAL_ICON}${again.toLocaleString()}
         </button>
       </div>
     </div>
@@ -7393,8 +7423,8 @@ function showMonsterDetail(id){
       </div>
       <div class="soul-bar exp-bar"><div class="soul-fill" style="width:${maxed ? 100 : expPct}%;"></div></div>
       <div class="row-between lv-cost">
-        <span>${maxed ? '★を上げるとレベル上限が伸びます' : `必要: 🧪 EXP ${Math.max(0, expToNext(owned.level) - (owned.exp || 0)).toLocaleString()}　／Lv${stop}まで ${expNeeded(owned, stop).toLocaleString()}`}</span>
-        <span>所持 🧪 ${potTotal.toLocaleString()}</span>
+        <span>${maxed ? '★を上げるとレベル上限が伸びます' : `必要: ${ITEM_ICON.pot} EXP ${Math.max(0, expToNext(owned.level) - (owned.exp || 0)).toLocaleString()}　／Lv${stop}まで ${expNeeded(owned, stop).toLocaleString()}`}</span>
+        <span>所持 ${ITEM_ICON.pot} ${potTotal.toLocaleString()}</span>
       </div>
       ${wall ? `
         <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= wallCost(owned.level) ? '' : 'btn-ghost'}" data-break-wall="${id}">
@@ -7478,7 +7508,7 @@ function showMonsterDetail(id){
             ${canPromote ? `★${owned.star + 1}に昇格する(ソウル×${need}・${goldText(promoGold)})` : `ソウルがあと${shortSouls}個必要(昇格に${goldText(promoGold)})`}
           </button>
           <div class="uni-convert">
-            <div class="uni-have">💠 万能ソウル ${STATE.universalSouls}個(ソウル${convertible}個分)</div>
+            <div class="uni-have">${UNIVERSAL_ICON} 万能ソウル ${STATE.universalSouls}個(ソウル${convertible}個分)</div>
             <div class="uni-btns">
               <button class="btn btn-sm btn-ghost" data-convert="${id}" data-count="1" ${convertible >= 1 ? '' : 'disabled'}>1個変換</button>
               <button class="btn btn-sm ${fillCount > 0 ? '' : 'btn-ghost'}" data-convert="${id}" data-count="${fillCount}" ${fillCount > 0 ? '' : 'disabled'}>
@@ -8046,7 +8076,7 @@ function renderStageSheet(){
         <div class="ss-label">報酬</div>
         <div class="ss-line">${goldText(st.gold || 0)}　${Object.entries(st.pots || {}).map(([k, n]) => `${itemIcon(k)}×${n}`).join('　')}</div>
         ${dropIconsHtml(st)}
-        <div class="ss-line">${cleared ? '<span class="cleared-tag">✓ 初回クリア報酬は受け取り済み</span>' : `初回クリア 💎${st.firstClear}${st.bossReward || st.reward ? ` ${rewardHtml([...(st.bossReward || []), ...(st.reward || [])])}` : ''}`}</div>
+        <div class="ss-line">${cleared ? '<span class="cleared-tag">✓ 初回クリア報酬は受け取り済み</span>' : `初回クリア ${CRYSTAL_ICON}${st.firstClear}${st.bossReward || st.reward ? ` ${rewardHtml([...(st.bossReward || []), ...(st.reward || [])])}` : ''}`}</div>
       </div>
       <div class="ss-actions">
         ${sweepButton(st)}
@@ -11016,7 +11046,7 @@ function showBattleResult(tab){
     const gainChips = [
       r.gold ? `<span class="gain-chip">${goldText(r.gold)}</span>` : '',
       ...r.items.map(m => `<span class="gain-chip" title="${itemName(m.key)}">${itemIcon(m.key)} ×${m.n}</span>`),
-      r.crystals ? `<span class="gain-chip first">初回クリア 💎${r.crystals}</span>` : '',
+      r.crystals ? `<span class="gain-chip first">初回クリア ${CRYSTAL_ICON}${r.crystals}</span>` : '',
       ...(r.firstItems || []).map(x => `<span class="gain-chip first">${rewardHtml([x])}</span>`),
     ].filter(Boolean).join('');
     const mvp = b.party.slice().sort((x, y) => y.report.dealt - x.report.dealt)[0];
@@ -12044,7 +12074,7 @@ function renderTopBar(){
     </button>
     <span class="tb-gap"></span>
     ${currentScreen === 'gacha'
-      ? `<span class="tb-pill gem" title="結晶">💎${STATE.crystals.toLocaleString()}</span>`
+      ? `<span class="tb-pill gem" title="結晶">${CRYSTAL_ICON}${STATE.crystals.toLocaleString()}</span>`
       : `<span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>`}
     <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
     <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
@@ -12854,7 +12884,7 @@ const GUIDE_CONTENT = {
   },
   tutorialDone: {
     steps: [
-      { title: 'おつかれさま!', body: '戦闘チュートリアルはここまで!おつかれさまでした。これからの冒険の足しに、💎3200個を受け取ってね。ここから先は自分の力で進んでいこう!' },
+      { title: 'おつかれさま!', body: `戦闘チュートリアルはここまで!おつかれさまでした。これからの冒険の足しに、${CRYSTAL_ICON}3200個を受け取ってね。ここから先は自分の力で進んでいこう!` },
     ],
   },
 };
