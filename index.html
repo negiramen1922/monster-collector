@@ -1369,6 +1369,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .unit img{ width:100%; aspect-ratio:1/1; object-fit:contain; image-rendering:pixelated;}
 .unit .uname{ font-size:9px; margin-top:3px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .unit .ulv{ font-size:7.5px; color:var(--dim); line-height:1.1; white-space:nowrap; }
+.unit .bstars{ color:var(--text); letter-spacing:-.05em; }
+.unit .bstars i{ font-style:normal; }
+.unit .bstars i.gold{ color:var(--gold); }
+.unit .ulv-num{ color:var(--dim); }
 .hp-bg{ height:5px; border-radius:999px; background:#0e0b18; margin-top:4px; overflow:hidden;}
 .hp-fill{ height:100%; background:linear-gradient(90deg,#5cab52,#8bd67f); border-radius:999px; transition:width .3s ease;}
 .hp-fill.low{ background:linear-gradient(90deg,var(--danger),#ff8a6b); }
@@ -2420,6 +2424,14 @@ function newOwned(mon){ return { star: mon.rarity, souls: 0, level: 1, exp: 0, w
 function starsHtml(initial, current){
   const cur = current || initial;
   return `<span class="stars">${'★'.repeat(initial)}${cur > initial ? `<span class="promo">${'★'.repeat(cur - initial)}</span>` : ''}</span>`;
+}
+// compact battle-card variant: all stars in the default (near-white) color, except the
+// first star turns gold as a one-glance "this one's promoted past its base rarity" marker
+// (no room on the tiny card for spelling out how many promotions, just that there are any).
+function battleStarsHtml(rarity, star){
+  const n = star || rarity;
+  const promoted = n > rarity;
+  return `<span class="bstars">${Array.from({ length:n }, (_, i) => `<i class="${i === 0 && promoted ? 'gold' : ''}">★</i>`).join('')}</span>`;
 }
 
 /* ---- gacha (B plan) ---- */
@@ -11020,7 +11032,7 @@ function renderBattleFight(){
         ${popups}
         ${u.vanished ? '<div class="vanish-tag">離脱中</div>' : ''}
         <div class="uname">${ELEM_ICON[u.element]}${u.name}</div>
-        <div class="ulv">★${u.star} Lv${u.level}</div>
+        <div class="ulv">${battleStarsHtml(u.rarity, u.star)} <span class="ulv-num">Lv${u.level}</span></div>
         <img src="${imgSrc(u.ref)}" alt="${u.name}">
         <div class="ubody">
           ${shield > 0 ? `<div class="shield-num">${shield}</div>` : ''}
