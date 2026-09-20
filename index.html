@@ -8809,6 +8809,10 @@ function startBattle(stageId, opts){
   if(!stage) return;
   if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
   if(stage.tutorial && !(opts && opts.skipIntro) && stageUnlocked(stage)){ showTutorial(stageId, 0); return; }
+  // belt-and-suspenders: no non-tutorial content is playable until the tutorial itself is
+  // finished, even if some other check (requires-chain, dungeon tier unlock, a stray button)
+  // would otherwise let the request through.
+  if(stage.tier !== 'tu' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
   if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
   const cost = stageStaminaCost(stage);
   if(!spendStamina(cost)){ toast(`スタミナが足りません(必要 ${cost})`); return; }
