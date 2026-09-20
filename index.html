@@ -998,23 +998,17 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-pull-star{ font-size:10px; color:var(--gold); margin-top:2px; }
 .relic-pull-tag{ font-size:9px; color:var(--dim); margin-top:2px; }
 
-/* ---- treasure chest gacha presentation (relic gacha + both friend-point gachas) ---- */
+/* ---- treasure chest gacha presentation (relic gacha + both friend-point gachas).
+   Note: named tchest-* (not chest-*) because .chest-box/.chest-glow are already used by
+   the unrelated character-gacha egg animation (.gacha-stage/.chest-wrap/...) - reusing
+   those names let that rule's background/border leak behind this chest's own SVG. ---- */
 .chest-modal{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:280px; background:transparent; border:none; box-shadow:none; }
 .chest-stage{ position:relative; width:180px; height:150px; display:flex; align-items:center; justify-content:center; }
-.chest-glow{
-  position:absolute; inset:-20px; border-radius:50%;
-  background:radial-gradient(circle, var(--tier-glow, var(--r3)) 0%, transparent 68%);
-  opacity:.55; filter:blur(2px); animation:chestGlowPulse 1.5s ease-in-out infinite;
-}
-.chest-stage.tier1{ --tier-glow:var(--r1); } .chest-stage.tier2{ --tier-glow:var(--r2); }
-.chest-stage.tier3{ --tier-glow:var(--r3); } .chest-stage.tier4{ --tier-glow:var(--r4); }
-.chest-stage.tier5{ --tier-glow:var(--r5); }
-@keyframes chestGlowPulse{ 0%,100%{ opacity:.4; transform:scale(1); } 50%{ opacity:.75; transform:scale(1.12); } }
-.chest-box{ position:relative; width:150px; height:130px; z-index:1; cursor:pointer; }
+.tchest-box{ position:relative; width:150px; height:130px; z-index:1; cursor:pointer; }
 .chest-svg{ width:100%; height:100%; overflow:visible; }
-.chest-lid-g{ transform-origin:50px 46px; transition:transform .5s cubic-bezier(.34,1.56,.64,1); }
-.chest-box.open .chest-lid-g{ transform:translate(-4px,-14px) rotate(-108deg); }
-.chest-box.shake{ animation:chestShake .45s ease-in-out infinite; }
+.chest-lid-g{ transform-origin:50px 46px; transition:transform .55s cubic-bezier(.34,1.56,.64,1), opacity .4s ease .1s; }
+.tchest-box.open .chest-lid-g{ transform:translate(6px,-70px) rotate(35deg); opacity:0; }
+.tchest-box.shake{ animation:chestShake .45s ease-in-out infinite; }
 @keyframes chestShake{ 0%,100%{ transform:rotate(0deg); } 25%{ transform:rotate(-2.5deg); } 75%{ transform:rotate(2.5deg); } }
 .chest-hint{ margin-top:14px; font-size:12px; color:var(--dim); font-weight:700; }
 
@@ -6687,9 +6681,8 @@ let pendingChestOpen = null; // set only while the chest is closed & waiting; ta
 function chestStageHtml(topTier, phase){
   return `
     <div class="result-modal chest-modal" role="dialog" aria-label="ガチャ" ${phase === 'closed' ? 'data-chest-tap="1"' : ''}>
-      <div class="chest-stage tier${topTier}">
-        <div class="chest-glow"></div>
-        <div class="chest-box ${phase === 'opening' ? 'open' : 'shake'}">${CHEST_SVG}</div>
+      <div class="chest-stage">
+        <div class="tchest-box ${phase === 'opening' ? 'open' : 'shake'}">${CHEST_SVG}</div>
       </div>
       <div class="chest-hint">${phase === 'closed' ? 'タップして開ける' : ''}</div>
     </div>`;
