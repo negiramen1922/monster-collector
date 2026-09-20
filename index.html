@@ -503,10 +503,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   left:0;right:0;bottom:0;
   display:grid;
   grid-template-columns:repeat(7,1fr);
-  gap:2px;
+  gap:0;
   background:var(--nav);
   border-top:1px solid var(--line);
-  padding:8px 8px 14px;
+  padding:8px 2px 14px;
   z-index:10;
 }
 .nav-btn{
@@ -514,18 +514,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:4px;
+  gap:3px;
   background:none;
   border:none;
   color:var(--dim);
   font-family:inherit;
-  font-size:10px;
+  font-size:9.5px;
   font-weight:800;
-  padding:6px 2px;
+  padding:6px 1px;
   border-radius:12px;
   cursor:pointer;
 }
-.nav-btn .ic{ font-size:17px; line-height:1; filter:grayscale(1) opacity(.7); }
+.nav-btn .ic{ font-size:18px; line-height:1; filter:grayscale(1) opacity(.7); }
 .nav-btn{ position:relative; }
 .nav-dot{ position:absolute; top:3px; left:calc(50% + 6px); min-width:16px; height:16px; padding:0 4px; border-radius:999px;
   background:var(--danger); color:#fff; font-size:9.5px; font-weight:800; line-height:16px; text-align:center; }
@@ -1334,6 +1334,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   padding:2px 4px 3px; text-align:center; border-radius:10px;
 }
 .battle-field .unit .uname{ margin:0 0 1px; font-size:9px; line-height:1.2; }
+.battle-field .unit .ulv{ font-size:7px; margin:0 0 1px; }
 .battle-field .unit .ult-bg{ margin-top:2px; }
 /* status icons float over the sprite instead of taking a row */
 .battle-field .status-row{
@@ -1367,6 +1368,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .unit.ready{ border-color:var(--gold); box-shadow:0 0 14px -2px rgba(232,180,85,.7); }
 .unit img{ width:100%; aspect-ratio:1/1; object-fit:contain; image-rendering:pixelated;}
 .unit .uname{ font-size:9px; margin-top:3px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.unit .ulv{ font-size:7.5px; color:var(--dim); line-height:1.1; white-space:nowrap; }
+.unit .bstars{ color:var(--text); letter-spacing:-.05em; }
+.unit .bstars i{ font-style:normal; }
+.unit .bstars i.gold{ color:var(--gold); }
+.unit .ulv-num{ color:var(--dim); }
 .hp-bg{ height:5px; border-radius:999px; background:#0e0b18; margin-top:4px; overflow:hidden;}
 .hp-fill{ height:100%; background:linear-gradient(90deg,#5cab52,#8bd67f); border-radius:999px; transition:width .3s ease;}
 .hp-fill.low{ background:linear-gradient(90deg,var(--danger),#ff8a6b); }
@@ -2418,6 +2424,16 @@ function newOwned(mon){ return { star: mon.rarity, souls: 0, level: 1, exp: 0, w
 function starsHtml(initial, current){
   const cur = current || initial;
   return `<span class="stars">${'★'.repeat(initial)}${cur > initial ? `<span class="promo">${'★'.repeat(cur - initial)}</span>` : ''}</span>`;
+}
+// compact battle-card variant: always shows exactly 5 stars (the normal rarity range).
+// At ★5 or below they're all the default (near-white) color. Past ★5 - only reachable
+// via promotion, since MAX_STAR(7) exceeds the highest gacha rarity(5) - the row stays
+// at 5 stars, but that many are turned gold from the left instead of growing to 6/7 stars.
+function battleStarsHtml(rarity, star){
+  const n = star || rarity;
+  const shown = Math.min(n, 5);
+  const gold = Math.max(0, n - 5);
+  return `<span class="bstars">${Array.from({ length:shown }, (_, i) => `<i class="${i < gold ? 'gold' : ''}">★</i>`).join('')}</span>`;
 }
 
 /* ---- gacha (B plan) ---- */
@@ -4090,6 +4106,13 @@ const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
 // distributed relics never appear in the gacha pool - they only come from missions/achievements.
 function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star && r.channel !== 'distributed'); }
 
+// イベントクエスト報酬で配る遺物: そのイベントの属性(element)に対応する★4属性遺物を自動選択。
+// 新しいイベントを追加する時もelementさえ設定すれば専用の配布遺物選びは不要になる。
+const EVENT_ELEMENT_RELIC = {
+  fire:'rel_flame_ember', water:'rel_deepsea_guard', grass:'rel_verdant_breath', earth:'rel_earthen_weight',
+  thunder:'rel_thunder_swift', wind:'rel_gale_slash', light:'rel_holy_judgement', dark:'rel_dark_corrosion',
+};
+
 /* ---- 遺物図鑑(フッターメニュー): 所持・未所持を問わず全遺物を★別に一覧表示 ---- */
 function relicEffectRangeText(e){
   return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%→${Math.round(e.pct * 200)}%`;
@@ -5408,6 +5431,18 @@ buildHardStages().forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
 // the boss; the recruit chance for that boss rises tier by tier (recruitOverride,
 // read by recruitChanceOf). Registered for every event in EVENTS (not just active
 // ones) so stages stay reachable/testable even once an event's dates have passed.
+//
+// 1〜7層の初回クリア報酬に、そのイベントの属性遺物(EVENT_ELEMENT_RELIC)を組み込んだ
+// 配布スケジュール: 1層=遺物本体、2層=強化素材、3層=同じ遺物(凸1個目)、4層=強化素材、
+// 5〜7層=同じ遺物(凸2〜4個目)。全7層クリアで凸4/4(完凸)まで無料で届く。
+function eventStageRelicReward(ev, n){
+  const relicId = EVENT_ELEMENT_RELIC[ev.element];
+  if(!relicId) return [];
+  if(n === 1 || n === 3 || n === 5 || n === 6 || n === 7) return [{ type:'relic', key: relicId }];
+  if(n === 2) return [{ type:'item', key:'relic_scrap', n:800 }, { type:'item', key:'relic_core_1', n:3 }];
+  if(n === 4) return [{ type:'item', key:'relic_scrap', n:1500 }, { type:'item', key:'relic_core_1', n:3 }, { type:'item', key:'relic_core_2', n:2 }];
+  return [];
+}
 function buildEventStages(ev){
   return ev.tiers.map((t, i) => {
     const n = i + 1;
@@ -5428,7 +5463,7 @@ function buildEventStages(ev){
       desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。`,
       waves,
       gold: 1500 * n, pots: { exp2: Math.max(1, n) },
-      bossReward: [{ type: 'item', key: n >= 6 ? 'box_sel_4' : 'box_sel_3', n: 1 }],
+      bossReward: [{ type: 'item', key: n >= 6 ? 'box_sel_4' : 'box_sel_3', n: 1 }, ...eventStageRelicReward(ev, n)],
       recruitOverride: { [ev.pickup]: t.rate },
     };
   });
@@ -5436,6 +5471,19 @@ function buildEventStages(ev){
 EVENTS.forEach(ev => {
   ev.stages = buildEventStages(ev);
   ev.stages.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
+  // イベント全層の獲得★数(最大 層数×3)に応じて石を配布する実績。イベント終了後も
+  // clearedStages/stageStarsは残るので、期限が切れても未回収分は引き続き受け取れる。
+  const maxStars = ev.tiers.length * 3;
+  const starGoals = [Math.round(maxStars / 3), Math.round(maxStars * 2 / 3), maxStars];
+  const starRewards = [300, 700, 1500];
+  ACHIEVEMENTS.push({
+    id: `a_event_stars_${ev.key}`,
+    label: n => `「${ev.stageName}」で★${n}個獲得する`,
+    value: () => ev.stages.reduce((sum, st) => sum + stageStars(st.id), 0),
+    tiers: starGoals.map((g, i) => ({ goal: g, reward: i === starGoals.length - 1
+      ? [{ type:'crystal', n: starRewards[i] }, { type:'item', key:'box_sel_4', n:1 }]
+      : [{ type:'crystal', n: starRewards[i] }] })),
+  });
 });
 
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
@@ -5464,7 +5512,7 @@ const NAV = [
   { key: 'party', label: '編成', icon: '🧩' },
   { key: 'pvp', label: 'PVP', icon: '🏆' },
   { key: 'gacha', label: 'ガチャ', icon: '🎰' },
-  { key: 'relics', label: '遺物', icon: '💠' },
+  { key: 'relics', label: '遺物', icon: '🔮' },
   { key: 'base', label: '拠点', icon: '🏯' },
 ];
 
@@ -6210,13 +6258,20 @@ function onBannerScroll(wrap){
     tickBanner();
   }, 120);
 }
-// auto-advance only while the home screen is actually in front
+// auto-advance only while the home screen is actually in front. render() calls this on every
+// redraw (any tap anywhere on the home screen rebuilds #banner-wrap from scratch), so this must
+// stay a cheap no-op resync in the common case rather than forcing a fresh scroll every time -
+// otherwise a burst of unrelated taps (claiming missions, collecting facilities, ...) keeps
+// yanking the carousel back and can catch it mid-layout with clientWidth still 0, which used to
+// snap everything to slide 0 and made later slides look like they'd "disappeared".
 function tickBanner(){
   clearTimeout(bannerTimer);
   const layer = document.getElementById('modal-layer');
   const wrap = document.getElementById('banner-wrap');
   if(currentScreen !== 'home' || overlayView || (layer && layer.classList.contains('show')) || !wrap) return;
-  wrap.scrollLeft = bannerIndex * wrap.clientWidth; // keep the freshly-redrawn DOM in sync with state
+  if(wrap.clientWidth > 0 && Math.round(wrap.scrollLeft / wrap.clientWidth) !== bannerIndex){
+    wrap.scrollLeft = bannerIndex * wrap.clientWidth; // keep the freshly-redrawn DOM in sync with state
+  }
   wrap.onscroll = () => onBannerScroll(wrap);
   bannerTimer = setTimeout(() => { setBanner(bannerIndex + 1); tickBanner(); }, 4500);
 }
@@ -8073,7 +8128,7 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     hp: Math.round(s.hp * mult), maxHp: Math.round(s.hp * mult),
     str: Math.round(s.str * mult), pdef: Math.round(s.pdef * mult), mdef: Math.round(s.mdef * mult),
     spd: s.spd,
-    star: curStar,
+    star: curStar, level: isEnemy ? (stageLevel || 1) : (charLevel || 1),
     skillLv: up.skillLv || 1, ultLv: up.ultLv || 1, passiveLv: up.passiveLv || 1,
     isEnemy, boss: !!boss, alive: true, vanished: false,
     kit, normal: kit.normal, skills: skillSlotsOf(mon, curStar), skillCd: [], ctReduce: 0,
@@ -10979,6 +11034,7 @@ function renderBattleFight(){
         ${popups}
         ${u.vanished ? '<div class="vanish-tag">離脱中</div>' : ''}
         <div class="uname">${ELEM_ICON[u.element]}${u.name}</div>
+        <div class="ulv">${battleStarsHtml(u.rarity, u.star)} <span class="ulv-num">Lv${u.level}</span></div>
         <img src="${imgSrc(u.ref)}" alt="${u.name}">
         <div class="ubody">
           ${shield > 0 ? `<div class="shield-num">${shield}</div>` : ''}
