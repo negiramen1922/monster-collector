@@ -975,8 +975,38 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-channel-badge{ font-size:9px; font-weight:800; padding:1px 6px; border-radius:999px; margin-left:6px; }
 .relic-channel-badge.gacha{ background:rgba(232,180,85,.15); color:var(--gold); }
 .relic-channel-badge.dist{ background:rgba(120,170,255,.15); color:#8ab4ff; }
-.relic-dex-star-head{ font-size:13px; font-weight:800; color:var(--gold); margin:14px 0 6px; }
-.relic-dex-star-head:first-of-type{ margin-top:4px; }
+/* 遺物図鑑: キャラ図鑑と同じグリッド表示(★別のグループ分けはせず、並べ替え・絞り込みで見る) */
+.relic-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:7px; }
+.relic-cell{
+  position:relative;
+  background:var(--panel2);
+  border-radius:12px;
+  border:1px solid var(--line);
+  padding:8px 4px 6px;
+  text-align:center;
+  cursor:pointer;
+}
+.relic-cell.r1{ border-color:rgba(143,143,160,.45); }
+.relic-cell.r2{ border-color:rgba(92,171,82,.45); }
+.relic-cell.r3{ border-color:rgba(58,160,214,.45); }
+.relic-cell.r4{ border-color:rgba(176,111,224,.55); box-shadow:0 0 10px -4px rgba(176,111,224,.5);}
+.relic-cell.r5{ border-color:rgba(232,180,85,.65); box-shadow:0 0 12px -4px rgba(232,180,85,.55);}
+.relic-cell .relic-cell-ic{ height:40px; display:flex; align-items:center; justify-content:center; }
+.relic-cell .relic-cell-ic img.ico{ width:32px !important; height:32px !important; }
+.relic-cell .relic-cell-lv{
+  position:absolute; top:3px; right:4px;
+  font-size:8.5px; background:rgba(0,0,0,.5); padding:1px 4px; border-radius:7px;
+  font-weight:700;
+}
+.relic-cell .relic-cell-badge{ position:absolute; top:3px; right:4px; font-size:8px; font-weight:800; padding:1px 5px; border-radius:7px; }
+.relic-cell .relic-cell-badge.gacha{ background:rgba(232,180,85,.18); color:var(--gold); }
+.relic-cell .relic-cell-badge.dist{ background:rgba(120,170,255,.18); color:#8ab4ff; }
+.relic-cell .name{ font-size:8.5px; margin-top:3px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.relic-cell .star{ display:block; font-size:8.5px; font-weight:800; letter-spacing:-.5px; margin-top:1px; }
+.relic-cell.r1 .star{ color:#8f8fa0; } .relic-cell.r2 .star{ color:#5cab52; } .relic-cell.r3 .star{ color:#3aa0d6; }
+.relic-cell.r4 .star{ color:#b06fe0; } .relic-cell.r5 .star{ color:var(--gold); }
+.relic-cell.locked{ opacity:.5; }
+.relic-detail-modal{ text-align:left; }
 
 .relic-effects{ margin:8px 0 12px; }
 .relic-eff-line{ font-size:11.5px; padding:5px 0; border-bottom:1px dashed var(--line); }
@@ -4304,46 +4334,155 @@ const EVENT_ELEMENT_RELIC = {
   thunder:'rel_thunder_swift', wind:'rel_gale_slash', light:'rel_holy_judgement', dark:'rel_dark_corrosion',
 };
 
-/* ---- 遺物図鑑(フッターメニュー): 所持・未所持を問わず全遺物を★別に一覧表示 ---- */
+/* ---- 遺物図鑑(フッターメニュー): キャラ図鑑と同じグリッド表示。★ごとの固定グループ分けはせず、
+   並べ替え・絞り込みで見たい遺物を探し、タップすると詳細(所持済みなら強化画面)を開く ---- */
 function relicEffectRangeText(e){
   return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%→${Math.round(e.pct * 200)}%`;
 }
-function relicDexRow(id){
+let relicSort = { key: 'no', desc: false };
+let relicFilter = { star: [], channel: [] };
+let relicOwnedOnly = false;
+let relicFilterDraft = null; // edited copy while the relic filter sheet is open
+const RELIC_SORT_KEYS = [
+  { key:'no',    label:'図鑑順' },
+  { key:'star',  label:'レアリティ' },
+  { key:'level', label:'レベル' },
+];
+const RELIC_FILTER_GROUPS = [
+  { key:'star', title:'レアリティ', items:() => [5, 4, 3, 2, 1].map(s => ({ key:String(s), icon:'★', label:`${s}` })) },
+  { key:'channel', title:'入手方法', items:() => [
+    { key:'gacha', icon:'🎰', label:'ガチャ' },
+    { key:'distributed', icon:'🎁', label:'配布' },
+  ] },
+];
+function matchesRelicFilter(id, f){
+  const def = RELICS[id];
+  const channel = def.channel === 'distributed' ? 'distributed' : 'gacha';
+  return (!f.star.length || f.star.includes(String(def.star)))
+    && (!f.channel.length || f.channel.includes(channel));
+}
+function relicFilterCount(f){ return f.star.length + f.channel.length; }
+function sortRelics(ids, sort){
+  const order = Object.keys(RELICS);
+  const val = {
+    no:    id => order.indexOf(id),
+    star:  id => RELICS[id].star,
+    level: id => STATE.relics && STATE.relics[id] ? STATE.relics[id].level : -1,
+  }[sort.key];
+  const dir = sort.desc ? -1 : 1;
+  // ties fall back to rarity (higher first), then dex order
+  return ids.slice().sort((a, b) =>
+    (val(a) - val(b)) * dir || RELICS[b].star - RELICS[a].star || order.indexOf(a) - order.indexOf(b));
+}
+function renderRelicFilterControls(){
+  const n = relicFilterCount(relicFilter);
+  const activeIcons = RELIC_FILTER_GROUPS.flatMap(g => g.items().filter(it => relicFilter[g.key].includes(it.key)).map(it => it.icon)).join('');
+  return `
+    <div class="sort-row" role="group" aria-label="並び替え">
+      ${RELIC_SORT_KEYS.map(k => {
+        const on = relicSort.key === k.key;
+        return `<button class="sort-btn ${on ? 'active' : ''}" data-sort="relic:${k.key}" aria-pressed="${on}">
+          ${k.label}${on ? (relicSort.desc ? ' ▼' : ' ▲') : ''}</button>`;
+      }).join('')}
+    </div>
+    <div class="filter-bar">
+      <button class="btn btn-sm ${n ? '' : 'btn-ghost'}" data-relic-filter-open="1">絞り込み${n ? `(${n})` : ''}</button>
+      <button class="btn btn-sm ${relicOwnedOnly ? '' : 'btn-ghost'}" data-relic-owned-toggle="1" aria-pressed="${relicOwnedOnly}">所持のみ</button>
+      <div class="rf-summary">${n ? activeIcons : '<span class="rf-none">すべて表示中</span>'}</div>
+      ${n ? `<button class="btn btn-ghost btn-sm" data-relic-filter-clear="1">解除</button>` : ''}
+    </div>
+  `;
+}
+function relicFilterPool(){ return Object.keys(RELICS).filter(id => !relicOwnedOnly || (STATE.relics && STATE.relics[id])); }
+function renderRelicFilterSheet(){
+  const d = relicFilterDraft;
+  const pool = relicFilterPool();
+  const hits = pool.filter(id => matchesRelicFilter(id, d)).length;
+  const countFor = (gKey, itKey) => pool.filter(id => matchesRelicFilter(id, { ...d, [gKey]: [itKey] })).length;
+  return `
+    <div class="result-modal filter-sheet" role="dialog" aria-label="絞り込み">
+      <h3>絞り込み</h3>
+      <p class="fs-note">同じ項目の中はどれかに当てはまるもの、項目どうしはすべてに当てはまるものを表示します。</p>
+      ${RELIC_FILTER_GROUPS.map(g => `
+        <div class="fs-group">
+          <div class="fs-head"><b>${g.title}</b>${d[g.key].length ? `<button class="fs-clear" data-relic-filter-group-clear="${g.key}">選択解除</button>` : '<span class="fs-all">すべて</span>'}</div>
+          <div class="fs-chips">
+            ${g.items().map(it => {
+              const on = d[g.key].includes(it.key);
+              const c = countFor(g.key, it.key);
+              return `<button class="fs-chip ${on ? 'on' : ''} ${c === 0 && !on ? 'zero' : ''}" data-relic-filter-chip="${g.key}:${it.key}" aria-pressed="${on}">
+                ${it.icon}<span>${it.label}</span><small>${c}</small></button>`;
+            }).join('')}
+          </div>
+        </div>`).join('')}
+      <div class="fs-actions">
+        <button class="btn btn-ghost" data-relic-filter-reset="1">すべて解除</button>
+        <button class="btn" data-relic-filter-apply="1" ${hits ? '' : 'disabled'}>${hits ? `${hits}件を表示` : '該当なし'}</button>
+      </div>
+      <button class="fs-close" data-relic-filter-close="1" aria-label="閉じる">×</button>
+    </div>`;
+}
+function openRelicFilterSheet(){
+  relicFilterDraft = { star: [...relicFilter.star], channel: [...relicFilter.channel] };
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = renderRelicFilterSheet();
+  layer.classList.add('show');
+}
+function refreshRelicFilterSheet(){
+  const layer = document.getElementById('modal-layer');
+  const scroll = layer.querySelector('.filter-sheet') ? layer.querySelector('.filter-sheet').scrollTop : 0;
+  layer.innerHTML = renderRelicFilterSheet();
+  const sheet = layer.querySelector('.filter-sheet');
+  if(sheet) sheet.scrollTop = scroll;
+}
+function relicCell(id){
   const def = RELICS[id];
   const st = STATE.relics && STATE.relics[id];
   const owned = !!st;
-  const equippedMon = owned && st.equippedTo ? MON_BY_ID[st.equippedTo] : null;
-  const badge = def.channel === 'distributed' ? '<span class="relic-channel-badge dist">配布</span>' : '<span class="relic-channel-badge gacha">ガチャ</span>';
   return `
-    <button class="relic-row r${def.star} ${owned ? '' : 'locked'}" data-relic-dex-row="${id}">
-      <span class="relic-ic">${def.icon}</span>
-      <div class="relic-row-body">
-        <div class="relic-row-name">${def.name}${badge}</div>
-        <div class="relic-row-sub">${owned
-          ? `Lv${st.level} / スキルLv${st.skillLv || 1}${equippedMon ? `・装備中: ${equippedMon.name}` : '・未装備'}`
-          : '未所持'}</div>
-        <div class="relic-row-effects">${def.effects.map(e => relicEffectRangeText(e)).join(' / ')}</div>
-      </div>
-    </button>`;
+    <div class="relic-cell r${def.star} ${owned ? '' : 'locked'}" data-relic-dex-row="${id}">
+      ${owned
+        ? `<span class="relic-cell-lv">Lv${st.level}</span>`
+        : `<span class="relic-cell-badge ${def.channel === 'distributed' ? 'dist' : 'gacha'}">${def.channel === 'distributed' ? '配布' : 'ガチャ'}</span>`}
+      <div class="relic-cell-ic">${def.icon}</div>
+      <div class="name">${def.name}</div>
+      <span class="star">${'★'.repeat(def.star)}</span>
+    </div>`;
 }
 function renderRelicsScreen(){
   const ids = Object.keys(RELICS);
   const ownedCount = ids.filter(id => STATE.relics && STATE.relics[id]).length;
-  const byStar = {};
-  ids.forEach(id => { const star = RELICS[id].star; (byStar[star] = byStar[star] || []).push(id); });
-  const stars = Object.keys(byStar).map(Number).sort((a, b) => b - a);
+  const list = sortRelics(relicFilterPool().filter(id => matchesRelicFilter(id, relicFilter)), relicSort);
   return `
     <div class="screen-head">
       <div class="screen-title">遺物図鑑</div>
       <div class="base-wallet">${ownedCount} / ${ids.length}</div>
     </div>
-    <div class="screen-sub" style="margin-bottom:8px;">これまでに入手した遺物と、まだ持っていない遺物を確認できます。タップすると強化画面を開けます。</div>
-    ${stars.map(star => `
-      <div class="relic-dex-star-head">★${star}</div>
-      <div class="relic-list">
-        ${byStar[star].map(id => relicDexRow(id)).join('')}
-      </div>`).join('')}
+    <div class="screen-sub" style="margin-bottom:8px;">これまでに入手した遺物と、まだ持っていない遺物を確認できます。タップすると詳細を見られます。</div>
+    ${renderRelicFilterControls()}
+    <div class="relic-grid">
+      ${list.map(id => relicCell(id)).join('')}
+    </div>
   `;
+}
+function showRelicDetail(id){
+  const def = RELICS[id];
+  if(!def) return;
+  const st = STATE.relics && STATE.relics[id];
+  if(st){ openRelicUpgrade(id, st.equippedTo || null); return; }
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal relic-detail-modal" role="dialog" aria-label="${def.name}">
+      <button class="fs-close" data-close-relic-detail="1" aria-label="閉じる">×</button>
+      <h3>${def.icon} ${def.name}<span class="relic-star">★${def.star}</span></h3>
+      <div class="relic-effects">
+        ${def.base ? `<div class="relic-eff-line">基礎ステータス(キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)</div>` : ''}
+        ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectRangeText(e)}</div>`).join('')}
+      </div>
+      <p class="fs-note">未所持です。${def.channel === 'distributed' ? 'イベントのステージクリア報酬で手に入ります。' : '遺物ガチャで入手できます。'}</p>
+      ${def.channel !== 'distributed' ? `<button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : ''}
+    </div>`;
+  layer.classList.add('show');
 }
 
 /* ---- ownership: singular per definition; equipping moves it, duplicates become 凸(dupe) ---- */
@@ -11617,11 +11756,25 @@ function handlePhoneClick(ev){
   const relicSlotEl = t.closest('[data-relic-slot]');
   if(relicSlotEl){ openRelicPicker(relicSlotEl.dataset.relicSlot); return; }
   const relicDexRowEl = t.closest('[data-relic-dex-row]');
-  if(relicDexRowEl){
-    const id = relicDexRowEl.dataset.relicDexRow;
-    if(STATE.relics && STATE.relics[id]) openRelicUpgrade(id, STATE.relics[id].equippedTo || null);
-    else toast('まだ入手していません(ガチャや実績で入手できます)');
-    return;
+  if(relicDexRowEl){ showRelicDetail(relicDexRowEl.dataset.relicDexRow); return; }
+  if(t.closest('[data-close-relic-detail]')){ closeModal(); return; }
+  const relicFilterOpenEl = t.closest('[data-relic-filter-open]');
+  if(relicFilterOpenEl){ openRelicFilterSheet(); return; }
+  if(t.closest('[data-relic-owned-toggle]')){ relicOwnedOnly = !relicOwnedOnly; render(); return; }
+  if(t.closest('[data-relic-filter-clear]')){ relicFilter = { star: [], channel: [] }; render(); return; }
+  if(relicFilterDraft){
+    const relicChipEl = t.closest('[data-relic-filter-chip]');
+    if(relicChipEl){
+      const [g, k] = relicChipEl.dataset.relicFilterChip.split(':');
+      const list = relicFilterDraft[g];
+      relicFilterDraft[g] = list.includes(k) ? list.filter(x => x !== k) : [...list, k];
+      refreshRelicFilterSheet(); return;
+    }
+    const relicGroupClearEl = t.closest('[data-relic-filter-group-clear]');
+    if(relicGroupClearEl){ relicFilterDraft[relicGroupClearEl.dataset.relicFilterGroupClear] = []; refreshRelicFilterSheet(); return; }
+    if(t.closest('[data-relic-filter-reset]')){ relicFilterDraft = { star: [], channel: [] }; refreshRelicFilterSheet(); return; }
+    if(t.closest('[data-relic-filter-apply]')){ relicFilter = relicFilterDraft; relicFilterDraft = null; closeModal(); render(); return; }
+    if(t.closest('[data-relic-filter-close]')){ relicFilterDraft = null; closeModal(); return; }
   }
   if(t.closest('[data-goto-relic-gacha]')){
     relicPicker = null; relicUpgrade = null;
@@ -11812,6 +11965,7 @@ function handlePhoneClick(ev){
   if(sortEl){
     const [target, key] = sortEl.dataset.sort.split(':');
     if(target === 'dex') dexSort = dexSort.key === key ? { key, desc: !dexSort.desc } : { key, desc: key !== 'no' };
+    else if(target === 'relic') relicSort = relicSort.key === key ? { key, desc: !relicSort.desc } : { key, desc: key !== 'no' };
     else rosterSort = rosterSort.key === key ? { key, desc: !rosterSort.desc } : { key, desc: true };
     render(); return;
   }
