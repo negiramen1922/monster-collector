@@ -2308,7 +2308,8 @@ const SPRITES = JSON.parse(document.getElementById('sprite-data').textContent);
 const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent);
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
-const GAME_VERSION = 'ver 0.9 (prototype)';
+// bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
+const GAME_VERSION = 'α0.0.001';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
