@@ -181,6 +181,8 @@ body{
 .reward-modal .rm-list{ font-size:11.5px; color:var(--dim); line-height:1.8; margin-bottom:12px; }
 .rm-rewards{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:14px; }
 .rm-rewards .rw{ font-size:14px; padding:4px 10px; }
+.fg-total{ font-size:16px; font-weight:700; color:var(--text); text-align:center; margin-bottom:14px; }
+.fg-total b{ font-size:26px; color:var(--gold); margin:0 3px; }
 .top-chips{ display:flex; gap:5px; align-items:center; }
 .gold-chip{ display:flex; align-items:baseline; gap:2px; background:var(--panel2); border:1px solid var(--line);
   border-radius:999px; padding:6px 9px; font-size:12.5px; font-weight:700; }
@@ -987,6 +989,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-pull-cell{
   background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 6px;
   text-align:center;
+  opacity:0; transform:scale(.6); animation:pop .38s cubic-bezier(.2,1.4,.4,1) forwards;
 }
 .relic-pull-cell.r5{ border-color:var(--r5); box-shadow:0 0 16px -8px rgba(232,180,85,.7); }
 .relic-pull-cell.r4{ border-color:var(--r4); }
@@ -994,6 +997,20 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-pull-name{ font-size:10.5px; font-weight:700; margin-top:4px; }
 .relic-pull-star{ font-size:10px; color:var(--gold); margin-top:2px; }
 .relic-pull-tag{ font-size:9px; color:var(--dim); margin-top:2px; }
+
+/* ---- treasure chest gacha presentation (relic gacha + both friend-point gachas).
+   Note: named tchest-* (not chest-*) because .chest-box/.chest-glow are already used by
+   the unrelated character-gacha egg animation (.gacha-stage/.chest-wrap/...) - reusing
+   those names let that rule's background/border leak behind this chest's own SVG. ---- */
+.chest-modal{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:280px; background:transparent; border:none; box-shadow:none; }
+.chest-stage{ position:relative; width:180px; height:150px; display:flex; align-items:center; justify-content:center; }
+.tchest-box{ position:relative; width:150px; height:130px; z-index:1; cursor:pointer; }
+.chest-svg{ width:100%; height:100%; overflow:visible; }
+.chest-lid-g{ transform-origin:50px 46px; transition:transform .55s cubic-bezier(.34,1.56,.64,1), opacity .4s ease .1s; }
+.tchest-box.open .chest-lid-g{ transform:translate(6px,-70px) rotate(35deg); opacity:0; }
+.tchest-box.shake{ animation:chestShake .45s ease-in-out infinite; }
+@keyframes chestShake{ 0%,100%{ transform:rotate(0deg); } 25%{ transform:rotate(-2.5deg); } 75%{ transform:rotate(2.5deg); } }
+.chest-hint{ margin-top:14px; font-size:12px; color:var(--dim); font-weight:700; }
 
 /* ---------- PVP ---------- */
 .pvp-opp-list{ display:flex; flex-direction:column; gap:8px; }
@@ -2965,6 +2982,39 @@ const firebaseBackend = {
     if(list.length < n) list = list.concat(await take('<'));
     return list.filter(p => p.uid !== selfUid && p.defense).slice(0, n);
   },
+  // friend point gifts: a mailbox under the RECIPIENT's own players/{uid} doc, the one
+  // place firestore.rules lets a different signed-in user create data - scoped to a fixed
+  // amount so it can't be abused as a general write hole (see firestore.rules).
+  async sendGift(toUid, fromUid, amount){
+    const { fs, db } = await this.load();
+    await fs.addDoc(fs.collection(db, 'players', toUid, 'gifts'), { from: fromUid, amount, at: Date.now() });
+  },
+  async fetchGifts(uid){
+    const { fs, db } = await this.load();
+    const snap = await fs.getDocs(fs.collection(db, 'players', uid, 'gifts'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async claimGifts(uid, ids){
+    const { fs, db } = await this.load();
+    const batch = fs.writeBatch(db);
+    ids.forEach(id => batch.delete(fs.doc(db, 'players', uid, 'gifts', id)));
+    await batch.commit();
+  },
+  // batch refresh of friends' public profiles (currently just for "最終ログイン" - players/{uid}
+  // is keyed by uid, so this is a plain "get these docs by id" query, chunked to Firestore's
+  // 10-value 'in' limit rather than one lookupPlayer() round trip per friend.
+  async fetchProfiles(uids){
+    if(!uids.length) return [];
+    const { fs, db } = await this.load();
+    const col = fs.collection(db, 'players');
+    const chunks = [];
+    for(let i = 0; i < uids.length; i += 10) chunks.push(uids.slice(i, i + 10));
+    const lists = await Promise.all(chunks.map(async chunk => {
+      const snap = await fs.getDocs(fs.query(col, fs.where(fs.documentId(), 'in', chunk)));
+      return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    }));
+    return lists.flat();
+  },
 };
 
 /* Analytics. Never throws and never blocks: without a backend (offline, tests, ad blocker)
@@ -3135,6 +3185,12 @@ function sanitizeDefense(raw){
   if(!slots.some(Boolean)) return null;
   return { formationKey, slots };
 }
+// untrusted timestamp from another player's profile: must be a real past-or-now instant,
+// never a fabricated future date that would render as a nonsensical "in -5 minutes".
+function sanitizeLastActive(raw){
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 && n <= Date.now() ? n : null;
+}
 async function addFriendByCode(code){
   if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
   code = String(code || '').trim().toUpperCase();
@@ -3150,11 +3206,32 @@ async function addFriendByCode(code){
       name: String(p.name || 'テイマー').slice(0, 20),
       level: Math.max(1, Math.min(999, Number(p.level) || 1)),
       support: sanitizeSupport(p.support),
+      lastActive: sanitizeLastActive(p.updatedAt),
     });
     saveState();
     toast(`${p.name}をフレンドに追加しました`);
     render();
   }catch(e){ toast('通信に失敗しました'); }
+}
+// keep friends' "最終ログイン" (and support/level) fresh - called whenever the friends
+// overlay is opened, since the snapshot taken at add-time otherwise never updates.
+async function refreshFriendProfiles(){
+  const be = authBackend();
+  if(typeof be.fetchProfiles !== 'function' || !STATE.friends.length) return;
+  let profiles;
+  try{ profiles = await be.fetchProfiles(STATE.friends.map(f => f.uid)); }
+  catch(e){ return; }
+  const byUid = Object.fromEntries(profiles.map(p => [p.uid, p]));
+  let changed = false;
+  STATE.friends.forEach(f => {
+    const p = byUid[f.uid];
+    if(!p) return;
+    f.lastActive = sanitizeLastActive(p.updatedAt);
+    f.level = Math.max(1, Math.min(999, Number(p.level) || f.level || 1));
+    f.support = sanitizeSupport(p.support);
+    changed = true;
+  });
+  if(changed){ saveState(); render(); }
 }
 function removeFriend(uid){
   STATE.friends = STATE.friends.filter(f => f.uid !== uid);
@@ -3172,9 +3249,13 @@ function borrowFriendHelper(uid){
   render();
 }
 
-/* ---- friend points: sending to a friend only rewards the sender (no cross-account
-   write - players/{uid} in firestore.rules only allows the owner to write their own doc),
-   capped at once per friend per day, same currentDayKey() reset as pvpDaily/shopDaily ---- */
+/* ---- friend points: sending to a friend rewards the sender immediately (works even
+   offline/local), capped at once per friend per day, same currentDayKey() reset as
+   pvpDaily/shopDaily. When the backend supports it (see firebaseBackend.sendGift), the
+   send also drops a gift in the recipient's players/{uid}/gifts mailbox - the one path
+   where writing to someone else's doc is allowed, scoped to a fixed amount by
+   firestore.rules - so friends really do receive points back from each other, not just a
+   self-only "sent" flavor action. ---- */
 const FRIEND_POINT_PER_SEND = 10;
 function ensureFriendSendDaily(){
   const key = currentDayKey();
@@ -3193,6 +3274,46 @@ function sendFriendPoint(uid){
   toast(`${f.name}にポイントを送りました(フレンドポイント+${FRIEND_POINT_PER_SEND})`);
   saveState();
   render();
+  const be = authBackend();
+  if(typeof be.sendGift === 'function' && ACCOUNT){
+    be.sendGift(uid, ACCOUNT.uid, FRIEND_POINT_PER_SEND).catch(() => {}); // best-effort; offline/rules failure just means the friend won't see it this time
+  }
+}
+// pick up any gifts friends sent us (see sendFriendPoint above) - called on login and
+// whenever the friends overlay is opened, so points show up without a manual refresh step.
+function friendNameOf(uid){
+  const f = STATE.friends.find(x => x.uid === uid);
+  return f ? f.name : 'フレンド';
+}
+// one line per gift (so 3 gifts from the same friend show 3 lines, matching how many
+// times they actually sent), then the running total - deliberately a modal rather than a
+// toast, since a one-line toast was easy to miss and gave no sense of who sent what.
+function showFriendGiftModal(gifts, total){
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal reward-modal friend-gift-modal" role="dialog" aria-label="フレンドポイントが届きました">
+      <div class="rm-list">${gifts.map(g => `<div>${escapeHtml(friendNameOf(g.from))}さんから</div>`).join('')}</div>
+      <h3>フレンドポイントが届きました</h3>
+      <div class="fg-total">合計 <b>${total.toLocaleString()}</b>FP</div>
+      <button class="btn btn-block" id="close-result">OK</button>
+    </div>`;
+  layer.classList.add('show');
+}
+async function claimFriendGifts(){
+  const be = authBackend();
+  if(typeof be.fetchGifts !== 'function' || !ACCOUNT) return;
+  let gifts;
+  try{ gifts = await be.fetchGifts(ACCOUNT.uid); }
+  catch(e){ return; }
+  if(!gifts || !gifts.length) return;
+  const valid = gifts.filter(g => Number(g.amount) > 0);
+  const total = valid.reduce((sum, g) => sum + Number(g.amount), 0);
+  if(typeof be.claimGifts === 'function') be.claimGifts(ACCOUNT.uid, gifts.map(g => g.id)).catch(() => {});
+  if(total <= 0) return;
+  STATE.friendPoints = (STATE.friendPoints || 0) + total;
+  saveState();
+  render();
+  showFriendGiftModal(valid, total);
 }
 
 /* ---- cloud save ---- */
@@ -4723,6 +4844,19 @@ function formatDuration(ms){
   const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60;
   return h > 0 ? `${h}時間${String(m).padStart(2, '0')}分` : `${m}:${String(sec).padStart(2, '0')}`;
 }
+// フレンド一覧の「最終ログイン」表示。publishProfile()のupdatedAtを流用しているので、
+// ログインに限らずプロフィールが更新された直近の操作時刻(≒最終アクティブ)を指す。
+function lastActiveText(ts){
+  if(!ts) return '最終ログイン: 不明';
+  const diff = Date.now() - ts;
+  if(diff < 60 * 1000) return '最終ログイン: たった今';
+  if(diff < 3600 * 1000) return `最終ログイン: ${Math.floor(diff / 60000)}分前`;
+  if(diff < 24 * 3600 * 1000) return `最終ログイン: ${Math.floor(diff / 3600000)}時間前`;
+  const days = Math.floor(diff / (24 * 3600 * 1000));
+  if(days < 30) return `最終ログイン: ${days}日前`;
+  const d = new Date(ts);
+  return `最終ログイン: ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 function currentDayKey(){
   const d = new Date(Date.now() - DAY_RESET_HOUR * 3600 * 1000);
@@ -6144,20 +6278,23 @@ function renderMissions(){
   `;
 }
 
-function showRewardModal(entries){
+function rewardModalHtml(entries){
   const all = [];
   entries.forEach(e => e.reward.forEach(r => {
     const same = all.find(x => x.type === r.type && x.key === r.key && r.type !== 'monster');
     if(same) same.n += r.n; else all.push({ ...r });
   }));
-  const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
+  return `
     <div class="result-modal reward-modal" role="dialog" aria-label="報酬">
       <h3>報酬を受け取りました</h3>
       <div class="rm-list">${entries.map(e => `<div>✓ ${e.label}</div>`).join('')}</div>
       <div class="rm-rewards">${rewardHtml(all)}</div>
       <button class="btn btn-block" id="close-result">OK</button>
     </div>`;
+}
+function showRewardModal(entries){
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = rewardModalHtml(entries);
   layer.classList.add('show');
 }
 
@@ -6522,21 +6659,72 @@ function renderRelicGacha(){
     </div>
   `;
 }
-function doRelicPullAndShow(times, cost){
-  const results = doRelicPull(times, cost);
-  if(!results) return;
-  showRelicPullResult(results);
-  render();
+/* ---- treasure chest presentation: shared by the relic gacha and both friend-point
+   gachas. Closed chest → tap (or ~1.1s auto) → lid opens (screen flash + a beefier sfx for
+   the best pull in the batch) → the caller's own result screen fades in. Kept as one small
+   state machine so every "spend currency, see what you got" screen in the game gets the
+   same weight instead of a plain instant list. ---- */
+const CHEST_SVG = `
+  <svg viewBox="0 0 100 90" class="chest-svg" aria-hidden="true">
+    <ellipse cx="50" cy="80" rx="38" ry="6" fill="#000" opacity=".25"/>
+    <rect x="12" y="45" width="76" height="35" rx="7" fill="#8a5a34" stroke="#3d2414" stroke-width="3"/>
+    <rect x="12" y="45" width="76" height="9" fill="#6b4226" stroke="#3d2414" stroke-width="3"/>
+    <rect x="44" y="45" width="12" height="22" fill="#3d2414"/>
+    <circle cx="50" cy="58" r="6" fill="#e8b455" stroke="#3d2414" stroke-width="2"/>
+    <g class="chest-lid-g">
+      <path d="M10 46 Q10 16 50 14 Q90 16 90 46 Z" fill="#a9702f" stroke="#3d2414" stroke-width="3"/>
+      <path d="M10 46 Q10 22 50 20 Q90 22 90 46" fill="none" stroke="#6b4226" stroke-width="3"/>
+    </g>
+  </svg>`;
+let chestTimer = null;
+let pendingChestOpen = null; // set only while the chest is closed & waiting; tap fires it early
+function chestStageHtml(topTier, phase){
+  return `
+    <div class="result-modal chest-modal" role="dialog" aria-label="ガチャ" ${phase === 'closed' ? 'data-chest-tap="1"' : ''}>
+      <div class="chest-stage">
+        <div class="tchest-box ${phase === 'opening' ? 'open' : 'shake'}">${CHEST_SVG}</div>
+      </div>
+      <div class="chest-hint">${phase === 'closed' ? 'タップして開ける' : ''}</div>
+    </div>`;
 }
-function showRelicPullResult(results){
+function renderChestStage(topTier, phase){
   const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
+  layer.innerHTML = chestStageHtml(topTier, phase);
+  layer.classList.add('show');
+}
+// topTier: 1-5, used only to color/intensify the glow and pick the open sfx.
+// buildResultHtml(results): returns the modal HTML to show once the lid finishes opening.
+function showChestGacha(results, topTier, buildResultHtml){
+  clearTimeout(chestTimer);
+  const doOpen = () => {
+    pendingChestOpen = null;
+    clearTimeout(chestTimer);
+    renderChestStage(topTier, 'opening');
+    playSfx(topTier >= 5 ? 'boss' : topTier === 4 ? 'confirm' : 'open');
+    if(topTier >= 5) gachaFlash('white');
+    chestTimer = setTimeout(() => {
+      const layer = document.getElementById('modal-layer');
+      layer.innerHTML = buildResultHtml(results);
+      layer.classList.add('show');
+    }, topTier >= 5 ? 750 : 480);
+  };
+  pendingChestOpen = doOpen;
+  renderChestStage(topTier, 'closed');
+  playSfx('open');
+  chestTimer = setTimeout(doOpen, 1100);
+}
+function tapChestStage(){
+  if(pendingChestOpen) pendingChestOpen();
+}
+
+function relicPullResultHtml(results){
+  return `
     <div class="result-modal relic-pull-result" role="dialog" aria-label="遺物ガチャ結果">
       <button class="fs-close" id="close-result" aria-label="閉じる">×</button>
       <h3>遺物ガチャ結果</h3>
       <div class="relic-pull-grid">
-        ${results.map(r => `
-          <div class="relic-pull-cell r${r.def.star}">
+        ${results.map((r, i) => `
+          <div class="relic-pull-cell r${r.def.star}" style="animation-delay:${i * 70}ms">
             <div class="relic-pull-ic">${r.def.icon}</div>
             <div class="relic-pull-name">${r.def.name}</div>
             <div class="relic-pull-star">★${r.def.star}</div>
@@ -6548,7 +6736,13 @@ function showRelicPullResult(results){
         <button class="btn" data-relic-pull-again="${results.length}">もう一度引く</button>
       </div>
     </div>`;
-  layer.classList.add('show');
+}
+function doRelicPullAndShow(times, cost){
+  const results = doRelicPull(times, cost);
+  if(!results) return;
+  const topTier = Math.max(...results.map(r => r.def.star));
+  showChestGacha(results, topTier, relicPullResultHtml);
+  render();
 }
 function renderMonGacha(){
   const banners = activeBanners();
@@ -6737,6 +6931,14 @@ function pullFriendMat(){
   if(roll < 95) return { type:'item', key:'relic_scrap', n:10 };
   return { type:'item', key:'relic_core_1', n:1 };
 }
+// a rough 1-5 "how good was this pull" tier for the material gacha, just to pick the
+// chest's glow color/sfx - relic_core is the rarest drop, then tier3/2/1 materials.
+function friendMatResultTier(r){
+  if(r.key.includes('relic_core')) return 4;
+  if(r.key.endsWith('_3')) return 3;
+  if(r.key.endsWith('_2')) return 2;
+  return 1;
+}
 function doFriendPull(kind, times){
   const cost = (kind === 'char' ? FRIEND_CHAR_GACHA_COST : FRIEND_MAT_GACHA_COST) * times;
   if((STATE.friendPoints || 0) < cost){ toast('フレンドポイントが足りません'); return; }
@@ -6746,7 +6948,11 @@ function doFriendPull(kind, times){
   grantRewards(results);
   track('gachaPull', times);
   saveState();
-  showRewardModal([{ label: kind === 'char' ? 'フレンドキャラガチャ' : 'フレンド素材ガチャ', reward: results }]);
+  const label = kind === 'char' ? 'フレンドキャラガチャ' : 'フレンド素材ガチャ';
+  const topTier = kind === 'char'
+    ? Math.max(...results.map(r => MON_BY_ID[r.id].rarity))
+    : Math.max(...results.map(friendMatResultTier));
+  showChestGacha(results, topTier, () => rewardModalHtml([{ label, reward: results }]));
   render();
 }
 
@@ -11318,6 +11524,7 @@ function handlePhoneClick(ev){
     doRelicPullAndShow(n, n === 10 ? PULL10_COST : PULL_COST);
     return;
   }
+  if(t.closest('[data-chest-tap]')){ tapChestStage(); return; }
   if(t.closest('#close-result')){
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
@@ -12055,6 +12262,7 @@ function openOverlay(view){
     STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, NOTICES[0] ? NOTICES[0].id : 0);
     saveState();
   }
+  if(view === 'friends'){ claimFriendGifts(); refreshFriendProfiles(); }
   render();
 }
 function closeOverlay(){
@@ -12279,6 +12487,7 @@ function renderFriendsOverlay(){
               <div class="fc-body">
                 <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
                 <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けキャラ未設定'}</div>
+                <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
               </div>
               <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
                 <button class="btn btn-sm ${friendPointSentToday(f.uid) ? 'btn-ghost' : ''}" data-send-friend-point="${f.uid}" ${friendPointSentToday(f.uid) ? 'disabled' : ''}>${friendPointSentToday(f.uid) ? '送信済み' : 'ポイントを送る'}</button>
@@ -12615,6 +12824,7 @@ async function startGame(){
   try{ from = await syncOnLogin(); }
   catch(e){ console.warn('sync: could not reach the cloud save', e); }
   ensurePlayerId().then(publishProfile);
+  claimFriendGifts();
   setAnalyticsUser();
   if(!localSaveFound && from !== 'cloud') logEvent('game_start', { method: ACCOUNT.provider });
   buildShell();

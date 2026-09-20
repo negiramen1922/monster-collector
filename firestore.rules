@@ -12,6 +12,18 @@ service cloud.firestore {
     match /players/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
+
+      // フレンドポイントの受け取り箱。他人(uid本人以外)がここに書き込める唯一の場所だが、
+      // 送信者は自分のuidしか名乗れず、金額もindex.htmlのFRIEND_POINT_PER_SEND(10)と
+      // 完全一致する場合のみ作成できるので、任意の値を送りつける穴にはならない。
+      // 受け取った本人だけが読める/消せる(=受け取り確認して自分のポイントに加算)。
+      match /gifts/{giftId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.amount == 10;
+        allow update: if false;
+      }
     }
 
     // セーブデータ。本人以外は読み書きできない
