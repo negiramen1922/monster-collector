@@ -989,6 +989,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-pull-cell{
   background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 6px;
   text-align:center;
+  opacity:0; transform:scale(.6); animation:pop .38s cubic-bezier(.2,1.4,.4,1) forwards;
 }
 .relic-pull-cell.r5{ border-color:var(--r5); box-shadow:0 0 16px -8px rgba(232,180,85,.7); }
 .relic-pull-cell.r4{ border-color:var(--r4); }
@@ -996,6 +997,26 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-pull-name{ font-size:10.5px; font-weight:700; margin-top:4px; }
 .relic-pull-star{ font-size:10px; color:var(--gold); margin-top:2px; }
 .relic-pull-tag{ font-size:9px; color:var(--dim); margin-top:2px; }
+
+/* ---- treasure chest gacha presentation (relic gacha + both friend-point gachas) ---- */
+.chest-modal{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:280px; background:transparent; border:none; box-shadow:none; }
+.chest-stage{ position:relative; width:180px; height:150px; display:flex; align-items:center; justify-content:center; }
+.chest-glow{
+  position:absolute; inset:-20px; border-radius:50%;
+  background:radial-gradient(circle, var(--tier-glow, var(--r3)) 0%, transparent 68%);
+  opacity:.55; filter:blur(2px); animation:chestGlowPulse 1.5s ease-in-out infinite;
+}
+.chest-stage.tier1{ --tier-glow:var(--r1); } .chest-stage.tier2{ --tier-glow:var(--r2); }
+.chest-stage.tier3{ --tier-glow:var(--r3); } .chest-stage.tier4{ --tier-glow:var(--r4); }
+.chest-stage.tier5{ --tier-glow:var(--r5); }
+@keyframes chestGlowPulse{ 0%,100%{ opacity:.4; transform:scale(1); } 50%{ opacity:.75; transform:scale(1.12); } }
+.chest-box{ position:relative; width:150px; height:130px; z-index:1; cursor:pointer; }
+.chest-svg{ width:100%; height:100%; overflow:visible; }
+.chest-lid-g{ transform-origin:50px 46px; transition:transform .5s cubic-bezier(.34,1.56,.64,1); }
+.chest-box.open .chest-lid-g{ transform:translate(-4px,-14px) rotate(-108deg); }
+.chest-box.shake{ animation:chestShake .45s ease-in-out infinite; }
+@keyframes chestShake{ 0%,100%{ transform:rotate(0deg); } 25%{ transform:rotate(-2.5deg); } 75%{ transform:rotate(2.5deg); } }
+.chest-hint{ margin-top:14px; font-size:12px; color:var(--dim); font-weight:700; }
 
 /* ---------- PVP ---------- */
 .pvp-opp-list{ display:flex; flex-direction:column; gap:8px; }
@@ -6263,20 +6284,23 @@ function renderMissions(){
   `;
 }
 
-function showRewardModal(entries){
+function rewardModalHtml(entries){
   const all = [];
   entries.forEach(e => e.reward.forEach(r => {
     const same = all.find(x => x.type === r.type && x.key === r.key && r.type !== 'monster');
     if(same) same.n += r.n; else all.push({ ...r });
   }));
-  const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
+  return `
     <div class="result-modal reward-modal" role="dialog" aria-label="報酬">
       <h3>報酬を受け取りました</h3>
       <div class="rm-list">${entries.map(e => `<div>✓ ${e.label}</div>`).join('')}</div>
       <div class="rm-rewards">${rewardHtml(all)}</div>
       <button class="btn btn-block" id="close-result">OK</button>
     </div>`;
+}
+function showRewardModal(entries){
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = rewardModalHtml(entries);
   layer.classList.add('show');
 }
 
@@ -6641,21 +6665,73 @@ function renderRelicGacha(){
     </div>
   `;
 }
-function doRelicPullAndShow(times, cost){
-  const results = doRelicPull(times, cost);
-  if(!results) return;
-  showRelicPullResult(results);
-  render();
+/* ---- treasure chest presentation: shared by the relic gacha and both friend-point
+   gachas. Closed chest → tap (or ~1.1s auto) → lid opens (screen flash + a beefier sfx for
+   the best pull in the batch) → the caller's own result screen fades in. Kept as one small
+   state machine so every "spend currency, see what you got" screen in the game gets the
+   same weight instead of a plain instant list. ---- */
+const CHEST_SVG = `
+  <svg viewBox="0 0 100 90" class="chest-svg" aria-hidden="true">
+    <ellipse cx="50" cy="80" rx="38" ry="6" fill="#000" opacity=".25"/>
+    <rect x="12" y="45" width="76" height="35" rx="7" fill="#8a5a34" stroke="#3d2414" stroke-width="3"/>
+    <rect x="12" y="45" width="76" height="9" fill="#6b4226" stroke="#3d2414" stroke-width="3"/>
+    <rect x="44" y="45" width="12" height="22" fill="#3d2414"/>
+    <circle cx="50" cy="58" r="6" fill="#e8b455" stroke="#3d2414" stroke-width="2"/>
+    <g class="chest-lid-g">
+      <path d="M10 46 Q10 16 50 14 Q90 16 90 46 Z" fill="#a9702f" stroke="#3d2414" stroke-width="3"/>
+      <path d="M10 46 Q10 22 50 20 Q90 22 90 46" fill="none" stroke="#6b4226" stroke-width="3"/>
+    </g>
+  </svg>`;
+let chestTimer = null;
+let pendingChestOpen = null; // set only while the chest is closed & waiting; tap fires it early
+function chestStageHtml(topTier, phase){
+  return `
+    <div class="result-modal chest-modal" role="dialog" aria-label="ガチャ" ${phase === 'closed' ? 'data-chest-tap="1"' : ''}>
+      <div class="chest-stage tier${topTier}">
+        <div class="chest-glow"></div>
+        <div class="chest-box ${phase === 'opening' ? 'open' : 'shake'}">${CHEST_SVG}</div>
+      </div>
+      <div class="chest-hint">${phase === 'closed' ? 'タップして開ける' : ''}</div>
+    </div>`;
 }
-function showRelicPullResult(results){
+function renderChestStage(topTier, phase){
   const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
+  layer.innerHTML = chestStageHtml(topTier, phase);
+  layer.classList.add('show');
+}
+// topTier: 1-5, used only to color/intensify the glow and pick the open sfx.
+// buildResultHtml(results): returns the modal HTML to show once the lid finishes opening.
+function showChestGacha(results, topTier, buildResultHtml){
+  clearTimeout(chestTimer);
+  const doOpen = () => {
+    pendingChestOpen = null;
+    clearTimeout(chestTimer);
+    renderChestStage(topTier, 'opening');
+    playSfx(topTier >= 5 ? 'boss' : topTier === 4 ? 'confirm' : 'open');
+    if(topTier >= 5) gachaFlash('white');
+    chestTimer = setTimeout(() => {
+      const layer = document.getElementById('modal-layer');
+      layer.innerHTML = buildResultHtml(results);
+      layer.classList.add('show');
+    }, topTier >= 5 ? 750 : 480);
+  };
+  pendingChestOpen = doOpen;
+  renderChestStage(topTier, 'closed');
+  playSfx('open');
+  chestTimer = setTimeout(doOpen, 1100);
+}
+function tapChestStage(){
+  if(pendingChestOpen) pendingChestOpen();
+}
+
+function relicPullResultHtml(results){
+  return `
     <div class="result-modal relic-pull-result" role="dialog" aria-label="遺物ガチャ結果">
       <button class="fs-close" id="close-result" aria-label="閉じる">×</button>
       <h3>遺物ガチャ結果</h3>
       <div class="relic-pull-grid">
-        ${results.map(r => `
-          <div class="relic-pull-cell r${r.def.star}">
+        ${results.map((r, i) => `
+          <div class="relic-pull-cell r${r.def.star}" style="animation-delay:${i * 70}ms">
             <div class="relic-pull-ic">${r.def.icon}</div>
             <div class="relic-pull-name">${r.def.name}</div>
             <div class="relic-pull-star">★${r.def.star}</div>
@@ -6667,7 +6743,13 @@ function showRelicPullResult(results){
         <button class="btn" data-relic-pull-again="${results.length}">もう一度引く</button>
       </div>
     </div>`;
-  layer.classList.add('show');
+}
+function doRelicPullAndShow(times, cost){
+  const results = doRelicPull(times, cost);
+  if(!results) return;
+  const topTier = Math.max(...results.map(r => r.def.star));
+  showChestGacha(results, topTier, relicPullResultHtml);
+  render();
 }
 function renderMonGacha(){
   const banners = activeBanners();
@@ -6856,6 +6938,14 @@ function pullFriendMat(){
   if(roll < 95) return { type:'item', key:'relic_scrap', n:10 };
   return { type:'item', key:'relic_core_1', n:1 };
 }
+// a rough 1-5 "how good was this pull" tier for the material gacha, just to pick the
+// chest's glow color/sfx - relic_core is the rarest drop, then tier3/2/1 materials.
+function friendMatResultTier(r){
+  if(r.key.includes('relic_core')) return 4;
+  if(r.key.endsWith('_3')) return 3;
+  if(r.key.endsWith('_2')) return 2;
+  return 1;
+}
 function doFriendPull(kind, times){
   const cost = (kind === 'char' ? FRIEND_CHAR_GACHA_COST : FRIEND_MAT_GACHA_COST) * times;
   if((STATE.friendPoints || 0) < cost){ toast('フレンドポイントが足りません'); return; }
@@ -6865,7 +6955,11 @@ function doFriendPull(kind, times){
   grantRewards(results);
   track('gachaPull', times);
   saveState();
-  showRewardModal([{ label: kind === 'char' ? 'フレンドキャラガチャ' : 'フレンド素材ガチャ', reward: results }]);
+  const label = kind === 'char' ? 'フレンドキャラガチャ' : 'フレンド素材ガチャ';
+  const topTier = kind === 'char'
+    ? Math.max(...results.map(r => MON_BY_ID[r.id].rarity))
+    : Math.max(...results.map(friendMatResultTier));
+  showChestGacha(results, topTier, () => rewardModalHtml([{ label, reward: results }]));
   render();
 }
 
@@ -11437,6 +11531,7 @@ function handlePhoneClick(ev){
     doRelicPullAndShow(n, n === 10 ? PULL10_COST : PULL_COST);
     return;
   }
+  if(t.closest('[data-chest-tap]')){ tapChestStage(); return; }
   if(t.closest('#close-result')){
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
