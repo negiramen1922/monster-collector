@@ -2326,7 +2326,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.004';
+const GAME_VERSION = 'α0.0.005';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -13153,10 +13153,10 @@ function handleScreenSwipeMove(ev){
   if(swipeStartX === null || ev.pointerId !== swipePointerId) return;
   const dx = ev.clientX - swipeStartX, dy = ev.clientY - swipeStartY;
   if(swipeAxis === null){
-    if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;        // not enough movement to tell yet
+    if(Math.abs(dx) < 5 && Math.abs(dy) < 5) return;        // not enough movement to tell yet
     // a real thumb swipe is rarely perfectly straight, so give the horizontal read the
-    // benefit of the doubt unless the vertical component is clearly the bigger one
-    if(Math.abs(dy) > Math.abs(dx) * 1.2){ swipeAxis = 'y'; return; }  // vertical: let the page scroll natively
+    // benefit of the doubt unless the vertical component is clearly, decisively the bigger one
+    if(Math.abs(dy) > Math.abs(dx) * 2.2){ swipeAxis = 'y'; return; }  // vertical: let the page scroll natively
     swipeAxis = 'x';
     const screenEl = document.getElementById('screen');
     const idx = NAV.findIndex(n => n.key === navKeyForScreen(currentScreen));
@@ -13202,7 +13202,7 @@ function handleScreenSwipeEnd(ev){
     return;
   }
   const commit = neighborIdx >= 0 && neighborIdx < NAV.length
-    && (Math.abs(dx) > width * 0.28 || (Math.abs(dx) > 40 && dt < 220));
+    && (Math.abs(dx) > width * 0.12 || (Math.abs(dx) > 24 && dt < 350));
   endSwipeVisual(commit, neighborIdx, dir, width, peekEl);
 }
 function cancelSwipeGesture(){
