@@ -2008,6 +2008,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .tier-tab.locked{ opacity:.45; }
 .tier-progress{ margin-bottom:8px; gap:8px; }
 .tp-stars{ font-size:13px; font-weight:800; color:var(--gold); white-space:nowrap; }
+.hard-toggle-row{ display:flex; justify-content:flex-end; margin-bottom:8px; }
+.hard-toggle{
+  font-family:inherit; font-size:11px; font-weight:800; padding:7px 13px; border-radius:999px;
+  border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; text-align:right;
+}
+.hard-toggle.on{ background:rgba(216,72,72,.18); border-color:#d84848; color:#ff8f8f; }
+.hard-toggle:disabled{ opacity:.5; cursor:default; }
+.hard-toggle small{ display:block; font-size:9.5px; font-weight:600; color:var(--dim); margin-top:2px; }
 .tier-chests{ display:flex; gap:6px; }
 .tier-chest{ display:flex; flex-direction:column; align-items:center; gap:1px; font-family:inherit;
   padding:4px 8px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
@@ -2309,7 +2317,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.001';
+const GAME_VERSION = 'α0.0.002';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5461,6 +5469,7 @@ const QUEST_TIERS = [
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
 const HARD_TIERS = QUEST_TIERS_ACTIVE.filter(t => t.hard);
+const HARD_OF = Object.fromEntries(HARD_TIERS.map(t => [t.hard, t.key])); // base tier key -> its hard tier key
 const TERRAIN = {
   plains:  { label: '草原', color: '#5f9c4a' }, forest: { label: '森', color: '#3f7d52' },
   cave:    { label: '洞窟', color: '#6b5a86' }, ruins:  { label: '遺跡', color: '#9a8a62' },
@@ -5854,14 +5863,16 @@ let dexPromoOnly = false, rosterPromoOnly = false;   // 昇格できるモンス
 let filterTarget = 'roster';   // which screen the filter sheet is editing
 let dexOwnedOnly = false;
 
+// home sits in the middle so it's always one swipe away from either side (see the swipe-nav
+// handler below, which moves to the neighboring entry in this array).
 const NAV = [
-  { key: 'home', label: 'ホーム', icon: '🏠' },
-  { key: 'battle', label: '探索', icon: '⚔️' },
-  { key: 'party', label: '編成', icon: '🧩' },
-  { key: 'pvp', label: 'PVP', icon: '🏆' },
   { key: 'gacha', label: 'ガチャ', icon: '🎰' },
   { key: 'relics', label: '遺物', icon: '🔮' },
+  { key: 'party', label: '編成', icon: '🧩' },
+  { key: 'home', label: 'ホーム', icon: '🏠' },
   { key: 'base', label: '拠点', icon: '🏯' },
+  { key: 'battle', label: '探索', icon: '⚔️' },
+  { key: 'pvp', label: 'PVP', icon: '🏆' },
 ];
 
 /* ---------------- PVP screen ---------------- */
@@ -6366,6 +6377,11 @@ function canPromoteNow(id){
   return need !== null && o.souls >= need;
 }
 
+// which footer nav button a given screen should highlight (some screens are reached without
+// tapping their own nav button, e.g. missions from home, or the shop from 拠点)
+function navKeyForScreen(screen){
+  return screen === 'battle-fight' ? 'battle' : screen === 'missions' ? 'home' : screen === 'shop' ? 'base' : screen;
+}
 function goto(screen){
   if(overlayView){ overlayView = null; pickTarget = null; }
   if(screen !== currentScreen) logEvent('screen_view', { screen_name: screen });
@@ -6409,7 +6425,7 @@ function render(){
   renderOverlay();
 
   app.classList.toggle('in-battle', currentScreen === 'battle-fight');
-  const activeKey = currentScreen === 'battle-fight' ? 'battle' : currentScreen === 'missions' ? 'home' : currentScreen === 'shop' ? 'base' : currentScreen;
+  const activeKey = navKeyForScreen(currentScreen);
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.key === activeKey);
   });
@@ -8145,7 +8161,8 @@ function renderParty(){
 /* ---------------- BATTLE: stage select ---------------- */
 
 let stageTab = 'main';
-let questTier = null;  // selected difficulty (null = difficulty list)
+let questTier = null;  // selected difficulty tier (always a base/normal key - see hardMode for the hard-mode toggle)
+let hardMode = false;  // whether the current tier's hard-mode stages are shown (toggled by the 💀 button, falls back to normal if unavailable)
 let stageSheet = null; // stage whose details are shown
 let dungeonTab = 'exp';
 let eventKey = null;   // which event's stage list is shown when 2+ events are running
@@ -8341,15 +8358,34 @@ function renderEventTab(){
     ${renderEventCard(evs.find(e => e.key === eventKey))}
   `;
 }
+// the tier a player actually sees: their chosen base tier, or its hard-mode counterpart while
+// hardMode is on and that tier's hard stages are unlocked (falls back to normal otherwise)
+function effectiveQuestTier(){
+  const hKey = questTier ? HARD_OF[questTier] : null;
+  return hardMode && hKey && tierUnlocked(hKey) ? hKey : questTier;
+}
+function renderHardToggle(hardKey, unlocked){
+  const hardFirst = STAGES.find(st => st.tier === hardKey);
+  const reqStage = hardFirst && hardFirst.requires ? STAGE_BY_ID[hardFirst.requires] : null;
+  return `
+    <div class="hard-toggle-row">
+      <button class="hard-toggle ${hardMode && unlocked ? 'on' : ''}" data-hard-toggle="1" ${unlocked ? '' : 'disabled'}>
+        💀 ハードモード${unlocked ? '' : `<small>「${reqStage ? reqStage.name : '？'}」クリアで解放</small>`}
+      </button>
+    </div>`;
+}
 function renderBattleSelect(){
   refreshStamina();
   ensureDaily();
   if(questTier && !tierUnlocked(questTier)) questTier = null;
-  if(stageTab === 'main' && !questTier) questTier = QUEST_TIERS_ACTIVE.filter(t => tierUnlocked(t.key)).slice(-1)[0].key;
-  const tier2 = questTier ? QUEST_TIERS.find(t => t.key === questTier) : null;
-  const list2 = questTier ? STAGES.filter(st => st.tier === questTier) : [];
+  if(stageTab === 'main' && !questTier) questTier = QUEST_TIERS_ACTIVE.filter(t => tierUnlocked(t.key) && !t.hard).slice(-1)[0].key;
+  const effTier = effectiveQuestTier();
+  const tier2 = effTier ? QUEST_TIERS.find(t => t.key === effTier) : null;
+  const list2 = effTier ? STAGES.filter(st => st.tier === effTier) : [];
   const tierStars = list2.reduce((a, st) => a + stageStars(st.id), 0);
   const evCount = activeEvents().length;
+  const hardKey = questTier ? HARD_OF[questTier] : null;
+  const hardUnlocked = !!(hardKey && tierUnlocked(hardKey));
 
   return `
     <div class="row-between" style="margin:10px 0 6px;">
@@ -8365,17 +8401,18 @@ function renderBattleSelect(){
     ${stageTab === 'dungeon' ? renderDungeons() : ''}
     ${stageTab === 'main' ? `
     <div class="tier-tabs" role="tablist">
-      ${QUEST_TIERS.filter(t => !t.hidden).map(t => {
+      ${QUEST_TIERS.filter(t => !t.hidden && !t.hard).map(t => {
         const open = tierUnlocked(t.key);
         return `<button class="tier-tab ${questTier === t.key ? 'on' : ''} ${open ? '' : 'locked'}"
           data-quest-tier="${t.key}" ${open && !t.disabled ? '' : 'disabled'} role="tab" aria-selected="${questTier === t.key}">
           ${open && !t.disabled ? '' : '🔒'}${t.short || t.label}</button>`;
       }).join('')}
     </div>
+    ${hardKey ? renderHardToggle(hardKey, hardUnlocked) : ''}
     ${questTier !== 'tu' ? `
     <div class="tier-progress row-between">
       <div class="tp-stars">★${tierStars} / ${list2.length * 3}</div>
-      ${renderTierChests(questTier, tierStars)}
+      ${renderTierChests(effTier, tierStars)}
     </div>` : ''}
     <div class="screen-sub" style="margin-bottom:9px;">
       ${questTier === 'tu' ? 'ゲームの遊び方を順番に覚えましょう。スタミナは使いません。'
@@ -12091,6 +12128,7 @@ function handlePhoneClick(ev){
   }
   const qtEl = t.closest('[data-quest-tier]');
   if(qtEl){ questTier = qtEl.dataset.questTier; render(); return; }
+  if(t.closest('[data-hard-toggle]')){ hardMode = !hardMode; render(); return; }
   if(t.closest('[data-quest-back]')){ questTier = null; render(); return; }
   const evtEl = t.closest('[data-event-tier]');
   if(evtEl){ eventKey = evtEl.dataset.eventTier; render(); return; }
@@ -13036,6 +13074,48 @@ async function handleAccountAction(action){
   }
 }
 
+/* ---------------- swipe between the footer nav's screens ---------------- */
+// home sits in the middle of NAV; swiping left/right on the main screen moves to the
+// neighboring entry, unless the gesture starts inside something that scrolls horizontally
+// on its own (tier tabs, filter chips, a banner carousel, ...) or during battle/modals/overlays.
+let swipeStartX = null, swipeStartY = null, swipeStartTime = 0;
+function withinHorizontalScroller(el){
+  const screenEl = document.getElementById('screen');
+  let node = el;
+  while(node && node !== screenEl && node !== document.body){
+    if(node.scrollWidth > node.clientWidth + 1){
+      const overflowX = getComputedStyle(node).overflowX;
+      if(overflowX === 'auto' || overflowX === 'scroll') return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
+}
+function handleScreenSwipeStart(ev){
+  swipeStartX = null;
+  if(ev.pointerType === 'mouse' && ev.button !== 0) return;
+  if(appPhase !== 'game') return;
+  if(battleUI && !battleUI.finished) return;   // never hijack an in-progress fight
+  if(overlayView) return;                       // an overlay (settings, friends, ...) is open
+  if(document.getElementById('modal-layer').classList.contains('show')) return;
+  const t = ev.target;
+  if(t.closest && t.closest('input, textarea, select, [data-levelup]')) return;
+  if(withinHorizontalScroller(t)) return;        // let the tab strip / banner handle its own drag
+  swipeStartX = ev.clientX; swipeStartY = ev.clientY; swipeStartTime = Date.now();
+}
+function handleScreenSwipeEnd(ev){
+  if(swipeStartX === null) return;
+  const dx = ev.clientX - swipeStartX, dy = ev.clientY - swipeStartY, dt = Date.now() - swipeStartTime;
+  swipeStartX = null;
+  if(dt > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  const idx = NAV.findIndex(n => n.key === navKeyForScreen(currentScreen));
+  if(idx === -1) return;
+  const nextIdx = dx < 0 ? idx + 1 : idx - 1;    // swipe left -> next entry, swipe right -> previous
+  if(nextIdx < 0 || nextIdx >= NAV.length) return;
+  playSfx('tap');
+  goto(NAV[nextIdx].key);
+}
+
 /* ---------------- boot ---------------- */
 
 async function boot(){
@@ -13252,6 +13332,9 @@ function wireGlobalEvents(){
   const phoneEl = document.getElementById('phone');
   phoneEl.addEventListener('click', handlePhoneClick);
   phoneEl.addEventListener('pointerdown', handlePhonePointerDown);
+  phoneEl.addEventListener('pointerdown', handleScreenSwipeStart);
+  phoneEl.addEventListener('pointerup', handleScreenSwipeEnd);
+  phoneEl.addEventListener('pointercancel', () => { swipeStartX = null; });
   phoneEl.addEventListener('click', handleTitleClick);
   document.addEventListener('keydown', handleTitleKey);
 }
