@@ -89,7 +89,16 @@ body{
   height:100vh;
   height:100dvh; /* tracks the real visible area as the browser's address bar shows/hides */
   position:relative;
+  /* let the browser keep native vertical scrolling; horizontal drags are claimed by the
+     swipe-between-screens handler below (elements that scroll sideways on their own,
+     e.g. .tier-tabs, opt back in to native horizontal panning) */
+  touch-action:pan-y;
 }
+.swipe-peek{
+  position:absolute; overflow-y:auto; overflow-x:hidden; pointer-events:none; z-index:2;
+  padding:6px 16px 90px;
+}
+.swipe-peek::-webkit-scrollbar{ width:0; }
 @media (min-width:431px){
   html,body{ overflow:visible; }
   body{ min-height:100vh; align-items:flex-start; padding:18px 10px 40px; }
@@ -230,7 +239,7 @@ body{
 .ss-actions{ display:flex; gap:8px; margin-top:12px; }
 .ss-actions .btn{ flex:1; }
 .ss-actions .sweep-btn{ flex:0 0 96px; }
-.tier-tabs{ display:flex; gap:5px; overflow-x:auto; padding-bottom:2px; margin-bottom:8px; scrollbar-width:none; }
+.tier-tabs{ display:flex; gap:5px; overflow-x:auto; padding-bottom:2px; margin-bottom:8px; scrollbar-width:none; touch-action:pan-x; }
 .tier-tabs::-webkit-scrollbar{ display:none; }
 .tier-tab{ flex:none; font-family:inherit; font-size:11.5px; font-weight:800; padding:7px 10px; border-radius:10px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; line-height:1.2; }
 .tier-tab small{ display:block; font-size:9px; font-weight:700; opacity:.8; }
@@ -569,13 +578,13 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .mon-cell.locked img{ filter:brightness(0) opacity(.55); }
 .mon-cell.locked .name{ color:#514a6a; }
 .dex-count{ font-size:10.5px; color:var(--dim); margin-top:2px; }
-.dex-elems{ display:flex; gap:5px; overflow-x:auto; padding-bottom:4px; margin-bottom:9px; }
+.dex-elems{ display:flex; gap:5px; overflow-x:auto; padding-bottom:4px; margin-bottom:9px; touch-action:pan-x; }
 .dex-elems::-webkit-scrollbar{ display:none; }
 .dex-elem{ flex:none; font-family:inherit; font-size:11px; font-weight:800; padding:6px 11px; border-radius:999px;
   border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; white-space:nowrap; }
 .dex-elem.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
 
-.filter-row{ display:flex; gap:6px; overflow-x:auto; padding-bottom:10px; margin-bottom:4px;}
+.filter-row{ display:flex; gap:6px; overflow-x:auto; padding-bottom:10px; margin-bottom:4px; touch-action:pan-x; }
 .chip{
   flex:none;
   padding:7px 13px;
@@ -2000,7 +2009,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ss-actions .sweep-btn{ flex:1; }
 
 /* ---------- quest: tabs, stage cards, affinity sheet ---------- */
-.tier-tabs{ display:flex; gap:5px; overflow-x:auto; padding-bottom:4px; margin-bottom:9px; }
+.tier-tabs{ display:flex; gap:5px; overflow-x:auto; padding-bottom:4px; margin-bottom:9px; touch-action:pan-x; }
 .tier-tabs::-webkit-scrollbar{ display:none; }
 .tier-tab{ flex:none; font-family:inherit; font-size:12px; font-weight:800; padding:9px 14px; border-radius:11px;
   border:1px solid var(--line); background:var(--panel2); color:var(--dim); cursor:pointer; white-space:nowrap; }
@@ -2220,7 +2229,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .mc-bar{ height:5px; border-radius:999px; background:var(--groove); margin-top:10px; overflow:hidden; }
 .mc-bar > div{ height:100%; background:linear-gradient(90deg,#c98f2e,#e8b455); }
 .banner-wrap{ overflow-x:auto; overflow-y:hidden; border-radius:16px; scroll-snap-type:x mandatory;
-  -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  -webkit-overflow-scrolling:touch; scrollbar-width:none; touch-action:pan-x; }
 .banner-wrap::-webkit-scrollbar{ display:none; }
 .banner-track{ display:flex; }
 .banner-track > .home-banner{ flex:0 0 100%; min-width:100%; scroll-snap-align:start; }
@@ -2317,7 +2326,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.002';
+const GAME_VERSION = 'α0.0.003';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -13075,10 +13084,20 @@ async function handleAccountAction(action){
 }
 
 /* ---------------- swipe between the footer nav's screens ---------------- */
-// home sits in the middle of NAV; swiping left/right on the main screen moves to the
-// neighboring entry, unless the gesture starts inside something that scrolls horizontally
-// on its own (tier tabs, filter chips, a banner carousel, ...) or during battle/modals/overlays.
-let swipeStartX = null, swipeStartY = null, swipeStartTime = 0;
+// home sits in the middle of NAV; dragging left/right on the main screen follows the finger
+// (the incoming neighbor screen slides in from the edge, live) and settles into a full
+// transition or snaps back on release - unless the gesture starts inside something that
+// scrolls horizontally on its own (tier tabs, filter chips, a banner carousel, ...), or
+// during battle/modals/overlays (see screenSwipeAllowed).
+let swipeStartX = null, swipeStartY = null, swipeStartTime = 0, swipePointerId = null;
+let swipeAxis = null;        // null while undecided, then 'x' or 'y' for the rest of the gesture
+let swipeDir = 0;            // +1 = moving to the next NAV entry, -1 = the previous one
+let swipeNeighborIdx = -1;
+let swipeScreenWidth = 0;
+let swipePeekEl = null;
+let swipeJustDragged = false; // set once a real horizontal drag happened, to swallow the trailing click
+const SWIPE_TRANSITION = 'transform 220ms cubic-bezier(.2,.7,.3,1)';
+
 function withinHorizontalScroller(el){
   const screenEl = document.getElementById('screen');
   let node = el;
@@ -13091,29 +13110,104 @@ function withinHorizontalScroller(el){
   }
   return false;
 }
+function screenSwipeAllowed(){
+  return appPhase === 'game'
+    && !(battleUI && !battleUI.finished)   // never hijack an in-progress fight
+    && !overlayView                         // an overlay (settings, friends, ...) is open
+    && !document.getElementById('modal-layer').classList.contains('show');
+}
+function buildSwipePeekPanel(key){
+  const phoneEl = document.getElementById('phone');
+  const screenEl = document.getElementById('screen');
+  const sRect = screenEl.getBoundingClientRect(), pRect = phoneEl.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'swipe-peek';
+  el.style.top = `${sRect.top - pRect.top}px`;
+  el.style.left = `${sRect.left - pRect.left}px`;
+  el.style.width = `${sRect.width}px`;
+  el.style.height = `${sRect.height}px`;
+  el.innerHTML = renderScreen(key);
+  phoneEl.appendChild(el);
+  return el;
+}
+function applySwipeTransform(dx){
+  const screenEl = document.getElementById('screen');
+  const eff = swipePeekEl ? dx : dx * 0.35;   // rubber-band when there's no neighbor that way
+  screenEl.style.transform = `translateX(${eff}px)`;
+  if(swipePeekEl) swipePeekEl.style.transform = `translateX(${swipeDir * swipeScreenWidth + dx}px)`;
+}
+function resetSwipeGesture(){
+  swipeStartX = null; swipeAxis = null; swipeNeighborIdx = -1; swipePointerId = null;
+}
 function handleScreenSwipeStart(ev){
-  swipeStartX = null;
+  resetSwipeGesture();
   if(ev.pointerType === 'mouse' && ev.button !== 0) return;
-  if(appPhase !== 'game') return;
-  if(battleUI && !battleUI.finished) return;   // never hijack an in-progress fight
-  if(overlayView) return;                       // an overlay (settings, friends, ...) is open
-  if(document.getElementById('modal-layer').classList.contains('show')) return;
+  if(!screenSwipeAllowed()) return;
   const t = ev.target;
   if(t.closest && t.closest('input, textarea, select, [data-levelup]')) return;
   if(withinHorizontalScroller(t)) return;        // let the tab strip / banner handle its own drag
   swipeStartX = ev.clientX; swipeStartY = ev.clientY; swipeStartTime = Date.now();
+  swipePointerId = ev.pointerId;
+}
+function handleScreenSwipeMove(ev){
+  if(swipeStartX === null || ev.pointerId !== swipePointerId) return;
+  const dx = ev.clientX - swipeStartX, dy = ev.clientY - swipeStartY;
+  if(swipeAxis === null){
+    if(Math.abs(dx) < 10 && Math.abs(dy) < 10) return;      // not enough movement to tell yet
+    if(Math.abs(dy) >= Math.abs(dx)){ swipeAxis = 'y'; return; }  // vertical: let the page scroll natively
+    swipeAxis = 'x';
+    const screenEl = document.getElementById('screen');
+    const idx = NAV.findIndex(n => n.key === navKeyForScreen(currentScreen));
+    swipeDir = dx < 0 ? 1 : -1;
+    swipeNeighborIdx = idx === -1 ? -1 : idx + swipeDir;
+    swipeScreenWidth = screenEl.clientWidth || 1;
+    if(swipeNeighborIdx >= 0 && swipeNeighborIdx < NAV.length) swipePeekEl = buildSwipePeekPanel(NAV[swipeNeighborIdx].key);
+    try{ document.getElementById('phone').setPointerCapture(ev.pointerId); }catch(e){}
+  }
+  if(swipeAxis !== 'x') return;
+  ev.preventDefault();
+  applySwipeTransform(dx);
+}
+function endSwipeVisual(commit, neighborIdx, dir, width, peekEl){
+  const screenEl = document.getElementById('screen');
+  screenEl.style.transition = SWIPE_TRANSITION;
+  if(peekEl) peekEl.style.transition = SWIPE_TRANSITION;
+  const cleanup = () => {
+    screenEl.style.transition = ''; screenEl.style.transform = '';
+    if(peekEl) peekEl.remove();
+  };
+  if(commit){
+    swipeJustDragged = true;
+    screenEl.style.transform = `translateX(${dir * width}px)`;
+    if(peekEl) peekEl.style.transform = 'translateX(0px)';
+    setTimeout(() => { cleanup(); playSfx('tap'); goto(NAV[neighborIdx].key); }, 220);
+  }else{
+    screenEl.style.transform = 'translateX(0px)';
+    if(peekEl) peekEl.style.transform = `translateX(${dir * width}px)`;
+    setTimeout(cleanup, 220);
+  }
 }
 function handleScreenSwipeEnd(ev){
-  if(swipeStartX === null) return;
-  const dx = ev.clientX - swipeStartX, dy = ev.clientY - swipeStartY, dt = Date.now() - swipeStartTime;
-  swipeStartX = null;
-  if(dt > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-  const idx = NAV.findIndex(n => n.key === navKeyForScreen(currentScreen));
-  if(idx === -1) return;
-  const nextIdx = dx < 0 ? idx + 1 : idx - 1;    // swipe left -> next entry, swipe right -> previous
-  if(nextIdx < 0 || nextIdx >= NAV.length) return;
-  playSfx('tap');
-  goto(NAV[nextIdx].key);
+  if(swipeStartX === null || ev.pointerId !== swipePointerId){ resetSwipeGesture(); return; }
+  const dx = ev.clientX - swipeStartX, dt = Date.now() - swipeStartTime;
+  const axis = swipeAxis, neighborIdx = swipeNeighborIdx, width = swipeScreenWidth, dir = swipeDir, peekEl = swipePeekEl;
+  resetSwipeGesture();
+  swipePeekEl = null;
+  if(axis !== 'x'){
+    const screenEl = document.getElementById('screen');
+    screenEl.style.transform = ''; screenEl.style.transition = '';
+    if(peekEl) peekEl.remove();
+    return;
+  }
+  const commit = neighborIdx >= 0 && neighborIdx < NAV.length
+    && (Math.abs(dx) > width * 0.28 || (Math.abs(dx) > 40 && dt < 220));
+  endSwipeVisual(commit, neighborIdx, dir, width, peekEl);
+}
+function cancelSwipeGesture(){
+  const screenEl = document.getElementById('screen');
+  screenEl.style.transform = ''; screenEl.style.transition = '';
+  if(swipePeekEl){ swipePeekEl.remove(); swipePeekEl = null; }
+  resetSwipeGesture();
 }
 
 /* ---------------- boot ---------------- */
@@ -13333,8 +13427,13 @@ function wireGlobalEvents(){
   phoneEl.addEventListener('click', handlePhoneClick);
   phoneEl.addEventListener('pointerdown', handlePhonePointerDown);
   phoneEl.addEventListener('pointerdown', handleScreenSwipeStart);
+  phoneEl.addEventListener('pointermove', handleScreenSwipeMove, { passive: false });
   phoneEl.addEventListener('pointerup', handleScreenSwipeEnd);
-  phoneEl.addEventListener('pointercancel', () => { swipeStartX = null; });
+  phoneEl.addEventListener('pointercancel', cancelSwipeGesture);
+  // a drag that actually moved the screen shouldn't also fire the tap it happens to end on
+  phoneEl.addEventListener('click', ev => {
+    if(swipeJustDragged){ swipeJustDragged = false; ev.stopPropagation(); ev.preventDefault(); }
+  }, true);
   phoneEl.addEventListener('click', handleTitleClick);
   document.addEventListener('keydown', handleTitleKey);
 }
