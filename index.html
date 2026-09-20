@@ -1848,6 +1848,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 #guide-toast.show{ opacity:1; pointer-events:auto; transform:translateY(0); }
 #guide-toast .guide-banner{ margin-bottom:0; box-shadow:0 10px 24px -8px rgba(0,0,0,.6); }
+/* while a guide tip is pinned above the nav bar, reserve room at the bottom of any open modal so
+   its last content (e.g. the relic slot in a monster's detail) can never scroll to a spot the
+   fixed guide banner covers - otherwise taps there are silently swallowed by the banner on top. */
+.result-modal.guide-clearance{ padding-bottom:230px; }
 
 /* the screen element a guide step is currently talking about.
    inset-only so it never gets clipped by #phone's overflow:clip, even for
@@ -7716,6 +7720,7 @@ function showMonsterDetail(id){
   if(nowEl && keepScroll) nowEl.scrollTop = keepScroll;
   if(!STATE.guidesSeen || !STATE.guidesSeen.monsterDetail){
     openGuideToast('hanoko', GUIDE_CONTENT.monsterDetail.steps, { key: 'monsterDetail' });
+    reapplyGuideHighlight(); // openGuideToast no-ops if this guide is already mid-way; make sure this fresh modal still has the classes
   }
 }
 
@@ -13073,7 +13078,8 @@ const GUIDE_CONTENT = {
       { body: 'わたしハノコ。ここがモンスターの詳細画面。まずはレベルアップ。育てたいモンスターをどんどん強くしてあげてね。', highlight: '.lv-card' },
       { body: 'ここでステータスが見られるよ。HPや攻撃力、防御力なんかが確認できるの。', highlight: '.detail-stats' },
       { body: 'こっちはスキル。通常攻撃やスキル、必殺技の効果がここに書いてあるよ。', highlight: '.detail-skill-box' },
-      { body: '最後はここ、昇格。ソウルを集めると★を上げられて、もっと強くなれるの。困ったらいつでも呼んでね。', highlight: '.promo-box' },
+      { body: '昇格。ソウルを集めると★を上げられて、もっと強くなれるの。', highlight: '.promo-box' },
+      { body: '最後はここ、遺物。タップすると装着する遺物を選べるよ。困ったらいつでも呼んでね。', highlight: '.relic-box' },
     ],
   },
   tutorialDone: {
@@ -13150,14 +13156,28 @@ function clearGuideToast(){
   const el = document.getElementById('guide-toast');
   if(el){ el.classList.remove('show'); el.innerHTML = ''; }
 }
-function applyGuideHighlight(selector){
+function applyGuideHighlight(selector, opts){
   const target = document.querySelector(selector);
   if(!target) return;
   target.classList.add('guide-spot');
-  target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  // reserve bottom clearance in the containing modal so scrolling to the end of it never
+  // lands content underneath the fixed guide banner (see .result-modal.guide-clearance)
+  const modal = target.closest('.result-modal');
+  if(modal) modal.classList.add('guide-clearance');
+  if(!opts || opts.scroll !== false) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 function clearGuideHighlight(){
   document.querySelectorAll('.guide-spot').forEach(el => el.classList.remove('guide-spot'));
+  document.querySelectorAll('.result-modal.guide-clearance').forEach(el => el.classList.remove('guide-clearance'));
+}
+// a modal re-rendering itself (e.g. a level-up refreshing the monster detail sheet) replaces the
+// whole node, losing the highlight/clearance classes even though the same guide step is still
+// showing - call this after such a re-render to restore them without re-triggering the scroll.
+function reapplyGuideHighlight(){
+  const st = guideToastState;
+  if(!st) return;
+  const s = st.steps[st.step];
+  if(s.highlight) applyGuideHighlight(s.highlight, { scroll: false });
 }
 
 function wireGlobalEvents(){
