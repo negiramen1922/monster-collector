@@ -6,7 +6,7 @@ const api = load('game.js', src => src + `;global.__e = {
   returnBorrowed, friendsAvailable, MON_BY_ID, setAccount: a => { ACCOUNT = a; },
   sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND, claimFriendGifts,
   pullFriendMon, pullFriendMat, doFriendPull, FRIEND_CHAR_GACHA_COST, FRIEND_MAT_GACHA_COST,
-  getItem, addItem, MONSTERS,
+  getItem, addItem, MONSTERS, sanitizeLastActive, lastActiveText, refreshFriendProfiles, friendNameOf,
 };`);
 const E = global.__e;
 
@@ -23,9 +23,9 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
     kind: 'mock',
     async lookupPlayer(code){
       if(code === 'GOOD1') return { uid: 'u-good', playerId: 'GOOD1', name: 'よきフレンド', level: 12,
-        support: { id: 'm54', star: 5, level: 80, skillLv: 6, ultLv: 6, passiveLv: 6 } };
+        support: { id: 'm54', star: 5, level: 80, skillLv: 6, ultLv: 6, passiveLv: 6 }, updatedAt: Date.now() - 3600 * 1000 };
       if(code === 'EVIL1') return { uid: 'u-evil', playerId: 'EVIL1', name: '<script>alert(1)</script>', level: 99999,
-        support: { id: 'not-a-real-monster', star: 999, level: -5, skillLv: 'x', ultLv: null } };
+        support: { id: 'not-a-real-monster', star: 999, level: -5, skillLv: 'x', ultLv: null }, updatedAt: Date.now() + 999999999 };
       if(code === 'NOSUP') return { uid: 'u-nosup', playerId: 'NOSUP', name: 'ソウルなし', level: 3, support: null };
       return null;
     },
@@ -58,9 +58,33 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   console.log('sanitizeSupport(bad id):', E.sanitizeSupport({ id: 'zzz', star: 3, level: 50 }));
   console.log('sanitizeSupport(out-of-range clamps):', JSON.stringify(E.sanitizeSupport({ id: 'm54', star: 999, level: -10, skillLv: 'nope' })));
 
-  // --- friend points: sending is capped once/day/friend, only affects the sender ---
   const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
   const S = api.STATE;
+
+  // --- last active: sanitized on add, refreshed on demand, formatted for display ---
+  const good = S.friends.find(f => f.uid === 'u-good');
+  ok('追加時にlastActiveが記録される(過去の妥当な時刻)', typeof good.lastActive === 'number' && good.lastActive <= Date.now(), good.lastActive);
+  const evilFriend = S.friends.find(f => f.uid === 'u-evil');
+  ok('未来日時のupdatedAtはlastActiveに採用しない', evilFriend.lastActive === null, evilFriend.lastActive);
+  ok('sanitizeLastActive: 不正値はnull', E.sanitizeLastActive('nope') === null && E.sanitizeLastActive(-5) === null && E.sanitizeLastActive(Date.now() + 1e9) === null);
+  ok('sanitizeLastActive: 過去の妥当な値はそのまま', E.sanitizeLastActive(1000) === 1000);
+  console.log('lastActiveText(たった今):', E.lastActiveText(Date.now() - 5000));
+  console.log('lastActiveText(分前):', E.lastActiveText(Date.now() - 5 * 60000));
+  console.log('lastActiveText(時間前):', E.lastActiveText(Date.now() - 5 * 3600000));
+  console.log('lastActiveText(日前):', E.lastActiveText(Date.now() - 5 * 86400000));
+  console.log('lastActiveText(不明):', E.lastActiveText(null));
+  ok('friendNameOf: 既知のuidは名前を返す', E.friendNameOf('u-good') === 'よきフレンド');
+  ok('friendNameOf: 不明なuidはフォールバック', E.friendNameOf('u-not-a-friend') === 'フレンド');
+
+  global.window.__authBackend.fetchProfiles = async (uids) => uids.filter(u => u === 'u-good').map(u => ({ uid: u, updatedAt: Date.now(), level: 55, support: null }));
+  await E.refreshFriendProfiles();
+  const goodAfterRefresh = S.friends.find(f => f.uid === 'u-good');
+  ok('refreshFriendProfilesでlastActive/levelが更新される', goodAfterRefresh.level === 55 && Date.now() - goodAfterRefresh.lastActive < 1000, goodAfterRefresh);
+  const evilAfterRefresh = S.friends.find(f => f.uid === 'u-evil');
+  ok('fetchProfilesに含まれないフレンドは変更されない', evilAfterRefresh.level === 999, evilAfterRefresh.level);
+  delete global.window.__authBackend.fetchProfiles;
+
+  // --- friend points: sending is capped once/day/friend, only affects the sender ---
   ok('未送信ならfriendPointSentToday=false', E.friendPointSentToday('u-good') === false);
   const before = S.friendPoints || 0;
   E.sendFriendPoint('u-good');

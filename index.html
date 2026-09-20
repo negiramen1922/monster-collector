@@ -181,6 +181,8 @@ body{
 .reward-modal .rm-list{ font-size:11.5px; color:var(--dim); line-height:1.8; margin-bottom:12px; }
 .rm-rewards{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:14px; }
 .rm-rewards .rw{ font-size:14px; padding:4px 10px; }
+.fg-total{ font-size:16px; font-weight:700; color:var(--text); text-align:center; margin-bottom:14px; }
+.fg-total b{ font-size:26px; color:var(--gold); margin:0 3px; }
 .top-chips{ display:flex; gap:5px; align-items:center; }
 .gold-chip{ display:flex; align-items:baseline; gap:2px; background:var(--panel2); border:1px solid var(--line);
   border-radius:999px; padding:6px 9px; font-size:12.5px; font-weight:700; }
@@ -2983,6 +2985,21 @@ const firebaseBackend = {
     ids.forEach(id => batch.delete(fs.doc(db, 'players', uid, 'gifts', id)));
     await batch.commit();
   },
+  // batch refresh of friends' public profiles (currently just for "最終ログイン" - players/{uid}
+  // is keyed by uid, so this is a plain "get these docs by id" query, chunked to Firestore's
+  // 10-value 'in' limit rather than one lookupPlayer() round trip per friend.
+  async fetchProfiles(uids){
+    if(!uids.length) return [];
+    const { fs, db } = await this.load();
+    const col = fs.collection(db, 'players');
+    const chunks = [];
+    for(let i = 0; i < uids.length; i += 10) chunks.push(uids.slice(i, i + 10));
+    const lists = await Promise.all(chunks.map(async chunk => {
+      const snap = await fs.getDocs(fs.query(col, fs.where(fs.documentId(), 'in', chunk)));
+      return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    }));
+    return lists.flat();
+  },
 };
 
 /* Analytics. Never throws and never blocks: without a backend (offline, tests, ad blocker)
@@ -3153,6 +3170,12 @@ function sanitizeDefense(raw){
   if(!slots.some(Boolean)) return null;
   return { formationKey, slots };
 }
+// untrusted timestamp from another player's profile: must be a real past-or-now instant,
+// never a fabricated future date that would render as a nonsensical "in -5 minutes".
+function sanitizeLastActive(raw){
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 && n <= Date.now() ? n : null;
+}
 async function addFriendByCode(code){
   if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
   code = String(code || '').trim().toUpperCase();
@@ -3168,11 +3191,32 @@ async function addFriendByCode(code){
       name: String(p.name || 'テイマー').slice(0, 20),
       level: Math.max(1, Math.min(999, Number(p.level) || 1)),
       support: sanitizeSupport(p.support),
+      lastActive: sanitizeLastActive(p.updatedAt),
     });
     saveState();
     toast(`${p.name}をフレンドに追加しました`);
     render();
   }catch(e){ toast('通信に失敗しました'); }
+}
+// keep friends' "最終ログイン" (and support/level) fresh - called whenever the friends
+// overlay is opened, since the snapshot taken at add-time otherwise never updates.
+async function refreshFriendProfiles(){
+  const be = authBackend();
+  if(typeof be.fetchProfiles !== 'function' || !STATE.friends.length) return;
+  let profiles;
+  try{ profiles = await be.fetchProfiles(STATE.friends.map(f => f.uid)); }
+  catch(e){ return; }
+  const byUid = Object.fromEntries(profiles.map(p => [p.uid, p]));
+  let changed = false;
+  STATE.friends.forEach(f => {
+    const p = byUid[f.uid];
+    if(!p) return;
+    f.lastActive = sanitizeLastActive(p.updatedAt);
+    f.level = Math.max(1, Math.min(999, Number(p.level) || f.level || 1));
+    f.support = sanitizeSupport(p.support);
+    changed = true;
+  });
+  if(changed){ saveState(); render(); }
 }
 function removeFriend(uid){
   STATE.friends = STATE.friends.filter(f => f.uid !== uid);
@@ -3222,6 +3266,24 @@ function sendFriendPoint(uid){
 }
 // pick up any gifts friends sent us (see sendFriendPoint above) - called on login and
 // whenever the friends overlay is opened, so points show up without a manual refresh step.
+function friendNameOf(uid){
+  const f = STATE.friends.find(x => x.uid === uid);
+  return f ? f.name : 'フレンド';
+}
+// one line per gift (so 3 gifts from the same friend show 3 lines, matching how many
+// times they actually sent), then the running total - deliberately a modal rather than a
+// toast, since a one-line toast was easy to miss and gave no sense of who sent what.
+function showFriendGiftModal(gifts, total){
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal reward-modal friend-gift-modal" role="dialog" aria-label="フレンドポイントが届きました">
+      <div class="rm-list">${gifts.map(g => `<div>${escapeHtml(friendNameOf(g.from))}さんから</div>`).join('')}</div>
+      <h3>フレンドポイントが届きました</h3>
+      <div class="fg-total">合計 <b>${total.toLocaleString()}</b>FP</div>
+      <button class="btn btn-block" id="close-result">OK</button>
+    </div>`;
+  layer.classList.add('show');
+}
 async function claimFriendGifts(){
   const be = authBackend();
   if(typeof be.fetchGifts !== 'function' || !ACCOUNT) return;
@@ -3229,13 +3291,14 @@ async function claimFriendGifts(){
   try{ gifts = await be.fetchGifts(ACCOUNT.uid); }
   catch(e){ return; }
   if(!gifts || !gifts.length) return;
-  const total = gifts.reduce((sum, g) => sum + (Number(g.amount) > 0 ? Number(g.amount) : 0), 0);
+  const valid = gifts.filter(g => Number(g.amount) > 0);
+  const total = valid.reduce((sum, g) => sum + Number(g.amount), 0);
   if(typeof be.claimGifts === 'function') be.claimGifts(ACCOUNT.uid, gifts.map(g => g.id)).catch(() => {});
   if(total <= 0) return;
   STATE.friendPoints = (STATE.friendPoints || 0) + total;
   saveState();
-  toast(`フレンドからポイントが届きました(フレンドポイント+${total})`);
   render();
+  showFriendGiftModal(valid, total);
 }
 
 /* ---- cloud save ---- */
@@ -4765,6 +4828,19 @@ function formatDuration(ms){
   const t = Math.ceil(ms / 1000);
   const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60;
   return h > 0 ? `${h}時間${String(m).padStart(2, '0')}分` : `${m}:${String(sec).padStart(2, '0')}`;
+}
+// フレンド一覧の「最終ログイン」表示。publishProfile()のupdatedAtを流用しているので、
+// ログインに限らずプロフィールが更新された直近の操作時刻(≒最終アクティブ)を指す。
+function lastActiveText(ts){
+  if(!ts) return '最終ログイン: 不明';
+  const diff = Date.now() - ts;
+  if(diff < 60 * 1000) return '最終ログイン: たった今';
+  if(diff < 3600 * 1000) return `最終ログイン: ${Math.floor(diff / 60000)}分前`;
+  if(diff < 24 * 3600 * 1000) return `最終ログイン: ${Math.floor(diff / 3600000)}時間前`;
+  const days = Math.floor(diff / (24 * 3600 * 1000));
+  if(days < 30) return `最終ログイン: ${days}日前`;
+  const d = new Date(ts);
+  return `最終ログイン: ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function currentDayKey(){
@@ -12098,7 +12174,7 @@ function openOverlay(view){
     STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, NOTICES[0] ? NOTICES[0].id : 0);
     saveState();
   }
-  if(view === 'friends') claimFriendGifts();
+  if(view === 'friends'){ claimFriendGifts(); refreshFriendProfiles(); }
   render();
 }
 function closeOverlay(){
@@ -12323,6 +12399,7 @@ function renderFriendsOverlay(){
               <div class="fc-body">
                 <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
                 <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けキャラ未設定'}</div>
+                <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
               </div>
               <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
                 <button class="btn btn-sm ${friendPointSentToday(f.uid) ? 'btn-ghost' : ''}" data-send-friend-point="${f.uid}" ${friendPointSentToday(f.uid) ? 'disabled' : ''}>${friendPointSentToday(f.uid) ? '送信済み' : 'ポイントを送る'}</button>
