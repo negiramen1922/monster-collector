@@ -3904,14 +3904,14 @@ function upgradeFacility(key){
 
 /* ================= RELICS (装備遺物) =================
    モンスター1体につき1個装備。効果は手作り(ランダム抽選のサブステータスなし):
-   常時ボーナス+条件付きボーナスの組み合わせ。条件は種族/ロール/属性のいずれかで、
-   これら3つはモンスターが必ず1つずつ持つ独立した固定属性なので、3条件をフルに
-   満たすキャラも必ず作れる(前衛/後衛は陣形で変わる可変条件なので使わない)。
+   常時ボーナス+条件付きボーナスの組み合わせ。条件は種族/ロール/属性/そのモンスター本人の
+   いずれかで、これら3つはモンスターが必ず1つずつ持つ独立した固定属性なので、条件を
+   フルに満たすキャラも必ず作れる(前衛/後衛は陣形で変わる可変条件なので使わない)。
    所持は定義ごとに単体(同じ遺物は世界に1つ)。重複入手は「凸」として蓄積し、
    Lv100の壁を超えて120→150→180→200まで上限を伸ばすのに使う。
    壁のレベルはモンスターと共通のLEVEL_WALLS。Lv30/50/100は素材のみ、
    Lv120/150/180/200は素材+凸を1個ずつ消費する。 */
-const RELIC_STAT_LABEL = { hp:'HP', atk:'STR', spd:'SPD', pdef:'物理防御', mdef:'魔法防御', def:'物理・魔法防御', critRate:'会心率', skillDmg:'スキル攻撃力', ultDmg:'必殺技攻撃力' };
+const RELIC_STAT_LABEL = { hp:'HP', atk:'STR', spd:'SPD', pdef:'物理防御', mdef:'魔法防御', def:'物理・魔法防御', critRate:'会心率', skillDmg:'スキル攻撃力', ultDmg:'必殺技攻撃力', pierce:'防御貫通', spGain:'SP獲得量' };
 function relicCondLabel(cond){
   if(!cond) return '誰でも';
   if(cond.type === 'species') return `種族が${SPECIES_LABEL[cond.value]}なら`;
@@ -3930,105 +3930,154 @@ function relicEffectMatches(cond, mon){
 }
 function relicEffectText(e){ return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%`; }
 
-// ★1〜2は常時効果のみ、★3〜4は常時+条件1、★5は常時+条件2 という本数の目安で手作り
-// base = flat stat points per relic level (NOT a %), same as the very first design: "Lv1で
-// HP+10・STR+2" etc. Growth is linear (base.hp × level), scaled further by 凸 (see
-// applyRelicToUnit). Seed values below are calibrated so that a Lv200/凸0 relic's flat
-// bonus lands at roughly the target %(of a same-star character's own stat at Lv200) noted
-// in each comment - since it's a flat number, actual % will drift a bit by role/character,
-// unlike the %-based effects below.
-// two acquisition channels, balanced around ideal-use total effect-% at skillLv cap
-// (skillLv10, relicSkillMult=2.0 → x2 whatever's shown below):
-//   - channel:'distributed' (missions/achievements, never in the gacha pool): ~15-20%
-//     at cap, compensated with a cheaper wall-break cost (see relicWallGold/Scrap).
-//   - gacha pool (no channel field, incl. the ★5 per-character exclusives below): ~30-35%
-//     at cap on the ideal target (matching role/species/mon), stronger but pricier walls.
+// base = flat stat points at relic Lv1 (NOT a %), growing with relicGrowthMult(level) - the
+// exact same +3%/Lv curve as character leveling (LEVEL_STAT_BONUS) - then further scaled by
+// 凸 (see applyRelicCore). Because both a relic's base bonus and a character's own stat grow
+// on the same curve, "bonus ÷ character's own stat" stays constant across all levels, so the
+// Lv1 seed alone decides the % a maxed relic reaches. Every relic's base always adds to BOTH
+// HP and STR (never one or the other) - only the ratio between them differs by archetype:
+//   - hp型(HP寄り): HPが主・STRが従
+//   - atk型(STR寄り): STRが主・HPが従
+//   - balanced型: 両方同じ比重
+//   - spd型(★4・★5のみ、レア枠): balanced型と同じHP/STRに、レアなSPD加算が乗る
+// Lv1値は「同★の平均ステータス × 狙う割合」から逆算した固定値(実測mons.jsonベース)。
+// effects(%系)の pct は skillLv1の値。skillLv10でrelicSkillMult=2.0倍になり、狙った上限%
+// (コメント中の cap%)に到達する。同じstatの効果は自動的に合算される(明示的なstack
+// フラグは不要 - applyRelicCoreが同じstatキーを足し合わせるため)。
+// 入手経路は2つ、狙う上限%(skillLv上限)で差別化:
+//   - channel:'distributed'(実績配布限定、ガチャ排出には出ない): 単発・無条件のみで
+//     10〜15%程度に抑える代わりに、壁の突破コストが半額(RELIC_DISTRIBUTED_WALL_DISCOUNT)。
+//   - ガチャ産(channelなし。★5専用6種を含む): 常時+条件つきの組み合わせで、対象条件に
+//     ぴったり合えば ★1で20%・★2で24%・★3で32%・★4で34%・★5汎用で32%に到達。
+//     ★5専用(そのキャラだけ)はさらに強く、専用条件の枠が単独で36%に達する。
 const RELICS = {
+  // ================= ★1 =================
   rel_droplet: { id:'rel_droplet', name:'みずのしずく', star:1, icon:'💧',
-    base:{ hp:0.77 }, effects:[ { stat:'hp', pct:0.05, cond:null } ] }, // hp: ★1 target +20% of avg HP at Lv200
+    base:{ hp:21.7, atk:1.7 }, effects:[ { stat:'hp', pct:0.10, cond:null } ] }, // cap 20%
+  rel_fang: { id:'rel_fang', name:'牙の欠片', star:1, icon:'🦴',
+    base:{ hp:7.6, atk:4.9 }, effects:[ { stat:'atk', pct:0.10, cond:null } ] }, // cap 20%
+  rel_traveler_shield: { id:'rel_traveler_shield', name:'旅人の盾', star:1, icon:'🛡️', channel:'distributed',
+    base:{ hp:21.7, atk:1.7 }, effects:[ { stat:'pdef', pct:0.06, cond:null } ] }, // cap 12%
+  rel_guard_charm: { id:'rel_guard_charm', name:'護りの護符', star:1, icon:'📿', channel:'distributed',
+    base:{ hp:21.7, atk:1.7 }, effects:[ { stat:'mdef', pct:0.06, cond:null } ] }, // cap 12%
+  rel_light_boots: { id:'rel_light_boots', name:'軽装のブーツ', star:1, icon:'👟', channel:'distributed',
+    base:{ hp:14.7, atk:3.3 }, effects:[ { stat:'spd', pct:0.06, cond:null } ] }, // cap 12%
+
+  // ================= ★2 =================
   rel_hourglass: { id:'rel_hourglass', name:'ちからの砂時計', star:2, icon:'⏳',
-    base:{ atk:0.26 }, effects:[ { stat:'atk', pct:0.08, cond:null } ] }, // atk: ★2 target +30%
-  rel_giant_shield: { id:'rel_giant_shield', name:'巨人の盾のかけら', star:3, icon:'🛡️',
-    base:{ hp:1.85, atk:0.09 }, // ★3 target hp+40%・atk+10%
-    effects:[ { stat:'pdef', pct:0.10, cond:null }, { stat:'pdef', pct:0.15, cond:{ type:'role', value:'tank' } } ] },
-  rel_ygg_leaf: { id:'rel_ygg_leaf', name:'ユグドラシルの葉っぱ', star:4, icon:'🍃',
-    base:{ hp:3.00, atk:0.20 }, // ★4 target hp+60%・atk+20%
-    effects:[ { stat:'hp', pct:0.15, cond:null }, { stat:'atk', pct:0.15, cond:{ type:'species', value:'elf' } } ] },
-  // ★5 gacha relics (not character-exclusive): rebalanced so the ideal target's total
-  // lands at ~32% at skill cap (was up to 50% before this pass).
-  rel_grimoire: { id:'rel_grimoire', name:'終焉のグリモワール', star:5, icon:'📖',
-    base:{ hp:3.77, atk:0.27 }, // ★5 target hp+70%・atk+25%
+    base:{ hp:13.5, atk:8.0 }, effects:[ { stat:'atk', pct:0.12, cond:null } ] }, // cap 24%
+  rel_heavy_shard: { id:'rel_heavy_shard', name:'重厚の盾片', star:2, icon:'🔰',
+    base:{ hp:42.1, atk:2.6 }, effects:[ { stat:'pdef', pct:0.12, cond:null } ] }, // cap 24%
+  rel_novice_armor: { id:'rel_novice_armor', name:'見習いの胸当て', star:2, icon:'🎽', channel:'distributed',
+    base:{ hp:42.1, atk:2.6 }, effects:[ { stat:'hp', pct:0.075, cond:null } ] }, // cap 15%
+  rel_ward_necklace: { id:'rel_ward_necklace', name:'魔除けの首飾り', star:2, icon:'🧣', channel:'distributed',
+    base:{ hp:42.1, atk:2.6 }, effects:[ { stat:'mdef', pct:0.075, cond:null } ] }, // cap 15%
+  rel_swift_tabi: { id:'rel_swift_tabi', name:'韋駄天の足袋', star:2, icon:'🩴', channel:'distributed',
+    base:{ hp:27.8, atk:5.3 }, effects:[ { stat:'spd', pct:0.075, cond:null } ] }, // cap 15%
+
+  // ================= ★3(ロール別・全ガチャ) =================
+  rel_tank_core: { id:'rel_tank_core', name:'重鎧の芯', star:3, icon:'🗿', // タンク用
+    base:{ hp:67.2, atk:4.9 },
+    effects:[ { stat:'hp', pct:0.08, cond:null }, { stat:'def', pct:0.16, cond:{ type:'role', value:'tank' } } ] }, // cap 32%
+  rel_atk_spirit: { id:'rel_atk_spirit', name:'猛る闘気', star:3, icon:'🔥', // アタッカー用
+    base:{ hp:22.4, atk:14.7 },
+    effects:[ { stat:'hp', pct:0.08, cond:null }, { stat:'critRate', pct:0.16, cond:{ type:'role', value:'attacker' } } ] },
+  rel_heal_glow: { id:'rel_heal_glow', name:'癒しの残光', star:3, icon:'💫', // サポート用
+    base:{ hp:44.8, atk:9.8 },
+    effects:[ { stat:'hp', pct:0.08, cond:null }, { stat:'spGain', pct:0.16, cond:{ type:'role', value:'support' } } ] },
+  rel_snipe_pride: { id:'rel_snipe_pride', name:'狙撃の矜持', star:3, icon:'🎯', // シューター用
+    base:{ hp:22.4, atk:14.7 },
+    effects:[ { stat:'hp', pct:0.08, cond:null }, { stat:'pierce', pct:0.16, cond:{ type:'role', value:'shooter' } } ] },
+  rel_trick_mask: { id:'rel_trick_mask', name:'悪戯の仮面', star:3, icon:'🎭', // トリックスター用
+    base:{ hp:44.8, atk:9.8 },
+    effects:[ { stat:'hp', pct:0.08, cond:null }, { stat:'skillDmg', pct:0.16, cond:{ type:'role', value:'trickster' } } ] },
+
+  // ================= ★4(属性別・全ガチャ) =================
+  rel_flame_ember: { id:'rel_flame_ember', name:'業火の残り火', star:4, icon:'🔥', // 炎属性用
+    base:{ hp:34.4, atk:21.6 },
+    effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'skillDmg', pct:0.17, cond:{ type:'element', value:'fire' } } ] }, // cap 34%
+  rel_deepsea_guard: { id:'rel_deepsea_guard', name:'深海の守り', star:4, icon:'🌊', // 水属性用
+    base:{ hp:100.9, atk:7.4 },
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'mdef', pct:0.17, cond:{ type:'element', value:'water' } } ] },
+  rel_verdant_breath: { id:'rel_verdant_breath', name:'新緑の息吹', star:4, icon:'🌿', // 草属性用
+    base:{ hp:100.9, atk:7.4 },
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'hp', pct:0.08, cond:{ type:'element', value:'grass' } } ] }, // 同じstat(hp)なので合算、cap 34%
+  rel_earthen_weight: { id:'rel_earthen_weight', name:'大地の重み', star:4, icon:'⛰️', // 土属性用
+    base:{ hp:100.9, atk:7.4 },
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'pdef', pct:0.17, cond:{ type:'element', value:'earth' } } ] },
+  rel_thunder_swift: { id:'rel_thunder_swift', name:'雷光の疾さ', star:4, icon:'⚡', // 雷属性用
+    base:{ hp:34.4, atk:21.6 },
+    effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'spd', pct:0.17, cond:{ type:'element', value:'thunder' } } ] },
+  rel_gale_slash: { id:'rel_gale_slash', name:'疾風の一閃', star:4, icon:'🌪️', // 風属性用・SPD型(レア)
+    base:{ hp:67.6, atk:14.5, spd:6.5 },
+    effects:[ { stat:'spd', pct:0.09, cond:null }, { stat:'pierce', pct:0.17, cond:{ type:'element', value:'wind' } } ] },
+  rel_holy_judgement: { id:'rel_holy_judgement', name:'聖光の裁き', star:4, icon:'✨', // 光属性用
+    base:{ hp:67.6, atk:14.5 },
+    effects:[ { stat:'mdef', pct:0.09, cond:null }, { stat:'ultDmg', pct:0.17, cond:{ type:'element', value:'light' } } ] },
+  rel_dark_corrosion: { id:'rel_dark_corrosion', name:'暗黒の侵蝕', star:4, icon:'🌑', // 闇属性用
+    base:{ hp:67.6, atk:14.5 },
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'critRate', pct:0.17, cond:{ type:'element', value:'dark' } } ] },
+
+  // ================= ★5(汎用2種+専用6種) =================
+  // 汎用2種: 常時+同条件でさらに同stat積み増し(合計cap32%)+別条件・別statのボーナス(cap32%)。
+  rel_grimoire: { id:'rel_grimoire', name:'終焉のグリモワール', star:5, icon:'📖', // 汎用
+    base:{ hp:85.4, atk:19.8 },
     effects:[
       { stat:'skillDmg', pct:0.07, cond:null },
-      { stat:'skillDmg', pct:0.09, cond:{ type:'element', value:'dark' } },
-      { stat:'ultDmg', pct:0.16, cond:{ type:'role', value:'attacker' } },
+      { stat:'skillDmg', pct:0.09, cond:{ type:'element', value:'dark' } }, // hpと合算、cap32%
+      { stat:'ultDmg', pct:0.16, cond:{ type:'role', value:'attacker' } },  // cap32%
     ] },
-  rel_dragon_scale: { id:'rel_dragon_scale', name:'竜王の逆鱗', star:5, icon:'🐉',
-    base:{ hp:3.77, atk:0.27 }, // ★5 target hp+70%・atk+25%
+  rel_dragon_scale: { id:'rel_dragon_scale', name:'竜王の逆鱗', star:5, icon:'🐉', // 汎用
+    base:{ hp:85.4, atk:19.8 },
     effects:[
       { stat:'hp', pct:0.07, cond:null },
-      { stat:'hp', pct:0.09, cond:{ type:'species', value:'draconia' } },
-      { stat:'atk', pct:0.16, cond:{ type:'species', value:'draconia' } },
+      { stat:'hp', pct:0.09, cond:{ type:'species', value:'draconia' } }, // 合算、cap32%
+      { stat:'atk', pct:0.16, cond:{ type:'species', value:'draconia' } }, // cap32%
     ] },
-  // ★5 per-character exclusives (still pulled from the same gacha pool as any other ★5):
-  // 3 layered effects on one signature stat - unconditional(誰でも) → same role/species
-  // (medium) → that exact character(cond:'mon', strongest) - so anyone can use it, but it
-  // peaks at ~32% at skill cap only on its own character (10% / 18% / 32% at cap).
+  // ★5 per-character exclusives(そのキャラ本人専用枠、cap36%): 誰でも(弱)→同種族/同ロール
+  // (中、合算)→そのキャラ本人だけ(強・別stat)の3段。専用キャラの枠は汎用の32%を上回る36%。
   rel_slime_core: { id:'rel_slime_core', name:'深海のスライムコア', star:5, icon:'🫧', // m31 シースライム
-    base:{ hp:3.77, atk:0.27 },
+    base:{ hp:43.4, atk:29.6 },
     effects:[
-      { stat:'atk', pct:0.05, cond:null },
-      { stat:'atk', pct:0.04, cond:{ type:'species', value:'amorphous' } },
-      { stat:'atk', pct:0.07, cond:{ type:'mon', value:'m31' } },
+      { stat:'hp', pct:0.05, cond:null },
+      { stat:'hp', pct:0.04, cond:{ type:'species', value:'amorphous' } },
+      { stat:'atk', pct:0.18, cond:{ type:'mon', value:'m31' } }, // cap36%
     ] },
   rel_titan_heart: { id:'rel_titan_heart', name:'巨神の心臓', star:5, icon:'🪨', // m54 タイタン
-    base:{ hp:3.77, atk:0.27 },
+    base:{ hp:127.5, atk:10.1 },
     effects:[
-      { stat:'def', pct:0.05, cond:null },
-      { stat:'def', pct:0.04, cond:{ type:'species', value:'dwarf' } },
-      { stat:'def', pct:0.07, cond:{ type:'mon', value:'m54' } },
+      { stat:'hp', pct:0.05, cond:null },
+      { stat:'hp', pct:0.04, cond:{ type:'species', value:'dwarf' } },
+      { stat:'pdef', pct:0.18, cond:{ type:'mon', value:'m54' } }, // cap36%
     ] },
-  rel_wolf_howl: { id:'rel_wolf_howl', name:'銀狼の遠吠え', star:5, icon:'🌙', // m68 フェンリル
-    base:{ hp:3.77, atk:0.27 },
+  rel_wolf_howl: { id:'rel_wolf_howl', name:'銀狼の遠吠え', star:5, icon:'🌙', // m68 フェンリル・SPD型(レア)
+    base:{ hp:85.4, atk:19.8, spd:8.4 },
     effects:[
       { stat:'spd', pct:0.05, cond:null },
       { stat:'spd', pct:0.04, cond:{ type:'species', value:'beast' } },
-      { stat:'spd', pct:0.07, cond:{ type:'mon', value:'m68' } },
+      { stat:'atk', pct:0.18, cond:{ type:'mon', value:'m68' } }, // cap36%
     ] },
   rel_dragon_dust: { id:'rel_dragon_dust', name:'聖竜の鱗粉', star:5, icon:'✨', // m113 ホーリードラゴン
-    base:{ hp:3.77, atk:0.27 },
+    base:{ hp:85.4, atk:19.8 },
     effects:[
       { stat:'mdef', pct:0.05, cond:null },
       { stat:'mdef', pct:0.04, cond:{ type:'species', value:'draconia' } },
-      { stat:'mdef', pct:0.07, cond:{ type:'mon', value:'m113' } },
+      { stat:'hp', pct:0.18, cond:{ type:'mon', value:'m113' } }, // cap36%
     ] },
   rel_kitsune_orb: { id:'rel_kitsune_orb', name:'九尾の尾玉', star:5, icon:'🦊', // m116 九尾の狐
-    base:{ hp:3.77, atk:0.27 },
+    base:{ hp:43.4, atk:29.6 },
     effects:[
       { stat:'critRate', pct:0.05, cond:null },
       { stat:'critRate', pct:0.04, cond:{ type:'role', value:'shooter' } },
-      { stat:'critRate', pct:0.07, cond:{ type:'mon', value:'m116' } },
+      { stat:'skillDmg', pct:0.18, cond:{ type:'mon', value:'m116' } }, // cap36%
     ] },
   rel_raiden_scale: { id:'rel_raiden_scale', name:'雷神の逆鱗', star:5, icon:'⚡', // m125 雷電
-    base:{ hp:3.77, atk:0.27 },
+    base:{ hp:43.4, atk:29.6 },
     effects:[
       { stat:'ultDmg', pct:0.05, cond:null },
       { stat:'ultDmg', pct:0.04, cond:{ type:'role', value:'attacker' } },
-      { stat:'ultDmg', pct:0.07, cond:{ type:'mon', value:'m125' } },
+      { stat:'atk', pct:0.18, cond:{ type:'mon', value:'m125' } }, // cap36%
     ] },
-  // distributed(配布): mission/achievement rewards only, never in the gacha pool. Single
-  // unconditional effect, ideal-cap ~18%; the tradeoff for being weaker+free is a cheaper
-  // wall-break cost (RELIC_DISTRIBUTED_WALL_DISCOUNT).
-  rel_charm: { id:'rel_charm', name:'旅人の護符', star:1, icon:'🧿', channel:'distributed',
-    base:{ hp:0.77 }, effects:[ { stat:'hp', pct:0.09, cond:null } ] },
-  rel_dagger: { id:'rel_dagger', name:'見習いの短剣', star:1, icon:'🗡️', channel:'distributed',
-    base:{ atk:0.17 }, effects:[ { stat:'atk', pct:0.09, cond:null } ] },
-  rel_helm: { id:'rel_helm', name:'頑丈な兜', star:2, icon:'🪖', channel:'distributed',
-    base:{ hp:1.16 }, effects:[ { stat:'def', pct:0.09, cond:null } ] },
-  rel_feather: { id:'rel_feather', name:'軽やかな羽根飾り', star:2, icon:'🪶', channel:'distributed',
-    base:{ atk:0.26 }, effects:[ { stat:'spd', pct:0.09, cond:null } ] },
-  rel_ring: { id:'rel_ring', name:'熟練の指輪', star:3, icon:'💍', channel:'distributed',
-    base:{ hp:1.85, atk:0.09 }, effects:[ { stat:'critRate', pct:0.09, cond:null } ] },
 };
 const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
 // distributed relics never appear in the gacha pool - they only come from missions/achievements.
@@ -4159,17 +4208,21 @@ function upgradeRelicSkill(id){
 const RELIC_DUPE_BONUS = PROMOTION_STAT_BONUS; // +10% per 凸 used, multiplies the flat base bonus below
 
 /* ---- battle: apply a relic's bonuses to a unit ---- */
-// base is a flat stat addition (base.hp × relic level, see RELICS above), NOT a % of the
-// character's own stat - a genuine gear-style flat bonus, scaled further by 凸 (+10%/use).
+// base is a flat stat addition at relic Lv1 (see RELICS above), NOT a % of the character's
+// own stat - a genuine gear-style flat bonus that grows via relicGrowthMult(level), the same
+// +3%/Lv curve characters use (LEVEL_STAT_BONUS), then scaled further by 凸 (+10%/use).
 // effects (below) are the separate %-of-character's-stat layer, scaled by skillLv instead.
 // st just needs {level, skillLv, dupeUsed} - either a live STATE.relics entry (applyRelicToUnit)
 // or a sanitized opponent snapshot from a PVP defense formation (applyRelicSnapToUnit).
+function relicGrowthMult(level){ return 1 + ((level || 1) - 1) * LEVEL_STAT_BONUS; }
 function applyRelicCore(u, mon, def, st){
   if(!st || !def) return;
   const dupeMult = 1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS;
+  const growthMult = relicGrowthMult(st.level) * dupeMult;
   if(def.base){
-    if(def.base.hp){ const add = Math.round(def.base.hp * st.level * dupeMult); u.maxHp += add; u.hp += add; }
-    if(def.base.atk){ const add = Math.round(def.base.atk * st.level * dupeMult); u.str += add; }
+    if(def.base.hp){ const add = Math.round(def.base.hp * growthMult); u.maxHp += add; u.hp += add; }
+    if(def.base.atk){ const add = Math.round(def.base.atk * growthMult); u.str += add; }
+    if(def.base.spd){ const add = Math.round(def.base.spd * growthMult); u.spd += add; }
   }
   const skillMult = relicSkillMult(st.skillLv);
   const bonus = {};
@@ -4283,7 +4336,7 @@ function renderRelicUpgrade(){
       <button class="fs-close" data-close-relic-upgrade="1" aria-label="閉じる">×</button>
       <h3>${def.icon} ${def.name}<span class="relic-star">★${def.star}</span></h3>
       <div class="relic-effects">
-        ${def.base ? `<div class="relic-eff-line">基礎ステータス(Lvで線形成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)<small>(現在 ${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * st.level * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')})</small></div>` : ''}
+        ${def.base ? `<div class="relic-eff-line">基礎ステータス(キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)<small>(現在 ${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicGrowthMult(st.level) * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')})</small></div>` : ''}
         ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectText(e)}<small>(現在 ${Math.round(e.pct * mult * 100)}%)</small></div>`).join('')}
       </div>
 
@@ -4662,17 +4715,17 @@ const ACHIEVEMENTS = [
     tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }, { type:'item', key:'box_sel_4', n:2 }] }] },
   // each tier's two boss stages pay their own reward: 💎500 for the earlier boss, 💎900 for the final one
   { id:'a_boss_q1_05', label:() => '初級「猪王の縄張り」のボスを倒す', value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_charm' }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_traveler_shield' }] }] },
   { id:'a_boss_q1_10', label:() => '初級「森の主」のボスを倒す', value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_dagger' }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_guard_charm' }] }] },
   { id:'a_boss_q2_05', label:() => '中級「鉱山の主」のボスを倒す', value:() => STATE.clearedStages.includes('q2_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_helm' }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_novice_armor' }] }] },
   { id:'a_boss_q2_10', label:() => '中級「首なし騎士の墓所」のボスを倒す', value:() => STATE.clearedStages.includes('q2_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_feather' }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_ward_necklace' }] }] },
   { id:'a_boss_q3_05', label:() => '上級「炎の巨人の玉座」のボスを倒す', value:() => STATE.clearedStages.includes('q3_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_ring' }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_swift_tabi' }] }] },
   { id:'a_boss_q3_10', label:() => '上級「氷の城塞」のボスを倒す', value:() => STATE.clearedStages.includes('q3_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }] }] },
+    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_light_boots' }] }] },
   { id:'a_clears', label:n => `探索を${n}回クリアする`, value:() => stat('stageClear'),
     tiers:[10, 50, 100, 300].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[50, 100, 200, 300][i] }] })) },
   { id:'a_dungeon', label:n => `育成ダンジョンを${n}回クリアする`, value:() => stat('dungeonClear'),

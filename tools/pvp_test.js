@@ -33,7 +33,7 @@ global.window.__authBackend = { kind: 'local' }; // no fetchPvpOpponents: offlin
   const evilDefense = E.sanitizeDefense({
     formationKey: 'not-a-real-formation',
     slots: [
-      { id: 'm06', star: 999, level: -10, skillLv: 'x', ultLv: null, passiveLv: 5, relic: { defId: 'rel_ygg_leaf', level: 99999, skillLv: -1, dupeUsed: 999 } },
+      { id: 'm06', star: 999, level: -10, skillLv: 'x', ultLv: null, passiveLv: 5, relic: { defId: 'rel_flame_ember', level: 99999, skillLv: -1, dupeUsed: 999 } },
       { id: 'not-a-real-monster', star: 3, level: 50 },
       null, undefined, { id: 'm21', level: 40 },
       { id: 'm03', level: 999999 }, { id: 'm02', level: 1 }, // 2 extra slots beyond PARTY_MAX(5), should be truncated
@@ -53,8 +53,8 @@ global.window.__authBackend = { kind: 'local' }; // no fetchPvpOpponents: offlin
   const fk0 = E.formationForFrontCount(1).key;
   S.formationKey = fk0;
   S.slots = E.lineupFromList(['m06', 'm21'], fk0);
-  E.grantRelic(E.RELICS.rel_ygg_leaf);
-  E.equipRelic('rel_ygg_leaf', 'm06');
+  E.grantRelic(E.RELICS.rel_flame_ember);
+  E.equipRelic('rel_flame_ember', 'm06');
   ok('防衛編成は最初は未設定', E.hasPvpDefense() === false);
 
   let publishedPayload = null;
