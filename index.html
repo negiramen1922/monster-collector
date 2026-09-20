@@ -2308,7 +2308,8 @@ const SPRITES = JSON.parse(document.getElementById('sprite-data').textContent);
 const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent);
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
-const GAME_VERSION = 'ver 0.9 (prototype)';
+// bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
+const GAME_VERSION = 'α0.0.001';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8809,6 +8810,10 @@ function startBattle(stageId, opts){
   if(!stage) return;
   if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
   if(stage.tutorial && !(opts && opts.skipIntro) && stageUnlocked(stage)){ showTutorial(stageId, 0); return; }
+  // belt-and-suspenders: no non-tutorial content is playable until the tutorial itself is
+  // finished, even if some other check (requires-chain, dungeon tier unlock, a stray button)
+  // would otherwise let the request through.
+  if(stage.tier !== 'tu' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
   if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
   const cost = stageStaminaCost(stage);
   if(!spendStamina(cost)){ toast(`スタミナが足りません(必要 ${cost})`); return; }
