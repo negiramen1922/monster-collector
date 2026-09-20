@@ -2965,6 +2965,24 @@ const firebaseBackend = {
     if(list.length < n) list = list.concat(await take('<'));
     return list.filter(p => p.uid !== selfUid && p.defense).slice(0, n);
   },
+  // friend point gifts: a mailbox under the RECIPIENT's own players/{uid} doc, the one
+  // place firestore.rules lets a different signed-in user create data - scoped to a fixed
+  // amount so it can't be abused as a general write hole (see firestore.rules).
+  async sendGift(toUid, fromUid, amount){
+    const { fs, db } = await this.load();
+    await fs.addDoc(fs.collection(db, 'players', toUid, 'gifts'), { from: fromUid, amount, at: Date.now() });
+  },
+  async fetchGifts(uid){
+    const { fs, db } = await this.load();
+    const snap = await fs.getDocs(fs.collection(db, 'players', uid, 'gifts'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async claimGifts(uid, ids){
+    const { fs, db } = await this.load();
+    const batch = fs.writeBatch(db);
+    ids.forEach(id => batch.delete(fs.doc(db, 'players', uid, 'gifts', id)));
+    await batch.commit();
+  },
 };
 
 /* Analytics. Never throws and never blocks: without a backend (offline, tests, ad blocker)
@@ -3172,9 +3190,13 @@ function borrowFriendHelper(uid){
   render();
 }
 
-/* ---- friend points: sending to a friend only rewards the sender (no cross-account
-   write - players/{uid} in firestore.rules only allows the owner to write their own doc),
-   capped at once per friend per day, same currentDayKey() reset as pvpDaily/shopDaily ---- */
+/* ---- friend points: sending to a friend rewards the sender immediately (works even
+   offline/local), capped at once per friend per day, same currentDayKey() reset as
+   pvpDaily/shopDaily. When the backend supports it (see firebaseBackend.sendGift), the
+   send also drops a gift in the recipient's players/{uid}/gifts mailbox - the one path
+   where writing to someone else's doc is allowed, scoped to a fixed amount by
+   firestore.rules - so friends really do receive points back from each other, not just a
+   self-only "sent" flavor action. ---- */
 const FRIEND_POINT_PER_SEND = 10;
 function ensureFriendSendDaily(){
   const key = currentDayKey();
@@ -3192,6 +3214,27 @@ function sendFriendPoint(uid){
   playSfx('buff');
   toast(`${f.name}にポイントを送りました(フレンドポイント+${FRIEND_POINT_PER_SEND})`);
   saveState();
+  render();
+  const be = authBackend();
+  if(typeof be.sendGift === 'function' && ACCOUNT){
+    be.sendGift(uid, ACCOUNT.uid, FRIEND_POINT_PER_SEND).catch(() => {}); // best-effort; offline/rules failure just means the friend won't see it this time
+  }
+}
+// pick up any gifts friends sent us (see sendFriendPoint above) - called on login and
+// whenever the friends overlay is opened, so points show up without a manual refresh step.
+async function claimFriendGifts(){
+  const be = authBackend();
+  if(typeof be.fetchGifts !== 'function' || !ACCOUNT) return;
+  let gifts;
+  try{ gifts = await be.fetchGifts(ACCOUNT.uid); }
+  catch(e){ return; }
+  if(!gifts || !gifts.length) return;
+  const total = gifts.reduce((sum, g) => sum + (Number(g.amount) > 0 ? Number(g.amount) : 0), 0);
+  if(typeof be.claimGifts === 'function') be.claimGifts(ACCOUNT.uid, gifts.map(g => g.id)).catch(() => {});
+  if(total <= 0) return;
+  STATE.friendPoints = (STATE.friendPoints || 0) + total;
+  saveState();
+  toast(`フレンドからポイントが届きました(フレンドポイント+${total})`);
   render();
 }
 
@@ -12055,6 +12098,7 @@ function openOverlay(view){
     STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, NOTICES[0] ? NOTICES[0].id : 0);
     saveState();
   }
+  if(view === 'friends') claimFriendGifts();
   render();
 }
 function closeOverlay(){
@@ -12615,6 +12659,7 @@ async function startGame(){
   try{ from = await syncOnLogin(); }
   catch(e){ console.warn('sync: could not reach the cloud save', e); }
   ensurePlayerId().then(publishProfile);
+  claimFriendGifts();
   setAnalyticsUser();
   if(!localSaveFound && from !== 'cloud') logEvent('game_start', { method: ACCOUNT.provider });
   buildShell();

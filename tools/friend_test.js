@@ -4,7 +4,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   STATE_ref: () => STATE, DEFAULT_STATE, addFriendByCode, sanitizeSupport, borrowFriendHelper,
   returnBorrowed, friendsAvailable, MON_BY_ID, setAccount: a => { ACCOUNT = a; },
-  sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND,
+  sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND, claimFriendGifts,
   pullFriendMon, pullFriendMat, doFriendPull, FRIEND_CHAR_GACHA_COST, FRIEND_MAT_GACHA_COST,
   getItem, addItem, MONSTERS,
 };`);
@@ -97,4 +97,36 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   const ptsBefore2 = S.friendPoints;
   E.doFriendPull('char', 1);
   ok('ポイント不足だと何も起きない', S.friendPoints === ptsBefore2);
+
+  // --- mailbox: sendFriendPoint also drops a gift for the recipient when the backend
+  // supports it, and claimFriendGifts picks up + clears any gifts waiting for us ---
+  const mailboxes = {}; // uid -> [{id, from, amount}], stands in for players/{uid}/gifts
+  let nextGiftId = 1;
+  global.window.__authBackend = {
+    kind: 'mock',
+    async lookupPlayer(code){ return code === 'GOOD1' ? { uid: 'u-good', playerId: 'GOOD1', name: 'よきフレンド', level: 12, support: null } : null; },
+    async sendGift(toUid, fromUid, amount){ (mailboxes[toUid] = mailboxes[toUid] || []).push({ id: String(nextGiftId++), from: fromUid, amount }); },
+    async fetchGifts(uid){ return mailboxes[uid] || []; },
+    async claimGifts(uid, ids){ mailboxes[uid] = (mailboxes[uid] || []).filter(g => !ids.includes(g.id)); },
+  };
+  S.friendSendDaily = null; // reset today's send caps so u-good can be sent to again below
+  E.sendFriendPoint('u-good'); // the mock sendGift has no internal await, so it lands synchronously
+  ok('送信すると受信箱(相手のuid)にギフトが積まれる', (mailboxes['u-good'] || []).length === 1, mailboxes['u-good']);
+
+  // simulate a gift arriving FOR us (as if a friend had sent one to our own uid)
+  mailboxes['me'] = [{ id: 'g1', from: 'u-good', amount: E.FRIEND_POINT_PER_SEND }, { id: 'g2', from: 'u-good', amount: E.FRIEND_POINT_PER_SEND }];
+  const beforeClaim = S.friendPoints;
+  await E.claimFriendGifts();
+  ok('claimFriendGiftsで相手から届いたポイントが加算される(2件分)', S.friendPoints === beforeClaim + E.FRIEND_POINT_PER_SEND * 2, [beforeClaim, S.friendPoints]);
+  ok('受け取り後は受信箱が空になる(二重取得防止)', (mailboxes['me'] || []).length === 0, mailboxes['me']);
+  const afterClaim = S.friendPoints;
+  await E.claimFriendGifts();
+  ok('空の受信箱を再度claimしても増えない', S.friendPoints === afterClaim);
+
+  // offline/local backend (no sendGift/fetchGifts): must no-op quietly, never throw
+  global.window.__authBackend = { kind: 'local' };
+  S.friendSendDaily = null; // otherwise today's cap short-circuits before reaching be.sendGift
+  let threw = false;
+  try{ E.sendFriendPoint('u-good'); await E.claimFriendGifts(); }catch(e){ threw = true; }
+  ok('ギフト機能が無いバックエンドでも例外を投げない', !threw);
 })();
