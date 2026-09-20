@@ -502,7 +502,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   position:absolute;
   left:0;right:0;bottom:0;
   display:grid;
-  grid-template-columns:repeat(5,1fr);
+  grid-template-columns:repeat(7,1fr);
   gap:2px;
   background:var(--nav);
   border-top:1px solid var(--line);
@@ -965,9 +965,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   color:var(--text); cursor:pointer;
 }
 .relic-row.on{ border-color:var(--gold); box-shadow:0 0 14px -8px rgba(232,180,85,.7); }
+.relic-row.locked{ opacity:.5; }
 .relic-row-body{ flex:1; min-width:0; }
 .relic-row-name{ font-size:12.5px; font-weight:800; }
 .relic-row-sub{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+.relic-row-effects{ font-size:10px; color:var(--dim); margin-top:4px; line-height:1.4; }
+.relic-channel-badge{ font-size:9px; font-weight:800; padding:1px 6px; border-radius:999px; margin-left:6px; }
+.relic-channel-badge.gacha{ background:rgba(232,180,85,.15); color:var(--gold); }
+.relic-channel-badge.dist{ background:rgba(120,170,255,.15); color:#8ab4ff; }
+.relic-dex-star-head{ font-size:13px; font-weight:800; color:var(--gold); margin:14px 0 6px; }
+.relic-dex-star-head:first-of-type{ margin-top:4px; }
 
 .relic-effects{ margin:8px 0 12px; }
 .relic-eff-line{ font-size:11.5px; padding:5px 0; border-bottom:1px dashed var(--line); }
@@ -4083,6 +4090,48 @@ const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
 // distributed relics never appear in the gacha pool - they only come from missions/achievements.
 function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star && r.channel !== 'distributed'); }
 
+/* ---- 遺物図鑑(フッターメニュー): 所持・未所持を問わず全遺物を★別に一覧表示 ---- */
+function relicEffectRangeText(e){
+  return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%→${Math.round(e.pct * 200)}%`;
+}
+function relicDexRow(id){
+  const def = RELICS[id];
+  const st = STATE.relics && STATE.relics[id];
+  const owned = !!st;
+  const equippedMon = owned && st.equippedTo ? MON_BY_ID[st.equippedTo] : null;
+  const badge = def.channel === 'distributed' ? '<span class="relic-channel-badge dist">配布</span>' : '<span class="relic-channel-badge gacha">ガチャ</span>';
+  return `
+    <button class="relic-row r${def.star} ${owned ? '' : 'locked'}" data-relic-dex-row="${id}">
+      <span class="relic-ic">${def.icon}</span>
+      <div class="relic-row-body">
+        <div class="relic-row-name">${def.name}${badge}</div>
+        <div class="relic-row-sub">${owned
+          ? `Lv${st.level} / スキルLv${st.skillLv || 1}${equippedMon ? `・装備中: ${equippedMon.name}` : '・未装備'}`
+          : '未所持'}</div>
+        <div class="relic-row-effects">${def.effects.map(e => relicEffectRangeText(e)).join(' / ')}</div>
+      </div>
+    </button>`;
+}
+function renderRelicsScreen(){
+  const ids = Object.keys(RELICS);
+  const ownedCount = ids.filter(id => STATE.relics && STATE.relics[id]).length;
+  const byStar = {};
+  ids.forEach(id => { const star = RELICS[id].star; (byStar[star] = byStar[star] || []).push(id); });
+  const stars = Object.keys(byStar).map(Number).sort((a, b) => b - a);
+  return `
+    <div class="screen-head">
+      <div class="screen-title">遺物図鑑</div>
+      <div class="base-wallet">${ownedCount} / ${ids.length}</div>
+    </div>
+    <div class="screen-sub" style="margin-bottom:8px;">これまでに入手した遺物と、まだ持っていない遺物を確認できます。タップすると強化画面を開けます。</div>
+    ${stars.map(star => `
+      <div class="relic-dex-star-head">★${star}</div>
+      <div class="relic-list">
+        ${byStar[star].map(id => relicDexRow(id)).join('')}
+      </div>`).join('')}
+  `;
+}
+
 /* ---- ownership: singular per definition; equipping moves it, duplicates become 凸(dupe) ---- */
 function newRelicState(){ return { level:1, wall:0, skillLv:1, dupe:0, dupeUsed:0, equippedTo:null }; }
 function ownedRelicIds(){ return Object.keys(STATE.relics || {}); }
@@ -4279,8 +4328,18 @@ let relicPicker = null;  // { monId } while the "choose a relic" sheet is open
 let relicUpgrade = null; // { relicId, monId } while the level/skill/wall sheet is open
 function openRelicPicker(monId){ relicPicker = { monId }; renderRelicPicker(); }
 function closeRelicPicker(){ const p = relicPicker; relicPicker = null; if(p) showMonsterDetail(p.monId); }
-function openRelicUpgrade(relicId, monId){ relicUpgrade = { relicId, monId }; renderRelicUpgrade(); }
-function closeRelicUpgrade(){ const u = relicUpgrade; relicUpgrade = null; if(u) relicPicker ? renderRelicPicker() : showMonsterDetail(u.monId); }
+function openRelicUpgrade(relicId, monId){ relicUpgrade = { relicId, monId: monId || null }; renderRelicUpgrade(); }
+function closeRelicUpgrade(){
+  const u = relicUpgrade;
+  relicUpgrade = null;
+  if(!u) return;
+  if(relicPicker) return renderRelicPicker();
+  if(u.monId) return showMonsterDetail(u.monId);
+  const layer = document.getElementById('modal-layer');
+  layer.classList.remove('show');
+  layer.innerHTML = '';
+  render();
+}
 function renderRelicPicker(){
   const { monId } = relicPicker;
   const ids = ownedRelicIds();
@@ -4315,8 +4374,9 @@ function renderRelicUpgrade(){
   const { relicId, monId } = relicUpgrade;
   const def = RELICS[relicId];
   const st = STATE.relics[relicId];
-  const mon = MON_BY_ID[monId];
-  if(!def || !st || !mon){ closeRelicUpgrade(); return; }
+  if(!def || !st){ closeRelicUpgrade(); return; }
+  const mon = monId ? MON_BY_ID[monId] : null;
+  const equippedMon = st.equippedTo ? MON_BY_ID[st.equippedTo] : null;
   const cap = relicLevelCap(st);
   const maxed = st.level >= cap;
   const wall = atRelicWall(st);
@@ -4383,9 +4443,13 @@ function renderRelicUpgrade(){
       </div>
 
       <div class="ss-actions">
-        ${equippedHere
-          ? `<button class="btn btn-ghost" data-unequip-relic="${monId}">外す</button>`
-          : `<button class="btn" data-equip-relic="${relicId}:${monId}">${mon.name}に装着する</button>`}
+        ${mon
+          ? (equippedHere
+              ? `<button class="btn btn-ghost" data-unequip-relic="${monId}">外す</button>`
+              : `<button class="btn" data-equip-relic="${relicId}:${monId}">${mon.name}に装着する</button>`)
+          : (equippedMon
+              ? `<button class="btn btn-ghost" data-unequip-relic="${st.equippedTo}">${equippedMon.name}から外す</button>`
+              : `<div class="fs-note">モンスターの詳細画面から装着できます</div>`)}
       </div>
     </div>`;
   layer.classList.add('show');
@@ -5400,6 +5464,7 @@ const NAV = [
   { key: 'party', label: '編成', icon: '🧩' },
   { key: 'pvp', label: 'PVP', icon: '🏆' },
   { key: 'gacha', label: 'ガチャ', icon: '🎰' },
+  { key: 'relics', label: '遺物', icon: '💠' },
   { key: 'base', label: '拠点', icon: '🏯' },
 ];
 
@@ -5965,6 +6030,7 @@ function renderScreen(screen){
     case 'battle': return renderBattleSelect();
     case 'pvp': return renderPvp();
     case 'missions': return renderMissions();
+    case 'relics': return renderRelicsScreen();
     case 'base': return renderBase();
     case 'shop': return renderShop();
     case 'battle-fight': return battleUI ? renderBattleFight() : renderBattleSelect();
@@ -11217,6 +11283,13 @@ function handlePhoneClick(ev){
 
   const relicSlotEl = t.closest('[data-relic-slot]');
   if(relicSlotEl){ openRelicPicker(relicSlotEl.dataset.relicSlot); return; }
+  const relicDexRowEl = t.closest('[data-relic-dex-row]');
+  if(relicDexRowEl){
+    const id = relicDexRowEl.dataset.relicDexRow;
+    if(STATE.relics && STATE.relics[id]) openRelicUpgrade(id, STATE.relics[id].equippedTo || null);
+    else toast('まだ入手していません(ガチャや実績で入手できます)');
+    return;
+  }
   if(t.closest('[data-goto-relic-gacha]')){
     relicPicker = null; relicUpgrade = null;
     closeModal();
