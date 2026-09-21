@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.015';
+const GAME_VERSION = 'α0.0.016';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4752,13 +4752,19 @@ function applyRelicSnapToUnit(u, mon, relicSnap){
   applyRelicCore(u, mon, RELICS[relicSnap.defId], relicSnap);
 }
 
-/* ---- gacha: separate crystal-consuming banner, same rate curve as the monster gacha ---- */
+/* ---- gacha: separate crystal-consuming banner, same rate curve as the monster gacha.
+   The ★5 slot also pickups: whichever monster the character gacha is featuring right
+   now, if it has a mon-exclusive ★5 relic (cond type:'mon'), that relic gets the same
+   PICKUP_SHARE boost among ★5 relics that the monster itself gets among ★5 monsters. ---- */
 function rollRelicStar(){
   const entries = Object.entries(RELIC_RARITY_WEIGHTS).map(([r, w]) => [Number(r), w]);
   const total = entries.reduce((sum, [, w]) => sum + w, 0);
   let roll = Math.random() * total;
   for(const [r, w] of entries){ if(roll < w) return r; roll -= w; }
   return entries[entries.length - 1][0];
+}
+function exclusiveRelicForMon(monId){
+  return Object.values(RELICS).find(r => (r.effects || []).some(e => e.cond && e.cond.type === 'mon' && e.cond.value === monId)) || null;
 }
 function grantRelic(def){
   if(!STATE.relics) STATE.relics = {};
@@ -4771,7 +4777,15 @@ function pullRelicOne(){
   let star = rollRelicStar();
   let pool = relicsOfStar(star);
   while(pool.length === 0 && star > 1){ star -= 1; pool = relicsOfStar(star); }
-  const def = pool[Math.floor(Math.random() * pool.length)];
+  let def;
+  if(star === 5){
+    const pickupRelic = exclusiveRelicForMon(currentBanner().pickup);
+    const others = pickupRelic ? pool.filter(r => r.id !== pickupRelic.id) : pool;
+    def = pickupRelic && (others.length === 0 || Math.random() < PICKUP_SHARE)
+      ? pickupRelic : others[Math.floor(Math.random() * others.length)];
+  }else{
+    def = pool[Math.floor(Math.random() * pool.length)];
+  }
   return grantRelic(def);
 }
 function doRelicPull(times, cost){
@@ -6967,11 +6981,25 @@ function renderFriendGacha(){
 }
 function renderRelicGacha(){
   const recent = (STATE.recentRelicPulls || []).map(id => RELICS[id]).filter(Boolean).slice(0, 4);
+  const pickupRelic = exclusiveRelicForMon(currentBanner().pickup);
+  const pickupMon = pickupRelic ? MON_BY_ID[currentBanner().pickup] : null;
   return `
     <div class="panel">
       <div class="mc-head" style="margin-bottom:8px;">遺物ガチャ</div>
       <div class="screen-sub">モンスターに1個装備できる「遺物」が手に入ります。同じ遺物が出ると「凸」が増え、Lv100を超える強化に使えます。</div>
     </div>
+    ${pickupRelic ? `
+    <div class="gc-hero">
+      <div class="pixel gc-tag">PICK UP</div>
+      <div class="gc-hero-row">
+        <div class="relic-detail-ic r${pickupRelic.star}">${pickupRelic.icon}</div>
+        <div class="gc-hero-body">
+          <div class="gc-name">${pickupRelic.name}</div>
+          <div class="gc-sub">★${pickupRelic.star}「${pickupMon.name}」専用遺物<br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
+          <div class="gc-period">ピックアップ★5 ${(RELIC_RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
+        </div>
+      </div>
+    </div>` : ''}
     <div class="panel">
       <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
       <div class="gc-rates">
@@ -7004,6 +7032,7 @@ function renderRelicGacha(){
     <div class="panel panel-tight">
       <div class="gacha-rules">
         <b>排出率</b>　${[5, 4, 3, 2, 1].map(r => `★${r} ${RELIC_RARITY_WEIGHTS[r]}%`).join('　')}<br>
+        ${pickupRelic ? `<b>ピックアップ</b>　モンスターガチャで排出率アップ中の★5「${pickupMon.name}」の専用遺物「${pickupRelic.name}」も、★5のうち${Math.round(PICKUP_SHARE * 100)}%の確率で優先的に出ます。<br>` : ''}
         <b>かぶり</b>　同じ遺物が出ると「凸」が1個増えます。Lv100を超えて強化する時に消費します。<br>
         <b>装備</b>　モンスター詳細画面の「遺物」枠からどのモンスターにでも装備できます(1体につき1個)。
       </div>
