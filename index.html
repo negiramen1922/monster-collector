@@ -958,10 +958,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .slot-tag.t-skill{ background:#2b3f5c; color:#bcd8f2; }
 .slot-tag.t-passive{ background:#2b4030; color:#bfe4b6; }
 .slot-tag.t-ult{ background:#3a2a1a; color:var(--gold); }
-.su-left{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
+.su-left{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .su-lv{ font-size:10.5px; font-weight:800; color:var(--dim); white-space:nowrap; }
 .su-bar{ flex:1; min-width:36px; height:5px; border-radius:999px; background:#120f22; overflow:hidden; }
 .su-bar i{ display:block; height:100%; background:linear-gradient(90deg,var(--gold-deep),var(--gold)); }
+.su-mini-costs{ flex:0 0 100%; display:flex; flex-wrap:wrap; gap:5px; margin-top:2px; }
+.su-mini-cost{ font-size:9px; font-weight:700; color:var(--dim); background:var(--panel3); border-radius:6px; padding:1px 6px; display:inline-flex; align-items:center; gap:2px; }
+.su-mini-cost img.ico{ width:11px !important; height:11px !important; }
+.su-mini-cost.short{ color:#ff9d9d; background:rgba(224,67,90,.18); }
 .skill-desc.elem-flavor{ color:var(--dim); margin-top:3px; }
 .skill-desc.skill-note{ color:var(--dim); font-size:10.5px; margin-top:3px; font-style:italic; }
 .skill-desc.lv-scaled{ margin-top:3px; }
@@ -2390,7 +2394,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.024';
+const GAME_VERSION = 'α0.0.026';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2622,7 +2626,7 @@ function levelCapOf(owned){ return STAR_TABLE[owned.star].lvCap; }
 function skillCapOf(owned){ return STAR_TABLE[owned.star].skillCap; }
 function soulsToNext(owned){ return STAR_TABLE[owned.star].soulsToNext; }
 function skillSlotsFor(star){ return star >= SECOND_SKILL_STAR ? 2 : 1; }
-function newOwned(mon){ return { star: mon.rarity, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, ultLv: 1, passiveLv: 1 }; }
+function newOwned(mon){ return { star: mon.rarity, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 }; }
 // initial stars in gold, promoted stars in a second color
 function starsHtml(initial, current){
   const cur = current || initial;
@@ -3296,7 +3300,7 @@ function buildDefenseSnapshot(){
     const relicSt = relicId ? STATE.relics[relicId] : null;
     return {
       id, star: owned.star, level: owned.level,
-      skillLv: owned.skillLv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
+      skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
       relic: relicSt ? { defId: relicId, level: relicSt.level, skillLv: relicSt.skillLv, dupeUsed: relicSt.dupeUsed } : null,
     };
   });
@@ -3313,7 +3317,7 @@ async function publishProfile(){
     const favOwned = favId && STATE.owned[favId];
     const support = favOwned ? {
       id: favId, star: favOwned.star, level: favOwned.level,
-      skillLv: favOwned.skillLv, ultLv: favOwned.ultLv, passiveLv: favOwned.passiveLv,
+      skillLv: favOwned.skillLv, skill2Lv: favOwned.skill2Lv, ultLv: favOwned.ultLv, passiveLv: favOwned.passiveLv,
     } : null;
     await be.cloudProfile(ACCOUNT.uid, {
       playerId: ACCOUNT.playerId,
@@ -3343,6 +3347,7 @@ function sanitizeSupport(raw){
     star: clampInt(raw.star, 1, MAX_STAR, 1),
     level: clampInt(raw.level, 1, 200, 1),
     skillLv: clampInt(raw.skillLv, 1, 12, 1),
+    skill2Lv: clampInt(raw.skill2Lv !== undefined ? raw.skill2Lv : raw.skillLv, 1, 12, 1),
     ultLv: clampInt(raw.ultLv, 1, 12, 1),
     passiveLv: clampInt(raw.passiveLv, 1, 12, 1),
   };
@@ -3581,9 +3586,9 @@ const DEFAULT_STATE = () => ({
   items: { exp1: 60, box_sel_1: 2 },
   base: null,              // facilities: { mine:{lv,at,carry}, lab:{…} }
   owned: {
-    m06: { star: 1, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, ultLv: 1, passiveLv: 1 },
-    m21: { star: 1, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, ultLv: 1, passiveLv: 1 },
-    m03: { star: 1, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, ultLv: 1, passiveLv: 1 },
+    m06: { star: 1, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 },
+    m21: { star: 1, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 },
+    m03: { star: 1, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 },
   },
   formationKey: DEFAULT_FORMATION,
   slots: lineupFromList(['m06', 'm21', 'm03'], DEFAULT_FORMATION),
@@ -3690,6 +3695,9 @@ function normalizeState(){
   if(!STATE.presentBox) STATE.presentBox = [];
   if(!STATE.presentBoxSeq) STATE.presentBoxSeq = 0;
   if(!STATE.giftsGranted) STATE.giftsGranted = {};
+  // skill2Lv is new: seed it from the existing (shared) skillLv so nobody's skill2 gets
+  // weaker the moment this ships - they diverge only from here on as the player upgrades.
+  Object.values(STATE.owned).forEach(o => { if(o.skill2Lv === undefined) o.skill2Lv = o.skillLv || 1; });
   syncHelperMon();
   if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
     id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
@@ -3907,7 +3915,8 @@ const SKILL_MAT_COST = {
 };
 // skills use element + role; passive and ultimate use species + role
 const SKILL_KINDS = {
-  skillLv:   { label: 'スキルLv',   fams: m => [['el', m.element], ['ro', m.role]] },
+  skillLv:   { label: 'スキル1Lv',  fams: m => [['el', m.element], ['ro', m.role]] },
+  skill2Lv:  { label: 'スキル2Lv',  fams: m => [['el', m.element], ['ro', m.role]] },
   ultLv:     { label: '必殺技Lv',   fams: m => [['sp', speciesOf(m)], ['ro', m.role]] },
   passiveLv: { label: 'パッシブLv', fams: m => [['sp', speciesOf(m)], ['ro', m.role]] },
 };
@@ -3942,7 +3951,10 @@ function skillUpgradePreviewLines(m, field, lv){
     });
   };
   if(field === 'skillLv'){
-    [kit.skill1, kit.skill2].filter(Boolean).forEach(act => { addPowLine(act); addEffectLines(act); });
+    addPowLine(kit.skill1); addEffectLines(kit.skill1);
+  }else if(field === 'skill2Lv'){
+    const act = kit.skill2 || kit.skill1;
+    addPowLine(act); addEffectLines(act);
   }else if(field === 'ultLv'){
     addPowLine(kit.ult); addEffectLines(kit.ult);
   }else if(field === 'passiveLv' && passiveScalesWithLevel(kit.passive)){
@@ -3966,7 +3978,7 @@ function upgradeSkillLevel(id, field){
   if(short){ toast(`${itemName(short.key)}が足りません`); return; }
   list.forEach(c => addItem(c.key, -c.n));
   owned[field] += 1;
-  if(field === 'skillLv') track('skillUp');
+  if(field === 'skillLv' || field === 'skill2Lv') track('skillUp');
   track('upgrade');
   playSfx('buff');
   saveState();
@@ -5607,6 +5619,7 @@ function battlePower(id){
   const base = st.hp * 0.6 + st.str * 4 + (st.pdef + st.mdef) * 4 + st.spd * 1.5;
   const kit = 1
     + ((o.skillLv || 1) - 1) * 0.04
+    + ((o.skill2Lv || 1) - 1) * 0.04
     + ((o.ultLv || 1) - 1) * 0.04
     + ((o.passiveLv || 1) - 1) * 0.05
     + (skillSlotsFor(o.star) - 1) * 0.10;
@@ -7017,10 +7030,16 @@ function renderFriendGacha(){
   `;
 }
 function renderRelicGacha(){
+  const banners = activeBanners();
+  const banner = currentBanner();
   const recent = (STATE.recentRelicPulls || []).map(id => RELICS[id]).filter(Boolean).slice(0, 4);
-  const pickupRelic = exclusiveRelicForMon(currentBanner().pickup);
-  const pickupMon = pickupRelic ? MON_BY_ID[currentBanner().pickup] : null;
+  const pickupRelic = exclusiveRelicForMon(banner.pickup);
+  const pickupMon = pickupRelic ? MON_BY_ID[banner.pickup] : null;
   return `
+    ${banners.length >= 2 ? `
+    <div class="gacha-tabs" role="tablist">
+      ${banners.map(b => `<button class="stage-tab ${banner.key === b.key ? 'on' : ''}" data-gacha-banner="${b.key}" role="tab" aria-selected="${banner.key === b.key}">${b.name}</button>`).join('')}
+    </div>` : ''}
     <div class="panel">
       <div class="mc-head" style="margin-bottom:8px;">遺物ガチャ</div>
       <div class="screen-sub">モンスターに1個装備できる「遺物」が手に入ります。同じ遺物が出ると「凸」が増え、Lv100を超える強化に使えます。</div>
@@ -7722,9 +7741,9 @@ function kitLinesHtml(m, star, owned, after){
   const o = owned || {};
   return [
     card('通常', 'normal', kit.normal, typeOf(kit.normal), ''),
-    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill, o.skillLv),
+    card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill1, o.skillLv),
     two
-      ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill, o.skillLv)
+      ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill2, o.skill2Lv)
       : `<div class="skill-card locked-slot">🔒 ★${SECOND_SKILL_STAR}に昇格すると、スキル2「${skill2.name}」が使えるようになります</div>`,
     card('パッシブ', 'passive', kit.passive, '常時', a.passive),
     card('必殺技', 'ult', kit.ult, `SP ${kit.ult.sp}`, a.ult, o.ultLv),
@@ -7825,18 +7844,22 @@ function showMonsterDetail(id){
         <div class="promo-note lv-hint">長押しで連続レベルアップ・節目のレベルでゴールドにより限界突破</div>`}
     </div>`;
 
-  // スキルの強化ボタンは、その説明のすぐ下に置く
+  // スキルの強化ボタンは、その説明のすぐ下に置く。遺物の強化画面と同じく、必要素材の
+  // 所持数がここだけで(モーダルを開かなくても)わかるように小さなチップで出す。
   const upgradeBox = field => {
     const lv = owned[field];
     const maxed = lv >= skillCap;
     const pct = Math.min(100, Math.round(lv / skillCap * 100));
+    const list = maxed ? [] : skillCostList(m, field, lv);
+    const short = list.some(c => getItem(c.key) < c.n);
     return `
       <div class="skill-upgrade">
         <div class="su-left">
           <span class="su-lv">${SKILL_KINDS[field].label} <b class="lv-stat">${lv}</b><span class="lv-note">/ ${skillCap}</span></span>
           <span class="su-bar"><i style="width:${pct}%;"></i></span>
+          ${list.length ? `<div class="su-mini-costs">${list.map(c => `<span class="su-mini-cost ${getItem(c.key) < c.n ? 'short' : ''}">${itemIcon(c.key)}所持${getItem(c.key)}/${c.n}</span>`).join('')}</div>` : ''}
         </div>
-        <button class="btn btn-sm ${maxed ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed ? 'disabled' : ''}>
+        <button class="btn btn-sm ${maxed || short ? 'btn-ghost' : ''}" data-skill-up="${id}" data-field="${field}" ${maxed ? 'disabled' : ''}>
           ${maxed ? (lv >= 12 ? 'MAX' : `★${lv >= 10 && owned.star < 6 ? 6 : 7}で解放`) : `Lv${lv + 1}へ`}
         </button>
       </div>`;
@@ -7879,7 +7902,7 @@ function showMonsterDetail(id){
 
       <div class="panel panel-tight detail-skill-box">
         <div class="mc-head">スキル</div>
-        ${kitLinesHtml(m, owned.star, owned, { skill: upgradeBox('skillLv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
+        ${kitLinesHtml(m, owned.star, owned, { skill1: upgradeBox('skillLv'), skill2: upgradeBox('skill2Lv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
       </div>
 
       <div class="detail-level-box promo-box">
@@ -8780,7 +8803,7 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     str: Math.round(s.str * mult), pdef: Math.round(s.pdef * mult), mdef: Math.round(s.mdef * mult),
     spd: s.spd,
     star: curStar, level: isEnemy ? (stageLevel || 1) : (charLevel || 1),
-    skillLv: up.skillLv || 1, ultLv: up.ultLv || 1, passiveLv: up.passiveLv || 1,
+    skillLv: up.skillLv || 1, skill2Lv: up.skill2Lv || up.skillLv || 1, ultLv: up.ultLv || 1, passiveLv: up.passiveLv || 1,
     isEnemy, boss: !!boss, alive: true, vanished: false,
     kit, normal: kit.normal, skills: skillSlotsOf(mon, curStar), skillCd: [], ctReduce: 0,
     ult: kit.ult, passive: kit.passive || {},
@@ -8831,7 +8854,7 @@ function spawnWave(stage, waveIndex){
   slots.forEach((e, i) => {
     if(!e) return;
     const sk = stage.enemySkill || 1;
-    const u = buildUnit(MON_BY_ID[e.ref], e.level, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, ultLv: sk, passiveLv: sk });
+    const u = buildUnit(MON_BY_ID[e.ref], e.level, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: sk });
     u.rare = !!e.rare;
     u.gimmick = e.gimmick || null;
     u.levelHint = e.level;
@@ -8859,7 +8882,7 @@ function buildPvpEnemyParty(defense){
     const mon = MON_BY_ID[slot.id];
     if(!mon) return;
     const u = buildUnit(mon, 1, false, slot.star, false, slot.level, {
-      skillLv: slot.skillLv, ultLv: slot.ultLv, passiveLv: slot.passiveLv,
+      skillLv: slot.skillLv, skill2Lv: slot.skill2Lv, ultLv: slot.ultLv, passiveLv: slot.passiveLv,
     });
     u.isEnemy = true;
     u.slot = i;
@@ -8927,7 +8950,7 @@ function startPvpBattle(opponent){
     const m = MON_BY_ID[id];
     const owned = slotOwnedLike(id);
     const u = buildUnit(m, 1, false, owned.star, false, owned.level, {
-      skillLv: owned.skillLv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
+      skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
     });
     u.slot = i;
     u.row = slotRowIn(formation, i);
@@ -9063,7 +9086,7 @@ function startBattle(stageId, opts){
     const m = MON_BY_ID[id];
     const owned = slotOwnedLike(id);
     const u = buildUnit(m, 1, false, owned.star, false, owned.level, {
-      skillLv: owned.skillLv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
+      skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
     });
     u.slot = i;
     u.row = slotRowIn(formation, i);
@@ -10263,7 +10286,7 @@ function runPassive(u, hook, ...args){
 }
 function passiveMod(u, hook, ...args){ return runPassive(u, hook, ...args) || 0; }
 function pv(u, v){ return v * lvScale(u.passiveLv); }        // passive value at its level
-function sv(u, v, kind){ return v * lvScale(kind === 'ult' ? u.ultLv : u.skillLv); }
+function sv(u, v, kind){ return v * lvScale(kind === 'ult' ? u.ultLv : (u.curSkillLv || u.skillLv)); }
 
 function scheduleNextTick(delay){
   if(!battleUI || battleUI.finished || battleUI.paused) return;
@@ -10674,9 +10697,13 @@ function applyRider(actor, target, e, kind){
 
 function actionLabel(kind, act){ return kind === 'ult' ? `必殺技「${act.name}」` : kind === 'normal' ? '攻撃' : `スキル「${act.name}」`; }
 
-function performAction(actor, kind, act){
+function performAction(actor, kind, act, slot){
   if(!actor.alive || !act) return;
   const b = battleUI;
+  // skill1/skill2 level independently: stash which one is firing so sv()/dealHits (which
+  // only see kind, not which physical skill slot) pick up the right level. Untouched by
+  // normal/ult actions, so it always reflects the skill actually in progress.
+  if(kind === 'skill') actor.curSkillLv = (slot === 1 ? actor.skill2Lv : actor.skillLv) || actor.skillLv;
   const ctx = { actor, act, kind, dealt: 0, hits: [], killed: [] };
   b.killedThisAction = false;
   b.actionSerial = (b.actionSerial || 0) + 1;
@@ -10717,7 +10744,7 @@ function dealHits(ctx, opts){
   const o = opts || {};
   const tgt = o.tgt || act.tgt;
   const hits = o.hits || act.hits || 1;
-  const pow = (o.pow !== undefined ? o.pow : act.pow) * (kind === 'normal' ? 1 : lvScale(kind === 'ult' ? actor.ultLv : actor.skillLv));
+  const pow = (o.pow !== undefined ? o.pow : act.pow) * (kind === 'normal' ? 1 : lvScale(kind === 'ult' ? actor.ultLv : (actor.curSkillLv || actor.skillLv)));
   const list = tgt === 'random' ? null : (o.targets || selectFoes(actor, tgt, act.hitMult));
   const results = [];
   const hitOne = (unit, mult) => {
@@ -10731,7 +10758,7 @@ function dealHits(ctx, opts){
   }
   (act.extraIf ? [act.extraIf] : []).forEach(x => {
     results.filter(r => !r.miss && present(r.unit) && conditionMet(x.cond, actor, r.unit)).forEach(r => {
-      const e = strike(ctx, r.unit, { pow: x.pow * lvScale(kind === 'ult' ? actor.ultLv : actor.skillLv), noOnHit: true });
+      const e = strike(ctx, r.unit, { pow: x.pow * lvScale(kind === 'ult' ? actor.ultLv : (actor.curSkillLv || actor.skillLv)), noOnHit: true });
       if(e){ e.unit = r.unit; ctx.hits.push(e); if(!e.miss) ctx.dealt += e.dmg; }
     });
   });
@@ -10830,7 +10857,7 @@ function summonEnemy(boss, ref){
   if(slot === undefined) return null;
   b.enemies = b.enemies.filter(e => e.slot !== slot);
   const u = buildUnit(MON_BY_ID[ref], Math.max(1, boss.levelHint || 1), true, boss.star > 1 ? Math.max(MON_BY_ID[ref].rarity, boss.star - 1) : null, false, 1,
-    { skillLv: boss.skillLv, ultLv: boss.ultLv, passiveLv: boss.passiveLv });
+    { skillLv: boss.skillLv, skill2Lv: boss.skill2Lv, ultLv: boss.ultLv, passiveLv: boss.passiveLv });
   u.slot = slot; u.row = slotRowIn(f, slot); u.x = slotX(f, slot); u.summoned = true;
   applyFormationBonus(u, f);
   b.enemies.push(u);
@@ -11087,7 +11114,7 @@ function takeTurn(u){
     const skill = slot >= 0 ? u.skills[slot] : null;
     if(skill && (hasFoe || skill.tgt === 'self' || String(skill.tgt).startsWith('ally'))){
       u.skillCd[slot] = skillCt(u, slot) + (slot === 0 ? 0 : 1);
-      performAction(u, 'skill', skill);
+      performAction(u, 'skill', skill, slot);
     }else if(hasFoe){
       performAction(u, 'normal', u.normal);
     }
@@ -11451,7 +11478,10 @@ function showBattleResult(tab){
   const layer = document.getElementById('modal-layer');
   const isDungeon = b.stage.type === 'dungeon';
   const mains = STAGES.filter(st => st.type === 'main');
-  const nextCandidate = isDungeon ? null : mains[mains.indexOf(b.stage) + 1];
+  // only a real main-quest stage has a "next stage" in this list; anything else (event,
+  // dungeon) isn't in `mains` at all, so indexOf would return -1 and mains[-1+1] would
+  // wrongly resolve to mains[0] - the very first tutorial stage.
+  const nextCandidate = b.stage.type === 'main' ? mains[mains.indexOf(b.stage) + 1] : null;
   const nextStage = nextCandidate && stageUnlocked(nextCandidate) ? nextCandidate : null;
   const retryBlocked = false;
   const timedOut = !b.win && !allDead(b.party);
