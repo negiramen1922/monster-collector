@@ -1126,11 +1126,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .party-slot.selected{ border:2px solid var(--gold); box-shadow:0 0 12px -2px rgba(232,180,85,.7); background:rgba(232,180,85,.08); }
 .party-slot .role-mini{ position:absolute; left:4px; bottom:3px; font-size:10px; }
 .party-slot .relic-mini{
-  position:absolute; right:4px; bottom:3px; width:15px; height:15px; border-radius:50%;
+  position:absolute; right:3px; bottom:2px; width:22px; height:22px; border-radius:50%;
   background:rgba(10,8,20,.78); border:1px solid rgba(232,180,85,.5);
   display:flex; align-items:center; justify-content:center;
 }
-.party-slot .relic-mini img.ico{ width:11px !important; height:11px !important; }
+.party-slot .relic-mini img.ico{ width:17px !important; height:17px !important; }
 
 /* formation (3 columns x front/back rows) */
 /* slots sit on an 8 half-column grid so rows with 1-4 slots stay centered */
@@ -2346,7 +2346,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.010';
+const GAME_VERSION = 'α0.0.011';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
