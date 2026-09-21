@@ -6,7 +6,8 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
   buyShopItem, shopBought, shopDailyState, todaysSaleSku, shopGoldPrice,
-  SHOP_GOLD_ITEMS, SHOP_PVP_ITEMS,
+  SHOP_GOLD_ITEMS, SHOP_PVP_ITEMS, SHOP_CRYSTAL_ITEMS, buyCrystalItem,
+  pvpDailyMax, pvpChallengesLeft, ensurePvpDaily, PVP_DAILY_MAX,
   getItem, addGold, addItem, currentDayKey,
 };`);
 const E = global.__e;
@@ -68,5 +69,33 @@ S.pvpPoints = 0;
 const before3 = E.getItem('relic_core_3');
 E.buyShopItem('pvp', 'pvp_core3');
 ok('PVPポイント不足だと購入できない', E.getItem('relic_core_3') === before3);
+
+// --- crystal shop: stamina refill (100石 -> スタミナ+150) ---
+S.crystals = 1000;
+S.stamina = 100;
+E.buyCrystalItem('stamina');
+ok('水晶でスタミナを回復できる(100石で+150)', S.stamina === 250 && S.crystals === 900, [S.stamina, S.crystals]);
+
+// --- crystal shop: repeatable, not capped to 1/day like the gold/PVP shops ---
+E.buyCrystalItem('stamina');
+ok('水晶ショップは1日1回に制限されない(連続購入できる)', S.stamina === 400 && S.crystals === 800, [S.stamina, S.crystals]);
+
+// --- crystal shop: PVP挑戦券 (180石 -> 本日の挑戦回数+3) ---
+S.pvpDaily = null; // force a fresh day so bonus starts at 0
+const maxBefore = E.pvpDailyMax();
+const leftBefore = E.pvpChallengesLeft();
+E.buyCrystalItem('pvp_ticket');
+ok('水晶でPVP挑戦券を購入すると本日の上限が+3される', E.pvpDailyMax() === maxBefore + 3 && E.pvpChallengesLeft() === leftBefore + 3 && S.crystals === 620,
+  [E.pvpDailyMax(), E.pvpChallengesLeft(), S.crystals]);
+
+// --- crystal shop: insufficient crystals never grants, never charges ---
+S.crystals = 50;
+const staminaBefore = S.stamina;
+E.buyCrystalItem('stamina');
+ok('水晶が足りないと購入できない', S.crystals === 50 && S.stamina === staminaBefore, [S.crystals, S.stamina]);
+
+// --- PVPチケットのボーナスは日付が変わるとリセットされる(ensurePvpDailyが新しいキーで作り直す) ---
+S.pvpDaily.key = '2000-1-1';
+ok('日付が変わるとPVP挑戦券のボーナスもリセットされる', E.pvpDailyMax() === E.PVP_DAILY_MAX, E.pvpDailyMax());
 
 console.log('done');
