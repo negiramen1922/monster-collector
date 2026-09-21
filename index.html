@@ -1055,16 +1055,29 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-detail-ic img.ico{ width:40px !important; height:40px !important; }
 .relic-detail-headtext{ flex:1; min-width:0; }
 .relic-detail-name{ font-size:16px; font-weight:800; color:var(--text); line-height:1.25; }
-.relic-detail-starrow{ font-size:13px; letter-spacing:1px; margin-top:3px; }
+.relic-detail-starrow{ font-size:13px; letter-spacing:1px; margin-top:3px; display:flex; align-items:center; gap:6px; }
 .relic-detail-starrow.r1{ color:#a3a3b3; } .relic-detail-starrow.r2{ color:#79c96d; } .relic-detail-starrow.r3{ color:#5cb8e8; }
 .relic-detail-starrow.r4{ color:#c493ea; } .relic-detail-starrow.r5{ color:var(--gold); }
+.relic-dupe-star{ color:var(--fire); }
+.relic-dupe-plus{
+  flex:none; width:20px; height:20px; border-radius:50%; border:1px solid var(--line);
+  background:var(--panel3); color:var(--text); font-size:13px; font-weight:800; line-height:1;
+  display:flex; align-items:center; justify-content:center; padding:0;
+}
+.relic-dupe-plus.active{ border-color:var(--fire); color:var(--fire); }
 
 .relic-effects{ margin:0 0 14px; display:flex; flex-direction:column; gap:6px; }
 .relic-eff-line{
   font-size:12px; line-height:1.5; padding:9px 11px; border-radius:11px;
   background:var(--panel2); border:1px solid var(--line);
+  display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
 }
-.relic-eff-line small{ display:block; color:var(--gold); font-weight:700; margin-top:3px; }
+.relic-eff-text{ flex:1 1 auto; min-width:0; }
+.relic-eff-line small{ flex:0 0 100%; color:var(--gold); font-weight:700; margin-top:3px; }
+.relic-eff-line.inactive{ opacity:.5; }
+.relic-eff-check{ flex:none; font-weight:800; }
+.relic-eff-check.on{ color:var(--ok); }
+.relic-eff-check.off{ color:var(--dim2); }
 
 .gacha-kind-tabs{ display:flex; gap:6px; margin-bottom:10px; }
 .gacha-kind-tabs .stage-tab{ flex:1; }
@@ -2377,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.013';
+const GAME_VERSION = 'α0.0.014';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4555,8 +4568,8 @@ function showRelicDetail(id){
         </div>
       </div>
       <div class="relic-effects">
-        ${def.base ? `<div class="relic-eff-line">基礎ステータス(キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)</div>` : ''}
-        ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectRangeText(e)}</div>`).join('')}
+        ${def.base ? `<div class="relic-eff-line"><span class="relic-eff-text">基礎ステータス(キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)</span></div>` : ''}
+        ${def.effects.map(e => `<div class="relic-eff-line"><span class="relic-eff-text">${relicEffectRangeText(e)}</span></div>`).join('')}
       </div>
       <p class="fs-note">未所持です。${def.channel === 'distributed' ? 'イベントのステージクリア報酬で手に入ります。' : '遺物ガチャで入手できます。'}</p>
       ${def.channel !== 'distributed' ? `<button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : ''}
@@ -4761,9 +4774,10 @@ function doRelicPull(times, cost){
 /* ---- relic picker / strengthen modals (opened from a monster's relic slot) ---- */
 let relicPicker = null;  // { monId } while the "choose a relic" sheet is open
 let relicUpgrade = null; // { relicId, monId } while the level/skill/wall sheet is open
+let relicDupePanelOpen = false; // whether the 凸 info panel (opened via the + next to the star row) is expanded
 function openRelicPicker(monId){ relicPicker = { monId }; renderRelicPicker(); }
 function closeRelicPicker(){ const p = relicPicker; relicPicker = null; if(p) showMonsterDetail(p.monId); }
-function openRelicUpgrade(relicId, monId){ relicUpgrade = { relicId, monId: monId || null }; renderRelicUpgrade(); }
+function openRelicUpgrade(relicId, monId){ relicUpgrade = { relicId, monId: monId || null }; relicDupePanelOpen = false; renderRelicUpgrade(); }
 function closeRelicUpgrade(){
   const u = relicUpgrade;
   relicUpgrade = null;
@@ -4833,12 +4847,29 @@ function renderRelicUpgrade(){
         <div class="relic-detail-ic r${def.star}">${def.icon}</div>
         <div class="relic-detail-headtext">
           <div class="relic-detail-name">${def.name}</div>
-          <div class="relic-detail-starrow r${def.star}">${'★'.repeat(def.star)}</div>
+          <div class="relic-detail-starrow r${def.star}">
+            ${'★'.repeat(def.star)}${(st.dupeUsed || 0) > 0 ? `<span class="relic-dupe-star">${'★'.repeat(st.dupeUsed || 0)}</span>` : ''}
+            <button class="relic-dupe-plus ${dupeSpare > 0 ? 'active' : ''}" data-relic-dupe-toggle="1" aria-label="凸の情報">${relicDupePanelOpen ? '−' : '＋'}</button>
+          </div>
         </div>
       </div>
-      <div class="relic-effects">
-        ${def.base ? `<div class="relic-eff-line">基礎ステータス(キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)<small>(現在 ${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicGrowthMult(st.level) * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')})</small></div>` : ''}
-        ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectText(e)}<small>(現在 ${Math.round(e.pct * mult * 100)}%)</small></div>`).join('')}
+
+      ${relicDupePanelOpen ? `
+      <div class="detail-level-box lv-card relic-dupe-panel">
+        <div class="row-between" style="margin-bottom:7px;">
+          <div class="mc-head">凸(重複ボーナス)</div>
+          <div class="mat-need">${st.dupeUsed || 0} / ${RELIC_MAX_DUPE_USE}</div>
+        </div>
+        ${dupeMaxed ? '<div class="promo-note">凸は上限です</div>' : dupeSpare > 0 ? `
+          <button class="btn btn-sm btn-block" data-relic-dupe="${relicId}">
+            凸する(+${Math.round(RELIC_DUPE_BONUS * 100)}%・★+1・所持${dupeSpare})
+          </button>` : `
+          <div class="promo-note">同じ「${def.name}」をもう1つ入手すると凸できます(遺物ガチャ${def.channel === 'distributed' ? '・イベント配布' : ''})。</div>`}
+      </div>` : ''}
+
+      <div class="detail-level-box lv-card">
+        <div class="mc-head" style="margin-bottom:7px;">基礎ステータス</div>
+        ${def.base ? `<div class="relic-eff-line"><span class="relic-eff-text">${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicGrowthMult(st.level) * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')}</span><small>キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回</small></div>` : ''}
       </div>
 
       <div class="detail-level-box lv-card">
@@ -4863,20 +4894,20 @@ function renderRelicUpgrade(){
 
       <div class="detail-level-box lv-card">
         <div class="row-between" style="margin-bottom:7px;">
-          <div class="mc-head">凸(重複ボーナス)</div>
-          <div class="mat-need">${st.dupeUsed || 0} / ${RELIC_MAX_DUPE_USE}</div>
+          <div class="mc-head">スキル</div>
+          <div class="mat-need">スキルLv ${st.skillLv || 1} / ${RELIC_SKILL_MAX}</div>
         </div>
-        ${dupeMaxed ? '<div class="promo-note">凸は上限です</div>' : `
-          <button class="btn btn-sm btn-block ${dupeSpare > 0 ? '' : 'btn-ghost'}" data-relic-dupe="${relicId}" ${dupeSpare > 0 ? '' : 'disabled'}>
-            凸する(+${Math.round(RELIC_DUPE_BONUS * 100)}%・所持${dupeSpare})
-          </button>`}
-      </div>
-
-      <div class="detail-level-box lv-card">
-        <div class="row-between" style="margin-bottom:7px;">
-          <div class="mc-head">スキルLv</div>
-          <div class="mat-need">${st.skillLv || 1} / ${RELIC_SKILL_MAX}</div>
+        <div class="relic-effects" style="margin-bottom:10px;">
+          ${def.effects.map(e => {
+            const active = mon ? relicEffectMatches(e.cond, mon) : null;
+            return `<div class="relic-eff-line ${active === false ? 'inactive' : ''}">
+              ${active !== null ? `<span class="relic-eff-check ${active ? 'on' : 'off'}">${active ? '✓' : '✕'}</span>` : ''}
+              <span class="relic-eff-text">${relicEffectText(e)}</span>
+              <small>現在 ${Math.round(e.pct * mult * 100)}%</small>
+            </div>`;
+          }).join('')}
         </div>
+        ${mon ? `<div class="fs-note" style="margin:-2px 0 10px;">${mon.name}への装着時: <span class="relic-eff-check on">✓</span>=効果あり　<span class="relic-eff-check off">✕</span>=条件を満たさず効果なし</div>` : ''}
         ${skillMaxed ? '<div class="promo-note">スキルLv上限です</div>' : `
           <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= skCost.gold && getItem(`relic_core_${skCost.coreTier}`) >= skCost.coreN ? '' : 'btn-ghost'}" data-relic-skillup="${relicId}">
             スキルLv${(st.skillLv || 1) + 1}へ(${goldText(skCost.gold)}・${itemName(`relic_core_${skCost.coreTier}`)}×${skCost.coreN}・所持${getItem(`relic_core_${skCost.coreTier}`)})
@@ -11921,6 +11952,7 @@ function handlePhoneClick(ev){
   }
   if(relicUpgrade){
     if(t.closest('[data-close-relic-upgrade]')){ closeRelicUpgrade(); return; }
+    if(t.closest('[data-relic-dupe-toggle]')){ relicDupePanelOpen = !relicDupePanelOpen; renderRelicUpgrade(); return; }
     const rLvEl = t.closest('[data-relic-levelup]');
     if(rLvEl){ levelUpRelic(rLvEl.dataset.relicLevelup, rLvEl.dataset.times); return; }
     const rWallEl = t.closest('[data-relic-wall]');
