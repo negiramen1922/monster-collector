@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.021';
+const GAME_VERSION = 'α0.0.024';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -11427,6 +11427,15 @@ function renderBattleReport(b){
     </div>`;
   return `
     <div class="battle-report">
+      ${topDealer && topDealer.report.dealt > 0 ? `
+        <div class="panel panel-tight mvp-card">
+          <img src="${imgSrc(topDealer.ref)}" alt="">
+          <div class="mvp-body">
+            <div class="mvp-tag pixel">MVP</div>
+            <div class="mvp-name">${topDealer.name}</div>
+            <div class="mvp-line">与ダメージ ${topDealer.report.dealt.toLocaleString()}・必殺技 ${topDealer.report.ults || 0}回</div>
+          </div>
+        </div>` : ''}
       ${barSection('与えたダメージ', 'dealt', 'dealt', 'やけど・追撃を含む')}
       ${barSection('受けたダメージ', 'taken', 'taken')}
       ${healSection}
@@ -11471,22 +11480,34 @@ function showBattleResult(tab){
       r.crystals ? `<span class="gain-chip first">初回クリア ${CRYSTAL_ICON}${r.crystals}</span>` : '',
       ...(r.firstItems || []).map(x => `<span class="gain-chip first">${rewardHtml([x])}</span>`),
     ].filter(Boolean).join('');
-    const mvp = b.party.slice().sort((x, y) => y.report.dealt - x.report.dealt)[0];
+    const newJoins = r.souls.filter(x => x.joined);
+    const joinCards = newJoins.map(x => {
+      const m = MON_BY_ID[x.id];
+      return `
+        <div class="panel panel-tight gr-best r${m.rarity} join-card">
+          <img src="${imgSrc(m.id)}" alt="${m.name}">
+          <div class="gr-best-body">
+            <div class="gr-best-top">
+              <span class="star r${m.rarity}">${'★'.repeat(m.rarity)}</span>
+              <span class="rc-badge new">NEW</span>
+            </div>
+            <div class="gr-best-name">${m.name}</div>
+            <div class="gr-best-sub">新しく仲間になりました・${ELEM_LABEL[m.element]}／${ROLE_LABEL[m.role]}</div>
+          </div>
+        </div>`;
+    }).join('');
     const dmgMax = Math.max(1, ...b.party.map(u => u.report.dealt));
     body = `
+      ${joinCards}
+      ${isDungeon ? '' : `
+      <div class="br-rewards">
+        <div class="br-rewards-head">ソウル</div>
+        ${soulRows || '<div class="soul-none">今回はソウルが出ませんでした</div>'}
+      </div>`}
       <div class="panel panel-tight gain-card">
         <div class="mc-head">獲得</div>
         <div class="gain-row">${gainChips || '<span class="rf-none">なし</span>'}</div>
       </div>
-      ${mvp && mvp.report.dealt > 0 ? `
-        <div class="panel panel-tight mvp-card">
-          <img src="${imgSrc(mvp.ref)}" alt="">
-          <div class="mvp-body">
-            <div class="mvp-tag pixel">MVP</div>
-            <div class="mvp-name">${mvp.name}</div>
-            <div class="mvp-line">与ダメージ ${mvp.report.dealt.toLocaleString()}・必殺技 ${mvp.report.ults || 0}回</div>
-          </div>
-        </div>` : ''}
       <div class="panel panel-tight dmg-card">
         <div class="mc-head">与ダメージ</div>
         ${b.party.map(u => `
@@ -11496,12 +11517,7 @@ function showBattleResult(tab){
             <div class="dmg-bar"><i class="elem-${MON_BY_ID[u.ref] ? MON_BY_ID[u.ref].element : 'none'}" style="width:${Math.round(u.report.dealt / dmgMax * 100)}%;"></i></div>
             <span class="dmg-num">${u.report.dealt.toLocaleString()}</span>
           </div>`).join('')}
-      </div>
-      ${isDungeon ? '' : `
-      <div class="br-rewards">
-        <div class="br-rewards-head">ソウル</div>
-        ${soulRows || '<div class="soul-none">今回はソウルが出ませんでした</div>'}
-      </div>`}`;
+      </div>`;
   }else{
     const counters = counterElementsFor(b.enemies.filter(e => e.alive).length ? b.enemies.filter(e => e.alive) : b.enemies);
     const counterText = counters.length
