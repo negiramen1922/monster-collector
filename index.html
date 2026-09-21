@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.017';
+const GAME_VERSION = 'α0.0.018';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3625,6 +3625,9 @@ const DEFAULT_STATE = () => ({
   pvpDefenseSlots: null,   // snapshot published as the defense others fight; null = not set yet
   pvpDefenseFormation: null,
   shopDaily: null,         // { key, bought: { [sku]: true } } - 1商品1回/日
+  presentBox: [],          // [{ id, label, reward:[...], receivedAt }] - claimable gifts (stamina overflow, compensation, etc.)
+  presentBoxSeq: 0,        // next presentBox entry id
+  giftsGranted: {},        // COMPENSATION_GIFTS id → true once delivered to this save's presentBox
 });
 
 let STATE = null;
@@ -3684,6 +3687,9 @@ function normalizeState(){
   if(STATE.shopDaily === undefined) STATE.shopDaily = null;
   if(!STATE.friendPoints) STATE.friendPoints = 0;
   if(STATE.friendSendDaily === undefined) STATE.friendSendDaily = null;
+  if(!STATE.presentBox) STATE.presentBox = [];
+  if(!STATE.presentBoxSeq) STATE.presentBoxSeq = 0;
+  if(!STATE.giftsGranted) STATE.giftsGranted = {};
   syncHelperMon();
   if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
     id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
@@ -5196,6 +5202,51 @@ function spendStamina(n){
   STATE.stamina -= n;
   return true;
 }
+// grants n stamina, letting it sit above STAMINA_MAX (regen just won't add more while it's
+// already there) up to STAMINA_HARD_CAP; whatever doesn't fit goes to the present box as a
+// stamina gift instead of being thrown away.
+function grantStamina(n, label){
+  refreshStamina();
+  const room = Math.max(0, STAMINA_HARD_CAP - STATE.stamina);
+  const applied = Math.min(n, room);
+  STATE.stamina += applied;
+  const overflow = n - applied;
+  if(overflow > 0) addPresentBoxGift(label || 'スタミナ', [{ type:'stamina', n: overflow }]);
+}
+function addPresentBoxGift(label, reward){
+  if(!STATE.presentBox) STATE.presentBox = [];
+  STATE.presentBoxSeq = (STATE.presentBoxSeq || 0) + 1;
+  STATE.presentBox.push({ id: STATE.presentBoxSeq, label, reward, receivedAt: Date.now() });
+}
+// one-off gifts added after the fact (bug-fix apologies, rewards for content added after
+// some players already cleared the stage it belongs to, etc). This is a client-only game
+// with no server push, so "sending" a gift means: add an entry here with a fresh id, ship
+// it, and every save that hasn't seen that id yet gets it in their present box next launch.
+const COMPENSATION_GIFTS = [
+  // { id:'apology_2026_09', label:'不具合お詫び', reward:[{ type:'crystal', n:500 }] },
+];
+function grantCompensationGifts(){
+  STATE.giftsGranted = STATE.giftsGranted || {};
+  COMPENSATION_GIFTS.forEach(g => {
+    if(STATE.giftsGranted[g.id]) return;
+    addPresentBoxGift(g.label, g.reward);
+    STATE.giftsGranted[g.id] = true;
+  });
+}
+function claimGift(id){
+  const i = STATE.presentBox.findIndex(g => g.id === id);
+  if(i < 0) return null;
+  const [g] = STATE.presentBox.splice(i, 1);
+  grantRewards(g.reward);
+  saveState();
+  return g;
+}
+function claimAllGifts(){
+  const got = STATE.presentBox.splice(0, STATE.presentBox.length);
+  got.forEach(g => grantRewards(g.reward));
+  if(got.length) saveState();
+  return got;
+}
 function formatDuration(ms){
   const t = Math.ceil(ms / 1000);
   const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60;
@@ -5259,7 +5310,7 @@ const DAILY_MISSIONS = [
   { id:'d_login',   label:'ログインする',                 event:'login',       goal:1,  reward:[{ type:'crystal', n:40 }] },
   { id:'d_clear',   label:'探索を3回クリアする',           event:'stageClear',  goal:3,  reward:[{ type:'crystal', n:40 }] },
   { id:'d_dungeon', label:'育成ダンジョンを1回クリアする',  event:'dungeonClear', goal:1, reward:[{ type:'crystal', n:30 }, { type:'item', key:'exp2', n:5 }] },
-  { id:'d_upgrade', label:'モンスターを1回強化する',        event:'upgrade',     goal:1,  reward:[{ type:'crystal', n:30 }] },
+  { id:'d_upgrade', label:'モンスターを1回強化する',        event:'upgrade',     goal:1,  reward:[{ type:'stamina', n:80 }] },
   { id:'d_gacha',   label:'ガチャを1回引く',               event:'gachaPull',   goal:1,  reward:[{ type:'crystal', n:20 }, { type:'universal', n:5 }] },
   { id:'d_stamina', label:'スタミナを60使う',              event:'staminaUsed', goal:60, reward:[{ type:'crystal', n:40 }] },
 ];
@@ -5269,7 +5320,7 @@ const WEEKLY_MISSIONS = [
   { id:'w_clear',   label:'探索を30回クリアする',                event:'stageClear',    goal:30, reward:[{ type:'crystal', n:150 }] },
   { id:'w_stamina', label:'スタミナを600使う',                   event:'staminaUsed',   goal:600, reward:[{ type:'crystal', n:50 }, { type:'item', key:'exp2', n:30 }] },
   { id:'w_dungeon', label:'育成ダンジョンを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:150 }, { type:'item', key:'box_rnd_4', n:1 }] },
-  { id:'w_gacha',   label:'ガチャを20回引く',                    event:'gachaPull',     goal:20, reward:[{ type:'crystal', n:150 }, { type:'universal', n:30 }] },
+  { id:'w_gacha',   label:'ガチャを10回引く',                    event:'gachaPull',     goal:10, reward:[{ type:'crystal', n:150 }, { type:'universal', n:30 }] },
   { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 } ] },
   { id:'w_relic',   label:'遺物を合計10回強化する',              event:'relicUpgrade',  goal:10, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_core_1', n:5 }] },
 ];
@@ -5441,6 +5492,7 @@ function grantRewards(list){
     else if(r.type === 'gold') addGold(r.n);
     else if(r.type === 'monster') grantMonster(MON_BY_ID[r.id]);
     else if(r.type === 'relic') grantRelic(RELICS[r.key]);
+    else if(r.type === 'stamina') grantStamina(r.n);
   });
 }
 function rewardHtml(list){
@@ -5451,6 +5503,7 @@ function rewardHtml(list){
     if(r.type === 'gold') return `<span class="rw">${goldText(r.n)}</span>`;
     if(r.type === 'monster'){ const m = MON_BY_ID[r.id]; return `<span class="rw rw-mon"><img src="${imgSrc(m.id)}" alt="">★${m.rarity} ${m.name}</span>`; }
     if(r.type === 'relic'){ const d = RELICS[r.key]; return `<span class="rw" title="${d.name}">${d.icon}★${d.star} ${d.name}</span>`; }
+    if(r.type === 'stamina') return `<span class="rw">⚡${r.n}</span>`;
     return '';
   }).join('');
 }
@@ -5563,6 +5616,7 @@ function battlePower(id){
 
 /* ---- exploration: stamina, daily reset, drops (design doc v4 §10, values provisional) ---- */
 const STAMINA_MAX = 300;
+const STAMINA_HARD_CAP = 999; // rewards can push stamina above STAMINA_MAX (passive regen just stops adding once it's this high), but never past this; the rest goes to the present box instead of being lost
 const STAMINA_REGEN_MS = 5 * 60 * 1000;  // 1 point every 5 min → 288/day (≈29 runs)
 const STAMINA_REFUND_ON_LOSS = 0.5;      // half the cost comes back on defeat / time-out
 const DAY_RESET_HOUR = 4;                // daily counters reset at 4:00 local time
@@ -12279,6 +12333,18 @@ function handlePhoneClick(ev){
   if(dailyLoginEl){ claimDailyLoginDay(Number(dailyLoginEl.dataset.dailyLoginDay)); return; }
   const claimAllEl = t.closest('[data-claim-all]');
   if(claimAllEl){ const sec = claimAllEl.dataset.claimAll; claimMissions(x => x.section === sec); return; }
+  const claimGiftEl = t.closest('[data-claim-gift]');
+  if(claimGiftEl){
+    const g = claimGift(Number(claimGiftEl.dataset.claimGift));
+    if(g){ showRewardModal([{ label: g.label, reward: g.reward }]); render(); }
+    return;
+  }
+  const claimAllGiftsEl = t.closest('[data-claim-all-gifts]');
+  if(claimAllGiftsEl){
+    const got = claimAllGifts();
+    if(got.length){ showRewardModal(got.map(g => ({ label: g.label, reward: g.reward }))); render(); }
+    return;
+  }
   const mTabEl = t.closest('[data-mission-tab]');
   if(mTabEl){ missionTab = mTabEl.dataset.missionTab; render(); return; }
   const swOpen = t.closest('[data-sweep-open]');
@@ -12867,6 +12933,27 @@ function renderNoticesOverlay(){
     </div>`;
 }
 
+function renderGiftsOverlay(){
+  const gifts = STATE.presentBox || [];
+  return `
+    <div class="ov-screen">
+      ${overlayHead('プレゼントボックス', gifts.length ? `<button class="btn btn-sm" data-claim-all-gifts="1" style="margin-left:auto;">まとめて受け取る</button>` : '')}
+      <div class="ov-body">
+        ${gifts.length === 0 ? `
+          <div class="screen-sub" style="margin:16px 0; text-align:center;">プレゼントはありません。</div>` : `
+          <div class="screen-sub" style="margin-bottom:10px;">スタミナが上限を超えて贈られた時や、お詫び・追加報酬などがここに届きます。</div>
+          ${gifts.map(g => `
+            <div class="panel panel-tight" style="margin-bottom:8px;">
+              <div class="row-between">
+                <div class="mc-head">${g.label}</div>
+                <button class="btn btn-sm" data-claim-gift="${g.id}">受け取る</button>
+              </div>
+              <div class="rm-rewards" style="margin-top:6px;">${rewardHtml(g.reward)}</div>
+            </div>`).join('')}
+        `}
+      </div>
+    </div>`;
+}
 function renderPickOverlay(){
   const list = sortMonsters(Object.keys(STATE.owned).map(id => MON_BY_ID[id]), { key: 'bp', desc: true });
   return `
@@ -12893,6 +12980,7 @@ function renderMenuOverlay(){
       <div class="ov-body">
         <div class="ov-links">
           <button class="ov-link" data-overlay="notices">🔔 お知らせ${unreadNotices() ? `<span class="rank-new">${unreadNotices()}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="gifts">🎁 プレゼントボックス${STATE.presentBox.length ? `<span class="rank-new">${STATE.presentBox.length}</span>` : ''}</button>
           <button class="ov-link" data-overlay="friends">🤝 フレンド${STATE.friends.length ? `<span class="rank-new">${STATE.friends.length}</span>` : ''}</button>
           <button class="ov-link" data-overlay="settings">⚙️ 設定</button>
         </div>
@@ -12946,6 +13034,7 @@ function renderOverlay(){
     : overlayView === 'notices' ? renderNoticesOverlay()
     : overlayView === 'menu' ? renderMenuOverlay()
     : overlayView === 'friends' ? renderFriendsOverlay()
+    : overlayView === 'gifts' ? renderGiftsOverlay()
     : renderPickOverlay();
   el.classList.add('show');
 }
@@ -13398,6 +13487,7 @@ async function startGame(){
   catch(e){ console.warn('sync: could not reach the cloud save', e); }
   ensurePlayerId().then(publishProfile);
   claimFriendGifts();
+  grantCompensationGifts();
   setAnalyticsUser();
   if(!localSaveFound && from !== 'cloud') logEvent('game_start', { method: ACCOUNT.provider });
   buildShell();
