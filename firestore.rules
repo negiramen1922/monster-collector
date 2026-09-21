@@ -14,14 +14,19 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == uid;
 
       // フレンドポイントの受け取り箱。他人(uid本人以外)がここに書き込める唯一の場所だが、
-      // 送信者は自分のuidしか名乗れず、金額もindex.htmlのFRIEND_POINT_PER_SEND(10)と
-      // 完全一致する場合のみ作成できるので、任意の値を送りつける穴にはならない。
+      // 送信者は自分のuidしか名乗れず、reasonごとに金額が固定(index.htmlのFRIEND_POINT_PER_SEND=10、
+      // FRIEND_POINT_PER_BORROW_USE=5と完全一致する場合のみ)なので、任意の値を送りつける穴にはならない。
+      // 'send' はフレンド画面の「ポイントを送る」、'borrow' はお助けキャラを借りて
+      // クエストで使った時の自動付与(貸した側が受け取る)。
       // 受け取った本人だけが読める/消せる(=受け取り確認して自分のポイントに加算)。
       match /gifts/{giftId} {
         allow read, delete: if request.auth != null && request.auth.uid == uid;
         allow create: if request.auth != null
           && request.resource.data.from == request.auth.uid
-          && request.resource.data.amount == 10;
+          && (
+            (request.resource.data.reason == 'send' && request.resource.data.amount == 10) ||
+            (request.resource.data.reason == 'borrow' && request.resource.data.amount == 5)
+          );
         allow update: if false;
       }
     }
