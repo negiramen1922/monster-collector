@@ -79,7 +79,7 @@ ok('コアのティア: Lv1-3はTier1・4-6はTier2・7-9はTier3', E.relicSkill
 
 // --- アーティファクト工房(旧鍛冶場): scrap and core come only from idle production, no crafting ---
 ok('アーティファクト工房に改名', E.FACILITIES.smithy.name === 'アーティファクト工房');
-S.clearedStages.push('q2_10'); // unlocks the workshop facility
+S.clearedStages.push('q1_10'); // unlocks the workshop facility (初級全クリ)
 const bs = E.baseState().smithy;
 bs.at = Date.now() - 3 * 3600 * 1000; // 3 hours ago, at facility Lv1
 bs.carry = 0; bs.coreCarry = 0;

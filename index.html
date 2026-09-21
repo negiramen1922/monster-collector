@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.014';
+const GAME_VERSION = 'α0.0.015';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4150,7 +4150,7 @@ const FACILITIES = {
 const FACILITY_MAX_LV = 5;
 const FACILITY_UPGRADE_GOLD = [0, 0, 10000, 50000, 200000, 600000]; // to reach that level
 // unlocks by main-stage progress (stage id that must be cleared); provisional until the stages are rebuilt
-const FACILITY_UNLOCK = { mine: null, lab: 'q1_03', alchemy: 'q1_03', smithy: 'q2_10' };
+const FACILITY_UNLOCK = { mine: null, lab: 'q1_03', alchemy: 'q1_03', smithy: 'q1_10' };
 const FACILITY_LV_UNLOCK = [null, null, 'q1_05', 'q1_10', 'q2_10', 'q3_10'];
 function baseState(){
   if(!STATE.base) STATE.base = {};
@@ -4280,6 +4280,9 @@ function relicEffectText(e){ return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL
 //   - ガチャ産(channelなし。★5専用6種を含む): 常時+条件つきの組み合わせで、対象条件に
 //     ぴったり合えば ★1で20%・★2で24%・★3で32%・★4で34%・★5汎用で32%に到達。
 //     ★5専用(そのキャラだけ)はさらに強く、専用条件の枠が単独で36%に達する。
+// スキル(effects)の本数は★でも差別化: ★1=1本(誰でも)・★2/★3=2本(誰でも+ロール)・
+//   ★4/★5=3本(誰でも+ロール/種族等+属性・専用キャラ等、より狭い条件ほど強い)。
+//   配布(distributed)系は★に関わらず常に1本(単発・無条件)のまま。
 const RELICS = {
   // ================= ★1 =================
   rel_droplet: { id:'rel_droplet', name:'みずのしずく', star:1, icon:RELIC_ICON.rel_droplet,
@@ -4293,11 +4296,14 @@ const RELICS = {
   rel_light_boots: { id:'rel_light_boots', name:'軽装のブーツ', star:1, icon:RELIC_ICON.rel_light_boots, channel:'distributed',
     base:{ hp:14.7, atk:3.3 }, effects:[ { stat:'spd', pct:0.06, cond:null } ] }, // cap 12%
 
-  // ================= ★2 =================
+  // ================= ★2(ガチャ産2種はロール条件つきの2つ目を追加。配布3種は
+  //   単発・無条件のみで据え置き) =================
   rel_hourglass: { id:'rel_hourglass', name:'ちからの砂時計', star:2, icon:RELIC_ICON.rel_hourglass,
-    base:{ hp:13.5, atk:8.0 }, effects:[ { stat:'atk', pct:0.12, cond:null } ] }, // cap 24%
+    base:{ hp:13.5, atk:8.0 },
+    effects:[ { stat:'atk', pct:0.12, cond:null }, { stat:'critRate', pct:0.06, cond:{ type:'role', value:'attacker' } } ] }, // cap 24%・条件側cap12%
   rel_heavy_shard: { id:'rel_heavy_shard', name:'重厚の盾片', star:2, icon:RELIC_ICON.rel_heavy_shard,
-    base:{ hp:42.1, atk:2.6 }, effects:[ { stat:'pdef', pct:0.12, cond:null } ] }, // cap 24%
+    base:{ hp:42.1, atk:2.6 },
+    effects:[ { stat:'pdef', pct:0.12, cond:null }, { stat:'hp', pct:0.06, cond:{ type:'role', value:'tank' } } ] }, // cap 24%・条件側cap12%
   rel_novice_armor: { id:'rel_novice_armor', name:'見習いの胸当て', star:2, icon:RELIC_ICON.rel_novice_armor, channel:'distributed',
     base:{ hp:42.1, atk:2.6 }, effects:[ { stat:'hp', pct:0.075, cond:null } ] }, // cap 15%
   rel_ward_necklace: { id:'rel_ward_necklace', name:'魔除けの首飾り', star:2, icon:RELIC_ICON.rel_ward_necklace, channel:'distributed',
@@ -4322,31 +4328,40 @@ const RELICS = {
     base:{ hp:44.8, atk:9.8 },
     effects:[ { stat:'hp', pct:0.08, cond:null }, { stat:'skillDmg', pct:0.16, cond:{ type:'role', value:'trickster' } } ] },
 
-  // ================= ★4(属性別・全ガチャ) =================
+  // ================= ★4(属性別・全ガチャ。universal→role→element の3段。
+  //   element側がその属性のカラー(cap34%)、role側は控えめな上乗せ(cap16%)) =================
   rel_flame_ember: { id:'rel_flame_ember', name:'業火の残り火', star:4, icon:RELIC_ICON.rel_flame_ember, // 炎属性用
     base:{ hp:34.4, atk:21.6 },
-    effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'skillDmg', pct:0.17, cond:{ type:'element', value:'fire' } } ] }, // cap 34%
+    effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'skillDmg', pct:0.17, cond:{ type:'element', value:'fire' } },
+      { stat:'critRate', pct:0.08, cond:{ type:'role', value:'attacker' } } ] }, // cap 34%
   rel_deepsea_guard: { id:'rel_deepsea_guard', name:'深海の守り', star:4, icon:RELIC_ICON.rel_deepsea_guard, // 水属性用
     base:{ hp:100.9, atk:7.4 },
-    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'mdef', pct:0.17, cond:{ type:'element', value:'water' } } ] },
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'mdef', pct:0.17, cond:{ type:'element', value:'water' } },
+      { stat:'pdef', pct:0.08, cond:{ type:'role', value:'tank' } } ] },
   rel_verdant_breath: { id:'rel_verdant_breath', name:'新緑の息吹', star:4, icon:RELIC_ICON.rel_verdant_breath, // 草属性用
     base:{ hp:100.9, atk:7.4 },
-    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'hp', pct:0.08, cond:{ type:'element', value:'grass' } } ] }, // 同じstat(hp)なので合算、cap 34%
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'hp', pct:0.08, cond:{ type:'element', value:'grass' } }, // 同じstat(hp)なので合算、cap 34%
+      { stat:'spGain', pct:0.08, cond:{ type:'role', value:'support' } } ] },
   rel_earthen_weight: { id:'rel_earthen_weight', name:'大地の重み', star:4, icon:RELIC_ICON.rel_earthen_weight, // 土属性用
     base:{ hp:100.9, atk:7.4 },
-    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'pdef', pct:0.17, cond:{ type:'element', value:'earth' } } ] },
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'pdef', pct:0.17, cond:{ type:'element', value:'earth' } },
+      { stat:'mdef', pct:0.08, cond:{ type:'role', value:'tank' } } ] },
   rel_thunder_swift: { id:'rel_thunder_swift', name:'雷光の疾さ', star:4, icon:RELIC_ICON.rel_thunder_swift, // 雷属性用
     base:{ hp:34.4, atk:21.6 },
-    effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'spd', pct:0.17, cond:{ type:'element', value:'thunder' } } ] },
+    effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'spd', pct:0.17, cond:{ type:'element', value:'thunder' } },
+      { stat:'critRate', pct:0.08, cond:{ type:'role', value:'shooter' } } ] },
   rel_gale_slash: { id:'rel_gale_slash', name:'疾風の一閃', star:4, icon:RELIC_ICON.rel_gale_slash, // 風属性用・SPD型(レア)
     base:{ hp:67.6, atk:14.5, spd:6.5 },
-    effects:[ { stat:'spd', pct:0.09, cond:null }, { stat:'pierce', pct:0.17, cond:{ type:'element', value:'wind' } } ] },
+    effects:[ { stat:'spd', pct:0.09, cond:null }, { stat:'pierce', pct:0.17, cond:{ type:'element', value:'wind' } },
+      { stat:'skillDmg', pct:0.08, cond:{ type:'role', value:'trickster' } } ] },
   rel_holy_judgement: { id:'rel_holy_judgement', name:'聖光の裁き', star:4, icon:RELIC_ICON.rel_holy_judgement, // 光属性用
     base:{ hp:67.6, atk:14.5 },
-    effects:[ { stat:'mdef', pct:0.09, cond:null }, { stat:'ultDmg', pct:0.17, cond:{ type:'element', value:'light' } } ] },
+    effects:[ { stat:'mdef', pct:0.09, cond:null }, { stat:'ultDmg', pct:0.17, cond:{ type:'element', value:'light' } },
+      { stat:'spGain', pct:0.08, cond:{ type:'role', value:'support' } } ] },
   rel_dark_corrosion: { id:'rel_dark_corrosion', name:'暗黒の侵蝕', star:4, icon:RELIC_ICON.rel_dark_corrosion, // 闇属性用
     base:{ hp:67.6, atk:14.5 },
-    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'critRate', pct:0.17, cond:{ type:'element', value:'dark' } } ] },
+    effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'critRate', pct:0.17, cond:{ type:'element', value:'dark' } },
+      { stat:'skillDmg', pct:0.08, cond:{ type:'role', value:'trickster' } } ] },
 
   // ================= ★5(汎用2種+専用6種) =================
   // 汎用2種: 常時+同条件でさらに同stat積み増し(合計cap32%)+別条件・別statのボーナス(cap32%)。
