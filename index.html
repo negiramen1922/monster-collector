@@ -2340,7 +2340,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.008';
+const GAME_VERSION = 'α0.0.009';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4523,7 +4523,10 @@ function showRelicDetail(id){
 
 /* ---- ownership: singular per definition; equipping moves it, duplicates become 凸(dupe) ---- */
 function newRelicState(){ return { level:1, wall:0, skillLv:1, dupe:0, dupeUsed:0, equippedTo:null }; }
-function ownedRelicIds(){ return Object.keys(STATE.relics || {}); }
+// a relic id from an older save can outlive the definition it pointed to (the relic system was
+// redesigned mid-project); silently drop anything that no longer resolves rather than crashing
+// every screen that renders an owned relic's name/star/icon from RELICS[id].
+function ownedRelicIds(){ return Object.keys(STATE.relics || {}).filter(id => RELICS[id]); }
 function equippedRelicOf(monId){ return ownedRelicIds().find(id => STATE.relics[id].equippedTo === monId) || null; }
 function equipRelic(relicId, monId){
   if(!STATE.relics[relicId]) return;
