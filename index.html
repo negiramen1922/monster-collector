@@ -1125,6 +1125,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .party-slot .empty-plus{ font-size:22px; color:var(--dim); }
 .party-slot.selected{ border:2px solid var(--gold); box-shadow:0 0 12px -2px rgba(232,180,85,.7); background:rgba(232,180,85,.08); }
 .party-slot .role-mini{ position:absolute; left:4px; bottom:3px; font-size:10px; }
+.party-slot .relic-mini{
+  position:absolute; right:3px; bottom:2px; width:22px; height:22px; border-radius:50%;
+  background:rgba(10,8,20,.78); border:1px solid rgba(232,180,85,.5);
+  display:flex; align-items:center; justify-content:center;
+}
+.party-slot .relic-mini img.ico{ width:17px !important; height:17px !important; }
 
 /* formation (3 columns x front/back rows) */
 /* slots sit on an 8 half-column grid so rows with 1-4 slots stay centered */
@@ -2340,7 +2346,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.009';
+const GAME_VERSION = 'α0.0.011';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7827,6 +7833,10 @@ function renderFormationGrid(compact, src){
     const slotAttr = compact ? '' : `data-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${m.name}` : ' 空き'}"`;
     if(!m) return `<div class="party-slot ${sel}" ${pos} ${slotAttr}><span class="empty-plus">+</span></div>`;
     const penalty = slotRowIn(f, i) === 'back' && isMeleeRole(m.role);
+    // relic equip state is only known for the player's own roster (src is a snapshot of
+    // someone else's formation, e.g. a PVP opponent, whose relics we have no data for)
+    const relicId = !src ? equippedRelicOf(m.id) : null;
+    const relicDef = relicId ? RELICS[relicId] : null;
     return `<div class="party-slot ${sel} ${menuOpen ? 'menu-open' : ''} ${penalty ? 'penalty' : ''} ${isHelp ? 'helped' : ''}" ${pos} ${slotAttr}>
       <img src="${imgSrc(m.id)}" alt="${m.name}">
       ${isHelp ? '<span class="help-mini" title="お助けキャラ">🤝</span>' : ''}
@@ -7840,6 +7850,7 @@ function renderFormationGrid(compact, src){
         </div>` : ''}
       ${penalty ? '<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">⚠</span>' : ''}
       <span class="role-mini">${tagsHtml(m)}</span>
+      ${relicDef ? `<span class="relic-mini" title="${relicDef.name}">${relicDef.icon}</span>` : ''}
       ${compact ? '' : `<div class="remove-x" data-remove="${i}" aria-label="${m.name} を外す">×</div>`}
     </div>`;
   };
