@@ -2394,7 +2394,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.027';
+const GAME_VERSION = 'α0.0.028';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3384,7 +3384,10 @@ function sanitizeLastActive(raw){
 }
 async function addFriendByCode(code){
   if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
-  code = String(code || '').trim().toUpperCase();
+  // playerId is stored as XXXX-XXXX-XXXX; accept it with or without hyphens/spacing
+  // and re-insert them so the lookup still hits the exact stored id.
+  const clean = String(code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+  code = clean.length === 12 ? clean.match(/.{4}/g).join('-') : clean;
   if(!code) return;
   if(ACCOUNT && code === ACCOUNT.playerId){ toast('自分のコードは追加できません'); return; }
   if(STATE.friends.some(f => f.playerId === code)){ toast('すでに追加しています'); return; }
@@ -3393,7 +3396,7 @@ async function addFriendByCode(code){
     const p = await authBackend().lookupPlayer(code);
     if(!p){ toast('そのコードのプレイヤーが見つかりません'); return; }
     STATE.friends.push({
-      uid: p.uid, playerId: String(p.playerId || code).slice(0, 12),
+      uid: p.uid, playerId: String(p.playerId || code).slice(0, 14),
       name: String(p.name || 'テイマー').slice(0, 20),
       level: Math.max(1, Math.min(999, Number(p.level) || 1)),
       support: sanitizeSupport(p.support),
@@ -13020,7 +13023,7 @@ function renderFriendsOverlay(){
         <div class="panel panel-tight" style="margin-bottom:10px;">
           <div class="mc-head" style="margin-bottom:8px;">コードでフレンド追加</div>
           <div class="friend-add-row">
-            <input type="text" id="friend-code-input" class="friend-code-input" placeholder="フレンドコード" maxlength="12">
+            <input type="text" id="friend-code-input" class="friend-code-input" placeholder="フレンドコード" maxlength="14">
             <button class="btn btn-sm" data-add-friend="1">追加</button>
           </div>
         </div>
