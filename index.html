@@ -2394,7 +2394,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.028';
+const GAME_VERSION = 'α0.0.029';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -12816,6 +12816,9 @@ function renderProfileOverlay(){
   const mains = STAGES.filter(s => s.type === 'main').length;
   const power = getPartyIds().reduce((sum, id) => sum + battlePower(id), 0);
   const days = a.createdAt ? Math.max(1, Math.ceil((Date.now() - a.createdAt) / 86400000)) : 1;
+  const startedAt = a.createdAt ? new Date(a.createdAt) : null;
+  const startedAtLabel = startedAt ? `${startedAt.getFullYear()}/${startedAt.getMonth() + 1}/${startedAt.getDate()}` : '-';
+  const relicCount = ownedRelicIds().length;
   const favCell = (id, i) => id ? `
     <div class="pf-fav" data-pick="fav${i}">
       <img src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">
@@ -12849,12 +12852,16 @@ function renderProfileOverlay(){
         <div class="pf-stats">
           <div class="pf-stat" data-nav="dex" role="button"><div class="pf-stat-k">図鑑 ›</div>
             <div class="pf-stat-v">${Object.keys(STATE.owned).length}<small> / ${MONSTERS.length}</small></div></div>
+          <div class="pf-stat" data-nav="relics" role="button"><div class="pf-stat-k">遺物 ›</div>
+            <div class="pf-stat-v">${relicCount}<small> / ${Object.keys(RELICS).length}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">クリア済</div>
             <div class="pf-stat-v">${cleared}<small> / ${mains}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">パーティ総合BP</div>
             <div class="pf-stat-v gold">${power.toLocaleString()}</div></div>
           <div class="pf-stat"><div class="pf-stat-k">プレイ日数</div>
             <div class="pf-stat-v">${days}<small> 日</small></div></div>
+          <div class="pf-stat"><div class="pf-stat-k">開始日</div>
+            <div class="pf-stat-v">${startedAtLabel}</div></div>
         </div>
 
         <div class="panel">
