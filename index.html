@@ -1125,7 +1125,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* ---------- shop ---------- */
 .shop-tabs{ display:grid; grid-template-columns:repeat(2,1fr); gap:5px; margin:6px 0 8px; }
 .shop-tabs .stage-tab{ font-size:11px; padding:6px 2px; white-space:nowrap; }
-.shop-section-title{ font-weight:800; font-size:12.5px; margin:14px 0 6px; color:var(--gold); }
 .shop-row{
   display:flex; align-items:center; justify-content:space-between; gap:8px;
   padding:8px 0; border-top:1px dashed var(--line);
@@ -2391,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.020';
+const GAME_VERSION = 'α0.0.021';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4088,7 +4087,6 @@ function craftMat(fam, kind, toTier, times){
 }
 
 /* ---- shop: gold-shop and PVP-points-shop SKUs, 1回/日ずつ購入可 ---- */
-const SHOP_MAT_PRICE = { 1: 300, 2: 800, 3: 2000 }; // 育成素材(el/sp/ro) Tier I-III、種類共通の単価
 const SHOP_GOLD_ITEMS = [
   { sku: 'scrap', itemKey: 'relic_scrap', qty: 50, price: 500 },
   { sku: 'core1', itemKey: 'relic_core_1', qty: 1, price: 3000 },
@@ -4116,24 +4114,15 @@ function shopDailyState(){
   return STATE.shopDaily;
 }
 function shopBought(sku){ return !!shopDailyState().bought[sku]; }
-function matShopSku(fam, kind, tier){ return `mat:${fam}:${kind}:${tier}`; }
 function shopGoldPrice(def){ return def.sku === todaysSaleSku() ? Math.max(1, Math.round(def.price * (1 - SHOP_SALE_DISCOUNT))) : def.price; }
 function buyShopItem(currency, sku){
   const st = shopDailyState();
   if(st.bought[sku]){ toast('本日は購入済みです'); return; }
-  let itemKey, qty, price;
-  const matM = /^mat:(el|sp|ro):([a-z]+):([1-3])$/.exec(sku);
-  if(matM){
-    itemKey = matKey(matM[1], matM[2], Number(matM[3]));
-    qty = 1;
-    price = SHOP_MAT_PRICE[Number(matM[3])];
-  }else{
-    const list = currency === 'gold' ? SHOP_GOLD_ITEMS : SHOP_PVP_ITEMS;
-    const def = list.find(x => x.sku === sku);
-    if(!def) return;
-    itemKey = def.itemKey; qty = def.qty;
-    price = currency === 'gold' ? shopGoldPrice(def) : def.price;
-  }
+  const list = currency === 'gold' ? SHOP_GOLD_ITEMS : SHOP_PVP_ITEMS;
+  const def = list.find(x => x.sku === sku);
+  if(!def) return;
+  const itemKey = def.itemKey, qty = def.qty;
+  const price = currency === 'gold' ? shopGoldPrice(def) : def.price;
   const balance = currency === 'gold' ? (STATE.gold || 0) : (STATE.pvpPoints || 0);
   if(balance < price){ toast(currency === 'gold' ? 'ゴールドが足りません' : 'PVPポイントが足りません'); return; }
   if(currency === 'gold') addGold(-price); else STATE.pvpPoints -= price;
@@ -6413,7 +6402,6 @@ function renderBase(){
 }
 
 let shopTab = 'gold';
-let shopMatFam = 'el';
 function renderShop(){
   const saleSku = todaysSaleSku();
   const goldRow = def => {
@@ -6436,26 +6424,6 @@ function renderShop(){
         <button class="btn btn-sm ${bought || (STATE.pvpPoints || 0) < def.price ? 'btn-ghost' : ''}" data-shop-buy="pvp:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
       </div>`;
   };
-  const fam = MAT_FAMILIES[shopMatFam];
-  const matGrid = `
-    <div class="shop-section-title">育成素材</div>
-    <div class="alc-tabs">
-      ${Object.entries(MAT_FAMILIES).map(([k, x]) => `<button class="stage-tab ${shopMatFam === k ? 'on' : ''}" data-shop-mat-fam="${k}">${x.label}</button>`).join('')}
-    </div>
-    <div class="alc-list">
-      ${fam.kinds().map(kind => `
-        <div class="alc-row">
-          <span class="alc-name">${fam.icon(kind)}${fam.name(kind)}</span>
-          <span class="alc-btns">
-            ${[1, 2, 3].map(t => {
-              const sku = matShopSku(shopMatFam, kind, t);
-              const bought = shopBought(sku);
-              const price = SHOP_MAT_PRICE[t];
-              return `<button class="btn btn-sm ${bought || (STATE.gold || 0) < price ? 'btn-ghost' : ''}" data-shop-buy="gold:${sku}" ${bought ? 'disabled' : ''} title="${fam.name(kind)} Tier${TIER_LABEL[t]}">${TIER_LABEL[t]} ${goldText(price)}</button>`;
-            }).join('')}
-          </span>
-        </div>`).join('')}
-    </div>`;
   return `
     <div class="screen-head">
       <div class="screen-title">ショップ</div>
@@ -6468,7 +6436,6 @@ function renderShop(){
     ${shopTab === 'gold' ? `
       <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。本日の特売品は${Math.round(SHOP_SALE_DISCOUNT * 100)}%引きです。</div>
       <div class="panel facility">${SHOP_GOLD_ITEMS.map(goldRow).join('')}</div>
-      <div class="panel facility">${matGrid}</div>
     ` : `
       <div class="screen-sub">PVPの勝敗で得たPVPポイントと交換できます(1商品1日1回まで)。</div>
       <div class="panel facility">${SHOP_PVP_ITEMS.map(pvpRow).join('')}</div>
@@ -12137,8 +12104,6 @@ function handlePhoneClick(ev){
   if(craftEl){ const [f, k, tier] = craftEl.dataset.craft.split(':'); craftMat(f, k, Number(tier), 'max'); return; }
   const shopTabEl = t.closest('[data-shop-tab]');
   if(shopTabEl){ shopTab = shopTabEl.dataset.shopTab; render(); return; }
-  const shopMatFamEl = t.closest('[data-shop-mat-fam]');
-  if(shopMatFamEl){ shopMatFam = shopMatFamEl.dataset.shopMatFam; render(); return; }
   const shopBuyEl = t.closest('[data-shop-buy]');
   if(shopBuyEl){
     const raw = shopBuyEl.dataset.shopBuy;

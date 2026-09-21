@@ -5,8 +5,8 @@
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
-  buyShopItem, shopBought, shopDailyState, todaysSaleSku, shopGoldPrice, matShopSku,
-  SHOP_GOLD_ITEMS, SHOP_PVP_ITEMS, SHOP_MAT_PRICE, MAT_FAMILIES,
+  buyShopItem, shopBought, shopDailyState, todaysSaleSku, shopGoldPrice,
+  SHOP_GOLD_ITEMS, SHOP_PVP_ITEMS,
   getItem, addGold, addItem, currentDayKey,
 };`);
 const E = global.__e;
@@ -46,15 +46,6 @@ S.gold = 1e9;
 const goldBeforeSale = S.gold;
 E.buyShopItem('gold', saleSku);
 ok('特売価格が実際に請求される', S.gold === goldBeforeSale - discounted, [goldBeforeSale, S.gold, discounted]);
-
-// --- gold shop: material purchase (el/sp/ro Tier I-III) ---
-S.gold = 1e9;
-const elKind = E.MAT_FAMILIES.el.kinds()[0];
-const matSku = E.matShopSku('el', elKind, 2);
-const matKeyStr = `el_${elKind}_2`;
-const matBefore = E.getItem(matKeyStr);
-E.buyShopItem('gold', matSku);
-ok('育成素材(Tier II)を購入できる', E.getItem(matKeyStr) === matBefore + 1 && S.gold === 1e9 - E.SHOP_MAT_PRICE[2], E.getItem(matKeyStr));
 
 // --- daily reset: an old shopDaily key clears the bought map ---
 E.shopDailyState().key = '2000-1-1';
