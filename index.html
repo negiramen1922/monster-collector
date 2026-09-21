@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.024';
+const GAME_VERSION = 'α0.0.025';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -11451,7 +11451,10 @@ function showBattleResult(tab){
   const layer = document.getElementById('modal-layer');
   const isDungeon = b.stage.type === 'dungeon';
   const mains = STAGES.filter(st => st.type === 'main');
-  const nextCandidate = isDungeon ? null : mains[mains.indexOf(b.stage) + 1];
+  // only a real main-quest stage has a "next stage" in this list; anything else (event,
+  // dungeon) isn't in `mains` at all, so indexOf would return -1 and mains[-1+1] would
+  // wrongly resolve to mains[0] - the very first tutorial stage.
+  const nextCandidate = b.stage.type === 'main' ? mains[mains.indexOf(b.stage) + 1] : null;
   const nextStage = nextCandidate && stageUnlocked(nextCandidate) ? nextCandidate : null;
   const retryBlocked = false;
   const timedOut = !b.win && !allDead(b.party);
