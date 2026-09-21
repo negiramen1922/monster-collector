@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.023';
+const GAME_VERSION = 'α0.0.024';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -11427,6 +11427,15 @@ function renderBattleReport(b){
     </div>`;
   return `
     <div class="battle-report">
+      ${topDealer && topDealer.report.dealt > 0 ? `
+        <div class="panel panel-tight mvp-card">
+          <img src="${imgSrc(topDealer.ref)}" alt="">
+          <div class="mvp-body">
+            <div class="mvp-tag pixel">MVP</div>
+            <div class="mvp-name">${topDealer.name}</div>
+            <div class="mvp-line">与ダメージ ${topDealer.report.dealt.toLocaleString()}・必殺技 ${topDealer.report.ults || 0}回</div>
+          </div>
+        </div>` : ''}
       ${barSection('与えたダメージ', 'dealt', 'dealt', 'やけど・追撃を含む')}
       ${barSection('受けたダメージ', 'taken', 'taken')}
       ${healSection}
@@ -11487,7 +11496,6 @@ function showBattleResult(tab){
           </div>
         </div>`;
     }).join('');
-    const mvp = b.party.slice().sort((x, y) => y.report.dealt - x.report.dealt)[0];
     const dmgMax = Math.max(1, ...b.party.map(u => u.report.dealt));
     body = `
       ${joinCards}
@@ -11500,15 +11508,6 @@ function showBattleResult(tab){
         <div class="mc-head">獲得</div>
         <div class="gain-row">${gainChips || '<span class="rf-none">なし</span>'}</div>
       </div>
-      ${mvp && mvp.report.dealt > 0 ? `
-        <div class="panel panel-tight mvp-card">
-          <img src="${imgSrc(mvp.ref)}" alt="">
-          <div class="mvp-body">
-            <div class="mvp-tag pixel">MVP</div>
-            <div class="mvp-name">${mvp.name}</div>
-            <div class="mvp-line">与ダメージ ${mvp.report.dealt.toLocaleString()}・必殺技 ${mvp.report.ults || 0}回</div>
-          </div>
-        </div>` : ''}
       <div class="panel panel-tight dmg-card">
         <div class="mc-head">与ダメージ</div>
         ${b.party.map(u => `
