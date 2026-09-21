@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.016';
+const GAME_VERSION = 'α0.0.017';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5854,6 +5854,7 @@ const MASCOTS = {
   hinoko: { id: 'm129', name: 'ヒノコ' },   // battle tutorial (energetic, tu1-3)
   hanoko: { id: 'm86',  name: 'ハノコ' },   // monster detail screen (caring)
   ketsy:  { id: 'm55',  name: 'ケットシー' }, // welcome message, missions (gentlemanly)
+  pixie:  { id: 'm133', name: 'ピクシー' }, // relic dex screen (cheerful)
 };
 
 /* ---- tutorial texts (narrated by ヒノコ) ---- */
@@ -6532,6 +6533,9 @@ function goto(screen){
   clearStageFx();
   closeLogSheet();
   render();
+  if(screen === 'relics' && (!STATE.guidesSeen || !STATE.guidesSeen.relics)){
+    openGuideToast('pixie', GUIDE_CONTENT.relics.steps, { key: 'relics' });
+  }
 }
 
 function toast(msg){
@@ -13425,6 +13429,13 @@ const GUIDE_CONTENT = {
   tutorialDone: {
     steps: [
       { title: 'おつかれさま!', body: `戦闘チュートリアルはここまで!おつかれさまでした。これからの冒険の足しに、${CRYSTAL_ICON}3200個を受け取ってね。ここから先は自分の力で進んでいこう!` },
+    ],
+  },
+  relics: {
+    steps: [
+      { body: 'わたしピクシー。ここが遺物図鑑だよ。「遺物」はモンスターに1個だけ装備できる特別なアイテムで、ステータスを底上げしてくれるの。' },
+      { body: 'カードをタップすると詳細が見られるよ。持っている遺物はレベルやスキルを強化できるし、遺物ガチャで手に入れられるの。', highlight: '.relic-grid' },
+      { body: '装備はモンスターの詳細画面にある「遺物」枠からできるよ。お気に入りの子を、もっと強くしてあげてね!' },
     ],
   },
 };
