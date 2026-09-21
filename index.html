@@ -680,6 +680,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 @keyframes pop{ to{ opacity:1; transform:scale(1);} }
 .result-card img{ width:100%; aspect-ratio:1/1; object-fit:contain; image-rendering:pixelated;}
+.result-card img.ico{ width:100% !important; height:auto !important; aspect-ratio:1/1 !important; }
 .result-card .name{ font-size:9.5px; font-weight:700; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .result-card .star{ font-size:9px; color:var(--gold); font-weight:800; }
 .result-grid.many{ grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; }
@@ -732,6 +733,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .fly-egg.egg-gold{ background:linear-gradient(160deg,#ffe9a8,#c98f2e); }
 .fly-egg.egg-rainbow{ background:linear-gradient(160deg,#fff3d2,#ffd9f0 35%,#cfe9ff 65%,#e8ffd9);
   box-shadow:0 0 18px 2px rgba(255,255,255,.8); }
+/* relic pulls: a squatter, urn-like silhouette instead of the egg-oval */
+.fly-egg.fly-jar{ width:30px; height:38px; margin-left:-15px; border-radius:35% 35% 45% 45% / 45% 45% 55% 55%; }
 @keyframes flyout{
   0%{ opacity:0; transform:translate(0,0) scale(.2) rotate(0); }
   18%{ opacity:1; }
@@ -775,6 +778,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .cut-dup{ font-size:9px; font-weight:800; padding:2px 8px; border-radius:7px; background:rgba(15,12,26,.5); color:#dcd3f3; }
 .cut-mon{ width:172px; height:172px; object-fit:contain; image-rendering:pixelated;
   animation:hatch .5s cubic-bezier(.2,1.5,.4,1); filter:drop-shadow(0 6px 18px rgba(0,0,0,.5)); }
+/* relic pull results reuse .egg-mon/.cut-mon for layout+animation, but their icon is an
+   <img> wrapped in this span (character pulls put the <img> there directly) - so those
+   dimensions/animations apply to the span, and this just fills it with the icon. */
+.pull-relic-ic{ display:flex; align-items:center; justify-content:center; }
+.pull-relic-ic img.ico{ width:100% !important; height:100% !important; object-fit:contain; image-rendering:pixelated; }
 .cut-mon.legend{ width:232px; height:232px; animation-duration:.6s;
   filter:drop-shadow(0 0 22px rgba(255,255,255,.85)) drop-shadow(0 8px 22px rgba(0,0,0,.5)); }
 @keyframes hatch{ 0%{ opacity:0; transform:scale(.25);} 55%{ opacity:1; transform:scale(1.25);} 100%{ opacity:1; transform:scale(1);} }
@@ -850,6 +858,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gr-banner{ font-size:10.5px; color:var(--dim); text-align:center; margin:7px 0 12px; }
 .gr-best{ display:flex; align-items:center; gap:11px; text-align:left; margin-bottom:10px; border-color:rgba(232,180,85,.5); }
 .gr-best img{ width:78px; height:78px; flex:none; object-fit:contain; image-rendering:pixelated; }
+.gr-best img.ico{ width:78px !important; height:78px !important; }
 .gr-best-body{ flex:1; min-width:0; }
 .gr-best-top{ display:flex; align-items:center; gap:7px; }
 .gr-best-top .star{ font-size:11px; letter-spacing:-.5px; color:var(--gold); }
@@ -986,7 +995,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-slot-sub{ font-size:10.5px; color:var(--dim); margin-top:2px; }
 .relic-slot-arrow{ color:var(--dim); font-size:16px; flex:none; }
 
-.relic-picker-modal, .relic-upgrade-modal, .relic-pull-result{ text-align:left; }
+.relic-picker-modal, .relic-upgrade-modal{ text-align:left; }
 .relic-list{ display:flex; flex-direction:column; gap:8px; margin-top:8px; max-height:60vh; overflow-y:auto; }
 .relic-row{
   display:flex; align-items:center; gap:10px; width:100%; text-align:left;
@@ -1087,18 +1096,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gacha-kind-tabs{ display:flex; gap:6px; margin-bottom:10px; }
 .gacha-kind-tabs .stage-tab{ flex:1; }
 .relic-recent-ic{ font-size:22px; }
-.relic-pull-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin:10px 0 14px; }
-.relic-pull-cell{
-  background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 6px;
-  text-align:center;
-  opacity:0; transform:scale(.6); animation:pop .38s cubic-bezier(.2,1.4,.4,1) forwards;
-}
-.relic-pull-cell.r5{ border-color:var(--r5); box-shadow:0 0 16px -8px rgba(232,180,85,.7); }
-.relic-pull-cell.r4{ border-color:var(--r4); }
-.relic-pull-ic{ font-size:26px; }
-.relic-pull-name{ font-size:10.5px; font-weight:700; margin-top:4px; }
-.relic-pull-star{ font-size:10px; color:var(--gold); margin-top:2px; }
-.relic-pull-tag{ font-size:9px; color:var(--dim); margin-top:2px; }
 
 /* ---- treasure chest gacha presentation (relic gacha + both friend-point gachas).
    Note: named tchest-* (not chest-*) because .chest-box/.chest-glow are already used by
@@ -2394,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.032';
+const GAME_VERSION = 'α0.0.034';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7213,31 +7210,61 @@ function tapChestStage(){
   if(pendingChestOpen) pendingChestOpen();
 }
 
-function relicPullResultHtml(results){
-  return `
-    <div class="result-modal relic-pull-result" role="dialog" aria-label="遺物ガチャ結果">
-      <button class="fs-close" id="close-result" aria-label="閉じる">×</button>
-      <h3>遺物ガチャ結果</h3>
-      <div class="relic-pull-grid">
-        ${results.map((r, i) => `
-          <div class="relic-pull-cell r${r.def.star}" style="animation-delay:${i * 70}ms">
-            <div class="relic-pull-ic">${r.def.icon}</div>
-            <div class="relic-pull-name">${r.def.name}</div>
-            <div class="relic-pull-star">★${r.def.star}</div>
-            <div class="relic-pull-tag">${r.isNew ? 'NEW' : '凸+1'}</div>
-          </div>`).join('')}
+// mirrors showGachaResults() below (same gr-*/result-card classes) so the final relic
+// screen reads as one system with the character gacha's, not a bolted-on second design.
+function showRelicGachaFinalResult(results){
+  const layer = document.getElementById('modal-layer');
+  const best = results.slice().sort((a, b) => b.def.star - a.def.star || (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0))[0];
+  const newCount = results.filter(r => r.isNew).length;
+  const again = results.length === 10 ? PULL10_COST : PULL_COST;
+  layer.innerHTML = `
+    <div class="result-modal gacha-result ${best.def.star >= 5 ? 'best5' : best.def.star >= 4 ? 'best4' : ''}">
+      <div class="gr-title pixel">RESULT</div>
+      <div class="gr-banner">${pullBannerTitle('relic')}</div>
+
+      <div class="panel panel-tight gr-best r${best.def.star}">
+        ${best.def.icon}
+        <div class="gr-best-body">
+          <div class="gr-best-top">
+            <span class="star r${best.def.star}">${'★'.repeat(best.def.star)}</span>
+            ${best.isNew ? '<span class="rc-new">NEW</span>' : '<span class="rc-dup">重複</span>'}
+          </div>
+          <div class="gr-best-name">${best.def.name}</div>
+          <div class="gr-best-sub">${best.isNew ? '新しい遺物を手に入れました' : '凸+1'}</div>
+        </div>
       </div>
-      <div class="ss-actions">
+
+      <div class="panel panel-tight gr-gains">
+        <div class="mc-head">獲得内容</div>
+        <div class="result-grid ${results.length > 3 ? 'many' : ''}">
+          ${results.map((r, i) => `
+            <div class="result-card r${r.def.star} ${r.isNew ? '' : 'dup'}" style="animation-delay:${i * 60}ms" title="${r.def.name}">
+              ${r.def.icon}
+              <div class="star">${'★'.repeat(r.def.star)}</div>
+              <div class="rc-badge ${r.isNew ? 'new' : ''}">${r.isNew ? 'NEW' : '凸+1'}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="gr-chips">
+        ${newCount ? `<span class="gain-chip"><b class="gr-new">NEW</b> 新規 ${newCount}個</span>` : ''}
+      </div>
+
+      <div class="br-buttons">
         <button class="btn btn-ghost" id="close-result">閉じる</button>
-        <button class="btn" data-relic-pull-again="${results.length}">もう一度引く</button>
+        <button class="btn ${(STATE.crystals || 0) >= again ? '' : 'btn-ghost'}" data-relic-pull-again="${results.length}" ${(STATE.crystals || 0) >= again ? '' : 'disabled'}>
+          もう一度 ${CRYSTAL_ICON}${again.toLocaleString()}
+        </button>
       </div>
-    </div>`;
+    </div>
+  `;
+  layer.classList.add('show');
 }
 function doRelicPullAndShow(times, cost){
   const results = doRelicPull(times, cost);
   if(!results) return;
-  const topTier = Math.max(...results.map(r => r.def.star));
-  showChestGacha(results, topTier, relicPullResultHtml);
+  showGachaEggs(results, null, 'relic');
   render();
 }
 function renderMonGacha(){
@@ -7505,17 +7532,67 @@ function eggSvg(rarity){
       </g>
     </svg>`;
 }
+// relic pulls: an ancient urn instead of an egg (relics are found, not hatched) - reuses
+// the egg-top/egg-bottom/egg-spot/egg-shards class names so every existing crack/lid-flip/
+// shard-fly animation keeps working unchanged, only the silhouette underneath differs.
+function jarSvg(rarity){
+  const cls = eggClass(rarity);
+  return `
+    <svg class="egg-svg jar-svg ${cls}" viewBox="0 0 100 130" aria-hidden="true">
+      <defs>
+        <linearGradient id="eg-jar-${cls}" x1="0" y1="0" x2="0.4" y2="1">
+          ${rarity >= 5
+            ? '<stop offset="0" stop-color="#ff8fd0"/><stop offset=".3" stop-color="#ffe06a"/><stop offset=".6" stop-color="#7ee07a"/><stop offset="1" stop-color="#6fb7ff"/>'
+            : rarity >= 3
+              ? '<stop offset="0" stop-color="#ffe9a8"/><stop offset=".5" stop-color="#e8b455"/><stop offset="1" stop-color="#a9741f"/>'
+              : '<stop offset="0" stop-color="#bfe6ff"/><stop offset=".5" stop-color="#5aa6e8"/><stop offset="1" stop-color="#2a5fa0"/>'}
+        </linearGradient>
+      </defs>
+      <g class="egg-body">
+        <path class="egg-top" d="M40 8h20l3 9-3 9H40l-3-9Z M32 26h36l4 12H28Z" fill="url(#eg-jar-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
+        <path class="egg-bottom" d="M28 38C16 50 14 68 18 82 21 94 28 104 35 110L65 110C72 104 79 94 82 82 86 68 84 50 72 38Z" fill="url(#eg-jar-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
+        <ellipse class="egg-spot" cx="36" cy="68" rx="7" ry="15" fill="rgba(255,255,255,.3)"/>
+        <ellipse class="egg-spot2" cx="64" cy="95" rx="5" ry="8" fill="rgba(255,255,255,.18)"/>
+      </g>
+      <g class="egg-shards">
+        ${[0, 1, 2, 3, 4, 5].map(i => `<rect class="shard s${i}" x="46" y="60" width="9" height="9" rx="2" fill="url(#eg-jar-${cls})"/>`).join('')}
+      </g>
+    </svg>`;
+}
 // summon: treasure chest -> eggs fly out -> one egg opens at a time -> cut-ins -> result
-let gachaSeq = null;   // { results, before, phase, opened, just, cut, timer }
+// shared between the monster gacha ('mon', results shaped like grantMonster()) and the
+// relic gacha ('relic', results shaped like grantRelic() = {def, isNew}) - these accessors
+// are the only place that shape difference is read, everything else in the sequence just
+// calls pullRarity()/pullIconHtml()/etc and doesn't care which kind it's showing.
+let gachaSeq = null;   // { results, before, phase, opened, just, cut, kind, timer }
 const REVEAL_STEP = 430;
 
-function eggFace(r, i, state){
+function pullRarity(kind, r){ return kind === 'relic' ? r.def.star : r.mon.rarity; }
+function pullIconHtml(kind, r, cls){
+  return kind === 'relic' ? `<span class="${cls} pull-relic-ic">${r.def.icon}</span>` : `<img class="${cls}" src="${imgSrc(r.mon.id)}" alt="${r.mon.name}">`;
+}
+function pullSubLine(kind, r){
+  return kind === 'relic' ? (r.isNew ? '新しい遺物を手に入れました' : '重複 → 凸+1') : (r.isNew ? '新しく仲間になりました' : `ソウル+${r.souls}`);
+}
+function pullBadgeHtml(kind, r){
+  if(r.isNew) return '<span class="cut-new">NEW</span>';
+  return kind === 'relic' ? '<span class="cut-dup">凸+1</span>' : `<span class="cut-dup">重複 ${UNIVERSAL_ICON}+${r.universal}</span>`;
+}
+function pullBannerTitle(kind){
+  if(kind === 'relic'){
+    const rel = exclusiveRelicForMon(currentBanner().pickup);
+    return rel ? rel.name : currentBanner().name;
+  }
+  return MON_BY_ID[currentBanner().pickup].name;
+}
+
+function eggFace(r, i, state, kind){
   // state: 'egg' (closed) | 'next' (about to open) | 'open'
-  const rarity = r.mon.rarity;
+  const rarity = pullRarity(kind, r);
   return `
     <div class="egg-slot ${eggClass(rarity)} ${state}" style="--i:${i}">
-      ${eggArt(rarity) || eggSvg(rarity)}
-      <img class="egg-mon" src="${imgSrc(r.mon.id)}" alt="${r.mon.name}">
+      ${kind === 'relic' ? jarSvg(rarity) : (eggArt(rarity) || eggSvg(rarity))}
+      ${pullIconHtml(kind, r, 'egg-mon')}
       <div class="egg-star">${'★'.repeat(rarity)}</div>
       ${state === 'open' && r.isNew ? '<span class="egg-new">NEW</span>' : ''}
     </div>`;
@@ -7533,24 +7610,26 @@ function gachaChestHtml(n){
       ${Array.from({ length: n }, (_, i) => {
         const col = i % 5, row = Math.floor(i / 5);
         const r = gachaSeq.results[i];
-        return `<div class="fly-egg ${eggClass(r.mon.rarity)}" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; animation-delay:${300 + i * 70}ms"></div>`;
+        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} ${eggClass(pullRarity(gachaSeq.kind, r))}" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; animation-delay:${300 + i * 70}ms"></div>`;
       }).join('')}
     </div>`;
 }
 
-function cutInHtml(r, kind){
-  const m = r.mon;
+function cutInHtml(r, phaseKind, kind){
+  const rarity = pullRarity(kind, r);
+  const name = kind === 'relic' ? r.def.name : r.mon.name;
+  const extra = kind === 'relic' ? '' : `・${ELEM_LABEL[r.mon.element]}／${ROLE_LABEL[r.mon.role]}`;
   return `
-    <div class="cut-stage ${kind}">
+    <div class="cut-stage ${phaseKind}">
       <div class="cut-rays"></div>
       <div class="cut-body">
         <div class="cut-badges">
-          <span class="cut-star pixel">★ ${m.rarity}</span>
-          ${r.isNew ? '<span class="cut-new">NEW</span>' : `<span class="cut-dup">重複 ${UNIVERSAL_ICON}+${r.universal}</span>`}
+          <span class="cut-star pixel">★ ${rarity}</span>
+          ${pullBadgeHtml(kind, r)}
         </div>
-        <img class="cut-mon ${kind}" src="${imgSrc(m.id)}" alt="${m.name}">
-        <div class="cut-name ${kind}">${m.name}</div>
-        <div class="cut-sub">${r.isNew ? '新しく仲間になりました' : `ソウル+${r.souls}`}・${ELEM_LABEL[m.element]}／${ROLE_LABEL[m.role]}</div>
+        ${pullIconHtml(kind, r, `cut-mon ${phaseKind}`)}
+        <div class="cut-name ${phaseKind}">${name}</div>
+        <div class="cut-sub">${pullSubLine(kind, r)}${extra}</div>
       </div>
       <div class="cut-tap">タップして続ける</div>
     </div>`;
@@ -7567,18 +7646,18 @@ function renderGachaStage(){
       ${gachaChestHtml(n)}
       <div class="summon-cap"><div class="pixel">SUMMONING</div><div class="summon-tap">タップでスキップ</div></div>`;
   }else if(g.phase === 'rare' || g.phase === 'legend'){
-    inner = cutInHtml(g.results[g.cut], g.phase === 'legend' ? 'legend' : 'rare');
+    inner = cutInHtml(g.results[g.cut], g.phase === 'legend' ? 'legend' : 'rare', g.kind);
   }else{
     inner = `
       <div class="reveal-head">
         <div>
-          <div class="reveal-title">${MON_BY_ID[currentBanner().pickup].name}</div>
-          <div class="reveal-sub">${n}連召喚・卵の色がレア度です</div>
+          <div class="reveal-title">${pullBannerTitle(g.kind)}</div>
+          <div class="reveal-sub">${n}連召喚・${g.kind === 'relic' ? '壺' : '卵'}の色がレア度です</div>
         </div>
         <button class="btn btn-ghost btn-sm" data-gacha-skip="1">スキップ</button>
       </div>
       <div class="reveal-grid ${n > 3 ? 'many' : 'one'}">
-        ${g.results.map((r, i) => eggFace(r, i, i < g.opened ? 'open' : i === g.opened ? 'next' : 'egg')).join('')}
+        ${g.results.map((r, i) => eggFace(r, i, i < g.opened ? 'open' : i === g.opened ? 'next' : 'egg', g.kind)).join('')}
       </div>`;
   }
   layer.innerHTML = `<div class="gacha-stage ph-${g.phase}" data-gacha-stage="1">${inner}</div>`;
@@ -7590,9 +7669,9 @@ function renderGachaStage(){
   }
 }
 
-function showGachaEggs(results, before){
+function showGachaEggs(results, before, kind){
   clearTimeout(gachaTimer);
-  gachaSeq = { results, before, phase: 'summon', opened: 0, just: null, cut: null };
+  gachaSeq = { results, before, phase: 'summon', opened: 0, just: null, cut: null, kind: kind || 'mon' };
   renderGachaStage();
   playSfx('open');
   gachaTimer = setTimeout(() => {
@@ -7609,16 +7688,17 @@ function openNextEgg(){
   if(g.opened >= g.results.length){ finishReveal(); return; }
   const i = g.opened;
   const r = g.results[i];
+  const rarity = pullRarity(g.kind, r);
   g.opened += 1;
   g.just = i;
   renderGachaStage();
-  playSfx(r.mon.rarity >= 5 ? 'boss' : r.mon.rarity >= 4 ? 'confirm' : 'open');
-  if(r.mon.rarity >= 5){
+  playSfx(rarity >= 5 ? 'boss' : rarity >= 4 ? 'confirm' : 'open');
+  if(rarity >= 5){
     gachaFlash('white');
     gachaTimer = setTimeout(() => { if(!gachaSeq) return; gachaSeq.phase = 'legend'; gachaSeq.cut = i; renderGachaStage(); }, 620);
     return;
   }
-  if(r.mon.rarity === 4){
+  if(rarity === 4){
     gachaTimer = setTimeout(() => {
       if(!gachaSeq) return;
       gachaSeq.phase = 'rare'; gachaSeq.cut = i; renderGachaStage();
@@ -7654,7 +7734,7 @@ function skipGacha(){
   const g = gachaSeq;
   if(!g) return;
   clearTimeout(gachaTimer);
-  const firstFive = g.results.findIndex((r, i) => i >= g.opened && r.mon.rarity >= 5);
+  const firstFive = g.results.findIndex((r, i) => i >= g.opened && pullRarity(g.kind, r) >= 5);
   g.opened = g.results.length;
   if(firstFive >= 0){
     g.phase = 'legend'; g.cut = firstFive;
@@ -7688,10 +7768,11 @@ function gachaFlash(kind){
 let gachaTimer = null;
 function finishGachaEggs(){
   if(!gachaSeq) return;
-  const { results, before } = gachaSeq;
+  const { results, before, kind } = gachaSeq;
   gachaSeq = null;
   clearTimeout(gachaTimer);
-  showGachaResults(results, before);
+  if(kind === 'relic') showRelicGachaFinalResult(results);
+  else showGachaResults(results, before);
 }
 
 function showGachaResults(results, before){
@@ -12829,6 +12910,8 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 24, version: 'α0.0.034', date: '9/21', body: '遺物ガチャの演出で、卵だった見た目を壺に変更しました。' },
+  { id: 23, version: 'α0.0.033', date: '9/21', body: '遺物ガチャの演出をキャラガチャと同じ卵の開封演出に刷新。★5(虹)が出た時の特別なカットインも追加しました。' },
   { id: 22, version: 'α0.0.032', date: '9/21', body: 'お助けキャラをフレンドが借りてクエストで使うと、貸した側にフレンドポイントが届くように。何回使われて何FP獲得したかもフレンド画面で確認できます。リンク共有時のサムネイル表記を修正。' },
   { id: 21, version: 'α0.0.031', date: '9/21', body: 'お知らせに「アップデート内容」タブを追加。バージョンごとの変更履歴をここにまとめました。' },
   { id: 20, version: 'α0.0.030', date: '9/21', body: 'フレンド一覧からフレンドのプロフィール(アバター・図鑑数・クリア数など)を見られるように。フレンドのアイコンが表示されない不具合を修正。フレンドコードのコピーボタンを追加。水晶でスタミナ回復・PVP挑戦券を購入できる水晶ショップを追加。' },
