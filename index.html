@@ -2394,7 +2394,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.028';
+const GAME_VERSION = 'α0.0.030';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3326,6 +3326,7 @@ async function publishProfile(){
       level: STATE ? tamerLevel().lv : 1,
       monsters: STATE ? Object.keys(STATE.owned).length : 0,
       cleared: STATE ? STATE.clearedStages.length : 0,
+      avatar: STATE ? profileAvatar() : null,
       support,
       defense: buildDefenseSnapshot(),
       rand: Math.random(),
@@ -3340,6 +3341,7 @@ const pvpAvailable = () => typeof authBackend().fetchPvpOpponents === 'function'
 // shared by every sanitizer below: untrusted cross-account data (another player's
 // published doc) must never be able to crash a screen or hand out absurd stats.
 function clampInt(v, lo, hi, dflt){ const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt; }
+function sanitizeAvatar(raw){ return (typeof raw === 'string' && MON_BY_ID[raw]) ? raw : null; }
 function sanitizeSupport(raw){
   if(!raw || !MON_BY_ID[raw.id]) return null;
   return {
@@ -3400,6 +3402,9 @@ async function addFriendByCode(code){
       name: String(p.name || 'テイマー').slice(0, 20),
       level: Math.max(1, Math.min(999, Number(p.level) || 1)),
       support: sanitizeSupport(p.support),
+      avatar: sanitizeAvatar(p.avatar),
+      monsters: clampInt(p.monsters, 0, MONSTERS.length, 0),
+      cleared: clampInt(p.cleared, 0, STAGES.length, 0),
       lastActive: sanitizeLastActive(p.updatedAt),
     });
     saveState();
@@ -3423,6 +3428,9 @@ async function refreshFriendProfiles(){
     f.lastActive = sanitizeLastActive(p.updatedAt);
     f.level = Math.max(1, Math.min(999, Number(p.level) || f.level || 1));
     f.support = sanitizeSupport(p.support);
+    f.avatar = sanitizeAvatar(p.avatar);
+    f.monsters = clampInt(p.monsters, 0, MONSTERS.length, f.monsters || 0);
+    f.cleared = clampInt(p.cleared, 0, STAGES.length, f.cleared || 0);
     changed = true;
   });
   if(changed){ saveState(); render(); }
@@ -4145,6 +4153,26 @@ function buyShopItem(currency, sku){
   st.bought[sku] = true;
   playSfx('buff');
   toast(`${itemName(itemKey)}${qty > 1 ? `×${qty}` : ''}を購入しました`);
+  saveState();
+  render();
+}
+
+/* ---- crystal shop: spend water crystals on a stamina refill or extra PVP challenges.
+   unlike the gold/PVP-point shops above, these aren't capped to 1/day - they're meant
+   to be repeatable, like a stamina potion. ---- */
+const SHOP_CRYSTAL_ITEMS = [
+  { sku: 'stamina', label: 'スタミナ回復', icon: '⚡', price: 100, qty: 150 },
+  { sku: 'pvp_ticket', label: 'PVP挑戦券', icon: '🏆', price: 180, qty: 3 },
+];
+function buyCrystalItem(sku){
+  const def = SHOP_CRYSTAL_ITEMS.find(x => x.sku === sku);
+  if(!def) return;
+  if((STATE.crystals || 0) < def.price){ toast('水晶が足りません'); return; }
+  STATE.crystals -= def.price;
+  if(sku === 'stamina') grantStamina(def.qty);
+  else if(sku === 'pvp_ticket') ensurePvpDaily().bonus = (ensurePvpDaily().bonus || 0) + def.qty;
+  playSfx('buff');
+  toast(`${def.label}(+${def.qty})を購入しました`);
   saveState();
   render();
 }
@@ -6267,7 +6295,7 @@ function renderPvp(){
     </div>
     <div class="panel">
       <div class="row-between">
-        <span>本日の挑戦回数</span><b>${left} / ${PVP_DAILY_MAX}</b>
+        <span>本日の挑戦回数</span><b>${left} / ${pvpDailyMax()}</b>
       </div>
     </div>
     <div class="panel">
@@ -6440,21 +6468,31 @@ function renderShop(){
         <button class="btn btn-sm ${bought || (STATE.pvpPoints || 0) < def.price ? 'btn-ghost' : ''}" data-shop-buy="pvp:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
       </div>`;
   };
+  const crystalRow = def => `
+      <div class="shop-row">
+        <span class="shop-item">${def.icon}<span class="shop-item-name">${def.label}(+${def.qty})</span></span>
+        <span class="shop-price">${CRYSTAL_ICON}${def.price}</span>
+        <button class="btn btn-sm ${(STATE.crystals || 0) < def.price ? 'btn-ghost' : ''}" data-crystal-buy="${def.sku}">購入</button>
+      </div>`;
   return `
     <div class="screen-head">
       <div class="screen-title">ショップ</div>
-      <div class="base-wallet">${goldText(STATE.gold || 0)}　🏆${STATE.pvpPoints || 0}</div>
+      <div class="base-wallet">${goldText(STATE.gold || 0)}　🏆${STATE.pvpPoints || 0}　${CRYSTAL_ICON}${STATE.crystals || 0}</div>
     </div>
     <div class="shop-tabs">
       <button class="stage-tab ${shopTab === 'gold' ? 'on' : ''}" data-shop-tab="gold">ゴールドショップ</button>
       <button class="stage-tab ${shopTab === 'pvp' ? 'on' : ''}" data-shop-tab="pvp">PVPポイントショップ</button>
+      <button class="stage-tab ${shopTab === 'crystal' ? 'on' : ''}" data-shop-tab="crystal">水晶ショップ</button>
     </div>
     ${shopTab === 'gold' ? `
       <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。本日の特売品は${Math.round(SHOP_SALE_DISCOUNT * 100)}%引きです。</div>
       <div class="panel facility">${SHOP_GOLD_ITEMS.map(goldRow).join('')}</div>
-    ` : `
+    ` : shopTab === 'pvp' ? `
       <div class="screen-sub">PVPの勝敗で得たPVPポイントと交換できます(1商品1日1回まで)。</div>
       <div class="panel facility">${SHOP_PVP_ITEMS.map(pvpRow).join('')}</div>
+    ` : `
+      <div class="screen-sub">水晶でスタミナ回復・PVP挑戦券と交換できます。回数制限はありません。</div>
+      <div class="panel facility">${SHOP_CRYSTAL_ITEMS.map(crystalRow).join('')}</div>
     `}`;
 }
 
@@ -8922,10 +8960,12 @@ const PVP_WIN_POINTS = 30;
 const PVP_LOSE_POINTS = 5;
 function ensurePvpDaily(){
   const key = currentDayKey();
-  if(!STATE.pvpDaily || STATE.pvpDaily.key !== key) STATE.pvpDaily = { key, used: 0 };
+  if(!STATE.pvpDaily || STATE.pvpDaily.key !== key) STATE.pvpDaily = { key, used: 0, bonus: 0 };
   return STATE.pvpDaily;
 }
-function pvpChallengesLeft(){ return Math.max(0, PVP_DAILY_MAX - ensurePvpDaily().used); }
+// bonus: extra challenges bought with crystals (buyCrystalItem's 'pvp_ticket'), reset with the daily key above
+function pvpDailyMax(){ return PVP_DAILY_MAX + (ensurePvpDaily().bonus || 0); }
+function pvpChallengesLeft(){ return Math.max(0, pvpDailyMax() - ensurePvpDaily().used); }
 function hasPvpDefense(){ return !!(STATE.pvpDefenseSlots && STATE.pvpDefenseSlots.some(Boolean)); }
 function setPvpDefense(){
   if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
@@ -12160,6 +12200,8 @@ function handlePhoneClick(ev){
     buyShopItem(raw.slice(0, i), raw.slice(i + 1));
     return;
   }
+  const crystalBuyEl = t.closest('[data-crystal-buy]');
+  if(crystalBuyEl){ buyCrystalItem(crystalBuyEl.dataset.crystalBuy); return; }
   const dtabEl = t.closest('[data-dungeon-tab]');
   if(dtabEl){ dungeonTab = dtabEl.dataset.dungeonTab; render(); return; }
   if(t.closest('[data-open-bag]')){ bagSelect = null; renderBag(); return; }
@@ -12217,6 +12259,8 @@ function handlePhoneClick(ev){
   }
   const removeFriendEl = t.closest('[data-remove-friend]');
   if(removeFriendEl){ removeFriend(removeFriendEl.dataset.removeFriend); return; }
+  const viewFriendEl = t.closest('[data-view-friend]');
+  if(viewFriendEl){ friendProfileUid = viewFriendEl.dataset.viewFriend; overlayView = 'friend-profile'; playSfx('open'); render(); return; }
   const sendPointEl = t.closest('[data-send-friend-point]');
   if(sendPointEl){ sendFriendPoint(sendPointEl.dataset.sendFriendPoint); return; }
   if(t.closest('[data-add-friend]')){
@@ -12555,7 +12599,7 @@ function uiSfxFor(t){
   if(hit('#pull1, #pull10, #spark-btn, [data-stage], [data-start-stage], [data-claim], [data-claim-all]')) return 'confirm';
   if(hit('[data-sweep-run]')) return null; // the sweep plays its own sound
   if(hit('[data-promote]')) return 'promote';
-  if(hit('[data-levelup], [data-skill-up], [data-break-wall], [data-craft], [data-facility-up], [data-shop-buy]')) return 'buff';
+  if(hit('[data-levelup], [data-skill-up], [data-break-wall], [data-craft], [data-facility-up], [data-shop-buy], [data-crystal-buy]')) return 'buff';
   if(hit('[data-detail], [data-slot-action="detail"], [data-rf-open], [data-open-log], .mission-card')) return 'open';
   return 'tap';
 }
@@ -12744,7 +12788,8 @@ function renderAffinitySheet(){
 }
 
 /* ---------------- full-screen overlays: profile, settings, notices ---------------- */
-let overlayView = null;      // 'profile' | 'settings' | 'notices' | 'pick'
+let overlayView = null;      // 'profile' | 'settings' | 'notices' | 'pick' | 'friend-profile'
+let friendProfileUid = null; // which friend's uid renderFriendProfileOverlay() shows
 let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
@@ -12795,6 +12840,7 @@ function openOverlay(view){
 }
 function closeOverlay(){
   if(overlayView === 'pick'){ overlayView = 'profile'; pickTarget = null; render(); return; }
+  if(overlayView === 'friend-profile'){ overlayView = 'friends'; friendProfileUid = null; render(); return; }
   overlayView = null;
   pickTarget = null;
   render();
@@ -12816,6 +12862,9 @@ function renderProfileOverlay(){
   const mains = STAGES.filter(s => s.type === 'main').length;
   const power = getPartyIds().reduce((sum, id) => sum + battlePower(id), 0);
   const days = a.createdAt ? Math.max(1, Math.ceil((Date.now() - a.createdAt) / 86400000)) : 1;
+  const startedAt = a.createdAt ? new Date(a.createdAt) : null;
+  const startedAtLabel = startedAt ? `${startedAt.getFullYear()}/${startedAt.getMonth() + 1}/${startedAt.getDate()}` : '-';
+  const relicCount = ownedRelicIds().length;
   const favCell = (id, i) => id ? `
     <div class="pf-fav" data-pick="fav${i}">
       <img src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">
@@ -12849,12 +12898,16 @@ function renderProfileOverlay(){
         <div class="pf-stats">
           <div class="pf-stat" data-nav="dex" role="button"><div class="pf-stat-k">図鑑 ›</div>
             <div class="pf-stat-v">${Object.keys(STATE.owned).length}<small> / ${MONSTERS.length}</small></div></div>
+          <div class="pf-stat" data-nav="relics" role="button"><div class="pf-stat-k">遺物 ›</div>
+            <div class="pf-stat-v">${relicCount}<small> / ${Object.keys(RELICS).length}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">クリア済</div>
             <div class="pf-stat-v">${cleared}<small> / ${mains}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">パーティ総合BP</div>
             <div class="pf-stat-v gold">${power.toLocaleString()}</div></div>
           <div class="pf-stat"><div class="pf-stat-k">プレイ日数</div>
             <div class="pf-stat-v">${days}<small> 日</small></div></div>
+          <div class="pf-stat"><div class="pf-stat-k">開始日</div>
+            <div class="pf-stat-v">${startedAtLabel}</div></div>
         </div>
 
         <div class="panel">
@@ -13030,14 +13083,16 @@ function renderFriendsOverlay(){
         <div class="screen-sub" style="margin-bottom:10px;">フレンドに「ポイントを送る」と、1人1日1回、自分のフレンドポイントが+${FRIEND_POINT_PER_SEND}貯まります。フレンドガチャ(ガチャ画面)で使えます。</div>
         ${STATE.friends.length === 0
           ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。コードを教え合って追加しましょう。</div>'
-          : STATE.friends.map(f => `
+          : STATE.friends.map(f => { const icon = f.avatar || (f.support && f.support.id); return `
           <div class="panel facility" style="margin-bottom:8px;">
             <div class="fc-head">
-              <div class="fc-ic">${f.support ? `<img src="${imgSrc(f.support.id)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
-              <div class="fc-body">
-                <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
-                <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けキャラ未設定'}</div>
-                <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
+              <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer;">
+                <div class="fc-ic">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
+                <div class="fc-body">
+                  <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
+                  <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けキャラ未設定'}</div>
+                  <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
+                </div>
               </div>
               <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
                 <button class="btn btn-sm ${friendPointSentToday(f.uid) ? 'btn-ghost' : ''}" data-send-friend-point="${f.uid}" ${friendPointSentToday(f.uid) ? 'disabled' : ''}>${friendPointSentToday(f.uid) ? '送信済み' : 'ポイントを送る'}</button>
@@ -13045,9 +13100,52 @@ function renderFriendsOverlay(){
                 <button class="btn btn-ghost btn-sm" data-remove-friend="${f.uid}">削除</button>
               </div>
             </div>
-          </div>`).join('')}
-        <div class="screen-sub" style="margin-top:10px;">あなたのコード: <b>${ACCOUNT ? ACCOUNT.playerId : '-'}</b>(プロフィールから共有できます)</div>
+          </div>`; }).join('')}
+        <div class="screen-sub" style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span>あなたのコード: <b>${ACCOUNT ? ACCOUNT.playerId : '-'}</b></span>
+          <button class="btn btn-ghost btn-sm" data-share-id="1">コピー</button>
+        </div>
         `}
+      </div>
+    </div>`;
+}
+function renderFriendProfileOverlay(){
+  const f = STATE.friends.find(x => x.uid === friendProfileUid);
+  if(!f){
+    return `<div class="ov-screen">${overlayHead('プロフィール')}<div class="ov-body"><div class="screen-sub" style="margin:16px 0;">フレンドが見つかりません</div></div></div>`;
+  }
+  const icon = f.avatar || (f.support && f.support.id);
+  const mains = STAGES.filter(s => s.type === 'main').length;
+  return `
+    <div class="ov-screen">
+      ${overlayHead('フレンドのプロフィール')}
+      <div class="ov-body">
+        <div class="pf-card">
+          <div class="pf-avatar">${icon ? `<img src="${imgSrc(icon)}" alt="">` : '<span>👤</span>'}</div>
+          <div class="pf-main">
+            <div class="pf-name-row"><div class="pf-name">${escapeHtml(f.name)}</div></div>
+            <div class="pf-id">ID ${escapeHtml(f.playerId || '----')}</div>
+            <div class="pf-lv"><span class="pf-lv-num">Lv.${f.level || 1}</span></div>
+          </div>
+        </div>
+        <div class="pf-stats">
+          <div class="pf-stat"><div class="pf-stat-k">図鑑</div>
+            <div class="pf-stat-v">${f.monsters || 0}<small> / ${MONSTERS.length}</small></div></div>
+          <div class="pf-stat"><div class="pf-stat-k">クリア済</div>
+            <div class="pf-stat-v">${f.cleared || 0}<small> / ${mains}</small></div></div>
+        </div>
+        <div class="panel">
+          <div class="mc-head" style="margin-bottom:9px;">お助けキャラ</div>
+          ${f.support ? `
+            <div class="pf-favs">
+              <div class="pf-fav">
+                <img src="${imgSrc(f.support.id)}" alt="${MON_BY_ID[f.support.id].name}">
+                <div class="pf-fav-name">${MON_BY_ID[f.support.id].name}</div>
+                <div class="pf-fav-sub">★${f.support.star} Lv${f.support.level}</div>
+              </div>
+            </div>` : '<div class="ui-none">未設定</div>'}
+        </div>
+        <div class="screen-sub" style="margin-top:10px;">${lastActiveText(f.lastActive)}</div>
       </div>
     </div>`;
 }
@@ -13060,6 +13158,7 @@ function renderOverlay(){
     : overlayView === 'notices' ? renderNoticesOverlay()
     : overlayView === 'menu' ? renderMenuOverlay()
     : overlayView === 'friends' ? renderFriendsOverlay()
+    : overlayView === 'friend-profile' ? renderFriendProfileOverlay()
     : overlayView === 'gifts' ? renderGiftsOverlay()
     : renderPickOverlay();
   el.classList.add('show');

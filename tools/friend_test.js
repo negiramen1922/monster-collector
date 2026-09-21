@@ -2,11 +2,11 @@
    including defensive sanitization of another player's (untrusted) published data. */
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
-  STATE_ref: () => STATE, DEFAULT_STATE, addFriendByCode, sanitizeSupport, borrowFriendHelper,
+  STATE_ref: () => STATE, DEFAULT_STATE, addFriendByCode, sanitizeSupport, sanitizeAvatar, borrowFriendHelper,
   returnBorrowed, friendsAvailable, MON_BY_ID, setAccount: a => { ACCOUNT = a; },
   sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND, claimFriendGifts,
   pullFriendMon, pullFriendMat, doFriendPull, FRIEND_CHAR_GACHA_COST, FRIEND_MAT_GACHA_COST,
-  getItem, addItem, MONSTERS, sanitizeLastActive, lastActiveText, refreshFriendProfiles, friendNameOf,
+  getItem, addItem, MONSTERS, STAGES, sanitizeLastActive, lastActiveText, refreshFriendProfiles, friendNameOf,
 };`);
 const E = global.__e;
 
@@ -174,4 +174,50 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   S.friends = [];
   await E.addFriendByCode('abcd 1234 wxyz'); // spaces instead of hyphens
   ok('区切りがスペースでもフレンド追加できる', S.friends.some(f => f.uid === 'u-real'), S.friends);
+
+  // --- avatar: the friend list icon used to only show the お助けキャラ (support character)
+  // icon, which is blank for most friends since setting a support character is optional.
+  // publishProfile() now also publishes profileAvatar() (which always resolves to some owned
+  // monster), so the friend list can always show a real icon. sanitizeAvatar guards it the
+  // same way sanitizeSupport does: only accept a real monster id, otherwise null. ---
+  ok('sanitizeAvatar: 実在するモンスターIDはそのまま通る', E.sanitizeAvatar('m06') === 'm06');
+  ok('sanitizeAvatar: 存在しないIDはnull', E.sanitizeAvatar('not-a-real-monster') === null);
+  ok('sanitizeAvatar: 非文字列(オブジェクトなど)はnull', E.sanitizeAvatar({ id: 'm06' }) === null);
+  ok('sanitizeAvatar: nullはnull', E.sanitizeAvatar(null) === null);
+
+  global.window.__authBackend = {
+    kind: 'mock',
+    async lookupPlayer(code){
+      if(code === 'AVAT-ARXX-0001') return { uid: 'u-avatar', playerId: 'AVAT-ARXX-0001', name: 'アバター太郎', level: 7, support: null, avatar: 'm21', monsters: 12, cleared: 8 };
+      return null;
+    },
+  };
+  S.friends = [];
+  await E.addFriendByCode('AVAT-ARXX-0001');
+  const avatarFriend = S.friends.find(f => f.uid === 'u-avatar');
+  ok('お助けキャラ未設定でもavatarが保存される', avatarFriend && avatarFriend.avatar === 'm21', avatarFriend);
+  ok('monsters/clearedも保存される', avatarFriend && avatarFriend.monsters === 12 && avatarFriend.cleared === 8, avatarFriend);
+
+  // a hostile/bogus published profile must not poison our state
+  global.window.__authBackend = {
+    kind: 'mock',
+    async lookupPlayer(code){
+      if(code === 'EVIL-AVAT-AR02') return { uid: 'u-evil-avatar', playerId: 'EVIL-AVAT-AR02', name: '悪', level: 1, support: null, avatar: 'not-a-real-monster', monsters: -5, cleared: 99999999 };
+      return null;
+    },
+  };
+  S.friends = [];
+  await E.addFriendByCode('EVIL-AVAT-AR02');
+  const evilAvatarFriend = S.friends.find(f => f.uid === 'u-evil-avatar');
+  ok('不正なavatarはnullにサニタイズされる', evilAvatarFriend && evilAvatarFriend.avatar === null, evilAvatarFriend);
+  ok('monsters/clearedは範囲内にクランプされる', evilAvatarFriend && evilAvatarFriend.monsters === 0 && evilAvatarFriend.cleared === E.STAGES.length, evilAvatarFriend);
+
+  // refreshFriendProfiles also keeps avatar/monsters/cleared up to date
+  global.window.__authBackend = {
+    kind: 'mock',
+    async fetchProfiles(uids){ return uids.map(uid => ({ uid, updatedAt: Date.now(), level: 99, support: null, avatar: 'm03', monsters: 20, cleared: 15 })); },
+  };
+  await E.refreshFriendProfiles();
+  const refreshed = S.friends.find(f => f.uid === 'u-evil-avatar');
+  ok('refreshFriendProfilesでavatar/monsters/clearedも更新される', refreshed && refreshed.avatar === 'm03' && refreshed.monsters === 20 && refreshed.cleared === 15, refreshed);
 })();
