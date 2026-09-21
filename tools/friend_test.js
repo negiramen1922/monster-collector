@@ -153,4 +153,25 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   let threw = false;
   try{ E.sendFriendPoint('u-good'); await E.claimFriendGifts(); }catch(e){ threw = true; }
   ok('ギフト機能が無いバックエンドでも例外を投げない', !threw);
+
+  // --- addFriendByCode: real playerIds are "XXXX-XXXX-XXXX" (see playerIdFromUid), but the
+  // input maxlength used to be 12 (too short to even type the hyphens) and the lookup required
+  // an exact hyphenated match - so typing the code without dashes always failed. Both are fixed:
+  // the input now allows the full 14 chars, and the code is normalized (dashes/spaces/case
+  // stripped, then re-grouped into 4-4-4) before the lookup. ---
+  global.window.__authBackend = {
+    kind: 'mock',
+    async lookupPlayer(code){ return code === 'ABCD-1234-WXYZ' ? { uid: 'u-real', playerId: 'ABCD-1234-WXYZ', name: 'ハイフン太郎', level: 5, support: null } : null; },
+  };
+  S.friends = [];
+  await E.addFriendByCode('abcd1234wxyz'); // no hyphens, lowercase - what a user is likely to type
+  ok('ハイフンなし・小文字で入力してもフレンド追加できる', S.friends.some(f => f.uid === 'u-real'), S.friends);
+
+  S.friends = [];
+  await E.addFriendByCode('ABCD-1234-WXYZ'); // exact stored format still works
+  ok('ハイフン付きの正式な形式でもフレンド追加できる', S.friends.some(f => f.uid === 'u-real'), S.friends);
+
+  S.friends = [];
+  await E.addFriendByCode('abcd 1234 wxyz'); // spaces instead of hyphens
+  ok('区切りがスペースでもフレンド追加できる', S.friends.some(f => f.uid === 'u-real'), S.friends);
 })();
