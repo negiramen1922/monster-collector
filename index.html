@@ -999,41 +999,72 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-channel-badge.gacha{ background:rgba(232,180,85,.15); color:var(--gold); }
 .relic-channel-badge.dist{ background:rgba(120,170,255,.15); color:#8ab4ff; }
 /* 遺物図鑑: キャラ図鑑と同じグリッド表示(★別のグループ分けはせず、並べ替え・絞り込みで見る) */
-.relic-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:7px; }
+.relic-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
 .relic-cell{
   position:relative;
   background:var(--panel2);
-  border-radius:12px;
-  border:1px solid var(--line);
-  padding:8px 4px 6px;
+  border-radius:14px;
+  border:1.5px solid var(--line);
+  padding:9px 5px 7px;
   text-align:center;
   cursor:pointer;
 }
-.relic-cell.r1{ border-color:rgba(143,143,160,.45); }
-.relic-cell.r2{ border-color:rgba(92,171,82,.45); }
-.relic-cell.r3{ border-color:rgba(58,160,214,.45); }
-.relic-cell.r4{ border-color:rgba(176,111,224,.55); box-shadow:0 0 10px -4px rgba(176,111,224,.5);}
-.relic-cell.r5{ border-color:rgba(232,180,85,.65); box-shadow:0 0 12px -4px rgba(232,180,85,.55);}
-.relic-cell .relic-cell-ic{ height:40px; display:flex; align-items:center; justify-content:center; }
-.relic-cell .relic-cell-ic img.ico{ width:32px !important; height:32px !important; }
+.relic-cell.r1{ border-color:rgba(143,143,160,.55); }
+.relic-cell.r2{ border-color:rgba(92,171,82,.55); box-shadow:0 0 10px -5px rgba(92,171,82,.5); }
+.relic-cell.r3{ border-color:rgba(58,160,214,.6); box-shadow:0 0 11px -5px rgba(58,160,214,.55); }
+.relic-cell.r4{ border-color:rgba(176,111,224,.65); box-shadow:0 0 13px -4px rgba(176,111,224,.6);}
+.relic-cell.r5{ border-color:rgba(232,180,85,.75); box-shadow:0 0 15px -4px rgba(232,180,85,.65);}
+.relic-cell .relic-cell-ic{
+  height:46px; display:flex; align-items:center; justify-content:center; margin:0 auto 2px;
+  width:46px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,.09), rgba(255,255,255,0) 72%);
+}
+.relic-cell.r1 .relic-cell-ic{ background:radial-gradient(circle, rgba(143,143,160,.22), rgba(255,255,255,0) 72%); }
+.relic-cell.r2 .relic-cell-ic{ background:radial-gradient(circle, rgba(92,171,82,.25), rgba(255,255,255,0) 72%); }
+.relic-cell.r3 .relic-cell-ic{ background:radial-gradient(circle, rgba(58,160,214,.28), rgba(255,255,255,0) 72%); }
+.relic-cell.r4 .relic-cell-ic{ background:radial-gradient(circle, rgba(176,111,224,.3), rgba(255,255,255,0) 72%); }
+.relic-cell.r5 .relic-cell-ic{ background:radial-gradient(circle, rgba(232,180,85,.32), rgba(255,255,255,0) 72%); }
+.relic-cell .relic-cell-ic img.ico{ width:36px !important; height:36px !important; }
 .relic-cell .relic-cell-lv{
   position:absolute; top:3px; right:4px;
-  font-size:8.5px; background:rgba(0,0,0,.5); padding:1px 4px; border-radius:7px;
+  font-size:8.5px; background:rgba(0,0,0,.55); padding:1px 5px; border-radius:7px;
   font-weight:700;
 }
 .relic-cell .relic-cell-badge{ position:absolute; top:3px; right:4px; font-size:8px; font-weight:800; padding:1px 5px; border-radius:7px; }
 .relic-cell .relic-cell-badge.gacha{ background:rgba(232,180,85,.18); color:var(--gold); }
 .relic-cell .relic-cell-badge.dist{ background:rgba(120,170,255,.18); color:#8ab4ff; }
-.relic-cell .name{ font-size:8.5px; margin-top:3px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.relic-cell .star{ display:block; font-size:8.5px; font-weight:800; letter-spacing:-.5px; margin-top:1px; }
-.relic-cell.r1 .star{ color:#8f8fa0; } .relic-cell.r2 .star{ color:#5cab52; } .relic-cell.r3 .star{ color:#3aa0d6; }
-.relic-cell.r4 .star{ color:#b06fe0; } .relic-cell.r5 .star{ color:var(--gold); }
-.relic-cell.locked{ opacity:.5; }
+.relic-cell .name{ font-size:9.5px; margin-top:4px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.relic-cell .star{ display:block; font-size:10px; font-weight:800; letter-spacing:-.3px; margin-top:2px; }
+.relic-cell.r1 .star{ color:#a3a3b3; } .relic-cell.r2 .star{ color:#79c96d; } .relic-cell.r3 .star{ color:#5cb8e8; }
+.relic-cell.r4 .star{ color:#c493ea; } .relic-cell.r5 .star{ color:var(--gold); }
+.relic-cell.locked{ opacity:.55; }
 .relic-detail-modal{ text-align:left; }
 
-.relic-effects{ margin:8px 0 12px; }
-.relic-eff-line{ font-size:11.5px; padding:5px 0; border-bottom:1px dashed var(--line); }
-.relic-eff-line small{ color:var(--dim); margin-left:6px; }
+/* 遺物詳細(未所持プレビュー・強化画面 共通のヘッダー) */
+.relic-detail-head{ display:flex; align-items:center; gap:13px; margin-bottom:14px; }
+.relic-detail-ic{
+  flex:none; width:58px; height:58px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle, rgba(255,255,255,.08), rgba(255,255,255,0) 72%), var(--panel2);
+  border:1.5px solid var(--line);
+}
+.relic-detail-ic.r1{ border-color:rgba(143,143,160,.55); }
+.relic-detail-ic.r2{ border-color:rgba(92,171,82,.6); box-shadow:0 0 16px -6px rgba(92,171,82,.55); }
+.relic-detail-ic.r3{ border-color:rgba(58,160,214,.6); box-shadow:0 0 16px -6px rgba(58,160,214,.55); }
+.relic-detail-ic.r4{ border-color:rgba(176,111,224,.65); box-shadow:0 0 18px -6px rgba(176,111,224,.6); }
+.relic-detail-ic.r5{ border-color:rgba(232,180,85,.75); box-shadow:0 0 20px -6px rgba(232,180,85,.65); }
+.relic-detail-ic img.ico{ width:40px !important; height:40px !important; }
+.relic-detail-headtext{ flex:1; min-width:0; }
+.relic-detail-name{ font-size:16px; font-weight:800; color:var(--text); line-height:1.25; }
+.relic-detail-starrow{ font-size:13px; letter-spacing:1px; margin-top:3px; }
+.relic-detail-starrow.r1{ color:#a3a3b3; } .relic-detail-starrow.r2{ color:#79c96d; } .relic-detail-starrow.r3{ color:#5cb8e8; }
+.relic-detail-starrow.r4{ color:#c493ea; } .relic-detail-starrow.r5{ color:var(--gold); }
+
+.relic-effects{ margin:0 0 14px; display:flex; flex-direction:column; gap:6px; }
+.relic-eff-line{
+  font-size:12px; line-height:1.5; padding:9px 11px; border-radius:11px;
+  background:var(--panel2); border:1px solid var(--line);
+}
+.relic-eff-line small{ display:block; color:var(--gold); font-weight:700; margin-top:3px; }
 
 .gacha-kind-tabs{ display:flex; gap:6px; margin-bottom:10px; }
 .gacha-kind-tabs .stage-tab{ flex:1; }
@@ -2346,7 +2377,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.011';
+const GAME_VERSION = 'α0.0.013';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4516,7 +4547,13 @@ function showRelicDetail(id){
   layer.innerHTML = `
     <div class="result-modal relic-detail-modal" role="dialog" aria-label="${def.name}">
       <button class="fs-close" data-close-relic-detail="1" aria-label="閉じる">×</button>
-      <h3>${def.icon} ${def.name}<span class="relic-star">★${def.star}</span></h3>
+      <div class="relic-detail-head">
+        <div class="relic-detail-ic r${def.star}">${def.icon}</div>
+        <div class="relic-detail-headtext">
+          <div class="relic-detail-name">${def.name}</div>
+          <div class="relic-detail-starrow r${def.star}">${'★'.repeat(def.star)}</div>
+        </div>
+      </div>
       <div class="relic-effects">
         ${def.base ? `<div class="relic-eff-line">基礎ステータス(キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)</div>` : ''}
         ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectRangeText(e)}</div>`).join('')}
@@ -4792,7 +4829,13 @@ function renderRelicUpgrade(){
   layer.innerHTML = `
     <div class="result-modal relic-upgrade-modal" role="dialog" aria-label="${def.name}">
       <button class="fs-close" data-close-relic-upgrade="1" aria-label="閉じる">×</button>
-      <h3>${def.icon} ${def.name}<span class="relic-star">★${def.star}</span></h3>
+      <div class="relic-detail-head">
+        <div class="relic-detail-ic r${def.star}">${def.icon}</div>
+        <div class="relic-detail-headtext">
+          <div class="relic-detail-name">${def.name}</div>
+          <div class="relic-detail-starrow r${def.star}">${'★'.repeat(def.star)}</div>
+        </div>
+      </div>
       <div class="relic-effects">
         ${def.base ? `<div class="relic-eff-line">基礎ステータス(キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)<small>(現在 ${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicGrowthMult(st.level) * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')})</small></div>` : ''}
         ${def.effects.map(e => `<div class="relic-eff-line">${relicEffectText(e)}<small>(現在 ${Math.round(e.pct * mult * 100)}%)</small></div>`).join('')}
@@ -8514,6 +8557,7 @@ const HATE_GAIN_MULT = { tank:1.5, attacker:1.0, shooter:1.0, support:1.0, trick
 const HATE_PER_DAMAGE = 1.0;
 const HATE_PER_HEAL = 1.5;
 const HATE_BUFF = 25;
+const HATE_TAUNT = 500;
 const HATE_KEEP_PER_ROUND = 0.8;
 function hateLabel(v){ return v >= 35 ? '高い' : v >= 18 ? '普通' : '低め'; }
 
@@ -10265,7 +10309,10 @@ function selectFoes(actor, tgt, hitMult){
   const one = u => (u ? [{ unit: u, mult: 1 }] : []);
   switch(tgt){
     case 'any':       return one(pickByHate(withTaunt(here)));
-    case 'back':      return one(pickByHate(rowOrOther(here, 'back')));
+    case 'back': {
+      const taunters = here.filter(u => hasBuff(u, 'taunt'));
+      return one(pickByHate(taunters.length ? taunters : rowOrOther(here, 'back')));
+    }
     case 'lowest':    return one(lowestHpRatio(withTaunt(targetableUnits(foes))));
     case 'lowestAny': return one(lowestHpRatio(here));
     case 'frontAll':  return rowOrOther(here, 'front').map(u => ({ unit: u, mult: 1 }));
@@ -10623,7 +10670,7 @@ function applyEffect(ctx, e){
     }
     if(e.ward){ addBuff(t, 'ward', 1, e.ward, actor); got.ward.push(nm(t)); }
     if(e.cleanseDebuff) cleanseDebuff(t);
-    if(e.taunt){ addBuff(t, 'taunt', 1, e.taunt, actor); got.taunt.push(nm(t)); }
+    if(e.taunt){ addBuff(t, 'taunt', 1, e.taunt, actor); got.taunt.push(nm(t)); addHate(actor, HATE_TAUNT); }
     if(e.shield){
       const base = e.base === 'maxHp' ? t.maxHp : e.base === 'casterMaxHp' ? actor.maxHp : effStr(actor);
       const add = addShield(t, base * sv(actor, e.shield, kind), e.turns || 2, actor, e.immune);
