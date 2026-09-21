@@ -15,7 +15,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <!-- SNSに貼ったときの見た目。og:url と og:image は絶対URLでないと効かないので、公開先を変えたらここも直す -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Monstercollect">
+<meta property="og:site_name" content="MonsterCollect">
 <meta property="og:title" content="モンコレ">
 <meta property="og:description" content="105体のモンスターを集めて育てる、ブラウザで遊べる収集RPG。ガチャ・編成・オート戦闘。">
 <meta property="og:url" content="https://negiramen1922.github.io/monster-collector/">
@@ -2394,7 +2394,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.030';
+const GAME_VERSION = 'α0.0.032';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3175,9 +3175,9 @@ const firebaseBackend = {
   // friend point gifts: a mailbox under the RECIPIENT's own players/{uid} doc, the one
   // place firestore.rules lets a different signed-in user create data - scoped to a fixed
   // amount so it can't be abused as a general write hole (see firestore.rules).
-  async sendGift(toUid, fromUid, amount){
+  async sendGift(toUid, fromUid, amount, reason){
     const { fs, db } = await this.load();
-    await fs.addDoc(fs.collection(db, 'players', toUid, 'gifts'), { from: fromUid, amount, at: Date.now() });
+    await fs.addDoc(fs.collection(db, 'players', toUid, 'gifts'), { from: fromUid, amount, reason: reason || 'send', at: Date.now() });
   },
   async fetchGifts(uid){
     const { fs, db } = await this.load();
@@ -3450,6 +3450,15 @@ function borrowFriendHelper(uid){
   toast(`${f.name}の${MON_BY_ID[f.support.id].name}を借りました`);
   render();
 }
+// お助けキャラを借りてクエストに使うと、貸した側(uid)へフレンドポイントが自動で届く
+// (finishBattleがbattleUI.helperOwnerUidを見て呼ぶ)。best-effort: オフライン/ルール
+// 未反映でも黙って失敗するだけで、自分側のプレイは止めない。
+const FRIEND_POINT_PER_BORROW_USE = 5;
+function creditHelperOwner(uid){
+  const be = authBackend();
+  if(typeof be.sendGift !== 'function' || !ACCOUNT || !uid) return;
+  be.sendGift(uid, ACCOUNT.uid, FRIEND_POINT_PER_BORROW_USE, 'borrow').catch(() => {});
+}
 
 /* ---- friend points: sending to a friend rewards the sender immediately (works even
    offline/local), capped at once per friend per day, same currentDayKey() reset as
@@ -3478,7 +3487,7 @@ function sendFriendPoint(uid){
   render();
   const be = authBackend();
   if(typeof be.sendGift === 'function' && ACCOUNT){
-    be.sendGift(uid, ACCOUNT.uid, FRIEND_POINT_PER_SEND).catch(() => {}); // best-effort; offline/rules failure just means the friend won't see it this time
+    be.sendGift(uid, ACCOUNT.uid, FRIEND_POINT_PER_SEND, 'send').catch(() => {}); // best-effort; offline/rules failure just means the friend won't see it this time
   }
 }
 // pick up any gifts friends sent us (see sendFriendPoint above) - called on login and
@@ -3488,15 +3497,18 @@ function friendNameOf(uid){
   return f ? f.name : 'フレンド';
 }
 // one line per gift (so 3 gifts from the same friend show 3 lines, matching how many
-// times they actually sent), then the running total - deliberately a modal rather than a
-// toast, since a one-line toast was easy to miss and gave no sense of who sent what.
-function showFriendGiftModal(gifts, total){
+// times they actually sent/borrowed), then the running total - deliberately a modal rather
+// than a toast, since a one-line toast was easy to miss and gave no sense of who sent what.
+// 'borrow' gifts (お助けキャラがクエストで使われた分)get their own line + a footer summarizing
+// this session's lending haul, distinct from a plain "sent" gift.
+function showFriendGiftModal(gifts, total, borrowInfo){
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
     <div class="result-modal reward-modal friend-gift-modal" role="dialog" aria-label="フレンドポイントが届きました">
-      <div class="rm-list">${gifts.map(g => `<div>${escapeHtml(friendNameOf(g.from))}さんから</div>`).join('')}</div>
+      <div class="rm-list">${gifts.map(g => `<div>${escapeHtml(friendNameOf(g.from))}さん${g.reason === 'borrow' ? `があなたのキャラをクエストで借りた(+${Number(g.amount)}FP)` : `から(+${Number(g.amount)}FP)`}</div>`).join('')}</div>
       <h3>フレンドポイントが届きました</h3>
       <div class="fg-total">合計 <b>${total.toLocaleString()}</b>FP</div>
+      ${borrowInfo && borrowInfo.count > 0 ? `<div class="screen-sub" style="margin-top:6px;">今回、お助けキャラが${borrowInfo.count}回クエストで使われ、+${borrowInfo.fp}FP獲得しました。</div>` : ''}
       <button class="btn btn-block" id="close-result">OK</button>
     </div>`;
   layer.classList.add('show');
@@ -3512,10 +3524,17 @@ async function claimFriendGifts(){
   const total = valid.reduce((sum, g) => sum + Number(g.amount), 0);
   if(typeof be.claimGifts === 'function') be.claimGifts(ACCOUNT.uid, gifts.map(g => g.id)).catch(() => {});
   if(total <= 0) return;
+  const borrowGifts = valid.filter(g => g.reason === 'borrow');
+  const borrowInfo = { count: borrowGifts.length, fp: borrowGifts.reduce((sum, g) => sum + Number(g.amount), 0) };
+  if(borrowInfo.count > 0){
+    if(!STATE.helperLentStats) STATE.helperLentStats = { count: 0, fp: 0 };
+    STATE.helperLentStats.count += borrowInfo.count;
+    STATE.helperLentStats.fp += borrowInfo.fp;
+  }
   STATE.friendPoints = (STATE.friendPoints || 0) + total;
   saveState();
   render();
-  showFriendGiftModal(valid, total);
+  showFriendGiftModal(valid, total, borrowInfo);
 }
 
 /* ---- cloud save ---- */
@@ -9163,6 +9182,9 @@ function startBattle(stageId, opts){
     staminaSpent: cost,
     deathCounter: 0,
     firstStrike: null,
+    // お助けキャラ(借りたフレンドの支援キャラ)がこの編成にいれば、クリア/敗北問わず
+    // クエスト終了時に貸した側(uid)へFPを送る対象として覚えておく - see creditHelperOwner
+    helperOwnerUid: (STATE.slots.includes(HELP_SLOT_ID) && STATE.borrowed) ? STATE.borrowed.uid : null,
   };
   battleUI.enemies = spawnWave(stage, 0);
   if(stage.tutorial === 'ult') party.forEach(u => { u.sp = Math.round(u.spCost * 0.6); });
@@ -11399,6 +11421,7 @@ function finishBattle(win){
   battleUI.win = win;
   clearTimeout(battleUI.tickTimer);
   recordWave(battleUI, win ? 'win' : 'lose');
+  if(battleUI.helperOwnerUid) creditHelperOwner(battleUI.helperOwnerUid);
   if(win){
     battleUI.rewards = battleUI.stage.type === 'dungeon' ? grantDungeonRewards(battleUI.stage) : grantStageRewards(battleUI.stage, battleUI.spawned);
     battleUI.rank = battleRank(battleUI);
@@ -12193,6 +12216,8 @@ function handlePhoneClick(ev){
   if(craftEl){ const [f, k, tier] = craftEl.dataset.craft.split(':'); craftMat(f, k, Number(tier), 'max'); return; }
   const shopTabEl = t.closest('[data-shop-tab]');
   if(shopTabEl){ shopTab = shopTabEl.dataset.shopTab; render(); return; }
+  const noticesTabEl = t.closest('[data-notices-tab]');
+  if(noticesTabEl){ noticesTab = noticesTabEl.dataset.noticesTab; render(); return; }
   const shopBuyEl = t.closest('[data-shop-buy]');
   if(shopBuyEl){
     const raw = shopBuyEl.dataset.shopBuy;
@@ -12800,7 +12825,35 @@ const NOTICES = [
   { id: 2, date: '9/18', title: '図鑑に絞り込みと並び替え', body: '属性・ロール・種族で絞り込めるようになりました。★を上げられるモンスターだけの表示もできます。' },
   { id: 1, date: '9/18', title: 'プロトタイプを公開しました', body: '105体のモンスターと33ステージで遊べます。' },
 ];
-const unreadNotices = () => NOTICES.filter(n => n.id > (STATE.noticeSeen || 0)).length;
+// アップデート内容: GAME_VERSIONを上げるたびに先頭(idを+1して)に追記していく変更履歴。
+// お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
+// 変更点をそのまま記録する場所。
+const UPDATE_LOG = [
+  { id: 22, version: 'α0.0.032', date: '9/21', body: 'お助けキャラをフレンドが借りてクエストで使うと、貸した側にフレンドポイントが届くように。何回使われて何FP獲得したかもフレンド画面で確認できます。リンク共有時のサムネイル表記を修正。' },
+  { id: 21, version: 'α0.0.031', date: '9/21', body: 'お知らせに「アップデート内容」タブを追加。バージョンごとの変更履歴をここにまとめました。' },
+  { id: 20, version: 'α0.0.030', date: '9/21', body: 'フレンド一覧からフレンドのプロフィール(アバター・図鑑数・クリア数など)を見られるように。フレンドのアイコンが表示されない不具合を修正。フレンドコードのコピーボタンを追加。水晶でスタミナ回復・PVP挑戦券を購入できる水晶ショップを追加。' },
+  { id: 19, version: 'α0.0.028', date: '9/21', body: 'フレンドコード入力欄の不具合を修正。ハイフンなしでもフレンド追加できるように。' },
+  { id: 18, version: 'α0.0.027', date: '9/21', body: 'フレンドコード共有時にIDだけがコピーされるように修正。' },
+  { id: 17, version: 'α0.0.026', date: '9/21', body: 'キャラのスキル強化画面に所持素材の表示を追加。スキル1とスキル2を別々にレベル上げできるように。遺物ガチャにピックアップタブを追加。' },
+  { id: 16, version: 'α0.0.024', date: '9/21', body: 'バトルリザルト画面を改善(新規加入モンスターの強調表示・並び替え・MVP表示)。' },
+  { id: 15, version: 'α0.0.021', date: '9/21', body: '遺物選択画面で装備条件に合うかが一目でわかるように。ショップでの育成素材の常設販売を終了。' },
+  { id: 14, version: 'α0.0.019', date: '9/21', body: 'プレゼントボックス機能を追加。デイリー/ウィークリーミッションの内容を調整。スカラベ種族の不具合を修正。' },
+  { id: 13, version: 'α0.0.017', date: '9/21', body: '遺物ガチャにピックアップを追加。工房の解放条件・遺物スキルの本数を調整。遺物図鑑にチュートリアルを追加。' },
+  { id: 12, version: 'α0.0.014', date: '9/21', body: '遺物の強化画面を刷新(凸ボタンを星の横に集約、凸数を表示)。' },
+  { id: 11, version: 'α0.0.013', date: '9/21', body: '遺物画面のデザインを改善。挑発が後衛を守れない不具合を修正。' },
+  { id: 10, version: 'α0.0.011', date: '9/21', body: '編成画面に装備中の遺物アイコンを表示するように。' },
+  { id: 9, version: 'α0.0.009', date: '9/21', body: '遺物スロットが反応しない不具合(古い遺物IDによるエラー)を修正。' },
+  { id: 8, version: 'α0.0.008', date: '9/21', body: '遺物スロットが反応しない不具合(長押しで文字が選択されてしまう)を修正。' },
+  { id: 7, version: 'α0.0.007', date: '9/21', body: '画面のスワイプ判定を全面的に見直し。' },
+  { id: 6, version: 'α0.0.006', date: '9/21', body: 'スワイプ判定がボタンのタップを誤って邪魔してしまう不具合を修正。' },
+  { id: 5, version: 'α0.0.005', date: '9/21', body: '横スワイプの判定をさらに調整。' },
+  { id: 4, version: 'α0.0.004', date: '9/21', body: '横スワイプの判定を画面全体でより確実に反応するよう調整。' },
+  { id: 3, version: 'α0.0.003', date: '9/21', body: '画面を横スワイプで移動できるように。' },
+  { id: 2, version: 'α0.0.002', date: '9/21', body: 'ハードモード切替UIを簡略化。フッターメニューを再編。' },
+  { id: 1, version: 'α0.0.001', date: '9/21', body: 'ゲーム内にバージョン表示を追加。' },
+];
+const unreadNotices = () => NOTICES.filter(n => n.id > (STATE.noticeSeen || 0)).length
+  + UPDATE_LOG.filter(n => n.id > (STATE.updateLogSeen || 0)).length;
 
 /* テイマーLv: クリア数・仲間の数・育成の進み具合から決まる、進行度の目安 */
 function tamerXp(){
@@ -12833,6 +12886,7 @@ function openOverlay(view){
   overlayView = view;
   if(view === 'notices'){
     STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, NOTICES[0] ? NOTICES[0].id : 0);
+    STATE.updateLogSeen = Math.max(STATE.updateLogSeen || 0, UPDATE_LOG[0] ? UPDATE_LOG[0].id : 0);
     saveState();
   }
   if(view === 'friends'){ claimFriendGifts(); refreshFriendProfiles(); }
@@ -12998,12 +13052,21 @@ function renderSettingsOverlay(){
     </div>`;
 }
 
+let noticesTab = 'update'; // 'update' | 'news'
 function renderNoticesOverlay(){
   return `
     <div class="ov-screen">
       ${overlayHead('お知らせ')}
       <div class="ov-body">
-        ${NOTICES.map(n => `
+        <div class="shop-tabs">
+          <button class="stage-tab ${noticesTab === 'update' ? 'on' : ''}" data-notices-tab="update">アップデート内容</button>
+          <button class="stage-tab ${noticesTab === 'news' ? 'on' : ''}" data-notices-tab="news">ニュース</button>
+        </div>
+        ${noticesTab === 'update' ? UPDATE_LOG.map(n => `
+          <div class="panel nt-full">
+            <div class="row-between"><div class="nt-title">${n.version}</div><div class="nt-date">${n.date}</div></div>
+            <div class="nt-sub">${n.body}</div>
+          </div>`).join('') : NOTICES.map(n => `
           <div class="panel nt-full">
             <div class="row-between"><div class="nt-title">${n.title}</div><div class="nt-date">${n.date}</div></div>
             <div class="nt-sub">${n.body}</div>
@@ -13073,6 +13136,11 @@ function renderFriendsOverlay(){
       ${overlayHead('フレンド', avail ? `<span class="base-wallet" style="margin:0 0 0 auto;">🎗️${(STATE.friendPoints || 0).toLocaleString()}</span>` : '')}
       <div class="ov-body">
         ${!avail ? '<div class="screen-sub" style="margin:16px 0;">この機能はログイン中のみ利用できます。</div>' : `
+        ${STATE.helperLentStats && STATE.helperLentStats.count > 0 ? `
+        <div class="panel panel-tight" style="margin-bottom:10px;">
+          <div class="mc-head" style="margin-bottom:4px;">お助けキャラの貸し出し実績</div>
+          <div class="screen-sub">クエストで使われた回数 <b>${STATE.helperLentStats.count}</b>回・獲得フレンドポイント <b>${STATE.helperLentStats.fp}</b>FP</div>
+        </div>` : ''}
         <div class="panel panel-tight" style="margin-bottom:10px;">
           <div class="mc-head" style="margin-bottom:8px;">コードでフレンド追加</div>
           <div class="friend-add-row">
@@ -13080,7 +13148,7 @@ function renderFriendsOverlay(){
             <button class="btn btn-sm" data-add-friend="1">追加</button>
           </div>
         </div>
-        <div class="screen-sub" style="margin-bottom:10px;">フレンドに「ポイントを送る」と、1人1日1回、自分のフレンドポイントが+${FRIEND_POINT_PER_SEND}貯まります。フレンドガチャ(ガチャ画面)で使えます。</div>
+        <div class="screen-sub" style="margin-bottom:10px;">フレンドに「ポイントを送る」と、1人1日1回、自分のフレンドポイントが+${FRIEND_POINT_PER_SEND}貯まります。他にも、自分のお助けキャラをフレンドが借りてクエストに使うと、自分に+${FRIEND_POINT_PER_BORROW_USE}FP届きます。フレンドガチャ(ガチャ画面)で使えます。</div>
         ${STATE.friends.length === 0
           ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。コードを教え合って追加しましょう。</div>'
           : STATE.friends.map(f => { const icon = f.avatar || (f.support && f.support.id); return `

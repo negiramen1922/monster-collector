@@ -4,7 +4,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   STATE_ref: () => STATE, DEFAULT_STATE, addFriendByCode, sanitizeSupport, sanitizeAvatar, borrowFriendHelper,
   returnBorrowed, friendsAvailable, MON_BY_ID, setAccount: a => { ACCOUNT = a; },
-  sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND, claimFriendGifts,
+  sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND, claimFriendGifts, FRIEND_POINT_PER_BORROW_USE,
   pullFriendMon, pullFriendMat, doFriendPull, FRIEND_CHAR_GACHA_COST, FRIEND_MAT_GACHA_COST,
   getItem, addItem, MONSTERS, STAGES, sanitizeLastActive, lastActiveText, refreshFriendProfiles, friendNameOf,
 };`);
@@ -220,4 +220,38 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   await E.refreshFriendProfiles();
   const refreshed = S.friends.find(f => f.uid === 'u-evil-avatar');
   ok('refreshFriendProfilesでavatar/monsters/clearedも更新される', refreshed && refreshed.avatar === 'm03' && refreshed.monsters === 20 && refreshed.cleared === 15, refreshed);
+
+  // --- claimFriendGifts: 'borrow'-reason gifts (お助けキャラがクエストで使われた分、
+  // see friend_borrow_battle_test.js for who actually sends these) are counted separately
+  // from plain 'send' gifts, and accumulate into a persistent STATE.helperLentStats. ---
+  const mailboxes2 = {
+    me: [
+      { id: 'b1', from: 'u-good', amount: E.FRIEND_POINT_PER_BORROW_USE, reason: 'borrow' },
+      { id: 'b2', from: 'u-good', amount: E.FRIEND_POINT_PER_BORROW_USE, reason: 'borrow' },
+      { id: 's1', from: 'u-good', amount: E.FRIEND_POINT_PER_SEND, reason: 'send' },
+    ],
+  };
+  global.window.__authBackend = {
+    kind: 'mock',
+    async fetchGifts(uid){ return mailboxes2[uid] || []; },
+    async claimGifts(uid, ids){ mailboxes2[uid] = (mailboxes2[uid] || []).filter(g => !ids.includes(g.id)); },
+  };
+  S.friendPoints = 0;
+  S.helperLentStats = null;
+  await E.claimFriendGifts();
+  const expectedTotal = E.FRIEND_POINT_PER_BORROW_USE * 2 + E.FRIEND_POINT_PER_SEND;
+  ok('borrow分もsend分も合算してfriendPointsに入る', S.friendPoints === expectedTotal, S.friendPoints);
+  ok('helperLentStats.countはborrow分の件数だけ増える(sendは含まない)', S.helperLentStats && S.helperLentStats.count === 2, S.helperLentStats);
+  ok('helperLentStats.fpはborrow分の合計額だけ増える', S.helperLentStats && S.helperLentStats.fp === E.FRIEND_POINT_PER_BORROW_USE * 2, S.helperLentStats);
+
+  // stats accumulate across multiple claims, they don't reset
+  mailboxes2.me = [{ id: 'b3', from: 'u-good', amount: E.FRIEND_POINT_PER_BORROW_USE, reason: 'borrow' }];
+  await E.claimFriendGifts();
+  ok('2回目のclaimでhelperLentStatsが積み上がる(リセットされない)', S.helperLentStats.count === 3 && S.helperLentStats.fp === E.FRIEND_POINT_PER_BORROW_USE * 3, S.helperLentStats);
+
+  // a claim with no 'borrow' gifts at all must not touch helperLentStats
+  const statsBefore = { ...S.helperLentStats };
+  mailboxes2.me = [{ id: 's2', from: 'u-good', amount: E.FRIEND_POINT_PER_SEND, reason: 'send' }];
+  await E.claimFriendGifts();
+  ok('send専用のclaimではhelperLentStatsが変化しない', S.helperLentStats.count === statsBefore.count && S.helperLentStats.fp === statsBefore.fp, S.helperLentStats);
 })();
