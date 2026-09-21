@@ -998,6 +998,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-channel-badge{ font-size:9px; font-weight:800; padding:1px 6px; border-radius:999px; margin-left:6px; }
 .relic-channel-badge.gacha{ background:rgba(232,180,85,.15); color:var(--gold); }
 .relic-channel-badge.dist{ background:rgba(120,170,255,.15); color:#8ab4ff; }
+.relic-match-badge{ font-size:9px; font-weight:800; padding:1px 6px; border-radius:999px; margin-left:6px; background:rgba(92,171,82,.18); color:var(--ok); }
 /* 遺物図鑑: キャラ図鑑と同じグリッド表示(★別のグループ分けはせず、並べ替え・絞り込みで見る) */
 .relic-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
 .relic-cell{
@@ -2390,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.019';
+const GAME_VERSION = 'α0.0.020';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4824,9 +4825,18 @@ function closeRelicUpgrade(){
   layer.innerHTML = '';
   render();
 }
+// how many of a relic's CONDITIONAL effects (cond !== null; the "誰でも" universal one
+// doesn't count, since there's no condition to actually match) apply to this character
+function relicConditionMatchCount(def, mon){
+  return (def.effects || []).filter(e => e.cond && relicEffectMatches(e.cond, mon)).length;
+}
 function renderRelicPicker(){
   const { monId } = relicPicker;
-  const ids = ownedRelicIds();
+  const mon = MON_BY_ID[monId];
+  const ids = ownedRelicIds().slice().sort((a, b) => {
+    const da = RELICS[a], db = RELICS[b];
+    return relicConditionMatchCount(db, mon) - relicConditionMatchCount(da, mon) || db.star - da.star;
+  });
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
     <div class="result-modal relic-picker-modal" role="dialog" aria-label="遺物を選ぶ">
@@ -4835,17 +4845,19 @@ function renderRelicPicker(){
       ${ids.length === 0 ? `
         <p class="fs-note">まだ遺物を持っていません。ガチャで手に入れましょう。</p>
         <button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : `
+      <p class="fs-note">条件一致が多い順・レア度順に並んでいます。</p>
       <div class="relic-list">
         ${ids.map(id => {
           const def = RELICS[id];
           const st = STATE.relics[id];
           const here = st.equippedTo === monId;
           const elsewhere = st.equippedTo && !here ? MON_BY_ID[st.equippedTo] : null;
+          const matches = relicConditionMatchCount(def, mon);
           return `
             <button class="relic-row r${def.star} ${here ? 'on' : ''}" data-relic-row="${id}">
               <span class="relic-ic">${def.icon}</span>
               <div class="relic-row-body">
-                <div class="relic-row-name">${def.name}<span class="relic-star">★${def.star}</span></div>
+                <div class="relic-row-name">${def.name}<span class="relic-star">★${def.star}</span>${matches > 0 ? `<span class="relic-match-badge">条件一致 ${matches}</span>` : ''}</div>
                 <div class="relic-row-sub">Lv${st.level} / スキルLv${st.skillLv}${here ? '・この子に装備中' : elsewhere ? `・装備中: ${elsewhere.name}` : ''}</div>
               </div>
             </button>`;
