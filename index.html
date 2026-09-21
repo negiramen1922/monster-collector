@@ -733,6 +733,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .fly-egg.egg-gold{ background:linear-gradient(160deg,#ffe9a8,#c98f2e); }
 .fly-egg.egg-rainbow{ background:linear-gradient(160deg,#fff3d2,#ffd9f0 35%,#cfe9ff 65%,#e8ffd9);
   box-shadow:0 0 18px 2px rgba(255,255,255,.8); }
+/* relic pulls: a squatter, urn-like silhouette instead of the egg-oval */
+.fly-egg.fly-jar{ width:30px; height:38px; margin-left:-15px; border-radius:35% 35% 45% 45% / 45% 45% 55% 55%; }
 @keyframes flyout{
   0%{ opacity:0; transform:translate(0,0) scale(.2) rotate(0); }
   18%{ opacity:1; }
@@ -2389,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.033';
+const GAME_VERSION = 'α0.0.034';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7530,6 +7532,33 @@ function eggSvg(rarity){
       </g>
     </svg>`;
 }
+// relic pulls: an ancient urn instead of an egg (relics are found, not hatched) - reuses
+// the egg-top/egg-bottom/egg-spot/egg-shards class names so every existing crack/lid-flip/
+// shard-fly animation keeps working unchanged, only the silhouette underneath differs.
+function jarSvg(rarity){
+  const cls = eggClass(rarity);
+  return `
+    <svg class="egg-svg jar-svg ${cls}" viewBox="0 0 100 130" aria-hidden="true">
+      <defs>
+        <linearGradient id="eg-jar-${cls}" x1="0" y1="0" x2="0.4" y2="1">
+          ${rarity >= 5
+            ? '<stop offset="0" stop-color="#ff8fd0"/><stop offset=".3" stop-color="#ffe06a"/><stop offset=".6" stop-color="#7ee07a"/><stop offset="1" stop-color="#6fb7ff"/>'
+            : rarity >= 3
+              ? '<stop offset="0" stop-color="#ffe9a8"/><stop offset=".5" stop-color="#e8b455"/><stop offset="1" stop-color="#a9741f"/>'
+              : '<stop offset="0" stop-color="#bfe6ff"/><stop offset=".5" stop-color="#5aa6e8"/><stop offset="1" stop-color="#2a5fa0"/>'}
+        </linearGradient>
+      </defs>
+      <g class="egg-body">
+        <path class="egg-top" d="M40 8h20l3 9-3 9H40l-3-9Z M32 26h36l4 12H28Z" fill="url(#eg-jar-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
+        <path class="egg-bottom" d="M28 38C16 50 14 68 18 82 21 94 28 104 35 110L65 110C72 104 79 94 82 82 86 68 84 50 72 38Z" fill="url(#eg-jar-${cls})" stroke="rgba(0,0,0,.45)" stroke-width="3" stroke-linejoin="round"/>
+        <ellipse class="egg-spot" cx="36" cy="68" rx="7" ry="15" fill="rgba(255,255,255,.3)"/>
+        <ellipse class="egg-spot2" cx="64" cy="95" rx="5" ry="8" fill="rgba(255,255,255,.18)"/>
+      </g>
+      <g class="egg-shards">
+        ${[0, 1, 2, 3, 4, 5].map(i => `<rect class="shard s${i}" x="46" y="60" width="9" height="9" rx="2" fill="url(#eg-jar-${cls})"/>`).join('')}
+      </g>
+    </svg>`;
+}
 // summon: treasure chest -> eggs fly out -> one egg opens at a time -> cut-ins -> result
 // shared between the monster gacha ('mon', results shaped like grantMonster()) and the
 // relic gacha ('relic', results shaped like grantRelic() = {def, isNew}) - these accessors
@@ -7562,7 +7591,7 @@ function eggFace(r, i, state, kind){
   const rarity = pullRarity(kind, r);
   return `
     <div class="egg-slot ${eggClass(rarity)} ${state}" style="--i:${i}">
-      ${eggArt(rarity) || eggSvg(rarity)}
+      ${kind === 'relic' ? jarSvg(rarity) : (eggArt(rarity) || eggSvg(rarity))}
       ${pullIconHtml(kind, r, 'egg-mon')}
       <div class="egg-star">${'★'.repeat(rarity)}</div>
       ${state === 'open' && r.isNew ? '<span class="egg-new">NEW</span>' : ''}
@@ -7581,7 +7610,7 @@ function gachaChestHtml(n){
       ${Array.from({ length: n }, (_, i) => {
         const col = i % 5, row = Math.floor(i / 5);
         const r = gachaSeq.results[i];
-        return `<div class="fly-egg ${eggClass(pullRarity(gachaSeq.kind, r))}" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; animation-delay:${300 + i * 70}ms"></div>`;
+        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} ${eggClass(pullRarity(gachaSeq.kind, r))}" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; animation-delay:${300 + i * 70}ms"></div>`;
       }).join('')}
     </div>`;
 }
@@ -7623,7 +7652,7 @@ function renderGachaStage(){
       <div class="reveal-head">
         <div>
           <div class="reveal-title">${pullBannerTitle(g.kind)}</div>
-          <div class="reveal-sub">${n}連召喚・卵の色がレア度です</div>
+          <div class="reveal-sub">${n}連召喚・${g.kind === 'relic' ? '壺' : '卵'}の色がレア度です</div>
         </div>
         <button class="btn btn-ghost btn-sm" data-gacha-skip="1">スキップ</button>
       </div>
@@ -12881,6 +12910,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 24, version: 'α0.0.034', date: '9/21', body: '遺物ガチャの演出で、卵だった見た目を壺に変更しました。' },
   { id: 23, version: 'α0.0.033', date: '9/21', body: '遺物ガチャの演出をキャラガチャと同じ卵の開封演出に刷新。★5(虹)が出た時の特別なカットインも追加しました。' },
   { id: 22, version: 'α0.0.032', date: '9/21', body: 'お助けキャラをフレンドが借りてクエストで使うと、貸した側にフレンドポイントが届くように。何回使われて何FP獲得したかもフレンド画面で確認できます。リンク共有時のサムネイル表記を修正。' },
   { id: 21, version: 'α0.0.031', date: '9/21', body: 'お知らせに「アップデート内容」タブを追加。バージョンごとの変更履歴をここにまとめました。' },
