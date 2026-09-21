@@ -2390,7 +2390,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.022';
+const GAME_VERSION = 'α0.0.023';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -11491,6 +11491,11 @@ function showBattleResult(tab){
     const dmgMax = Math.max(1, ...b.party.map(u => u.report.dealt));
     body = `
       ${joinCards}
+      ${isDungeon ? '' : `
+      <div class="br-rewards">
+        <div class="br-rewards-head">ソウル</div>
+        ${soulRows || '<div class="soul-none">今回はソウルが出ませんでした</div>'}
+      </div>`}
       <div class="panel panel-tight gain-card">
         <div class="mc-head">獲得</div>
         <div class="gain-row">${gainChips || '<span class="rf-none">なし</span>'}</div>
@@ -11513,12 +11518,7 @@ function showBattleResult(tab){
             <div class="dmg-bar"><i class="elem-${MON_BY_ID[u.ref] ? MON_BY_ID[u.ref].element : 'none'}" style="width:${Math.round(u.report.dealt / dmgMax * 100)}%;"></i></div>
             <span class="dmg-num">${u.report.dealt.toLocaleString()}</span>
           </div>`).join('')}
-      </div>
-      ${isDungeon ? '' : `
-      <div class="br-rewards">
-        <div class="br-rewards-head">ソウル</div>
-        ${soulRows || '<div class="soul-none">今回はソウルが出ませんでした</div>'}
-      </div>`}`;
+      </div>`;
   }else{
     const counters = counterElementsFor(b.enemies.filter(e => e.alive).length ? b.enemies.filter(e => e.alive) : b.enemies);
     const counterText = counters.length
