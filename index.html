@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.037';
+const GAME_VERSION = 'α0.0.038';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3220,6 +3220,22 @@ const firebaseBackend = {
     }));
     return lists.flat();
   },
+  // 「データを削除」: クラウド保存(saves/{uid})と公開プロフィール(players/{uid})、
+  // その下のgifts/incomingサブコレクションもまとめて消す。ローカル保存の削除は
+  // 呼び出し側(deleteAllData)がstorage.removeで別途行う。
+  async deleteCloudData(uid){
+    const { fs, db } = await this.load();
+    const [giftsSnap, incomingSnap] = await Promise.all([
+      fs.getDocs(fs.collection(db, 'players', uid, 'gifts')),
+      fs.getDocs(fs.collection(db, 'players', uid, 'incoming')),
+    ]);
+    const batch = fs.writeBatch(db);
+    giftsSnap.docs.forEach(d => batch.delete(d.ref));
+    incomingSnap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(fs.doc(db, 'players', uid));
+    batch.delete(fs.doc(db, 'saves', uid));
+    await batch.commit();
+  },
 };
 
 /* Analytics. Never throws and never blocks: without a backend (offline, tests, ad blocker)
@@ -3287,6 +3303,17 @@ async function signOutAccount(){
   try{ await authBackend().signOut(); }catch(e){ /* already signed out */ }
   ACCOUNT = null;
   try{ await storage.remove(ACCOUNT_KEY); }catch(e){}
+}
+// 「データを削除」: クラウド同期されている分(saves/players、best-effort)と、この端末の
+// セーブデータの両方を消してサインアウトする。呼び出し側(handleAccountAction)が確認
+// モーダルを経てから呼び、この後のタイトル画面への遷移も呼び出し側が行う。
+async function deleteAllData(){
+  const be = authBackend();
+  if(ACCOUNT && typeof be.deleteCloudData === 'function'){
+    try{ await be.deleteCloudData(ACCOUNT.uid); }catch(e){ /* best-effort: still wipe local below */ }
+  }
+  try{ await storage.remove(ACCOUNT ? saveKeyFor(ACCOUNT.uid) : SAVE_KEY); }catch(e){}
+  await signOutAccount();
 }
 // claim the friend code so PVP and friend lookups can go from code → uid
 async function ensurePlayerId(){
@@ -5745,7 +5772,7 @@ function battlePower(id){
 const STAMINA_MAX = 300;
 const STAMINA_HARD_CAP = 999; // rewards can push stamina above STAMINA_MAX (passive regen just stops adding once it's this high), but never past this; the rest goes to the present box instead of being lost
 const STAMINA_REGEN_MS = 5 * 60 * 1000;  // 1 point every 5 min → 288/day (≈29 runs)
-const STAMINA_REFUND_ON_LOSS = 0.5;      // half the cost comes back on defeat / time-out
+const STAMINA_REFUND_ON_LOSS = 1;        // the full cost comes back on defeat / time-out
 const DAY_RESET_HOUR = 4;                // daily counters reset at 4:00 local time
 // no daily cap: exploration souls are slow by the numbers below, not by a timer
 const NORMAL_SOUL_DROP = 0.20;           // per defeated ★1/★2 enemy
@@ -7216,6 +7243,7 @@ function renderRelicGacha(){
           <div class="gc-name">${pickupRelic.name}</div>
           <div class="gc-sub">★${pickupRelic.star}「${pickupMon.name}」専用遺物<br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RELIC_RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
+          <button class="btn btn-ghost btn-sm" data-preview-mon="${pickupMon.id}" style="margin-top:6px;">「${pickupMon.name}」の性能を見る</button>
         </div>
       </div>
     </div>` : ''}
@@ -7397,8 +7425,9 @@ function renderMonGacha(){
           <div class="gc-sub">★${pickup.rarity}「${pickup.name}」${ELEM_LABEL[pickup.element]}・${ROLE_LABEL[pickup.role]}
             <br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
+          <button class="btn btn-ghost btn-sm" data-preview-mon="${pickup.id}" style="margin-top:6px;">性能を見る</button>
         </div>
-        <img src="${imgSrc(pickup.id)}" alt="${pickup.name}">
+        <img src="${imgSrc(pickup.id)}" alt="${pickup.name}" data-preview-mon="${pickup.id}" style="cursor:pointer;">
       </div>
     </div>
 
@@ -8196,6 +8225,57 @@ function showMonsterDetail(id){
     openGuideToast('hanoko', GUIDE_CONTENT.monsterDetail.steps, { key: 'monsterDetail' });
     reapplyGuideHighlight(); // openGuideToast no-ops if this guide is already mid-way; make sure this fresh modal still has the classes
   }
+}
+
+// ガチャのピックアップキャラなど、まだ所持していないモンスターの性能を確認するための
+// 読み取り専用プレビュー。showMonsterDetail(所持前提、育成・昇格・遺物込み)とは別に、
+// Lv1時点の基礎ステータスとスキル構成だけを見せる。
+function showMonsterPreview(id){
+  const m = MON_BY_ID[id];
+  if(!m) return;
+  const star = m.rarity;
+  const stats = scaledStats(m, star, 1);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal detail-modal" data-mon="${id}">
+      <button class="detail-close" data-close-detail="1">×</button>
+      <div class="detail-head elem-${m.element}">
+        <img src="${imgSrc(m.id)}" alt="${m.name}">
+        <div class="dh-body">
+          <div class="detail-sub">${starsHtml(m.rarity, star)}</div>
+          <div class="detail-name">${m.name}</div>
+          <div class="detail-tags">
+            <span class="elem-tag elem-${m.element}">${ELEM_ICON[m.element]} ${ELEM_LABEL[m.element]}</span>
+            <span class="role-tag">${ROLE_ICON[m.role]}${ROLE_LABEL[m.role]}</span>
+            <span class="role-tag species-tag">${SPECIES_ICON[speciesOf(m)]}${SPECIES_LABEL[speciesOf(m)]}</span>
+          </div>
+          <div class="detail-family">${m.tribe ? `${m.tribe}・` : ''}HATE ${m.hate}(${hateLabel(m.hate)})</div>
+        </div>
+      </div>
+      <div class="screen-sub" style="margin:10px 0;">未所持のため、Lv1・★${star}時点の基礎ステータスを表示しています。実際の性能は育成状況によって変わります。</div>
+      <div class="panel panel-tight detail-stats">
+        <div class="mc-head">ステータス(Lv1)</div>
+        <div class="stat-grid">
+          <div class="stat-row"><span>HP</span><b>${stats.hp}</b></div>
+          <div class="stat-row"><span>STR</span><b>${stats.str}</b></div>
+          <div class="stat-row"><span>物理防御</span><b>${stats.pdef}</b></div>
+          <div class="stat-row"><span>魔法防御</span><b>${stats.mdef}</b></div>
+          <div class="stat-row"><span>SPD</span><b>${stats.spd}</b></div>
+          <div class="stat-row"><span>HATE</span><b>${m.hate}</b></div>
+        </div>
+      </div>
+      <div class="panel panel-tight detail-skill-box">
+        <div class="mc-head">スキル</div>
+        ${kitLinesHtml(m, star, null, null)}
+      </div>
+    </div>
+  `;
+  layer.classList.add('show');
+}
+// 所持済みならいつもの詳細(育成状況込み)、未所持ならプレビューを開く
+function openMonsterDetailOrPreview(id){
+  if(STATE.owned[id]) showMonsterDetail(id);
+  else showMonsterPreview(id);
 }
 
 /* ---------------- DEX ---------------- */
@@ -12214,6 +12294,7 @@ function handlePhoneClick(ev){
   if(appPhase !== 'game') return;      // the title screen has its own handler
   const t = ev.target;
   if(t.closest('[data-open-account]')){ acctView = 'main'; renderAccountModal(); playSfx('open'); return; }
+  if(t.closest('[data-open-delete-data]')){ acctView = 'delete-data'; renderAccountModal(); playSfx('open'); return; }
   if(t.closest('[data-view-tutorial]')){ stageTab = 'main'; questTier = 'tu'; goto('battle'); return; }
   const ovEl = t.closest('[data-overlay]');
   if(ovEl){ openOverlay(ovEl.dataset.overlay); playSfx('open'); return; }
@@ -12556,6 +12637,8 @@ function handlePhoneClick(ev){
 
   const detailEl = t.closest('[data-detail]');
   if(detailEl){ showMonsterDetail(detailEl.dataset.detail); return; }
+  const previewEl = t.closest('[data-preview-mon]');
+  if(previewEl){ openMonsterDetailOrPreview(previewEl.dataset.previewMon); return; }
 
   if(t.closest('[data-close-inspect]')){ closeUnitInspect(); return; }
   const inspectEl = t.closest('[data-inspect]');
@@ -13024,6 +13107,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 28, version: 'α0.0.038', date: '9/22', body: '負けた戦闘は使ったスタミナが全額戻るように変更。ガチャのピックアップキャラは未所持でも性能(ステータス・スキル)を確認できるように。設定に「データを削除」を追加(クラウド同期分も含めて削除・確認あり)。' },
   { id: 27, version: 'α0.0.037', date: '9/22', body: 'PVPに「攻撃編成」を新設。クエストのパーティ・防衛編成とは別枠になり、お助けキャラ(借りたフレンドの支援キャラ)はPVPに一切持ち込めなくなりました。' },
   { id: 26, version: 'α0.0.036', date: '9/22', body: 'チュートリアルの3ステージは初回クリアまでのみ無料。クリア済みのチュートリアルへの再挑戦は通常ステージと同じスタミナを消費するように修正(報酬を無限に無料で稼げてしまう不具合の修正)。' },
   { id: 25, version: 'α0.0.035', date: '9/22', body: 'フレンド画面に「自分を追加している人」一覧を追加し、そこから「フレンドを返す」でフレンド登録できるように。' },
@@ -13244,6 +13328,8 @@ function renderSettingsOverlay(){
             <div class="set-val"></div><div class="set-go">›</div></div>
           <div class="set-item" data-clear-cache="1"><div class="set-k wide">キャッシュを削除</div>
             <div class="set-val">読み込み直します</div><div class="set-go">›</div></div>
+          <div class="set-item" data-open-delete-data="1"><div class="set-k wide" style="color:var(--danger);">データを削除</div>
+            <div class="set-val">元に戻せません</div><div class="set-go">›</div></div>
         </div>
 
         <button class="ov-link" data-logout="1">タイトル画面へ戻る</button>
@@ -13623,7 +13709,7 @@ function handleTitleKey(ev){
 }
 
 /* ---------------- account panel ---------------- */
-let acctView = 'main';        // 'main' | 'link-email' | 'logout'
+let acctView = 'main';        // 'main' | 'link-email' | 'logout' | 'delete-data'
 
 function syncLabel(){
   if(!cloudAvailable()) return 'この端末のみ';
@@ -13643,6 +13729,13 @@ function renderAccountModal(){
         ? 'ゲストのデータはこの端末にだけあります。ログアウトすると、このデータには戻れません。'
         : '同じ方法でログインし直せば、データはそのまま続けられます。'}</p>
       <button class="btn btn-block" data-account="logout-yes">ログアウトする</button>
+      <button class="btn btn-ghost btn-block" data-account="main">やめる</button>`;
+  }else if(acctView === 'delete-data'){
+    body = `
+      <p class="title-note">この操作は取り消せません。所持モンスター・進行状況などすべてのデータが削除されます。${cloudAvailable()
+        ? 'クラウドに同期されているデータ(セーブデータ・公開プロフィール)も一緒に削除されます。'
+        : 'このデータはこの端末にしかありません。'}</p>
+      <button class="btn btn-block btn-danger" data-account="delete-data-yes">削除する</button>
       <button class="btn btn-ghost btn-block" data-account="main">やめる</button>`;
   }else{
     body = `
@@ -13672,7 +13765,8 @@ function renderAccountModal(){
           <input id="link-pass" type="password" autocomplete="new-password" placeholder="6文字以上">
           <button class="btn btn-block" data-account="link-email-go">この内容で引き継ぐ</button>
         </div>` : ''}
-      <button class="btn btn-ghost btn-block" data-account="logout">ログアウト</button>`;
+      <button class="btn btn-ghost btn-block" data-account="logout">ログアウト</button>
+      <button class="btn btn-ghost btn-block" data-account="delete-data" style="color:var(--danger);">データを削除</button>`;
   }
   layer.innerHTML = `
     <div class="result-modal acct-modal" role="dialog" aria-label="アカウント">
@@ -13689,6 +13783,7 @@ async function handleAccountAction(action){
     return;
   }
   if(action === 'logout'){ acctView = 'logout'; renderAccountModal(); return; }
+  if(action === 'delete-data'){ acctView = 'delete-data'; renderAccountModal(); return; }
   if(action === 'copy'){
     const id = (ACCOUNT && ACCOUNT.playerId) || '';
     try{ await navigator.clipboard.writeText(id); toast('プレイヤーIDをコピーしました'); }
@@ -13730,6 +13825,17 @@ async function handleAccountAction(action){
     currentScreen = 'home';
     // leftover overlay state (e.g. settings left open) must not carry into the next login
     overlayView = null; pickTarget = null; acctView = 'main';
+    renderTitle();
+  }
+  if(action === 'delete-data-yes'){
+    closeModal();
+    await deleteAllData();
+    stopBgm(false);
+    STATE = null;
+    appPhase = 'title'; titleView = 'choose'; titleMsg = ''; titleEmail = ''; titleBusy = false;
+    currentScreen = 'home';
+    overlayView = null; pickTarget = null; acctView = 'main';
+    toast('データを削除しました');
     renderTitle();
   }
 }
