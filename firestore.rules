@@ -29,6 +29,16 @@ service cloud.firestore {
           );
         allow update: if false;
       }
+
+      // 「自分をフレンドに追加した人」の一覧。ドキュメントIDは追加した側のuid。
+      // 追加した本人が自分のuidの場所にだけ作成/更新でき(なりすまし不可)、
+      // 持ち主(uid)だけが読める。持ち主・追加した本人どちらも削除できる
+      // (持ち主は「フレンドを返す」で処理済みとして消す、追加した本人は取り消しに使える)。
+      match /incoming/{fromUid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null && request.auth.uid == fromUid;
+        allow delete: if request.auth != null && (request.auth.uid == uid || request.auth.uid == fromUid);
+      }
     }
 
     // セーブデータ。本人以外は読み書きできない
