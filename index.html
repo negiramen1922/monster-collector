@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.035';
+const GAME_VERSION = 'α0.0.036';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2759,8 +2759,11 @@ function syncHelperMon(){
 function slotOwnedLike(id){
   return id === HELP_SLOT_ID && STATE.borrowed ? STATE.borrowed.mon : STATE.owned[id];
 }
+const TUTORIAL_REPLAY_STAMINA = 10; // 初回無料。2回目以降は通常ステージと同じ消費にする
 function stageStaminaCost(stage){
-  // stages that are already stamina-free (tutorials) stay free regardless of party
+  // tutorial: free only the first time. Once cleared, farming it for its firstClear
+  // reward would otherwise be free forever, so it costs the normal amount after that.
+  if(stage.tier === 'tu') return STATE.clearedStages.includes(stage.id) ? TUTORIAL_REPLAY_STAMINA : 0;
   if(!stage.stamina) return 0;
   return stage.stamina + (STATE.slots.includes(HELP_SLOT_ID) ? HELP_STAMINA_SURCHARGE : 0);
 }
@@ -8698,7 +8701,7 @@ function renderStageSheet(){
       <div class="ss-actions">
         ${sweepButton(st)}
         <button class="btn ss-go ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
-          出撃する${st.stamina ? `<span class="go-cost">⚡${stageStaminaCost(st)}</span>` : ''}
+          出撃する${stageStaminaCost(st) ? `<span class="go-cost">⚡${stageStaminaCost(st)}</span>` : ''}
         </button>
       </div>
     </div>`;
@@ -11794,13 +11797,13 @@ function showBattleResult(tab){
       ${resultTab === 'report' ? renderBattleReport(b) : body}
       <div class="br-actions">
         <div class="br-stamina">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>
-        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">次のステージへ<span class="go-cost">⚡${nextStage.stamina}</span></button>` : ''}
+        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">次のステージへ<span class="go-cost">⚡${stageStaminaCost(nextStage)}</span></button>` : ''}
         ${b.win && sweepAllowed(b.stage).ok ? `<button class="btn btn-ghost btn-block" data-sweep-open="${b.stage.id}">周回する</button>` : ''}
         ${b.win ? '' : '<button class="btn btn-ghost btn-block" data-result-nav="party">パーティを強化する</button>'}
         <div class="br-buttons">
           <button class="btn btn-ghost" data-result-nav="battle">戻る</button>
           <button class="btn ${b.win && nextStage ? 'btn-ghost' : ''}" data-start-stage="${b.stage.id}">
-            ${b.win ? 'もう一度' : '再挑戦'}<span class="go-cost">⚡${b.stage.stamina}</span>
+            ${b.win ? 'もう一度' : '再挑戦'}<span class="go-cost">⚡${stageStaminaCost(b.stage)}</span>
           </button>
         </div>
       </div>
@@ -12971,6 +12974,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 26, version: 'α0.0.036', date: '9/22', body: 'チュートリアルの3ステージは初回クリアまでのみ無料。クリア済みのチュートリアルへの再挑戦は通常ステージと同じスタミナを消費するように修正(報酬を無限に無料で稼げてしまう不具合の修正)。' },
   { id: 25, version: 'α0.0.035', date: '9/22', body: 'フレンド画面に「自分を追加している人」一覧を追加し、そこから「フレンドを返す」でフレンド登録できるように。' },
   { id: 24, version: 'α0.0.034', date: '9/21', body: '遺物ガチャの演出で、卵だった見た目を壺に変更しました。' },
   { id: 23, version: 'α0.0.033', date: '9/21', body: '遺物ガチャの演出をキャラガチャと同じ卵の開封演出に刷新。★5(虹)が出た時の特別なカットインも追加しました。' },
