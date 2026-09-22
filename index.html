@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.036';
+const GAME_VERSION = 'α0.0.037';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3718,6 +3718,8 @@ const DEFAULT_STATE = () => ({
   pvpDaily: null,          // { key, used } - up to PVP_DAILY_MAX challenges/day
   pvpDefenseSlots: null,   // snapshot published as the defense others fight; null = not set yet
   pvpDefenseFormation: null,
+  pvpAttackSlots: null,    // separate from both STATE.slots (quest party) and pvpDefenseSlots; null = not set yet
+  pvpAttackFormation: null,
   shopDaily: null,         // { key, bought: { [sku]: true } } - 1商品1回/日
   presentBox: [],          // [{ id, label, reward:[...], receivedAt }] - claimable gifts (stamina overflow, compensation, etc.)
   presentBoxSeq: 0,        // next presentBox entry id
@@ -3778,6 +3780,8 @@ function normalizeState(){
   if(!STATE.pvpPoints) STATE.pvpPoints = 0;
   if(STATE.pvpDefenseSlots === undefined) STATE.pvpDefenseSlots = null;
   if(STATE.pvpDefenseFormation === undefined) STATE.pvpDefenseFormation = null;
+  if(STATE.pvpAttackSlots === undefined) STATE.pvpAttackSlots = null;
+  if(STATE.pvpAttackFormation === undefined) STATE.pvpAttackFormation = null;
   if(STATE.shopDaily === undefined) STATE.shopDaily = null;
   if(!STATE.friendPoints) STATE.friendPoints = 0;
   if(STATE.friendSendDaily === undefined) STATE.friendSendDaily = null;
@@ -6191,102 +6195,126 @@ const NAV = [
 /* ---------------- PVP screen ---------------- */
 let pvpOpponents = [];      // last-fetched candidate list (not persisted, runtime only)
 let pvpSearching = false;
-let pvpDefenseEdit = false;       // whether the defense-formation editor is open within the PVP screen
-let defenseFormationPick = null;  // slot chosen as a move source / placement target, while editing
-let pvpDefenseEditBackup = null;  // { slots, formationKey } snapshot to restore on cancel
+// PVP編成は2種類: 防衛編成(他プレイヤーが挑戦してくる時に戦う、publishProfileで公開)と
+// 攻撃編成(自分がPVPに挑戦する時に使う)。どちらもクエストで使うパーティ(STATE.slots)や
+// お互いとは別枠。お助けキャラ(HELP_SLOT_ID)は他人の育成状況に左右される・自分の物では
+// ないため、どちらにも編成できない(ensurePvpSlotsで弾く)。
+const PVP_FORM_KIND = {
+  defense: { slotsKey: 'pvpDefenseSlots', formKey: 'pvpDefenseFormation', label: '防衛編成', editLabel: '防衛編成の編集',
+    hint: 'スロットをタップして入れ替え、所持モンスターをタップして配置します。他のプレイヤーはこの編成と戦います。' },
+  attack: { slotsKey: 'pvpAttackSlots', formKey: 'pvpAttackFormation', label: 'PVP攻撃編成', editLabel: 'PVP攻撃編成の編集',
+    hint: 'スロットをタップして入れ替え、所持モンスターをタップして配置します。PVPで他プレイヤーに挑戦する時はこの編成を使います(クエストのパーティとは別枠。お助けキャラは編成できません)。' },
+};
+let pvpFormEdit = null;       // null | 'defense' | 'attack' - which editor is open within the PVP screen
+let pvpFormPick = null;       // slot chosen as a move source / placement target, while editing
+let pvpFormEditBackup = null; // { slots, formationKey } snapshot to restore on cancel
 
-function ensureDefenseSlots(){
-  if(!Array.isArray(STATE.pvpDefenseSlots) || STATE.pvpDefenseSlots.length !== PARTY_MAX) STATE.pvpDefenseSlots = Array(PARTY_MAX).fill(null);
-  STATE.pvpDefenseSlots = STATE.pvpDefenseSlots.map(id => (id && id !== HELP_SLOT_ID && STATE.owned[id]) ? id : null);
-  return STATE.pvpDefenseSlots;
+function ensurePvpSlots(kind){
+  const k = PVP_FORM_KIND[kind];
+  if(!Array.isArray(STATE[k.slotsKey]) || STATE[k.slotsKey].length !== PARTY_MAX) STATE[k.slotsKey] = Array(PARTY_MAX).fill(null);
+  STATE[k.slotsKey] = STATE[k.slotsKey].map(id => (id && id !== HELP_SLOT_ID && STATE.owned[id]) ? id : null);
+  return STATE[k.slotsKey];
 }
-function defenseFormation(){ return getFormation(STATE.pvpDefenseFormation || STATE.formationKey); }
+function pvpFormFormation(kind){ const k = PVP_FORM_KIND[kind]; return getFormation(STATE[k.formKey] || STATE.formationKey); }
+function hasPvpForm(kind){ const slots = STATE[PVP_FORM_KIND[kind].slotsKey]; return !!(slots && slots.some(Boolean)); }
 
-function openPvpDefenseEdit(){
-  ensureDefenseSlots();
-  if(!STATE.pvpDefenseFormation) STATE.pvpDefenseFormation = STATE.formationKey;
-  pvpDefenseEditBackup = { slots: [...STATE.pvpDefenseSlots], formationKey: STATE.pvpDefenseFormation };
-  pvpDefenseEdit = true;
-  defenseFormationPick = null;
+function openPvpFormEdit(kind){
+  const k = PVP_FORM_KIND[kind];
+  ensurePvpSlots(kind);
+  if(!STATE[k.formKey]) STATE[k.formKey] = STATE.formationKey;
+  pvpFormEditBackup = { slots: [...STATE[k.slotsKey]], formationKey: STATE[k.formKey] };
+  pvpFormEdit = kind;
+  pvpFormPick = null;
   render();
 }
-function cancelPvpDefenseEdit(){
-  if(pvpDefenseEditBackup){ STATE.pvpDefenseSlots = pvpDefenseEditBackup.slots; STATE.pvpDefenseFormation = pvpDefenseEditBackup.formationKey; }
-  pvpDefenseEdit = false;
-  defenseFormationPick = null;
-  pvpDefenseEditBackup = null;
+function cancelPvpFormEdit(){
+  if(pvpFormEdit && pvpFormEditBackup){
+    const k = PVP_FORM_KIND[pvpFormEdit];
+    STATE[k.slotsKey] = pvpFormEditBackup.slots;
+    STATE[k.formKey] = pvpFormEditBackup.formationKey;
+  }
+  pvpFormEdit = null;
+  pvpFormPick = null;
+  pvpFormEditBackup = null;
   render();
 }
-function saveDefenseEdit(){
-  if(!ensureDefenseSlots().some(Boolean)){ toast('1体以上編成してください'); return; }
-  pvpDefenseEdit = false;
-  defenseFormationPick = null;
-  pvpDefenseEditBackup = null;
+function savePvpFormEdit(){
+  if(!pvpFormEdit) return;
+  const kind = pvpFormEdit;
+  const k = PVP_FORM_KIND[kind];
+  if(!ensurePvpSlots(kind).some(Boolean)){ toast('1体以上編成してください'); return; }
+  pvpFormEdit = null;
+  pvpFormPick = null;
+  pvpFormEditBackup = null;
   saveState();
-  publishProfile();
-  toast('防衛編成を保存しました');
+  if(kind === 'defense') publishProfile(); // 他プレイヤーが戦うのは防衛編成だけなので、公開するのもこちらだけ
+  toast(`${k.label}を保存しました`);
   render();
 }
-function copyPartyIntoDefenseEdit(){
+function copyPartyIntoPvpForm(kind){
+  if(!kind) return;
   if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
-  STATE.pvpDefenseSlots = [...STATE.slots];
-  STATE.pvpDefenseFormation = STATE.formationKey;
-  defenseFormationPick = null;
+  const k = PVP_FORM_KIND[kind];
+  // お助けキャラはPVPに持ち込めないので、現在の編成をコピーする時点で除外する
+  STATE[k.slotsKey] = STATE.slots.map(id => id === HELP_SLOT_ID ? null : id);
+  STATE[k.formKey] = STATE.formationKey;
+  pvpFormPick = null;
   render();
 }
-function changeDefenseFormation(key){
-  const from = defenseFormation();
+function changePvpFormFormation(kind, key){
+  const k = PVP_FORM_KIND[kind];
+  const from = pvpFormFormation(kind);
   const to = getFormation(key);
   if(from.key === to.key) return;
-  STATE.pvpDefenseSlots = reflowSlots(ensureDefenseSlots(), from, to);
-  STATE.pvpDefenseFormation = to.key;
-  defenseFormationPick = null;
+  STATE[k.slotsKey] = reflowSlots(ensurePvpSlots(kind), from, to);
+  STATE[k.formKey] = to.key;
+  pvpFormPick = null;
   toast(`陣形を「${to.name}」に変更しました`);
 }
-function tapDefenseSlot(i){
-  const slots = ensureDefenseSlots();
-  if(defenseFormationPick === null){ defenseFormationPick = i; return; }
-  if(defenseFormationPick === i){ defenseFormationPick = null; return; }
-  [slots[defenseFormationPick], slots[i]] = [slots[i], slots[defenseFormationPick]];
-  defenseFormationPick = null;
+function tapPvpFormSlot(kind, i){
+  const slots = ensurePvpSlots(kind);
+  if(pvpFormPick === null){ pvpFormPick = i; return; }
+  if(pvpFormPick === i){ pvpFormPick = null; return; }
+  [slots[pvpFormPick], slots[i]] = [slots[i], slots[pvpFormPick]];
+  pvpFormPick = null;
 }
-function removeDefenseSlot(i){
-  ensureDefenseSlots()[i] = null;
-  defenseFormationPick = null;
+function removePvpFormSlot(kind, i){
+  ensurePvpSlots(kind)[i] = null;
+  pvpFormPick = null;
 }
-function placeInDefense(id){
-  const slots = ensureDefenseSlots();
-  const f = defenseFormation();
+function placeInPvpForm(kind, id){
+  const slots = ensurePvpSlots(kind);
+  const f = pvpFormFormation(kind);
   const m = MON_BY_ID[id];
   const cur = slots.indexOf(id);
-  if(defenseFormationPick !== null){
-    const target = defenseFormationPick;
+  if(pvpFormPick !== null){
+    const target = pvpFormPick;
     if(cur >= 0){ [slots[cur], slots[target]] = [slots[target], slots[cur]]; }
     else{ slots[target] = id; }
-    defenseFormationPick = null;
+    pvpFormPick = null;
     return;
   }
   if(cur >= 0){ slots[cur] = null; return; }
-  if(slots.filter(Boolean).length >= PARTY_MAX){ toast(`防衛編成は最大${PARTY_MAX}体です`); return; }
+  if(slots.filter(Boolean).length >= PARTY_MAX){ toast(`${PVP_FORM_KIND[kind].label}は最大${PARTY_MAX}体です`); return; }
   const slot = emptySlotIn(slots, f, m.role);
   if(slot >= 0) slots[slot] = id;
 }
-function renderDefenseEditGrid(){
-  const f = defenseFormation();
-  const slots = ensureDefenseSlots();
+function renderPvpFormEditGrid(kind){
+  const f = pvpFormFormation(kind);
+  const slots = ensurePvpSlots(kind);
   const cell = (i, gridRow) => {
     const id = slots[i];
     const m = id ? MON_BY_ID[id] : null;
-    const sel = defenseFormationPick === i ? 'selected' : '';
+    const sel = pvpFormPick === i ? 'selected' : '';
     const pos = `style="grid-row:${gridRow}; grid-column:${slotHalfCol(f, i) + 1} / span 2;"`;
-    const slotAttr = `data-defense-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${m.name}` : ' 空き'}"`;
+    const slotAttr = `data-pvp-form-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${m.name}` : ' 空き'}"`;
     if(!m) return `<div class="party-slot ${sel}" ${pos} ${slotAttr}><span class="empty-plus">+</span></div>`;
     const penalty = slotRowIn(f, i) === 'back' && isMeleeRole(m.role);
     return `<div class="party-slot ${sel} ${penalty ? 'penalty' : ''}" ${pos} ${slotAttr}>
       <img src="${imgSrc(m.id)}" alt="${m.name}">
       ${penalty ? '<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">⚠</span>' : ''}
       <span class="role-mini">${tagsHtml(m)}</span>
-      <div class="remove-x" data-defense-remove="${i}" aria-label="${m.name} を外す">×</div>
+      <div class="remove-x" data-pvp-form-remove="${i}" aria-label="${m.name} を外す">×</div>
     </div>`;
   };
   return `
@@ -6297,15 +6325,15 @@ function renderDefenseEditGrid(){
       ${slotsOfRow(f, 'back').map(i => cell(i, 2)).join('')}
     </div>`;
 }
-function renderDefenseFormationPicker(){
-  const cur = defenseFormation();
+function renderPvpFormFormationPicker(kind){
+  const cur = pvpFormFormation(kind);
   const mini = f => [...Array(PARTY_MAX).keys()].map(i =>
     `<i class="${slotRowIn(f, i)}" style="grid-row:${slotRowIn(f, i) === 'front' ? 1 : 2}; grid-column-start:${slotHalfCol(f, i)};"></i>`
   ).join('');
   return `
-    <div class="fm-picker" role="radiogroup" aria-label="防衛編成の陣形を選ぶ">
+    <div class="fm-picker" role="radiogroup" aria-label="${PVP_FORM_KIND[kind].label}の陣形を選ぶ">
       ${FORMATIONS.map(f => `
-        <button class="fm-card ${f.key === cur.key ? 'on' : ''}" data-defense-formation="${f.key}" role="radio" aria-checked="${f.key === cur.key}">
+        <button class="fm-card ${f.key === cur.key ? 'on' : ''}" data-pvp-form-formation="${f.key}" role="radio" aria-checked="${f.key === cur.key}">
           <div class="fm-mini" aria-hidden="true">${mini(f)}</div>
           <div class="fm-name">${f.name}</div>
           <div class="fm-shape">前${f.front}・後${f.back}</div>
@@ -6313,22 +6341,22 @@ function renderDefenseFormationPicker(){
     </div>
     <div class="fm-bonus"><b>${cur.name}</b>のボーナス: ${formationDesc(cur)}</div>`;
 }
-function renderDefenseRoster(){
-  const defIds = ensureDefenseSlots();
+function renderPvpFormRoster(kind){
+  const ids = ensurePvpSlots(kind);
   const ownedAll = Object.keys(STATE.owned).map(id => MON_BY_ID[id]);
   const ownedList = sortedRoster(ownedAll.filter(m => matchesRosterFilter(m, rosterFilter) && (!rosterPromoOnly || canPromoteNow(m.id))));
-  const f = defenseFormation();
+  const f = pvpFormFormation(kind);
   return `
     ${renderRosterControls(ownedList.length, ownedAll.length)}
     ${ownedList.length === 0 ? '<div class="roster-empty">条件に合うモンスターがいません。絞り込みを変えてください。</div>' : ''}
     ${ownedList.map(m => {
-      const slot = defIds.indexOf(m.id);
+      const slot = ids.indexOf(m.id);
       const inParty = slot >= 0;
       const owned = STATE.owned[m.id];
-      const full = defIds.filter(Boolean).length >= PARTY_MAX && !inParty && defenseFormationPick === null;
+      const full = ids.filter(Boolean).length >= PARTY_MAX && !inParty && pvpFormPick === null;
       const where = inParty ? `・${slotRowIn(f, slot) === 'front' ? '前衛' : '後衛'}に編成中` : '';
       return `
-        <div class="roster-row ${inParty ? 'selected' : ''} ${full ? 'disabled' : ''}" data-defense-toggle="${m.id}"
+        <div class="roster-row ${inParty ? 'selected' : ''} ${full ? 'disabled' : ''}" data-pvp-form-toggle="${m.id}"
           style="--elem:${ELEM_COLOR[m.element]};">
           <img src="${imgSrc(m.id)}" alt="${m.name}">
           <div class="info">
@@ -6363,9 +6391,10 @@ function renderPvp(){
       <div class="screen-title">PVP</div>
       <div class="screen-sub" style="margin:28px 0;text-align:center;">ログインするとPVPに挑戦できます</div>`;
   }
-  if(pvpDefenseEdit) return renderPvpDefenseEdit();
+  if(pvpFormEdit) return renderPvpFormEdit();
   const left = pvpChallengesLeft();
-  const myDefenseCount = hasPvpDefense() ? STATE.pvpDefenseSlots.filter(Boolean).length : 0;
+  const myDefenseCount = hasPvpForm('defense') ? STATE.pvpDefenseSlots.filter(Boolean).length : 0;
+  const myAttackCount = hasPvpForm('attack') ? STATE.pvpAttackSlots.filter(Boolean).length : 0;
   return `
     <div class="screen-head">
       <div class="screen-title">PVP</div>
@@ -6378,12 +6407,21 @@ function renderPvp(){
     </div>
     <div class="panel">
       <div class="row-between" style="margin-bottom:8px;">
+        <div class="mc-head">攻撃編成</div>
+        <span class="mat-need ${hasPvpForm('attack') ? '' : 'short'}">${hasPvpForm('attack') ? `設定済み(${myAttackCount}体)` : '未設定'}</span>
+      </div>
+      <div class="screen-sub" style="margin-bottom:8px;">自分がPVPに挑戦する時に使う編成です。クエストのパーティとは別に編成します(お助けキャラは使えません)。</div>
+      ${hasPvpForm('attack') ? renderFormationGrid(true, { slots: STATE.pvpAttackSlots, formationKey: STATE.pvpAttackFormation || STATE.formationKey }) : ''}
+      <button class="btn btn-block" data-pvp-form-edit="attack" style="margin-top:${hasPvpForm('attack') ? '10px' : '0'};">${hasPvpForm('attack') ? '編集する' : '攻撃編成を設定する'}</button>
+    </div>
+    <div class="panel">
+      <div class="row-between" style="margin-bottom:8px;">
         <div class="mc-head">防衛編成</div>
-        <span class="mat-need ${hasPvpDefense() ? '' : 'short'}">${hasPvpDefense() ? `設定済み(${myDefenseCount}体)` : '未設定'}</span>
+        <span class="mat-need ${hasPvpForm('defense') ? '' : 'short'}">${hasPvpForm('defense') ? `設定済み(${myDefenseCount}体)` : '未設定'}</span>
       </div>
       <div class="screen-sub" style="margin-bottom:8px;">他のプレイヤーがあなたに挑戦する時に戦う編成です。</div>
-      ${hasPvpDefense() ? renderFormationGrid(true, { slots: STATE.pvpDefenseSlots, formationKey: STATE.pvpDefenseFormation || STATE.formationKey }) : ''}
-      <button class="btn btn-block" data-pvp-defense-edit="1" style="margin-top:${hasPvpDefense() ? '10px' : '0'};">${hasPvpDefense() ? '編集する' : '防衛編成を設定する'}</button>
+      ${hasPvpForm('defense') ? renderFormationGrid(true, { slots: STATE.pvpDefenseSlots, formationKey: STATE.pvpDefenseFormation || STATE.formationKey }) : ''}
+      <button class="btn btn-block" data-pvp-form-edit="defense" style="margin-top:${hasPvpForm('defense') ? '10px' : '0'};">${hasPvpForm('defense') ? '編集する' : '防衛編成を設定する'}</button>
     </div>
     <div class="panel">
       <div class="row-between" style="margin-bottom:8px;">
@@ -6405,20 +6443,22 @@ function renderPvp(){
   `;
 }
 
-function renderPvpDefenseEdit(){
+function renderPvpFormEdit(){
+  const kind = pvpFormEdit;
+  const k = PVP_FORM_KIND[kind];
   return `
     <div class="row-between" style="margin:10px 0 4px;">
-      <div class="screen-title" style="margin:0;">防衛編成の編集</div>
-      <button class="btn btn-ghost btn-sm" data-pvp-defense-cancel="1">‹ 戻る</button>
+      <div class="screen-title" style="margin:0;">${k.editLabel}</div>
+      <button class="btn btn-ghost btn-sm" data-pvp-form-cancel="1">‹ 戻る</button>
     </div>
-    <div class="screen-sub" style="margin-bottom:6px;">スロットをタップして入れ替え、所持モンスターをタップして配置します。他のプレイヤーはこの編成と戦います。</div>
-    ${renderDefenseFormationPicker()}
-    ${renderDefenseEditGrid()}
+    <div class="screen-sub" style="margin-bottom:6px;">${k.hint}</div>
+    ${renderPvpFormFormationPicker(kind)}
+    ${renderPvpFormEditGrid(kind)}
     <div class="row-between" style="gap:8px; margin:10px 0;">
-      <button class="btn btn-ghost btn-sm" data-pvp-defense-copy="1">現在の編成をコピー</button>
-      <button class="btn btn-sm" data-pvp-defense-save="1">保存する</button>
+      <button class="btn btn-ghost btn-sm" data-pvp-form-copy="1">現在の編成をコピー</button>
+      <button class="btn btn-sm" data-pvp-form-save="1">保存する</button>
     </div>
-    ${renderDefenseRoster()}
+    ${renderPvpFormRoster(kind)}
   `;
 }
 
@@ -6689,10 +6729,14 @@ function goto(screen){
   currentScreen = screen;
   formationPick = null;
   slotMenu = null;
-  if(pvpDefenseEdit && pvpDefenseEditBackup){ STATE.pvpDefenseSlots = pvpDefenseEditBackup.slots; STATE.pvpDefenseFormation = pvpDefenseEditBackup.formationKey; }
-  pvpDefenseEdit = false;
-  defenseFormationPick = null;
-  pvpDefenseEditBackup = null;
+  if(pvpFormEdit && pvpFormEditBackup){
+    const k = PVP_FORM_KIND[pvpFormEdit];
+    STATE[k.slotsKey] = pvpFormEditBackup.slots;
+    STATE[k.formKey] = pvpFormEditBackup.formationKey;
+  }
+  pvpFormEdit = null;
+  pvpFormPick = null;
+  pvpFormEditBackup = null;
   if(battleUI) clearTimeout(battleUI.tickTimer);
   battleUI = null;
   clearStageFx();
@@ -9131,7 +9175,8 @@ function pvpChallengesLeft(){ return Math.max(0, pvpDailyMax() - ensurePvpDaily(
 function hasPvpDefense(){ return !!(STATE.pvpDefenseSlots && STATE.pvpDefenseSlots.some(Boolean)); }
 function setPvpDefense(){
   if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
-  STATE.pvpDefenseSlots = [...STATE.slots];
+  // お助けキャラ(借り物)はPVPに持ち込めないので除外する(copyPartyIntoPvpFormと同じ扱い)
+  STATE.pvpDefenseSlots = STATE.slots.map(id => id === HELP_SLOT_ID ? null : id);
   STATE.pvpDefenseFormation = STATE.formationKey;
   saveState();
   publishProfile();
@@ -9139,7 +9184,7 @@ function setPvpDefense(){
   render();
 }
 function startPvpBattle(opponent){
-  if(getPartyIds().length === 0){ toast('パーティを編成してください'); return; }
+  if(!hasPvpForm('attack')){ toast('PVP攻撃編成を設定してください'); return; }
   if(pvpChallengesLeft() <= 0){ toast('本日の挑戦回数は使い切りました'); return; }
   const defense = sanitizeDefense(opponent.defense);
   if(!defense){ toast('この相手には挑戦できません'); return; }
@@ -9148,9 +9193,13 @@ function startPvpBattle(opponent){
   clearStageFx();
   closeLogSheet();
 
-  const formation = currentFormation();
+  // クエストで使うパーティ(STATE.slots)とは別枠のPVP攻撃編成を使う。
+  // ensurePvpSlotsでお助けキャラ(HELP_SLOT_ID)は常に弾かれているので、ここに
+  // 借り物のキャラが紛れ込むことはない。
+  const formation = pvpFormFormation('attack');
+  const attackSlots = ensurePvpSlots('attack');
   const party = [];
-  STATE.slots.forEach((id, i) => {
+  attackSlots.forEach((id, i) => {
     if(!id) return;
     const m = MON_BY_ID[id];
     const owned = slotOwnedLike(id);
@@ -12445,18 +12494,19 @@ function handlePhoneClick(ev){
     if(o) startPvpBattle(o);
     return;
   }
-  if(t.closest('[data-pvp-defense-edit]')){ openPvpDefenseEdit(); return; }
-  if(t.closest('[data-pvp-defense-cancel]')){ cancelPvpDefenseEdit(); return; }
-  if(t.closest('[data-pvp-defense-copy]')){ copyPartyIntoDefenseEdit(); return; }
-  if(t.closest('[data-pvp-defense-save]')){ saveDefenseEdit(); return; }
-  const defFormationEl = t.closest('[data-defense-formation]');
-  if(defFormationEl){ changeDefenseFormation(defFormationEl.dataset.defenseFormation); render(); return; }
-  const defRemoveEl = t.closest('[data-defense-remove]');
-  if(defRemoveEl){ removeDefenseSlot(Number(defRemoveEl.dataset.defenseRemove)); render(); return; }
-  const defSlotEl = t.closest('[data-defense-slot]');
-  if(defSlotEl){ tapDefenseSlot(Number(defSlotEl.dataset.defenseSlot)); render(); return; }
-  const defToggleEl = t.closest('[data-defense-toggle]');
-  if(defToggleEl){ placeInDefense(defToggleEl.dataset.defenseToggle); render(); return; }
+  const pvpFormEditEl = t.closest('[data-pvp-form-edit]');
+  if(pvpFormEditEl){ openPvpFormEdit(pvpFormEditEl.dataset.pvpFormEdit); return; }
+  if(t.closest('[data-pvp-form-cancel]')){ cancelPvpFormEdit(); return; }
+  if(t.closest('[data-pvp-form-copy]')){ copyPartyIntoPvpForm(pvpFormEdit); return; }
+  if(t.closest('[data-pvp-form-save]')){ savePvpFormEdit(); return; }
+  const pvpFormFormationEl = t.closest('[data-pvp-form-formation]');
+  if(pvpFormFormationEl){ changePvpFormFormation(pvpFormEdit, pvpFormFormationEl.dataset.pvpFormFormation); render(); return; }
+  const pvpFormRemoveEl = t.closest('[data-pvp-form-remove]');
+  if(pvpFormRemoveEl){ removePvpFormSlot(pvpFormEdit, Number(pvpFormRemoveEl.dataset.pvpFormRemove)); render(); return; }
+  const pvpFormSlotEl = t.closest('[data-pvp-form-slot]');
+  if(pvpFormSlotEl){ tapPvpFormSlot(pvpFormEdit, Number(pvpFormSlotEl.dataset.pvpFormSlot)); render(); return; }
+  const pvpFormToggleEl = t.closest('[data-pvp-form-toggle]');
+  if(pvpFormToggleEl){ placeInPvpForm(pvpFormEdit, pvpFormToggleEl.dataset.pvpFormToggle); render(); return; }
   // any other tap closes an open menu (the tap itself is still handled below)
   if(slotMenu !== null && !t.closest('.slot-menu')){
     const tappedSlot = t.closest('[data-slot]');
@@ -12974,6 +13024,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 27, version: 'α0.0.037', date: '9/22', body: 'PVPに「攻撃編成」を新設。クエストのパーティ・防衛編成とは別枠になり、お助けキャラ(借りたフレンドの支援キャラ)はPVPに一切持ち込めなくなりました。' },
   { id: 26, version: 'α0.0.036', date: '9/22', body: 'チュートリアルの3ステージは初回クリアまでのみ無料。クリア済みのチュートリアルへの再挑戦は通常ステージと同じスタミナを消費するように修正(報酬を無限に無料で稼げてしまう不具合の修正)。' },
   { id: 25, version: 'α0.0.035', date: '9/22', body: 'フレンド画面に「自分を追加している人」一覧を追加し、そこから「フレンドを返す」でフレンド登録できるように。' },
   { id: 24, version: 'α0.0.034', date: '9/21', body: '遺物ガチャの演出で、卵だった見た目を壺に変更しました。' },
