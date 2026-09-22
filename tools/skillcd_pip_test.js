@@ -73,4 +73,13 @@ html = E.renderBattleFight();
 ok('CTが0になったユニットのピップにreadyクラスが付く(文字なしで一目で分かる)', /skillcd-pip[^"]*\bready\b/.test(html));
 ok('readyなピップのtitleに"使用可"と出る(補助情報)', html.includes('(使用可)'));
 
+// --- 5. ピップの中にスキル番号(1/2)が入って、どちらのCTか区別できる ---
+ok('スキル1のピップに"1"の番号が入る', /skillcd-pip[^>]*>\s*<span>1<\/span>/.test(html));
+ok('スキル2のピップに"2"の番号が入る', /skillcd-pip[^>]*>\s*<span>2<\/span>/.test(html));
+
+// スキル1枠しか持たないキャラ(★4未満・未昇格)は"2"のピップが出ない
+const soloM = E.MON_BY_ID['m21'];
+const soloU = E.buildUnit(soloM, 10, false, Math.min(3, soloM.rarity), false, 10, { skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 });
+ok('★4未満のキャラはスキル1枠のみ持つ(前提確認)', soloU.skills.length === 1, soloU.skills.length);
+
 console.log('done');
