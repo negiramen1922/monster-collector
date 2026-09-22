@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.038';
+const GAME_VERSION = 'α0.0.039';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9024,21 +9024,55 @@ const HATE_KEEP_PER_ROUND = 0.8;
 function hateLabel(v){ return v >= 35 ? '高い' : v >= 18 ? '普通' : '低め'; }
 
 const STATUS_LABEL = { burn:'やけど', poison:'毒', stun:'気絶' };
-const STATUS_ICON = { burn:'🔥', poison:'☠️', stun:'💫' };
 // buffs & debuffs: same key never stacks (the bigger value stays, the longer duration stays)
-const BUFF_ICON = {
-  strUp:'⬆️', strDown:'⬇️', spdUp:'💨', spdDown:'🐢', pdefUp:'🛡️', pdefDown:'🔻', mdefUp:'🔷', cut:'🔰',
-  thorns:'🌵', statue:'🪨', vuln:'🩸', healCut:'🚫', ward:'🧿', critUp:'🎯',
-  evade:'👻', regen:'♻️', taunt:'🎯', immune:'✨', burnOnHit:'🕯️', burnWhenHit:'🌋', redirect:'🗿',
-  foxDouble:'🦊', moonLock:'🌕',
-};
 const BUFF_LABEL = {
   strUp:'STRアップ', strDown:'STRダウン', spdUp:'SPDアップ', spdDown:'SPDダウン', pdefUp:'物理防御アップ',
   pdefDown:'物理防御ダウン', thorns:'トゲ', statue:'石像化', vuln:'被ダメージアップ', healCut:'回復阻害', ward:'免疫', critUp:'会心率アップ',
   mdefUp:'魔法防御アップ', cut:'被ダメージ軽減', evade:'回避率アップ', regen:'継続回復', taunt:'挑発',
   immune:'状態異常無効', burnOnHit:'やけど付与', burnWhenHit:'反撃やけど', redirect:'肩代わり',
-  foxDouble:'狐火2倍', moonLock:'満月固定',
+  foxDouble:'狐火2倍', moonLock:'満月固定', shield:'シールド',
 };
+/* ---- buff/debuff/status icons: hand-drawn SVG badges for now, same provisional-icon
+   pattern as ELEM_ICON/CURRENCY_ICON/ITEM_ICON above (dataIcon() swaps in real pixel art
+   from ICON_DATA[`status_${key}`]/[`buff_${key}`] the moment it exists - nothing else to
+   change here when that art arrives). A plain filled circle badge + a bold simple glyph,
+   colored green(buff)/red(debuff)/status-specific so the shape reads at 12-17px. ---- */
+const buffBadgeBg = c => `<circle cx="50" cy="50" r="45" fill="${c}" stroke="rgba(0,0,0,.4)" stroke-width="5"/>`;
+const STATUS_SVG_BODY = {
+  burn: buffBadgeBg('#d1531f') + '<path d="M50 16c10 14 20 24 20 40a20 20 0 0 1-40 0c0-11 7-16 10-26 3 8 6 11 9 13 1-10 0-18 1-27z" fill="#fff8ec"/>',
+  poison: buffBadgeBg('#7a4fae') + '<path d="M50 20c10 16 18 26 18 38a18 18 0 0 1-36 0c0-12 8-22 18-38z" fill="#f2e8ff"/><circle cx="66" cy="30" r="5" fill="#f2e8ff"/>',
+  stun: buffBadgeBg('#d9b53c') + '<path d="M50 30a20 20 0 1 1 -14 6" fill="none" stroke="#fffaea" stroke-width="6" stroke-linecap="round"/><path d="M26 22 L29 28 L35 29 L29 32 L26 38 L23 32 L17 29 L23 28 Z" fill="#fffaea"/><path d="M76 62 L78 66 L82 67 L78 69 L76 73 L74 69 L70 67 L74 66 Z" fill="#fffaea"/>',
+};
+const BUFF_SVG_BODY = {
+  strUp: buffBadgeBg('#4a9e52') + '<path d="M50 26 L74 58 L58 58 L58 76 L42 76 L42 58 L26 58 Z" fill="#fff"/>',
+  strDown: buffBadgeBg('#b23a3a') + '<path d="M50 76 L26 44 L42 44 L42 26 L58 26 L58 44 L74 44 Z" fill="#fff"/>',
+  spdUp: buffBadgeBg('#2fa79c') + '<path d="M26 30 L46 50 L26 70" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M50 30 L70 50 L50 70" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>',
+  spdDown: buffBadgeBg('#8a6a44') + '<rect x="26" y="41" width="10" height="18" rx="2" fill="#fff"/><path d="M64 32 L44 50 L64 68" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>',
+  pdefUp: buffBadgeBg('#3a7ab2') + '<path d="M50 20 L74 30 V52 C74 68 64 78 50 84 C36 78 26 68 26 52 V30 Z" fill="#fff"/>',
+  pdefDown: buffBadgeBg('#7a2a2a') + '<path d="M50 20 L74 30 V52 C74 68 64 78 50 84 C36 78 26 68 26 52 V30 Z" fill="#e8b8b8"/><path d="M50 24 L44 46 L54 50 L40 78" fill="none" stroke="#7a2a2a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>',
+  mdefUp: buffBadgeBg('#7a52c9') + '<path d="M50 20 L74 30 V52 C74 68 64 78 50 84 C36 78 26 68 26 52 V30 Z" fill="#fff" opacity=".95"/><rect x="42" y="42" width="16" height="16" fill="#7a52c9" transform="rotate(45 50 50)"/>',
+  cut: buffBadgeBg('#2f8f8f') + '<path d="M50 18 L72 27 V48 C72 64 62 74 50 80 C38 74 28 64 28 48 V27 Z" fill="#fff"/><path d="M50 34 L50 56 M40 48 L50 58 L60 48" fill="none" stroke="#2f6f8f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>',
+  thorns: buffBadgeBg('#4f9d3f') + '<circle cx="50" cy="50" r="15" fill="#fff"/><g fill="#fff"><path d="M50 14 L57 32 L43 32 Z"/><path d="M86 50 L68 57 L68 43 Z"/><path d="M50 86 L43 68 L57 68 Z"/><path d="M14 50 L32 43 L32 57 Z"/></g>',
+  statue: buffBadgeBg('#6b6b78') + '<path d="M30 66 L36 34 L52 26 L70 36 L74 66 Z" fill="#e6e2d8"/><path d="M46 34 L52 46 L44 50 L54 66" fill="none" stroke="#3a3a42" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
+  vuln: buffBadgeBg('#9e2f4a') + '<path d="M50 22c10 16 18 26 18 38a18 18 0 0 1-36 0c0-12 8-22 18-38z" fill="#fff"/><path d="M50 44 L50 62 M42 52 L50 44 L58 52" fill="none" stroke="#9e2f4a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>',
+  healCut: buffBadgeBg('#7a5560') + '<path d="M50 76C30 62 22 50 22 38c0-10 8-18 18-18 6 0 10 3 10 3s4-3 10-3c10 0 18 8 18 18 0 12-8 24-28 38z" fill="#fff"/><line x1="24" y1="24" x2="76" y2="76" stroke="#5a2530" stroke-width="7" stroke-linecap="round"/>',
+  ward: buffBadgeBg('#39a7c9') + '<path d="M14 50C24 32 38 24 50 24s26 8 36 26c-10 18-24 26-36 26S24 68 14 50z" fill="#fff"/><circle cx="50" cy="50" r="12" fill="#1c6d82"/><circle cx="50" cy="50" r="5" fill="#fff"/>',
+  critUp: buffBadgeBg('#c99a34') + '<circle cx="50" cy="50" r="19" fill="none" stroke="#fff" stroke-width="7"/><circle cx="50" cy="50" r="6" fill="#fff"/><line x1="50" y1="16" x2="50" y2="27" stroke="#fff" stroke-width="7" stroke-linecap="round"/><line x1="50" y1="73" x2="50" y2="84" stroke="#fff" stroke-width="7" stroke-linecap="round"/><line x1="16" y1="50" x2="27" y2="50" stroke="#fff" stroke-width="7" stroke-linecap="round"/><line x1="73" y1="50" x2="84" y2="50" stroke="#fff" stroke-width="7" stroke-linecap="round"/>',
+  evade: buffBadgeBg('#6f7690') + '<path d="M28 34c10-8 30-8 40 0" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".5"/><path d="M24 50c14-10 34-10 48 0" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".78"/><path d="M28 66c10 8 30 8 40 0" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>',
+  regen: buffBadgeBg('#3fae5a') + '<path d="M66 34a24 24 0 1 0 6 30" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><path d="M64 18 L68 36 L50 32 Z" fill="#fff"/>',
+  taunt: buffBadgeBg('#d47a2a') + '<g fill="#fff"><path d="M50 12 L58 30 L42 30 Z"/><path d="M88 50 L70 58 L70 42 Z"/><path d="M50 88 L42 70 L58 70 Z"/><path d="M12 50 L30 42 L30 58 Z"/></g><circle cx="50" cy="50" r="17" fill="#fff"/><rect x="46" y="37" width="8" height="17" rx="3" fill="#d47a2a"/><circle cx="50" cy="61" r="4" fill="#d47a2a"/>',
+  immune: buffBadgeBg('#c9a93a') + '<path d="M50 15 L79 32 V68 L50 85 L21 68 V32 Z" fill="none" stroke="#fff" stroke-width="6"/><path d="M50 30 L56 45 L71 50 L56 55 L50 70 L44 55 L29 50 L44 45 Z" fill="#fff"/>',
+  burnOnHit: buffBadgeBg('#c9531f') + '<path d="M46 20c8 12 16 20 16 32a16 16 0 0 1-32 0c0-9 6-13 8-21 3 6 5 8 7 10 1-8 0-14 1-21z" fill="#fff"/><path d="M74 24 L78 32 L86 34 L78 36 L74 44 L70 36 L62 34 L70 32 Z" fill="#fff"/>',
+  burnWhenHit: buffBadgeBg('#b23a24') + '<path d="M50 18 L72 27 V48 C72 64 62 74 50 80 C38 74 28 64 28 48 V27 Z" fill="none" stroke="#fff" stroke-width="5" opacity=".85"/><path d="M50 32c6 9 12 15 12 24a12 12 0 0 1-24 0c0-7 5-10 6-16 2 4 4 6 5 7 1-6 0-10 1-15z" fill="#fff"/>',
+  redirect: buffBadgeBg('#3a6fa8') + '<path d="M50 20 L72 29 V50 C72 65 62 75 50 80 C38 75 28 65 28 50 V29 Z" fill="#fff" opacity=".92"/><path d="M40 44a12 12 0 1 1 -2 16" fill="none" stroke="#2a4a6a" stroke-width="6" stroke-linecap="round"/><path d="M40 34 L38 46 L50 44 Z" fill="#2a4a6a"/>',
+  foxDouble: buffBadgeBg('#c9701f') + '<path d="M38 28c6 9 11 15 11 23a11 11 0 0 1-22 0c0-6 4-9 5-15 2 4 3 5 5 7 1-6 0-10 1-15z" fill="#fff"/><path d="M62 24c6 9 11 15 11 23a11 11 0 0 1-22 0c0-6 4-9 5-15 2 4 3 5 5 7 1-6 0-10 1-15z" fill="#fff" opacity=".8"/>',
+  moonLock: buffBadgeBg('#3f3f7a') + '<path d="M62 20a32 32 0 1 0 0 60 26 26 0 0 1 0-60z" fill="#fde9c9"/>',
+  shield: buffBadgeBg('#3a8fae') + '<path d="M50 18 L74 28 V50 C74 66 64 76 50 82 C36 76 26 66 26 50 V28 Z" fill="#fff"/>',
+};
+const STATUS_ICON = Object.fromEntries(Object.keys(STATUS_SVG_BODY).map(k =>
+  [k, dataIcon(`status_${k}`, STATUS_SVG_BODY[k], 'ico-buff', STATUS_LABEL[k])]));
+const BUFF_ICON = Object.fromEntries(Object.keys(BUFF_SVG_BODY).map(k =>
+  [k, dataIcon(`buff_${k}`, BUFF_SVG_BODY[k], 'ico-buff', BUFF_LABEL[k])]));
 
 /* ---- attack motions → hit effects (art defined below) ---- */
 // ---- attack motions → hit effects ----
@@ -11537,7 +11571,7 @@ function unitEffects(u){
   if(st.poison) out.push({ icon: STATUS_ICON.poison, label: `毒(${st.poison.layers.length}層)`, sub: `毎ターン最大HPの${st.poison.layers.length * 2}%・残り${st.poison.turns}ターン`, bad: true });
   if(st.stun) out.push({ icon: STATUS_ICON.stun, label: '気絶', sub: '次の行動を休む', bad: true });
   const sh = shieldTotal(u);
-  if(sh > 0) out.push({ icon: '💠', label: 'シールド', sub: `あと ${sh}(${u.shields.length}枚)`, bad: false });
+  if(sh > 0) out.push({ icon: BUFF_ICON.shield, label: 'シールド', sub: `あと ${sh}(${u.shields.length}枚)`, bad: false });
   Object.entries(u.buffs).forEach(([k, b]) => {
     const bad = DEBUFF_KEYS.includes(k) || k === 'statue';
     const amount = buffValueText(b.v);
@@ -13107,6 +13141,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 29, version: 'α0.0.039', date: '9/22', body: 'バフ・デバフ・状態異常のアイコンを絵文字から手描きのイラストに刷新しました。' },
   { id: 28, version: 'α0.0.038', date: '9/22', body: '負けた戦闘は使ったスタミナが全額戻るように変更。ガチャのピックアップキャラは未所持でも性能(ステータス・スキル)を確認できるように。設定に「データを削除」を追加(クラウド同期分も含めて削除・確認あり)。' },
   { id: 27, version: 'α0.0.037', date: '9/22', body: 'PVPに「攻撃編成」を新設。クエストのパーティ・防衛編成とは別枠になり、お助けキャラ(借りたフレンドの支援キャラ)はPVPに一切持ち込めなくなりました。' },
   { id: 26, version: 'α0.0.036', date: '9/22', body: 'チュートリアルの3ステージは初回クリアまでのみ無料。クリア済みのチュートリアルへの再挑戦は通常ステージと同じスタミナを消費するように修正(報酬を無限に無料で稼げてしまう不具合の修正)。' },
