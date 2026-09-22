@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.037';
+const GAME_VERSION = 'α0.0.038';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5779,9 +5779,16 @@ const QUEST_TIERS = [
   { key: 'q2h', label: '中級ハード', short: '💀中級', lv: [30, 58], star: [4, 4], bossStar: 5, skill: 3, waves: 3, hard: 'q2' },
   { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [4, 3, 1], pots: { exp2: 4 } },
   { key: 'q3h', label: '上級ハード', short: '💀上級', lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
-  // not built yet: rebuilt from the bottom up as more monsters are implemented
-  { key: 'q4', label: '超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8,  waves: 4, drops: [5, 3, 2], pots: { exp2: 6, exp3: 1 }, disabled: true },
-  { key: 'q5', label: '極上級', lv: [150, 196], star: [6, 7], bossStar: 7, skill: 10, waves: 4, drops: [5, 4, 3], pots: { exp3: 3 }, disabled: true },
+  // 通常クエストは雑魚★1-4・ボス★5が上限。★6以上はハードモード専用(HARD_STAR_MAPで
+  // ノーマルの★を変換)。超上級以降はレベル/スキルLvだけで難度を積み増す。
+  { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [5, 3, 2], pots: { exp2: 6, exp3: 1 } },
+  { key: 'q4h', label: '超上級ハード', short: '💀超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
+  { key: 'q5', label: '極上級', lv: [150, 196], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 3], pots: { exp3: 3 } },
+  { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 196], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
+  { key: 'q6', label: '伝説級', lv: [200, 230], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6, 4, 3], pots: { exp3: 5 } },
+  { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [200, 230], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
+  { key: 'q7', label: '神話級', lv: [230, 250], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [6, 5, 4], pots: { exp3: 8 } },
+  { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [230, 250], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
 const HARD_TIERS = QUEST_TIERS_ACTIVE.filter(t => t.hard);
@@ -5793,6 +5800,8 @@ const TERRAIN = {
   sea:     { label: '海', color: '#2f6fb0' },  sky:    { label: '天空', color: '#7fb7d8' },
   under:   { label: '冥界', color: '#5a3a70' }, peak:   { label: '神域', color: '#c9a64a' },
   field:   { label: '訓練場', color: '#8a7a5a' },
+  abyss:   { label: '深淵', color: '#3a2050' }, tempest: { label: '暴風域', color: '#4a5a78' },
+  void:    { label: '虚無', color: '#241830' }, astral: { label: '星幽', color: '#9a7fd0' },
 };
 // per stage: [name, terrain, element, enemy pool, rares, lvAdj] ; bosses add { boss, gimmick, adds }
 const QUEST_SPEC = {
@@ -5860,6 +5869,30 @@ const QUEST_SPEC = {
     { name: '巨人の谷', terrain: 'peak', element: 'earth', pool: ['m22', 'm56', 'm13'], rares: ['m56'] },
     { name: '神々の庭', terrain: 'peak', element: 'light', pool: ['m106', 'm126', 'm34'], rares: ['m88'] },
     { name: '迷宮の王', terrain: 'peak', element: 'earth', boss: 'm56', gimmick: 'quake', adds: ['m22', 'm13', 'm46'] },
+  ],
+  q6: [
+    { name: '奈落の断崖', terrain: 'abyss', element: 'dark', pool: ['m101', 'm24', 'm97'], rares: ['m120'] },
+    { name: '亡者の回廊', terrain: 'abyss', element: 'dark', pool: ['m95', 'm30', 'm44'], rares: ['m101'] },
+    { name: '巨石の墓標', terrain: 'abyss', element: 'earth', pool: ['m89', 'm13', 'm51'], rares: ['m56'] },
+    { name: '深淵の坑道', terrain: 'abyss', element: 'earth', pool: ['m123', 'm27', 'm70'], rares: ['m54'] },
+    { name: '巨神の眠る底', terrain: 'abyss', element: 'earth', boss: 'm54', gimmick: 'shell', adds: ['m89', 'm13', 'm51'] },
+    { name: '雷鳴の荒野', terrain: 'tempest', element: 'thunder', pool: ['m74', 'm65', 'm20'], rares: ['m125'] },
+    { name: '嵐の吹き溜まり', terrain: 'tempest', element: 'wind', pool: ['m108', 'm109', 'm135'], rares: ['m105'] },
+    { name: '暴風の砦', terrain: 'tempest', element: 'thunder', pool: ['m62', 'm96', 'm132'], rares: ['m74'] },
+    { name: '天穿つ竜巻', terrain: 'tempest', element: 'wind', pool: ['m130', 'm118', 'm122'], rares: ['m108'] },
+    { name: '暴威の狼王', terrain: 'tempest', element: 'wind', boss: 'm68', gimmick: 'enrage', adds: ['m108', 'm109', 'm135'] },
+  ],
+  q7: [
+    { name: '虚ろなる回廊', terrain: 'void', element: 'dark', pool: ['m101', 'm115', 'm120'], rares: ['m97'] },
+    { name: '狐火の迷い道', terrain: 'void', element: 'fire', pool: ['m67', 'm17', 'm66'], rares: ['m53'] },
+    { name: '無明の祭壇', terrain: 'void', element: 'dark', pool: ['m24', 'm40', 'm44'], rares: ['m101'] },
+    { name: '焔立つ虚空', terrain: 'void', element: 'fire', pool: ['m63', 'm72', 'm87'], rares: ['m67'] },
+    { name: '九尾の棲む社', terrain: 'void', element: 'fire', boss: 'm116', gimmick: 'scorch', adds: ['m67', 'm17', 'm87'] },
+    { name: '星屑の回廊', terrain: 'astral', element: 'light', pool: ['m104', 'm106', 'm98'], rares: ['m113'] },
+    { name: '天使の階', terrain: 'astral', element: 'light', pool: ['m91', 'm124', 'm34'], rares: ['m104'] },
+    { name: '聖竜の巣', terrain: 'astral', element: 'light', pool: ['m126', 'm133', 'm71'], rares: ['m106'] },
+    { name: '神話の門前', terrain: 'astral', element: 'light', pool: ['m104', 'm106', 'm91'], rares: ['m113'] },
+    { name: '神話に眠る竜', terrain: 'astral', element: 'light', boss: 'm113', gimmick: 'regrowth', adds: ['m104', 'm106', 'm34'] },
   ],
 };
 // per-stage tuning (by simulation): lv = enemy level offset from the recommended level,
@@ -6068,7 +6101,7 @@ const STAGE_BY_ID = Object.fromEntries(STAGES.map(st => [st.id, st]));
 // stars (★1・2→★4、★3・4→★5、★5→★6), gold, firstClear, drop tier and the box rank
 // of boss rewards. The first hard stage of a tier requires a full clear of the normal
 // tier; the rest chain sequentially like normal stages.
-const HARD_STAR_MAP = { 1: 4, 2: 4, 3: 5, 4: 5, 5: 6, 6: 7, 7: 7 };
+const HARD_STAR_MAP = { 1: 4, 2: 5, 3: 5, 4: 6, 5: 6, 6: 7, 7: 7 };
 function hardStar(star){ return HARD_STAR_MAP[star] || star; }
 function bumpBoxTier(key){
   const m = /^box_sel_([1-4])$/.exec(key);
@@ -13024,6 +13057,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 28, version: 'α0.0.038', date: '9/22', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」を追加(適正Lv100〜250)。通常モードの敵は★4(ボスは★5)が上限になり、★6以上はハードモード限定に。' },
   { id: 27, version: 'α0.0.037', date: '9/22', body: 'PVPに「攻撃編成」を新設。クエストのパーティ・防衛編成とは別枠になり、お助けキャラ(借りたフレンドの支援キャラ)はPVPに一切持ち込めなくなりました。' },
   { id: 26, version: 'α0.0.036', date: '9/22', body: 'チュートリアルの3ステージは初回クリアまでのみ無料。クリア済みのチュートリアルへの再挑戦は通常ステージと同じスタミナを消費するように修正(報酬を無限に無料で稼げてしまう不具合の修正)。' },
   { id: 25, version: 'α0.0.035', date: '9/22', body: 'フレンド画面に「自分を追加している人」一覧を追加し、そこから「フレンドを返す」でフレンド登録できるように。' },
