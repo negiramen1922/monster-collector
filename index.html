@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.040';
+const GAME_VERSION = 'α0.0.041';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8309,7 +8309,7 @@ function renderDex(){
       ${list.map(m => {
         const owned = STATE.owned[m.id];
         return `
-          <div class="mon-cell r${m.rarity} ${owned?'':'locked'}" ${owned ? `data-detail="${m.id}"` : ''}>
+          <div class="mon-cell r${m.rarity} ${owned?'':'locked'}" data-preview-mon="${m.id}">
             <span class="elem">${ELEM_ICON[m.element]}</span>
             ${owned ? `<span class="lv">Lv${owned.level}</span>` : ''}
             <img src="${imgSrc(m.id)}" alt="${owned ? m.name : '？'}">
@@ -13143,6 +13143,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 31, version: 'α0.0.041', date: '9/22', body: '図鑑で未入手のキャラをタップして性能(基礎ステータス・スキル)を確認できるように(レベル上げなどの育成操作はできません)。遺物図鑑は元々未所持でも性能を確認できます。' },
   { id: 30, version: 'α0.0.040', date: '9/22', body: '遺物ガチャのピックアップ「性能を見る」が、対象キャラを所持していてもキャラ詳細ではなく遺物本体の性能を表示するように修正。' },
   { id: 29, version: 'α0.0.039', date: '9/22', body: 'バフ・デバフ・状態異常のアイコンを絵文字から手描きのイラストに刷新しました。' },
   { id: 28, version: 'α0.0.038', date: '9/22', body: '負けた戦闘は使ったスタミナが全額戻るように変更。ガチャのピックアップキャラは未所持でも性能(ステータス・スキル)を確認できるように。設定に「データを削除」を追加(クラウド同期分も含めて削除・確認あり)。' },
