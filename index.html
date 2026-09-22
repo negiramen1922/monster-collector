@@ -1464,6 +1464,25 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   font-size:9px; line-height:1; z-index:2;
 }
 .battle-field .status-row:not(:empty){ background:rgba(0,0,0,.6); border-radius:6px; padding:1px 2px; }
+.skillcd-row{
+  position:absolute; right:3px; bottom:16px; margin:0; z-index:2;
+  display:flex; gap:2px;
+}
+.skillcd-pip{
+  width:7px; height:7px; border-radius:50%;
+  background:conic-gradient(#9db1ff var(--pct,0%), rgba(255,255,255,.18) 0);
+  border:1px solid rgba(0,0,0,.45);
+}
+.skillcd-pip.enemy{ background:conic-gradient(#ff9b8a var(--pct,0%), rgba(255,255,255,.18) 0); }
+.skillcd-pip.ready{
+  background:var(--gold);
+  box-shadow:0 0 5px 1px rgba(232,180,85,.9);
+  animation:pip-ready-pulse .9s ease-in-out infinite;
+}
+@keyframes pip-ready-pulse{
+  0%,100%{ transform:scale(1); }
+  50%{ transform:scale(1.35); }
+}
 .battle-field .unit img{ width:100%; height:var(--unit-img); aspect-ratio:auto; object-fit:contain; }
 .battle-field .unit .hp-bg{ margin-top:2px; }
 .battle-field .unit.penalty{ border-style:dashed; }
@@ -2392,7 +2411,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.042';
+const GAME_VERSION = 'α0.0.043';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2879,6 +2898,7 @@ function applyStatBonus(u, bonus){
   if(bonus.ctTurns){
     u.ctReduce = bonus.ctTurns;
     u.skillCd = initialSkillCds(u);
+    u.skillCdMax = u.skillCd.slice();
   }
 }
 
@@ -9186,6 +9206,7 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     tie: 0,
   };
   unit.skillCd = initialSkillCds(unit);
+  unit.skillCdMax = unit.skillCd.slice();
   return unit;
 }
 
@@ -11488,6 +11509,7 @@ function takeTurn(u){
     const skill = slot >= 0 ? u.skills[slot] : null;
     if(skill && (hasFoe || skill.tgt === 'self' || String(skill.tgt).startsWith('ally'))){
       u.skillCd[slot] = skillCt(u, slot) + (slot === 0 ? 0 : 1);
+      u.skillCdMax[slot] = u.skillCd[slot];
       performAction(u, 'skill', skill, slot);
     }else if(hasFoe){
       performAction(u, 'normal', u.normal);
@@ -12097,6 +12119,13 @@ function renderBattleFight(){
     const justDied = !u.alive && before > 0;
     const shield = u.alive ? shieldTotal(u) : 0;
     const shieldPct = Math.min(100, Math.round(shield / u.maxHp * 100));
+    const skillCdPips = u.alive ? u.skills.map((sk, i) => {
+      const max = (u.skillCdMax && u.skillCdMax[i]) || skillCt(u, i);
+      const cur = u.skillCd[i];
+      const ready = cur <= 0;
+      const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((1 - cur / max) * 100))) : 100;
+      return `<div class="skillcd-pip ${side} ${ready ? 'ready' : ''}" style="--pct:${pct}%" title="スキル${i + 1}${ready ? '(使用可)' : `(CT あと${cur}ターン)`}"></div>`;
+    }).join('') : '';
     return `
       <div class="unit ${u.alive?'':'dead'} ${u.vanished?'vanished':''} ${justDied?'just-died':''} ${isReady?'ready':''} ${isReserved?'reserved':''} ${u.boss?'boss':''} ${u.rare?'rare':''} ${warn?'penalty':''} ${actingClass}"
         data-inspect="${side}:${idx}"
@@ -12122,6 +12151,7 @@ function renderBattleFight(){
             ${shield > 0 ? `<div class="shield-fill" style="width:${shieldPct}%;"></div>` : ''}
           </div>
           <div class="ult-bg" title="SP ${u.sp}/${u.spCost}">${u.alive ? `<div class="ult-fill ${side==='enemy'?'enemy':''} ${spPct>=100?'full':''}" style="width:${spPct}%;"></div>` : ''}</div>
+          ${skillCdPips ? `<div class="skillcd-row">${skillCdPips}</div>` : ''}
           <div class="status-row">${statusIcons}</div>
         </div>
       </div>
@@ -13146,6 +13176,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 33, version: 'α0.0.043', date: '9/22', body: 'バトル中のキャラカードにスキルのクールタイムを示す丸いマークを追加。溜まっていく様子と、使用可能になった時の点滅で、文字を読まなくても直感的に分かるように。' },
   { id: 32, version: 'α0.0.042', date: '9/22', body: '★1〜3のキャラでまだ解放されていないスキル2も、性能(効果・威力・対象)を確認できるように。★4で解放されるまで強化はできません。' },
   { id: 31, version: 'α0.0.041', date: '9/22', body: '図鑑で未入手のキャラをタップして性能(基礎ステータス・スキル)を確認できるように(レベル上げなどの育成操作はできません)。遺物図鑑は元々未所持でも性能を確認できます。' },
   { id: 30, version: 'α0.0.040', date: '9/22', body: '遺物ガチャのピックアップ「性能を見る」が、対象キャラを所持していてもキャラ詳細ではなく遺物本体の性能を表示するように修正。' },
