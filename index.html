@@ -990,6 +990,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 .relic-slot.filled{ border-color:rgba(232,180,85,.5); }
 .relic-ic{ font-size:22px; flex:none; width:34px; text-align:center; }
+.relic-ic img{ width:34px; height:34px; object-fit:contain; image-rendering:pixelated; border-radius:8px; }
 .relic-slot-body{ flex:1; min-width:0; }
 .relic-slot-name{ font-size:12.5px; font-weight:800; }
 .relic-star{ font-size:10px; color:var(--gold); font-weight:700; margin-left:6px; }
@@ -1074,12 +1075,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-detail-starrow.r1{ color:#a3a3b3; } .relic-detail-starrow.r2{ color:#79c96d; } .relic-detail-starrow.r3{ color:#5cb8e8; }
 .relic-detail-starrow.r4{ color:#c493ea; } .relic-detail-starrow.r5{ color:var(--gold); }
 .relic-dupe-star{ color:var(--fire); }
-.relic-dupe-plus{
-  flex:none; width:20px; height:20px; border-radius:50%; border:1px solid var(--line);
-  background:var(--panel3); color:var(--text); font-size:13px; font-weight:800; line-height:1;
-  display:flex; align-items:center; justify-content:center; padding:0;
-}
-.relic-dupe-plus.active{ border-color:var(--fire); color:var(--fire); }
 
 .relic-effects{ margin:0 0 14px; display:flex; flex-direction:column; gap:6px; }
 .relic-eff-line{
@@ -2417,7 +2412,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.044';
+const GAME_VERSION = 'α0.0.045';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4871,6 +4866,21 @@ const RELIC_SKILL_MAX = 10;
 function relicSkillMult(skillLv){ return 1 + ((skillLv || 1) - 1) / (RELIC_SKILL_MAX - 1); }
 function relicSkillCoreTier(lv){ return lv <= 3 ? 1 : lv <= 6 ? 2 : 3; }
 function relicSkillCost(lv){ return { gold: 1500 * lv, coreTier: relicSkillCoreTier(lv), coreN: 2 }; }
+// どこで手に入るか: スキルアップ確認モーダルに表示する(素材の入手手段が分かりにくいため)
+function relicMatSourceHint(key){
+  if(key === 'relic_scrap') return '拠点の「鍛冶屋」で時間経過で生産されるほか、ゴールドショップでも購入できます。';
+  const rc = /^relic_core_([1-3])$/.exec(key);
+  if(!rc) return '';
+  return Number(rc[1]) === 1
+    ? '拠点の「鍛冶屋」で時間経過で生産されるほか、ゴールドショップ・PVPポイントショップでも購入できます。'
+    : 'PVPポイントショップで購入できます(鍛冶屋やゴールドショップでは手に入りません)。';
+}
+function relicMatHasBase(key){ return key === 'relic_scrap' || key === 'relic_core_1'; }
+function relicMatShopTab(key){
+  if(key === 'relic_scrap' || key === 'relic_core_1') return 'gold';
+  if(/^relic_core_[23]$/.test(key)) return 'pvp';
+  return null;
+}
 function upgradeRelicSkill(id){
   const st = STATE.relics[id];
   if(!st) return false;
@@ -4890,6 +4900,67 @@ function upgradeRelicSkill(id){
   if(relicUpgrade && relicUpgrade.relicId === id) renderRelicUpgrade();
   render();
   return true;
+}
+
+// 遺物のスキルレベルアップは、キャラのスキルレベルアップと同じく確認モーダルを挟む
+// (消費素材と、その入手方法を見てから確定させる)
+let relicSkillUpModal = null; // { relicId } while this modal is open
+let relicSkillUpShort = false; // whether the素材チップの入手方法パネルが開いているか
+function openRelicSkillUpModal(relicId){ relicSkillUpModal = { relicId }; relicSkillUpShort = false; renderRelicSkillUpModal(); }
+function closeRelicSkillUpModal(){ relicSkillUpModal = null; relicSkillUpShort = false; if(relicUpgrade) renderRelicUpgrade(); }
+function renderRelicSkillUpModal(){
+  const { relicId } = relicSkillUpModal;
+  const def = RELICS[relicId];
+  const st = STATE.relics[relicId];
+  if(!def || !st){ closeRelicSkillUpModal(); return; }
+  const lv = st.skillLv || 1;
+  const maxed = lv >= RELIC_SKILL_MAX;
+  const cost = maxed ? null : relicSkillCost(lv);
+  const coreKey = cost ? `relic_core_${cost.coreTier}` : null;
+  const goldHave = STATE.gold || 0;
+  const coreHave = coreKey ? getItem(coreKey) : 0;
+  const goldShort = cost && goldHave < cost.gold;
+  const coreShort = cost && coreHave < cost.coreN;
+  const allOk = cost && !goldShort && !coreShort;
+  const mult = relicSkillMult(lv), nextMult = relicSkillMult(lv + 1);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal skill-up-modal" role="dialog" aria-label="スキルレベルアップ">
+      <button class="fs-close" data-close-relic-skill-up="1" aria-label="閉じる">×</button>
+      <h3>スキルLv${lv} → Lv${lv + 1}</h3>
+      ${maxed ? `<p class="fs-note">これ以上は上げられません。</p>` : `
+      <div class="su-preview-list">
+        ${def.effects.map(e => `<div class="su-preview-row"><span class="su-preview-name">${relicEffectText(e)}</span><span>${Math.round(e.pct * mult * 100)}% → <b class="lv-scale-val">${Math.round(e.pct * nextMult * 100)}%</b></span></div>`).join('')}
+      </div>
+      <p class="fs-note">消費素材(タップで入手方法を表示)</p>
+      <div class="su-cost-list">
+        <div class="su-cost-row">
+          <div class="su-cost-chip ${goldShort ? 'short' : ''}">
+            <span class="su-cost-ic">${GOLD_ICON}</span>
+            <span class="su-cost-name">ゴールド</span>
+            <b class="su-cost-n">${goldHave.toLocaleString()} / ${cost.gold.toLocaleString()}</b>
+          </div>
+        </div>
+        <div class="su-cost-row">
+          <button class="su-cost-chip ${coreShort ? 'short' : ''} ${relicSkillUpShort ? 'open' : ''}" data-relic-cost-toggle="1">
+            <span class="su-cost-ic">${itemIcon(coreKey)}</span>
+            <span class="su-cost-name">${itemName(coreKey)}</span>
+            <b class="su-cost-n">${coreHave} / ${cost.coreN}</b>
+          </button>
+          ${relicSkillUpShort ? `
+            <div class="su-shortcuts">
+              <p class="fs-note" style="margin:2px 0 4px;">${relicMatSourceHint(coreKey)}</p>
+              ${relicMatHasBase(coreKey) ? `<button class="btn btn-ghost btn-sm" data-goto-relic-base="1">拠点へ(鍛冶屋)</button>` : ''}
+              <button class="btn btn-ghost btn-sm" data-goto-relic-shop="${relicMatShopTab(coreKey)}">${relicMatShopTab(coreKey) === 'gold' ? 'ゴールドショップへ' : 'PVPポイントショップへ'}</button>
+            </div>` : ''}
+        </div>
+      </div>`}
+      <div class="ss-actions">
+        <button class="btn btn-ghost" data-close-relic-skill-up="1">閉じる</button>
+        <button class="btn ${maxed || !allOk ? 'btn-ghost' : ''}" data-confirm-relic-skill-up="1" ${maxed || !allOk ? 'disabled' : ''}>レベルアップする</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
 }
 
 const RELIC_DUPE_BONUS = PROMOTION_STAT_BONUS; // +10% per 凸 used, multiplies the flat base bonus below
@@ -4978,10 +5049,9 @@ function doRelicPull(times, cost){
 /* ---- relic picker / strengthen modals (opened from a monster's relic slot) ---- */
 let relicPicker = null;  // { monId } while the "choose a relic" sheet is open
 let relicUpgrade = null; // { relicId, monId } while the level/skill/wall sheet is open
-let relicDupePanelOpen = false; // whether the 凸 info panel (opened via the + next to the star row) is expanded
 function openRelicPicker(monId){ relicPicker = { monId }; renderRelicPicker(); }
 function closeRelicPicker(){ const p = relicPicker; relicPicker = null; if(p) showMonsterDetail(p.monId); }
-function openRelicUpgrade(relicId, monId){ relicUpgrade = { relicId, monId: monId || null }; relicDupePanelOpen = false; renderRelicUpgrade(); }
+function openRelicUpgrade(relicId, monId){ relicUpgrade = { relicId, monId: monId || null }; renderRelicUpgrade(); }
 function closeRelicUpgrade(){
   const u = relicUpgrade;
   relicUpgrade = null;
@@ -5062,29 +5132,8 @@ function renderRelicUpgrade(){
         <div class="relic-detail-ic r${def.star}">${def.icon}</div>
         <div class="relic-detail-headtext">
           <div class="relic-detail-name">${def.name}</div>
-          <div class="relic-detail-starrow r${def.star}">
-            ${'★'.repeat(def.star)}${(st.dupeUsed || 0) > 0 ? `<span class="relic-dupe-star">${'★'.repeat(st.dupeUsed || 0)}</span>` : ''}
-            <button class="relic-dupe-plus ${dupeSpare > 0 ? 'active' : ''}" data-relic-dupe-toggle="1" aria-label="凸の情報">${relicDupePanelOpen ? '−' : '＋'}</button>
-          </div>
+          <div class="relic-detail-starrow r${def.star}">${'★'.repeat(def.star)}${(st.dupeUsed || 0) > 0 ? `<span class="relic-dupe-star">${'★'.repeat(st.dupeUsed || 0)}</span>` : ''}</div>
         </div>
-      </div>
-
-      ${relicDupePanelOpen ? `
-      <div class="detail-level-box lv-card relic-dupe-panel">
-        <div class="row-between" style="margin-bottom:7px;">
-          <div class="mc-head">凸(重複ボーナス)</div>
-          <div class="mat-need">${st.dupeUsed || 0} / ${RELIC_MAX_DUPE_USE}</div>
-        </div>
-        ${dupeMaxed ? '<div class="promo-note">凸は上限です</div>' : dupeSpare > 0 ? `
-          <button class="btn btn-sm btn-block" data-relic-dupe="${relicId}">
-            凸する(+${Math.round(RELIC_DUPE_BONUS * 100)}%・★+1・所持${dupeSpare})
-          </button>` : `
-          <div class="promo-note">同じ「${def.name}」をもう1つ入手すると凸できます(遺物ガチャ${def.channel === 'distributed' ? '・イベント配布' : ''})。</div>`}
-      </div>` : ''}
-
-      <div class="detail-level-box lv-card">
-        <div class="mc-head" style="margin-bottom:7px;">基礎ステータス</div>
-        ${def.base ? `<div class="relic-eff-line"><span class="relic-eff-text">${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicGrowthMult(st.level) * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')}</span><small>キャラと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回</small></div>` : ''}
       </div>
 
       <div class="detail-level-box lv-card">
@@ -5108,6 +5157,11 @@ function renderRelicUpgrade(){
       </div>
 
       <div class="detail-level-box lv-card">
+        <div class="mc-head" style="margin-bottom:7px;">基礎ステータス</div>
+        ${def.base ? `<div class="relic-eff-line"><span class="relic-eff-text">${Object.entries(def.base).map(([k, v]) => `${RELIC_STAT_LABEL[k]}+${Math.round(v * relicGrowthMult(st.level) * (1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS))}`).join('・')}</span><small>キャラと同じ+3%/Lvで成長・覚醒で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回</small></div>` : '<div class="fs-note">このキャラは基礎ステータスの上昇はありません</div>'}
+      </div>
+
+      <div class="detail-level-box lv-card">
         <div class="row-between" style="margin-bottom:7px;">
           <div class="mc-head">スキル</div>
           <div class="mat-need">スキルLv ${st.skillLv || 1} / ${RELIC_SKILL_MAX}</div>
@@ -5124,19 +5178,41 @@ function renderRelicUpgrade(){
         </div>
         ${mon ? `<div class="fs-note" style="margin:-2px 0 10px;">${mon.name}への装着時: <span class="relic-eff-check on">✓</span>=効果あり　<span class="relic-eff-check off">✕</span>=条件を満たさず効果なし</div>` : ''}
         ${skillMaxed ? '<div class="promo-note">スキルLv上限です</div>' : `
-          <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= skCost.gold && getItem(`relic_core_${skCost.coreTier}`) >= skCost.coreN ? '' : 'btn-ghost'}" data-relic-skillup="${relicId}">
-            スキルLv${(st.skillLv || 1) + 1}へ(${goldText(skCost.gold)}・${itemName(`relic_core_${skCost.coreTier}`)}×${skCost.coreN}・所持${getItem(`relic_core_${skCost.coreTier}`)})
-          </button>`}
+          <button class="btn btn-sm btn-block" data-relic-skillup="${relicId}">スキルLv${(st.skillLv || 1) + 1}へ</button>`}
       </div>
 
-      <div class="ss-actions">
-        ${mon
-          ? (equippedHere
-              ? `<button class="btn btn-ghost" data-unequip-relic="${monId}">外す</button>`
-              : `<button class="btn" data-equip-relic="${relicId}:${monId}">${mon.name}に装着する</button>`)
-          : (equippedMon
-              ? `<button class="btn btn-ghost" data-unequip-relic="${st.equippedTo}">${equippedMon.name}から外す</button>`
-              : `<div class="fs-note">モンスターの詳細画面から装着できます</div>`)}
+      <div class="detail-level-box lv-card">
+        <div class="row-between" style="margin-bottom:7px;">
+          <div class="mc-head">覚醒</div>
+          <div class="mat-need">${st.dupeUsed || 0} / ${RELIC_MAX_DUPE_USE}</div>
+        </div>
+        <div class="fs-note" style="margin:-2px 0 8px;">覚醒すると★が上がり、基礎ステータスがさらに+${Math.round(RELIC_DUPE_BONUS * 100)}%されます。</div>
+        ${dupeMaxed ? '<div class="promo-note">覚醒は上限です</div>' : dupeSpare > 0 ? `
+          <button class="btn btn-sm btn-block" data-relic-dupe="${relicId}">
+            覚醒する(★+1・+${Math.round(RELIC_DUPE_BONUS * 100)}%・所持${dupeSpare})
+          </button>` : `
+          <div class="promo-note">同じ「${def.name}」をもう1つ入手すると覚醒できます(遺物ガチャ${def.channel === 'distributed' ? '・イベント配布' : ''})。</div>`}
+      </div>
+
+      <div class="detail-level-box relic-box">
+        <div class="mc-head" style="margin-bottom:8px;">装着してるキャラ</div>
+        ${equippedMon ? `
+          <div class="relic-slot filled" style="cursor:default;">
+            <span class="relic-ic"><img src="${imgSrc(equippedMon.id)}" alt=""></span>
+            <div class="relic-slot-body">
+              <div class="relic-slot-name">${equippedMon.name}</div>
+              <div class="relic-slot-sub">Lv${STATE.owned[equippedMon.id] ? STATE.owned[equippedMon.id].level : 1}</div>
+            </div>
+          </div>` : `<div class="fs-note">どのキャラにも装着されていません</div>`}
+        <div class="ss-actions" style="margin-top:10px;">
+          ${mon
+            ? (equippedHere
+                ? `<button class="btn btn-ghost" data-unequip-relic="${monId}">外す</button>`
+                : `<button class="btn" data-equip-relic="${relicId}:${monId}">${mon.name}に装着する</button>`)
+            : (equippedMon
+                ? `<button class="btn btn-ghost" data-unequip-relic="${st.equippedTo}">${equippedMon.name}から外す</button>`
+                : `<div class="fs-note">モンスターの詳細画面から装着できます</div>`)}
+        </div>
       </div>
     </div>`;
   layer.classList.add('show');
@@ -12489,9 +12565,32 @@ function handlePhoneClick(ev){
     const rowEl = t.closest('[data-relic-row]');
     if(rowEl){ openRelicUpgrade(rowEl.dataset.relicRow, relicPicker.monId); return; }
   }
+  if(relicSkillUpModal){
+    if(t.closest('[data-close-relic-skill-up]')){ closeRelicSkillUpModal(); return; }
+    if(t.closest('[data-confirm-relic-skill-up]')){
+      const { relicId } = relicSkillUpModal;
+      relicSkillUpModal = null;
+      upgradeRelicSkill(relicId);
+      return;
+    }
+    if(t.closest('[data-relic-cost-toggle]')){ relicSkillUpShort = !relicSkillUpShort; renderRelicSkillUpModal(); return; }
+    if(t.closest('[data-goto-relic-base]')){
+      relicSkillUpModal = null; relicUpgrade = null; relicPicker = null;
+      closeModal();
+      goto('base');
+      return;
+    }
+    const gotoShopEl = t.closest('[data-goto-relic-shop]');
+    if(gotoShopEl){
+      relicSkillUpModal = null; relicUpgrade = null; relicPicker = null;
+      closeModal();
+      shopTab = gotoShopEl.dataset.gotoRelicShop;
+      goto('shop');
+      return;
+    }
+  }
   if(relicUpgrade){
     if(t.closest('[data-close-relic-upgrade]')){ closeRelicUpgrade(); return; }
-    if(t.closest('[data-relic-dupe-toggle]')){ relicDupePanelOpen = !relicDupePanelOpen; renderRelicUpgrade(); return; }
     const rLvEl = t.closest('[data-relic-levelup]');
     if(rLvEl){ levelUpRelic(rLvEl.dataset.relicLevelup, rLvEl.dataset.times); return; }
     const rWallEl = t.closest('[data-relic-wall]');
@@ -12499,7 +12598,7 @@ function handlePhoneClick(ev){
     const rDupeEl = t.closest('[data-relic-dupe]');
     if(rDupeEl){ useRelicDupe(rDupeEl.dataset.relicDupe); return; }
     const rSkEl = t.closest('[data-relic-skillup]');
-    if(rSkEl){ upgradeRelicSkill(rSkEl.dataset.relicSkillup); return; }
+    if(rSkEl){ openRelicSkillUpModal(rSkEl.dataset.relicSkillup); return; }
     const eqEl = t.closest('[data-equip-relic]');
     if(eqEl){ const [rid, mid] = eqEl.dataset.equipRelic.split(':'); equipRelic(rid, mid); return; }
     const uneqEl = t.closest('[data-unequip-relic]');
@@ -13182,6 +13281,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 35, version: 'α0.0.045', date: '9/22', body: '遺物の詳細画面をキャラの詳細画面と同じ構成(見た目・名前→レベル→基礎ステータス→スキル→覚醒→装着してるキャラ)に統一。スキルのレベルアップも、キャラと同じく消費素材と入手方法を確認してから確定するように変更。' },
   { id: 34, version: 'α0.0.044', date: '9/22', body: 'スキルのクールタイムを示す丸いマークの中に「1」「2」の番号を追加。どちらのスキルのCTか一目で分かるように。' },
   { id: 33, version: 'α0.0.043', date: '9/22', body: 'バトル中のキャラカードにスキルのクールタイムを示す丸いマークを追加。溜まっていく様子と、使用可能になった時の点滅で、文字を読まなくても直感的に分かるように。' },
   { id: 32, version: 'α0.0.042', date: '9/22', body: '★1〜3のキャラでまだ解放されていないスキル2も、性能(効果・威力・対象)を確認できるように。★4で解放されるまで強化はできません。' },
