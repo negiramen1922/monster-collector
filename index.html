@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.035';
+const GAME_VERSION = 'α0.0.036';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3187,6 +3187,21 @@ const firebaseBackend = {
     ids.forEach(id => batch.delete(fs.doc(db, 'players', uid, 'gifts', id)));
     await batch.commit();
   },
+  // 「自分をフレンドに追加した人」一覧: doc IDが追加した側のuidなので、同じ人が
+  // 何度追加しても1件のまま(setDocで上書き)。フレンド追加時に相手側へ記録する。
+  async recordIncomingFriend(toUid, fromUid){
+    const { fs, db } = await this.load();
+    await fs.setDoc(fs.doc(db, 'players', toUid, 'incoming', fromUid), { at: Date.now() });
+  },
+  async fetchIncoming(uid){
+    const { fs, db } = await this.load();
+    const snap = await fs.getDocs(fs.collection(db, 'players', uid, 'incoming'));
+    return snap.docs.map(d => d.id); // uid配列
+  },
+  async removeIncoming(toUid, fromUid){
+    const { fs, db } = await this.load();
+    await fs.deleteDoc(fs.doc(db, 'players', toUid, 'incoming', fromUid));
+  },
   // batch refresh of friends' public profiles (currently just for "最終ログイン" - players/{uid}
   // is keyed by uid, so this is a plain "get these docs by id" query, chunked to Firestore's
   // 10-value 'in' limit rather than one lookupPlayer() round trip per friend.
@@ -3381,6 +3396,20 @@ function sanitizeLastActive(raw){
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 && n <= Date.now() ? n : null;
 }
+// players/{uid}の公開プロフィール(pまたはlookupPlayerの戻り値)からSTATE.friendsの1件を作る。
+// addFriendByCodeとaddFriendBack(フレンドを返す)で共通利用。
+function friendEntryFromProfile(p, fallbackPlayerId){
+  return {
+    uid: p.uid, playerId: String(p.playerId || fallbackPlayerId || '').slice(0, 14),
+    name: String(p.name || 'テイマー').slice(0, 20),
+    level: Math.max(1, Math.min(999, Number(p.level) || 1)),
+    support: sanitizeSupport(p.support),
+    avatar: sanitizeAvatar(p.avatar),
+    monsters: clampInt(p.monsters, 0, MONSTERS.length, 0),
+    cleared: clampInt(p.cleared, 0, STAGES.length, 0),
+    lastActive: sanitizeLastActive(p.updatedAt),
+  };
+}
 async function addFriendByCode(code){
   if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
   // playerId is stored as XXXX-XXXX-XXXX; accept it with or without hyphens/spacing
@@ -3394,20 +3423,50 @@ async function addFriendByCode(code){
   try{
     const p = await authBackend().lookupPlayer(code);
     if(!p){ toast('そのコードのプレイヤーが見つかりません'); return; }
-    STATE.friends.push({
-      uid: p.uid, playerId: String(p.playerId || code).slice(0, 14),
-      name: String(p.name || 'テイマー').slice(0, 20),
-      level: Math.max(1, Math.min(999, Number(p.level) || 1)),
-      support: sanitizeSupport(p.support),
-      avatar: sanitizeAvatar(p.avatar),
-      monsters: clampInt(p.monsters, 0, MONSTERS.length, 0),
-      cleared: clampInt(p.cleared, 0, STAGES.length, 0),
-      lastActive: sanitizeLastActive(p.updatedAt),
-    });
+    STATE.friends.push(friendEntryFromProfile(p, code));
     saveState();
     toast(`${p.name}をフレンドに追加しました`);
     render();
+    // 相手側に「自分が追加した」ことを記録しておく(相手のフレンド画面の「自分を
+    // 追加している人」に出る)。best-effort: 失敗しても自分側のプレイは止めない。
+    const be = authBackend();
+    if(typeof be.recordIncomingFriend === 'function' && ACCOUNT) be.recordIncomingFriend(p.uid, ACCOUNT.uid).catch(() => {});
   }catch(e){ toast('通信に失敗しました'); }
+}
+// フレンド画面の「自分を追加している人」一覧。STATE.friendsとは別のuid配列を
+// 取得し、まだ自分のフレンドに入っていない人だけプロフィールを引いて表示用に持つ。
+// STATEには保存しない(常に開いた時に取り直す)。
+let incomingFriends = [];
+async function fetchIncomingFriendsList(){
+  const be = authBackend();
+  if(typeof be.fetchIncoming !== 'function' || !ACCOUNT) return;
+  let uids;
+  try{ uids = await be.fetchIncoming(ACCOUNT.uid); }
+  catch(e){ return; }
+  const known = new Set(STATE.friends.map(f => f.uid));
+  const pending = uids.filter(uid => uid !== ACCOUNT.uid && !known.has(uid));
+  if(!pending.length){ incomingFriends = []; render(); return; }
+  if(typeof be.fetchProfiles !== 'function'){ incomingFriends = []; return; }
+  let profiles;
+  try{ profiles = await be.fetchProfiles(pending); }
+  catch(e){ return; }
+  incomingFriends = profiles.map(p => friendEntryFromProfile(p));
+  render();
+}
+// 「フレンドを返す」: 自分を追加している相手を、自分のフレンドにも追加する
+async function addFriendBack(uid){
+  if(!friendsAvailable()) return;
+  const entry = incomingFriends.find(f => f.uid === uid);
+  if(!entry) return;
+  if(STATE.friends.some(f => f.uid === uid)){ incomingFriends = incomingFriends.filter(f => f.uid !== uid); render(); return; }
+  if(STATE.friends.length >= FRIEND_MAX){ toast(`フレンドは最大${FRIEND_MAX}人です`); return; }
+  STATE.friends.push(entry);
+  incomingFriends = incomingFriends.filter(f => f.uid !== uid);
+  saveState();
+  toast(`${entry.name}にフレンドを返しました`);
+  render();
+  const be = authBackend();
+  if(typeof be.removeIncoming === 'function' && ACCOUNT) be.removeIncoming(ACCOUNT.uid, uid).catch(() => {});
 }
 // keep friends' "最終ログイン" (and support/level) fresh - called whenever the friends
 // overlay is opened, since the snapshot taken at add-time otherwise never updates.
@@ -12398,6 +12457,8 @@ function handlePhoneClick(ev){
   }
   const removeFriendEl = t.closest('[data-remove-friend]');
   if(removeFriendEl){ removeFriend(removeFriendEl.dataset.removeFriend); return; }
+  const addBackEl = t.closest('[data-add-friend-back]');
+  if(addBackEl){ addFriendBack(addBackEl.dataset.addFriendBack); return; }
   const viewFriendEl = t.closest('[data-view-friend]');
   if(viewFriendEl){ friendProfileUid = viewFriendEl.dataset.viewFriend; overlayView = 'friend-profile'; playSfx('open'); render(); return; }
   const sendPointEl = t.closest('[data-send-friend-point]');
@@ -12943,6 +13004,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 26, version: 'α0.0.036', date: '9/22', body: 'フレンド画面に「自分を追加している人」一覧を追加し、そこから「フレンドを返す」でフレンド登録できるように。' },
   { id: 25, version: 'α0.0.035', date: '9/21', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」を追加(適正Lv100〜250)。通常モードの敵は★4(ボスは★5)が上限になり、★6以上はハードモード限定に。' },
   { id: 24, version: 'α0.0.034', date: '9/21', body: '遺物ガチャの演出で、卵だった見た目を壺に変更しました。' },
   { id: 23, version: 'α0.0.033', date: '9/21', body: '遺物ガチャの演出をキャラガチャと同じ卵の開封演出に刷新。★5(虹)が出た時の特別なカットインも追加しました。' },
@@ -13006,7 +13068,7 @@ function openOverlay(view){
     STATE.updateLogSeen = Math.max(STATE.updateLogSeen || 0, UPDATE_LOG[0] ? UPDATE_LOG[0].id : 0);
     saveState();
   }
-  if(view === 'friends'){ claimFriendGifts(); refreshFriendProfiles(); }
+  if(view === 'friends'){ claimFriendGifts(); refreshFriendProfiles(); fetchIncomingFriendsList(); }
   render();
 }
 function closeOverlay(){
@@ -13266,6 +13328,20 @@ function renderFriendsOverlay(){
           </div>
         </div>
         <div class="screen-sub" style="margin-bottom:10px;">フレンドに「ポイントを送る」と、1人1日1回、自分のフレンドポイントが+${FRIEND_POINT_PER_SEND}貯まります。他にも、自分のお助けキャラをフレンドが借りてクエストに使うと、自分に+${FRIEND_POINT_PER_BORROW_USE}FP届きます。フレンドガチャ(ガチャ画面)で使えます。</div>
+        ${incomingFriends.length > 0 ? `
+        <div class="panel panel-tight" style="margin-bottom:10px;">
+          <div class="mc-head" style="margin-bottom:8px;">自分を追加している人(${incomingFriends.length})</div>
+          ${incomingFriends.map(f => `
+          <div class="fc-head" style="margin-bottom:6px;">
+            <div style="display:flex; gap:10px; flex:1; min-width:0; align-items:center;">
+              <div class="fc-ic">${f.avatar ? `<img src="${imgSrc(f.avatar)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
+              <div class="fc-body">
+                <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
+              </div>
+            </div>
+            <button class="btn btn-sm" data-add-friend-back="${f.uid}">フレンドを返す</button>
+          </div>`).join('')}
+        </div>` : ''}
         ${STATE.friends.length === 0
           ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。コードを教え合って追加しましょう。</div>'
           : STATE.friends.map(f => { const icon = f.avatar || (f.support && f.support.id); return `

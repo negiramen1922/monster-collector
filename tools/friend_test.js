@@ -7,6 +7,7 @@ const api = load('game.js', src => src + `;global.__e = {
   sendFriendPoint, friendPointSentToday, FRIEND_POINT_PER_SEND, claimFriendGifts, FRIEND_POINT_PER_BORROW_USE,
   pullFriendMon, pullFriendMat, doFriendPull, FRIEND_CHAR_GACHA_COST, FRIEND_MAT_GACHA_COST,
   getItem, addItem, MONSTERS, STAGES, sanitizeLastActive, lastActiveText, refreshFriendProfiles, friendNameOf,
+  fetchIncomingFriendsList, addFriendBack, get incomingFriends(){ return incomingFriends; }, FRIEND_MAX,
 };`);
 const E = global.__e;
 
@@ -254,4 +255,47 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   mailboxes2.me = [{ id: 's2', from: 'u-good', amount: E.FRIEND_POINT_PER_SEND, reason: 'send' }];
   await E.claimFriendGifts();
   ok('send専用のclaimではhelperLentStatsが変化しない', S.helperLentStats.count === statsBefore.count && S.helperLentStats.fp === statsBefore.fp, S.helperLentStats);
+
+  // --- 「自分を追加している人」(incoming) / 「フレンドを返す」---
+  // addFriendByCode成功時にrecordIncomingFriendが呼ばれる(相手側への記録、best-effort)
+  let recordedIncoming = [];
+  global.window.__authBackend = {
+    kind: 'mock',
+    async lookupPlayer(code){ return code === 'REC1' ? { uid: 'u-rec', playerId: 'REC1', name: '記録太郎', level: 4, support: null } : null; },
+    async recordIncomingFriend(toUid, fromUid){ recordedIncoming.push({ toUid, fromUid }); },
+  };
+  S.friends = [];
+  await E.addFriendByCode('REC1');
+  ok('フレンド追加時に相手側へincoming記録が飛ぶ', recordedIncoming.length === 1 && recordedIncoming[0].toUid === 'u-rec' && recordedIncoming[0].fromUid === 'me', recordedIncoming);
+
+  // fetchIncomingFriendsList: 自分を追加したuid一覧を取り、まだフレンドでない人だけprofile化する
+  S.friends = [{ uid: 'u-already', playerId: 'ALRD-Y000-0001', name: '既にフレンド', level: 1 }];
+  global.window.__authBackend = {
+    kind: 'mock',
+    async lookupPlayer(){ return null; }, // friendsAvailable()がこれで判定するので必要
+    async fetchIncoming(uid){ return uid === 'me' ? ['u-already', 'u-new1', 'u-new2'] : []; },
+    async fetchProfiles(uids){
+      return uids.map(u => ({ uid: u, playerId: `PID-${u}`, name: `テイマー${u}`, level: 9, support: null }));
+    },
+  };
+  await E.fetchIncomingFriendsList();
+  ok('既にフレンドの人はincoming一覧から除外される', E.incomingFriends.every(f => f.uid !== 'u-already'), E.incomingFriends);
+  ok('未フレンドの追加者だけがincoming一覧に載る', E.incomingFriends.length === 2 && E.incomingFriends.some(f => f.uid === 'u-new1') && E.incomingFriends.some(f => f.uid === 'u-new2'), E.incomingFriends);
+
+  // addFriendBack: incoming一覧から自分のフレンドに追加し、相手側のincoming記録を消す(best-effort)
+  let removedIncoming = [];
+  global.window.__authBackend.removeIncoming = async (toUid, fromUid) => { removedIncoming.push({ toUid, fromUid }); };
+  await E.addFriendBack('u-new1');
+  ok('フレンドを返すと自分のフレンドに追加される', S.friends.some(f => f.uid === 'u-new1'), S.friends);
+  ok('フレンドを返すとincoming一覧からは消える', E.incomingFriends.every(f => f.uid !== 'u-new1'), E.incomingFriends);
+  ok('フレンドを返すとincoming記録の削除が飛ぶ', removedIncoming.length === 1 && removedIncoming[0].toUid === 'me' && removedIncoming[0].fromUid === 'u-new1', removedIncoming);
+
+  // 上限いっぱいだと追加されない
+  S.friends = new Array(E.FRIEND_MAX).fill(0).map((_, i) => ({ uid: `cap-${i}`, playerId: `CAP-${i}`, name: 'まんたん', level: 1 }));
+  await E.fetchIncomingFriendsList();
+  const beforeCapCount = S.friends.length;
+  if(E.incomingFriends.length){
+    await E.addFriendBack(E.incomingFriends[0].uid);
+    ok('フレンド上限に達していると追加されない', S.friends.length === beforeCapCount, S.friends.length);
+  }
 })();
