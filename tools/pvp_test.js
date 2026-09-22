@@ -7,10 +7,11 @@ const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE, setAccount: a => { ACCOUNT = a; },
   sanitizeDefense, sanitizeRelicSnap, buildDefenseSnapshot, publishProfile,
   pvpAvailable, searchPvpOpponents, get pvpOpponents(){ return pvpOpponents; },
-  setPvpDefense, hasPvpDefense, pvpChallengesLeft, ensurePvpDaily, PVP_DAILY_MAX,
+  setPvpDefense, hasPvpDefense, hasPvpForm, ensurePvpSlots, copyPartyIntoPvpForm, placeInPvpForm,
+  pvpChallengesLeft, ensurePvpDaily, PVP_DAILY_MAX,
   startPvpBattle, buildPvpEnemyParty, buildUnit, isMeleeRole, getFormation, applyFormationBonus,
-  grantRelic, equipRelic, RELICS, MON_BY_ID, FORMATIONS, DEFAULT_FORMATION,
-  formationForFrontCount, lineupFromList,
+  grantRelic, equipRelic, RELICS, MON_BY_ID, FORMATIONS, DEFAULT_FORMATION, HELP_SLOT_ID,
+  formationForFrontCount, lineupFromList, borrowFriendHelper, placeHelperInSlot,
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -93,9 +94,30 @@ global.window.__authBackend = { kind: 'local' }; // no fetchPvpOpponents: offlin
     defenseParty[0].maxHp === asAlly.maxHp && defenseParty[0].str === asAlly.str, [asAlly.maxHp, defenseParty[0].maxHp]);
   ok('PVP相手はisEnemy=trueとして扱われる', defenseParty[0].isEnemy === true);
 
-  // --- 6. daily challenge tickets + full battle integration ---
-  ok('挑戦回数の初期値', E.pvpChallengesLeft() === E.PVP_DAILY_MAX);
+  // --- 6. PVP攻撃編成はクエストのパーティ(STATE.slots)と別枠で、お助けキャラは持ち込めない ---
   const opponent = E.pvpOpponents[0];
+  const leftBeforeNoAttack = E.pvpChallengesLeft();
+  E.startPvpBattle(opponent);
+  ok('攻撃編成を設定していないと挑戦できない', E.pvpChallengesLeft() === leftBeforeNoAttack && !api.battleUI, api.battleUI);
+
+  S.friends = [{ uid: 'friend-uid', name: 'ゆうじん', support: { id: 'm54', star: 5, level: 50, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 } }];
+  E.borrowFriendHelper('friend-uid');
+  E.placeHelperInSlot(); // お助けキャラをクエスト用パーティ(STATE.slots)に編成
+  ok('お助けキャラがクエストパーティには入る', S.slots.includes(E.HELP_SLOT_ID), S.slots);
+
+  E.copyPartyIntoPvpForm('attack');
+  ok('現在の編成をコピーしてもPVP攻撃編成にお助けキャラは入らない', !E.ensurePvpSlots('attack').includes(E.HELP_SLOT_ID), E.ensurePvpSlots('attack'));
+  ok('PVP攻撃編成が設定される', E.hasPvpForm('attack') === true, S.pvpAttackSlots);
+
+  E.placeInPvpForm('attack', E.HELP_SLOT_ID);
+  ok('お助けキャラを直接PVP攻撃編成に配置しようとしても入らない', !E.ensurePvpSlots('attack').includes(E.HELP_SLOT_ID), E.ensurePvpSlots('attack'));
+
+  const attackSnapshotBefore = [...S.pvpAttackSlots];
+  S.slots = E.lineupFromList(['m03'], fk0); // クエストパーティを変えても
+  ok('PVP攻撃編成はクエストパーティの変更に影響されない(別枠)', JSON.stringify(S.pvpAttackSlots) === JSON.stringify(attackSnapshotBefore), S.pvpAttackSlots);
+
+  // --- 7. daily challenge tickets + full battle integration ---
+  ok('挑戦回数の初期値', E.pvpChallengesLeft() === E.PVP_DAILY_MAX);
   api.resetQueue();
   E.startPvpBattle(opponent);
   api.drainQueue();
@@ -104,8 +126,10 @@ global.window.__authBackend = { kind: 'local' }; // no fetchPvpOpponents: offlin
   ok('battleUI.pvpに挑戦相手が入る', b.pvp === opponent);
   ok('挑戦回数が1消費される', E.pvpChallengesLeft() === E.PVP_DAILY_MAX - 1, E.pvpChallengesLeft());
   ok('PVPポイントが増える', S.pvpPoints > 0, S.pvpPoints);
+  ok('戦ったのはPVP攻撃編成(m06)で、その時点のクエストパーティ(m03)ではない',
+    b.party.some(u => u.ref === 'm06') && !b.party.some(u => u.ref === 'm03'), b.party.map(u => u.ref));
 
-  // --- 7. malformed opponent never crashes startPvpBattle, and never consumes a ticket ---
+  // --- 8. 不正な相手には挑戦できず、回数も減らない ---
   const before = E.pvpChallengesLeft();
   E.startPvpBattle({ uid: 'u-evil', name: 'evil', level: 1, defense: { formationKey: 'x', slots: [{ id: 'bogus' }] } });
   ok('不正な防衛編成には挑戦できず、回数も減らない', E.pvpChallengesLeft() === before);
