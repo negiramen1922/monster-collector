@@ -906,7 +906,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .uni-have{ font-size:11.5px; font-weight:700; margin-bottom:6px; color:#9fd8ff; }
 .uni-btns, .lv-btns{ display:grid; grid-template-columns:auto 1fr; gap:6px; }
 .lv-btns{ grid-template-columns:1fr 1fr; }
-.locked-slot{ font-size:11px; color:var(--dim); }
+.skill-card.locked{ opacity:.62; border-style:dashed; }
+.skill-lock-note{ font-size:11px; color:var(--dim); margin-top:6px; }
 .home-souls{ display:flex; justify-content:space-between; gap:8px; font-size:11.5px; color:var(--dim); margin:-2px 0 10px; }
 .home-souls b{ color:#9fd8ff; }
 /* gacha: universal souls front and center */
@@ -2391,7 +2392,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.041';
+const GAME_VERSION = 'α0.0.042';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8003,13 +8004,13 @@ function kitLinesHtml(m, star, owned, after){
     const pct = Math.round(act.pow * lvScale(lv) * 100);
     return `<div class="skill-desc lv-scaled">現在の威力: <b class="lv-scale-val">${pct}%</b>(${kind === 'ult' ? '必殺技' : 'スキル'}Lv${lv})</div>`;
   };
-  const card = (tag, kind, act, meta, upgrade, lv) => `
-    <div class="skill-card k-${kind}">
+  const card = (tag, kind, act, meta, upgrade, lv, locked) => `
+    <div class="skill-card k-${kind} ${locked ? 'locked' : ''}">
       <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-${kind}">${tag}</span>${act.name}</span><span class="skill-ct">${meta}</span></div>
       <div class="skill-desc">${act.desc || ''}</div>
-      ${scaledPowLine(kind, act, lv)}
+      ${locked ? '' : scaledPowLine(kind, act, lv)}
       ${act.tgt || act.tgtText ? `<div class="skill-desc elem-flavor">🎯 ${act.tgtText || TGT_TEXT[act.tgt] || ''}${act.atk && !act.tgtText ? `・${typeOf(act)}` : ''}</div>` : ''}
-      ${upgrade || ''}
+      ${locked ? `<div class="skill-lock-note">🔒 ★${SECOND_SKILL_STAR}に昇格すると使えるようになります</div>` : (upgrade || '')}
     </div>`;
   const skill2 = kit.skill2 || kit.skill1;
   const two = slots.length >= 2;
@@ -8020,7 +8021,9 @@ function kitLinesHtml(m, star, owned, after){
     card('スキル1', 'skill', kit.skill1, `CT ${kit.skill1.ct}`, a.skill1, o.skillLv),
     two
       ? card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, a.skill2, o.skill2Lv)
-      : `<div class="skill-card locked-slot">🔒 ★${SECOND_SKILL_STAR}に昇格すると、スキル2「${skill2.name}」が使えるようになります</div>`,
+      // ★1-3では未解放だが、性能(効果・威力・対象)自体は見せる。強化ボタンだけは
+      // 出さない(未解放のスキルを鍛えられてしまう抜け道を作らないため)
+      : card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, null, null, true),
     card('パッシブ', 'passive', kit.passive, '常時', a.passive),
     card('必殺技', 'ult', kit.ult, `SP ${kit.ult.sp}`, a.ult, o.ultLv),
   ].join('');
@@ -13143,6 +13146,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 32, version: 'α0.0.042', date: '9/22', body: '★1〜3のキャラでまだ解放されていないスキル2も、性能(効果・威力・対象)を確認できるように。★4で解放されるまで強化はできません。' },
   { id: 31, version: 'α0.0.041', date: '9/22', body: '図鑑で未入手のキャラをタップして性能(基礎ステータス・スキル)を確認できるように(レベル上げなどの育成操作はできません)。遺物図鑑は元々未所持でも性能を確認できます。' },
   { id: 30, version: 'α0.0.040', date: '9/22', body: '遺物ガチャのピックアップ「性能を見る」が、対象キャラを所持していてもキャラ詳細ではなく遺物本体の性能を表示するように修正。' },
   { id: 29, version: 'α0.0.039', date: '9/22', body: 'バフ・デバフ・状態異常のアイコンを絵文字から手描きのイラストに刷新しました。' },
