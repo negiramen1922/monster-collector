@@ -2391,7 +2391,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.039';
+const GAME_VERSION = 'α0.0.040';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7243,7 +7243,7 @@ function renderRelicGacha(){
           <div class="gc-name">${pickupRelic.name}</div>
           <div class="gc-sub">★${pickupRelic.star}「${pickupMon.name}」専用遺物<br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RELIC_RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
-          <button class="btn btn-ghost btn-sm" data-preview-mon="${pickupMon.id}" style="margin-top:6px;">「${pickupMon.name}」の性能を見る</button>
+          <button class="btn btn-ghost btn-sm" data-preview-relic="${pickupRelic.id}" style="margin-top:6px;">遺物の性能を見る</button>
         </div>
       </div>
     </div>` : ''}
@@ -12673,6 +12673,8 @@ function handlePhoneClick(ev){
   if(detailEl){ showMonsterDetail(detailEl.dataset.detail); return; }
   const previewEl = t.closest('[data-preview-mon]');
   if(previewEl){ openMonsterDetailOrPreview(previewEl.dataset.previewMon); return; }
+  const previewRelicEl = t.closest('[data-preview-relic]');
+  if(previewRelicEl){ showRelicDetail(previewRelicEl.dataset.previewRelic); return; }
 
   if(t.closest('[data-close-inspect]')){ closeUnitInspect(); return; }
   const inspectEl = t.closest('[data-inspect]');
@@ -13141,6 +13143,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 30, version: 'α0.0.040', date: '9/22', body: '遺物ガチャのピックアップ「性能を見る」が、対象キャラを所持していてもキャラ詳細ではなく遺物本体の性能を表示するように修正。' },
   { id: 29, version: 'α0.0.039', date: '9/22', body: 'バフ・デバフ・状態異常のアイコンを絵文字から手描きのイラストに刷新しました。' },
   { id: 28, version: 'α0.0.038', date: '9/22', body: '負けた戦闘は使ったスタミナが全額戻るように変更。ガチャのピックアップキャラは未所持でも性能(ステータス・スキル)を確認できるように。設定に「データを削除」を追加(クラウド同期分も含めて削除・確認あり)。' },
   { id: 27, version: 'α0.0.037', date: '9/22', body: 'PVPに「攻撃編成」を新設。クエストのパーティ・防衛編成とは別枠になり、お助けキャラ(借りたフレンドの支援キャラ)はPVPに一切持ち込めなくなりました。' },
