@@ -2092,6 +2092,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ss-actions .ss-go{ flex:1.5; }
 .go-cost{ display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; background:rgba(15,12,26,.28); color:#2a2114; font-size:11px; font-weight:800; vertical-align:1px; }
 .btn-ghost .go-cost{ background:rgba(232,180,85,.14); color:var(--gold); }
+.help-cost-note{ margin-left:4px; color:var(--dim); font-weight:400; }
 .ss-actions .sweep-btn{ flex:1; }
 
 /* ---------- quest: tabs, stage cards, affinity sheet ---------- */
@@ -2412,7 +2413,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.045';
+const GAME_VERSION = 'α0.0.048';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2787,6 +2788,19 @@ function stageStaminaCost(stage){
   if(stage.tier === 'tu') return STATE.clearedStages.includes(stage.id) ? TUTORIAL_REPLAY_STAMINA : 0;
   if(!stage.stamina) return 0;
   return stage.stamina + (STATE.slots.includes(HELP_SLOT_ID) ? HELP_STAMINA_SURCHARGE : 0);
+}
+// スタミナの必要量がお助けキャラのサーチャージ込みの時、なぜ増えているか一目で分かる
+// ように添える短い注記(見た目が変わる原因が分からないと「急に増減した」ように見えるため)。
+// stageを渡すと、そのステージに実際にサーチャージが乗るかまで見て判定する(例:
+// チュートリアルはお助けキャラがいてもサーチャージが一切乗らないので、stageなしの
+// 判定だけだと「(お助けキャラ+5)」という誤った注記が出てしまう)。
+function helperSurchargeNote(stage){
+  if(!STATE.slots.includes(HELP_SLOT_ID)) return '';
+  if(stage){
+    if(stage.tier === 'tu') return ''; // チュートリアルは初回無料・2回目以降も定額で、サーチャージ対象外
+    if(!stage.stamina) return '';
+  }
+  return `<small class="help-cost-note">(お助けキャラ+${HELP_STAMINA_SURCHARGE})</small>`;
 }
 
 // melee roles placed in the back row deal less damage
@@ -4611,7 +4625,7 @@ function relicEffectRangeText(e){
   return `${relicCondLabel(e.cond)}${RELIC_STAT_LABEL[e.stat]}+${Math.round(e.pct * 100)}%→${Math.round(e.pct * 200)}%`;
 }
 let relicSort = { key: 'no', desc: false };
-let relicFilter = { star: [], channel: [] };
+let relicFilter = { star: [], channel: [], dupe: [] };
 let relicOwnedOnly = false;
 let relicFilterDraft = null; // edited copy while the relic filter sheet is open
 const RELIC_SORT_KEYS = [
@@ -4625,14 +4639,20 @@ const RELIC_FILTER_GROUPS = [
     { key:'gacha', icon:'🎰', label:'ガチャ' },
     { key:'distributed', icon:'🎁', label:'配布' },
   ] },
+  { key:'dupe', title:'覚醒(凸)', items:() => [0, 1, 2, 3, 4].map(n => ({
+    key:String(n), icon:'💠', label: n === 0 ? '未覚醒' : `覚醒${n}${n === RELIC_MAX_DUPE_USE ? '(MAX)' : ''}`,
+  })) },
 ];
 function matchesRelicFilter(id, f){
   const def = RELICS[id];
   const channel = def.channel === 'distributed' ? 'distributed' : 'gacha';
+  const st = STATE.relics && STATE.relics[id];
+  const dupeUsed = st ? (st.dupeUsed || 0) : 0;
   return (!f.star.length || f.star.includes(String(def.star)))
-    && (!f.channel.length || f.channel.includes(channel));
+    && (!f.channel.length || f.channel.includes(channel))
+    && (!f.dupe || !f.dupe.length || f.dupe.includes(String(dupeUsed)));
 }
-function relicFilterCount(f){ return f.star.length + f.channel.length; }
+function relicFilterCount(f){ return f.star.length + f.channel.length + (f.dupe ? f.dupe.length : 0); }
 function sortRelics(ids, sort){
   const order = Object.keys(RELICS);
   const val = {
@@ -4694,7 +4714,7 @@ function renderRelicFilterSheet(){
     </div>`;
 }
 function openRelicFilterSheet(){
-  relicFilterDraft = { star: [...relicFilter.star], channel: [...relicFilter.channel] };
+  relicFilterDraft = { star: [...relicFilter.star], channel: [...relicFilter.channel], dupe: [...(relicFilter.dupe || [])] };
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = renderRelicFilterSheet();
   layer.classList.add('show');
@@ -4705,6 +4725,12 @@ function refreshRelicFilterSheet(){
   layer.innerHTML = renderRelicFilterSheet();
   const sheet = layer.querySelector('.filter-sheet');
   if(sheet) sheet.scrollTop = scroll;
+}
+// 覚醒(凸)で★が上がっている時、基礎の★に続けて(色を変えて)追加分も表示する。
+// dupeUsedが無い(未所持 or 未覚醒)場合は基礎の★だけになる。
+function relicStarRowHtml(def, st){
+  const dupeUsed = st ? (st.dupeUsed || 0) : 0;
+  return `${'★'.repeat(def.star)}${dupeUsed > 0 ? `<span class="relic-dupe-star">${'★'.repeat(dupeUsed)}</span>` : ''}`;
 }
 function relicCell(id){
   const def = RELICS[id];
@@ -4717,7 +4743,7 @@ function relicCell(id){
         : `<span class="relic-cell-badge ${def.channel === 'distributed' ? 'dist' : 'gacha'}">${def.channel === 'distributed' ? '配布' : 'ガチャ'}</span>`}
       <div class="relic-cell-ic">${def.icon}</div>
       <div class="name">${def.name}</div>
-      <span class="star">${'★'.repeat(def.star)}</span>
+      <span class="star">${relicStarRowHtml(def, st)}</span>
     </div>`;
 }
 function renderRelicsScreen(){
@@ -4749,7 +4775,7 @@ function showRelicDetail(id){
         <div class="relic-detail-ic r${def.star}">${def.icon}</div>
         <div class="relic-detail-headtext">
           <div class="relic-detail-name">${def.name}</div>
-          <div class="relic-detail-starrow r${def.star}">${'★'.repeat(def.star)}</div>
+          <div class="relic-detail-starrow r${def.star}">${relicStarRowHtml(def, null)}</div>
         </div>
       </div>
       <div class="relic-effects">
@@ -5095,7 +5121,7 @@ function renderRelicPicker(){
             <button class="relic-row r${def.star} ${here ? 'on' : ''}" data-relic-row="${id}">
               <span class="relic-ic">${def.icon}</span>
               <div class="relic-row-body">
-                <div class="relic-row-name">${def.name}<span class="relic-star">★${def.star}</span>${matches > 0 ? `<span class="relic-match-badge">条件一致 ${matches}</span>` : ''}</div>
+                <div class="relic-row-name">${def.name}<span class="relic-star">${relicStarRowHtml(def, st)}</span>${matches > 0 ? `<span class="relic-match-badge">条件一致 ${matches}</span>` : ''}</div>
                 <div class="relic-row-sub">Lv${st.level} / スキルLv${st.skillLv}${here ? '・この子に装備中' : elsewhere ? `・装備中: ${elsewhere.name}` : ''}</div>
               </div>
             </button>`;
@@ -5132,7 +5158,7 @@ function renderRelicUpgrade(){
         <div class="relic-detail-ic r${def.star}">${def.icon}</div>
         <div class="relic-detail-headtext">
           <div class="relic-detail-name">${def.name}</div>
-          <div class="relic-detail-starrow r${def.star}">${'★'.repeat(def.star)}${(st.dupeUsed || 0) > 0 ? `<span class="relic-dupe-star">${'★'.repeat(st.dupeUsed || 0)}</span>` : ''}</div>
+          <div class="relic-detail-starrow r${def.star}">${relicStarRowHtml(def, st)}</div>
         </div>
       </div>
 
@@ -7019,13 +7045,16 @@ function nextAction(){
   const left = DAILY_MISSIONS.filter(m => !daily.claimed[m.id]).length;
   const eyebrow = left ? `今日の残り ${left}件` : '今日の日課は完了';
   const next = STAGES.find(st => st.type === 'main' && !st.disabled && stageUnlocked(st) && !STATE.clearedStages.includes(st.id));
-  if(next) return {
-    eyebrow,
-    title: `${next.name} に挑戦`,
-    sub: `推奨Lv${next.rec}・WAVE ${next.waves.length}・⚡${next.stamina}${STATE.stamina < next.stamina ? '(スタミナが足りません)' : ''}`,
-    main: { label: '出撃する', stage: next.id, disabled: STATE.stamina < next.stamina },
-    side: { label: '詳細', stageOpen: next.id },
-  };
+  if(next){
+    const nextCost = stageStaminaCost(next);
+    return {
+      eyebrow,
+      title: `${next.name} に挑戦`,
+      sub: `推奨Lv${next.rec}・WAVE ${next.waves.length}・⚡${nextCost}${helperSurchargeNote(next)}${STATE.stamina < nextCost ? '(スタミナが足りません)' : ''}`,
+      main: { label: '出撃する', stage: next.id, disabled: STATE.stamina < nextCost },
+      side: { label: '詳細', stageOpen: next.id },
+    };
+  }
   const dungeon = STAGES.find(st => st.type === 'dungeon');
   return {
     eyebrow,
@@ -8856,7 +8885,7 @@ function renderStageRow(st){
         <span class="sr-title">
           <span class="terrain-tag" style="background:${TERRAIN[st.terrain].color};">${TERRAIN[st.terrain].label}</span>
           ${unlocked ? '' : '🔒 '}${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</span>
-        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・⚡${stageStaminaCost(st)}</span>
+        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・⚡${stageStaminaCost(st)}${helperSurchargeNote(st)}</span>
         <span class="sr-state ${cleared ? 'done' : ''}">${cleared ? 'クリア済み' : unlocked ? `未クリア${st.boss ? '・ボスあり' : ''}` : '前のステージをクリアすると挑戦できます'}</span>
       </span>
       <span class="sr-right">${starsText(stageStars(st.id))}<span class="mc-go">›</span></span>
@@ -8927,6 +8956,7 @@ function renderStageSheet(){
         ${dropIconsHtml(st)}
         <div class="ss-line">${cleared ? '<span class="cleared-tag">✓ 初回クリア報酬は受け取り済み</span>' : `初回クリア ${CRYSTAL_ICON}${st.firstClear}${st.bossReward || st.reward ? ` ${rewardHtml([...(st.bossReward || []), ...(st.reward || [])])}` : ''}`}</div>
       </div>
+      ${helperSurchargeNote(st) ? `<div class="fs-note" style="margin:-2px 0 8px;">お助けキャラを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
       <div class="ss-actions">
         ${sweepButton(st)}
         <button class="btn ss-go ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
@@ -12067,6 +12097,7 @@ function showBattleResult(tab){
       ${resultTab === 'report' ? renderBattleReport(b) : body}
       <div class="br-actions">
         <div class="br-stamina">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>
+        ${helperSurchargeNote(nextStage || b.stage) ? `<div class="fs-note" style="margin:-4px 0 4px;">お助けキャラを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
         ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">次のステージへ<span class="go-cost">⚡${stageStaminaCost(nextStage)}</span></button>` : ''}
         ${b.win && sweepAllowed(b.stage).ok ? `<button class="btn btn-ghost btn-block" data-sweep-open="${b.stage.id}">周回する</button>` : ''}
         ${b.win ? '' : '<button class="btn btn-ghost btn-block" data-result-nav="party">パーティを強化する</button>'}
@@ -12538,7 +12569,7 @@ function handlePhoneClick(ev){
   const relicFilterOpenEl = t.closest('[data-relic-filter-open]');
   if(relicFilterOpenEl){ openRelicFilterSheet(); return; }
   if(t.closest('[data-relic-owned-toggle]')){ relicOwnedOnly = !relicOwnedOnly; render(); return; }
-  if(t.closest('[data-relic-filter-clear]')){ relicFilter = { star: [], channel: [] }; render(); return; }
+  if(t.closest('[data-relic-filter-clear]')){ relicFilter = { star: [], channel: [], dupe: [] }; render(); return; }
   if(relicFilterDraft){
     const relicChipEl = t.closest('[data-relic-filter-chip]');
     if(relicChipEl){
@@ -12549,7 +12580,7 @@ function handlePhoneClick(ev){
     }
     const relicGroupClearEl = t.closest('[data-relic-filter-group-clear]');
     if(relicGroupClearEl){ relicFilterDraft[relicGroupClearEl.dataset.relicFilterGroupClear] = []; refreshRelicFilterSheet(); return; }
-    if(t.closest('[data-relic-filter-reset]')){ relicFilterDraft = { star: [], channel: [] }; refreshRelicFilterSheet(); return; }
+    if(t.closest('[data-relic-filter-reset]')){ relicFilterDraft = { star: [], channel: [], dupe: [] }; refreshRelicFilterSheet(); return; }
     if(t.closest('[data-relic-filter-apply]')){ relicFilter = relicFilterDraft; relicFilterDraft = null; closeModal(); render(); return; }
     if(t.closest('[data-relic-filter-close]')){ relicFilterDraft = null; closeModal(); return; }
   }
@@ -12947,7 +12978,10 @@ function handlePhoneClick(ev){
   if(startEl){
     const st = findStage(startEl.dataset.startStage);
     refreshStamina();
-    if(st && STATE.stamina < st.stamina){ toast(`スタミナが足りません(必要 ${st.stamina})`); return; }
+    if(st){
+      const stCost = stageStaminaCost(st);
+      if(STATE.stamina < stCost){ toast(`スタミナが足りません(必要 ${stCost})`); return; }
+    }
     closeModal(); startBattle(startEl.dataset.startStage); return;
   }
   const resultNavEl = t.closest('[data-result-nav]');
@@ -13281,6 +13315,9 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 38, version: 'α0.0.048', date: '9/23', body: '遺物図鑑に「覚醒(凸)」の絞り込みを追加。遺物図鑑のセル・装備遺物選択画面でも、覚醒で★が上がっている分を色を変えて表示するように。' },
+  { id: 37, version: 'α0.0.047', date: '9/23', body: 'お助けキャラでスタミナが増えている時、ホーム画面・ステージ一覧・ステージ詳細・バトル結果画面に「(お助けキャラ+5)」の注記を追加。なぜ必要スタミナが増えているのか一目で分かるようにしました。' },
+  { id: 36, version: 'α0.0.046', date: '9/23', body: 'お助けキャラを編成に入れている時、ホーム画面や結果画面など一部でステージの必要スタミナが本来の値(サーチャージ抜き)のまま表示されていたのを修正。画面によって必要スタミナが違って見える不具合を解消しました。' },
   { id: 35, version: 'α0.0.045', date: '9/22', body: '遺物の詳細画面をキャラの詳細画面と同じ構成(見た目・名前→レベル→基礎ステータス→スキル→覚醒→装着してるキャラ)に統一。スキルのレベルアップも、キャラと同じく消費素材と入手方法を確認してから確定するように変更。' },
   { id: 34, version: 'α0.0.044', date: '9/22', body: 'スキルのクールタイムを示す丸いマークの中に「1」「2」の番号を追加。どちらのスキルのCTか一目で分かるように。' },
   { id: 33, version: 'α0.0.043', date: '9/22', body: 'バトル中のキャラカードにスキルのクールタイムを示す丸いマークを追加。溜まっていく様子と、使用可能になった時の点滅で、文字を読まなくても直感的に分かるように。' },
