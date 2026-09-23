@@ -2412,7 +2412,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.045';
+const GAME_VERSION = 'α0.0.046';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7019,13 +7019,16 @@ function nextAction(){
   const left = DAILY_MISSIONS.filter(m => !daily.claimed[m.id]).length;
   const eyebrow = left ? `今日の残り ${left}件` : '今日の日課は完了';
   const next = STAGES.find(st => st.type === 'main' && !st.disabled && stageUnlocked(st) && !STATE.clearedStages.includes(st.id));
-  if(next) return {
-    eyebrow,
-    title: `${next.name} に挑戦`,
-    sub: `推奨Lv${next.rec}・WAVE ${next.waves.length}・⚡${next.stamina}${STATE.stamina < next.stamina ? '(スタミナが足りません)' : ''}`,
-    main: { label: '出撃する', stage: next.id, disabled: STATE.stamina < next.stamina },
-    side: { label: '詳細', stageOpen: next.id },
-  };
+  if(next){
+    const nextCost = stageStaminaCost(next);
+    return {
+      eyebrow,
+      title: `${next.name} に挑戦`,
+      sub: `推奨Lv${next.rec}・WAVE ${next.waves.length}・⚡${nextCost}${STATE.stamina < nextCost ? '(スタミナが足りません)' : ''}`,
+      main: { label: '出撃する', stage: next.id, disabled: STATE.stamina < nextCost },
+      side: { label: '詳細', stageOpen: next.id },
+    };
+  }
   const dungeon = STAGES.find(st => st.type === 'dungeon');
   return {
     eyebrow,
@@ -12947,7 +12950,10 @@ function handlePhoneClick(ev){
   if(startEl){
     const st = findStage(startEl.dataset.startStage);
     refreshStamina();
-    if(st && STATE.stamina < st.stamina){ toast(`スタミナが足りません(必要 ${st.stamina})`); return; }
+    if(st){
+      const stCost = stageStaminaCost(st);
+      if(STATE.stamina < stCost){ toast(`スタミナが足りません(必要 ${stCost})`); return; }
+    }
     closeModal(); startBattle(startEl.dataset.startStage); return;
   }
   const resultNavEl = t.closest('[data-result-nav]');
@@ -13281,6 +13287,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 36, version: 'α0.0.046', date: '9/23', body: 'お助けキャラを編成に入れている時、ホーム画面や結果画面など一部でステージの必要スタミナが本来の値(サーチャージ抜き)のまま表示されていたのを修正。画面によって必要スタミナが違って見える不具合を解消しました。' },
   { id: 35, version: 'α0.0.045', date: '9/22', body: '遺物の詳細画面をキャラの詳細画面と同じ構成(見た目・名前→レベル→基礎ステータス→スキル→覚醒→装着してるキャラ)に統一。スキルのレベルアップも、キャラと同じく消費素材と入手方法を確認してから確定するように変更。' },
   { id: 34, version: 'α0.0.044', date: '9/22', body: 'スキルのクールタイムを示す丸いマークの中に「1」「2」の番号を追加。どちらのスキルのCTか一目で分かるように。' },
   { id: 33, version: 'α0.0.043', date: '9/22', body: 'バトル中のキャラカードにスキルのクールタイムを示す丸いマークを追加。溜まっていく様子と、使用可能になった時の点滅で、文字を読まなくても直感的に分かるように。' },
