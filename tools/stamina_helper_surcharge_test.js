@@ -8,6 +8,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE, STAGES,
   stageStaminaCost, HELP_SLOT_ID, HELP_STAMINA_SURCHARGE, nextAction, findStage, claimMissions,
+  helperSurchargeNote, renderStageRow,
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -37,5 +38,25 @@ ok('ホーム画面の必要スタミナ表示がサーチャージ込みの値�
 api.STATE.stamina = expectedCost - 1; // サーチャージ込みでは足りないが、生の値(stage.stamina)なら足りてしまう量
 const actionShort = E.nextAction();
 ok('サーチャージ込みで足りない時は出撃ボタンがdisabledになる(以前は生の値で判定し、押せてしまっていた)', actionShort.main.disabled === true, actionShort.main);
+
+// --- なぜ増えているか見えるように: helperSurchargeNote()とその表示箇所 ---
+ok('お助けキャラがいない時は注記が出ない', (() => { api.STATE.slots = api.STATE.slots.map(() => null); return E.helperSurchargeNote() === ''; })());
+api.STATE.slots[0] = E.HELP_SLOT_ID;
+ok('お助けキャラがいる時は理由の注記が出る', E.helperSurchargeNote().includes(`+${E.HELP_STAMINA_SURCHARGE}`));
+ok('ホーム画面のサブテキストにもお助けキャラの注記が出る', E.nextAction().sub.includes('お助けキャラ'));
+const rowHtml = E.renderStageRow(stage);
+ok('ステージ一覧の行にもお助けキャラの注記が出る', rowHtml.includes('お助けキャラ') && rowHtml.includes(`⚡${expectedCost}`));
+
+// --- 初回無料チュートリアルはお助けキャラがいてもサーチャージが乗らない(0のまま)ので、
+//     誤って「(お助けキャラ+5)」という注記を出してはいけない ---
+const tu1 = E.findStage('tu1');
+api.STATE.clearedStages = []; // tu1が未クリア = 初回無料の状態
+ok('未クリアのチュートリアルはお助けキャラがいてもコストが0のまま', E.stageStaminaCost(tu1) === 0, E.stageStaminaCost(tu1));
+ok('未クリアのチュートリアルでは誤った注記(お助けキャラ+5)を出さない', E.helperSurchargeNote(tu1) === '', E.helperSurchargeNote(tu1));
+// クリア済み(2回目以降は定額10)でも、チュートリアルはそもそもサーチャージの対象外
+// (stageStaminaCostがtier:'tu'を専用ルールで扱い、お助けキャラの有無を見ない)
+api.STATE.clearedStages = [tu1.id];
+ok('クリア済みチュートリアルは定額10になる(サーチャージは乗らない)', E.stageStaminaCost(tu1) === 10, E.stageStaminaCost(tu1));
+ok('クリア済みチュートリアルでも誤った注記は出さない', E.helperSurchargeNote(tu1) === '', E.helperSurchargeNote(tu1));
 
 console.log('done');
