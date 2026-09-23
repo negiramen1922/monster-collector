@@ -2413,7 +2413,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.048';
+const GAME_VERSION = 'α0.0.049';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2670,6 +2670,7 @@ const PULL10_COST = 1350;
 const HIGH_PITY_PULLS = 50;      // ★4+ guaranteed on the 50th pull without one
 const TEN_PULL_MIN_STAR = 3;     // 10th slot of a 10-pull is ★3+ if the first 9 weren't
 const SPARK_POINTS = 200;        // summon points (1 per pull, carried over) → pickup ★5
+const RELIC_SPARK_POINTS = 100;  // 召喚ポイントはキャラ・遺物ガチャで共有。半分の100でピックアップ専用遺物と交換できる
 const DEFAULT_BANNER = {
   key: 'default',
   name: '星霜の呼び声',
@@ -5058,6 +5059,7 @@ function pullRelicOne(){
   }else{
     def = pool[Math.floor(Math.random() * pool.length)];
   }
+  STATE.summonPoints += 1; // キャラガチャと共有の召喚ポイント(遺物専用のピックアップ交換にも使える)
   return grantRelic(def);
 }
 function doRelicPull(times, cost){
@@ -7378,6 +7380,13 @@ function renderRelicGacha(){
           <button class="btn btn-ghost btn-sm" data-preview-relic="${pickupRelic.id}" style="margin-top:6px;">遺物の性能を見る</button>
         </div>
       </div>
+    </div>
+    <div class="panel">
+      <div class="gc-line"><span>召喚ポイント<small>(キャラガチャと共有)</small></span><span class="purple">${STATE.summonPoints} / ${RELIC_SPARK_POINTS}</span></div>
+      <div class="gc-bar"><div class="spark" style="width:${Math.min(100, Math.round((STATE.summonPoints / RELIC_SPARK_POINTS) * 100))}%;"></div></div>
+      <button class="btn btn-block btn-sm ${STATE.summonPoints >= RELIC_SPARK_POINTS ? '' : 'btn-ghost'}" id="relic-spark-btn" ${STATE.summonPoints >= RELIC_SPARK_POINTS ? '' : 'disabled'} style="margin-top:9px;">
+        ${STATE.summonPoints >= RELIC_SPARK_POINTS ? `${RELIC_SPARK_POINTS}ポイントで「${pickupRelic.name}」と交換する` : `あと ${RELIC_SPARK_POINTS - STATE.summonPoints}ポイントで「${pickupRelic.name}」と交換できます`}
+      </button>
     </div>` : ''}
     <div class="panel">
       <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
@@ -7753,6 +7762,18 @@ function exchangeSpark(){
   const r = grantMonster(mon);
   saveState();
   toast(r.isNew ? `「${mon.name}」を仲間にしました!` : `「${mon.name}」のソウルを${r.souls}個手に入れました`);
+  render();
+}
+// 遺物ガチャのピックアップ専用遺物との交換。召喚ポイントはキャラガチャと共有(どちらの
+// ガチャを引いても貯まる)で、半分のRELIC_SPARK_POINTSで交換できる。
+function exchangeRelicSpark(){
+  const pickupRelic = exclusiveRelicForMon(currentBanner().pickup);
+  if(!pickupRelic){ toast('現在ピックアップ中の専用遺物がありません'); return; }
+  if(STATE.summonPoints < RELIC_SPARK_POINTS){ toast('召喚ポイントが足りません'); return; }
+  STATE.summonPoints -= RELIC_SPARK_POINTS;
+  const r = grantRelic(pickupRelic);
+  saveState();
+  toast(r.isNew ? `「${pickupRelic.name}」を手に入れました!` : `「${pickupRelic.name}」の凸が増えました`);
   render();
 }
 
@@ -12731,6 +12752,7 @@ function handlePhoneClick(ev){
   const convertEl = t.closest('[data-convert]');
   if(convertEl){ convertUniversal(convertEl.dataset.convert, Number(convertEl.dataset.count)); return; }
   if(t.closest('#spark-btn')){ exchangeSpark(); return; }
+  if(t.closest('#relic-spark-btn')){ exchangeRelicSpark(); return; }
 
   // party screen: slot action menu
   const actionEl = t.closest('[data-slot-action]');
@@ -13107,7 +13129,7 @@ function uiSfxFor(t){
   const hit = sel => t.closest(sel);
   const btn = hit('button, .chip, .fs-chip, [data-slot], [data-toggle], [data-detail], [data-nav], [role="button"]');
   if(!btn || btn.disabled) return null;
-  if(hit('#pull1, #pull10, #spark-btn, [data-stage], [data-start-stage], [data-claim], [data-claim-all]')) return 'confirm';
+  if(hit('#pull1, #pull10, #spark-btn, #relic-spark-btn, [data-stage], [data-start-stage], [data-claim], [data-claim-all]')) return 'confirm';
   if(hit('[data-sweep-run]')) return null; // the sweep plays its own sound
   if(hit('[data-promote]')) return 'promote';
   if(hit('[data-levelup], [data-skill-up], [data-break-wall], [data-craft], [data-facility-up], [data-shop-buy], [data-crystal-buy]')) return 'buff';
@@ -13315,6 +13337,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 39, version: 'α0.0.049', date: '9/23', body: '遺物ガチャに天井(召喚ポイント交換)を追加。モンスターガチャと召喚ポイントを共有し、100ポイントでピックアップ中の専用遺物と交換できます。' },
   { id: 38, version: 'α0.0.048', date: '9/23', body: '遺物図鑑に「覚醒(凸)」の絞り込みを追加。遺物図鑑のセル・装備遺物選択画面でも、覚醒で★が上がっている分を色を変えて表示するように。' },
   { id: 37, version: 'α0.0.047', date: '9/23', body: 'お助けキャラでスタミナが増えている時、ホーム画面・ステージ一覧・ステージ詳細・バトル結果画面に「(お助けキャラ+5)」の注記を追加。なぜ必要スタミナが増えているのか一目で分かるようにしました。' },
   { id: 36, version: 'α0.0.046', date: '9/23', body: 'お助けキャラを編成に入れている時、ホーム画面や結果画面など一部でステージの必要スタミナが本来の値(サーチャージ抜き)のまま表示されていたのを修正。画面によって必要スタミナが違って見える不具合を解消しました。' },
