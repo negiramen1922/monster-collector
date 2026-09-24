@@ -4534,11 +4534,11 @@ const RELICS = {
     effects:[ { stat:'hp', pct:0.08, cond:null }, { stat:'skillDmg', pct:0.16, cond:{ type:'role', value:'trickster' } } ] },
 
   // ================= ★4(属性別・全ガチャ。universal→role→element の3段。
-  //   element側がその属性のカラー(cap34%)、role側は控えめな上乗せ(cap16%)) =================
+  //   element側がその属性のカラー(cap34%)、role側もしっかり上乗せ(cap28%)) =================
   rel_flame_ember: { id:'rel_flame_ember', name:'業火の残り火', star:4, icon:RELIC_ICON.rel_flame_ember, // 炎属性用
     base:{ hp:34.4, atk:21.6 },
     effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'skillDmg', pct:0.17, cond:{ type:'element', value:'fire' } },
-      { stat:'critRate', pct:0.14, cond:{ type:'role', value:'attacker' } } ] }, // cap 34%
+      { stat:'critRate', pct:0.14, cond:{ type:'role', value:'attacker' } } ] }, // cap 40%(全条件一致時)
   rel_deepsea_guard: { id:'rel_deepsea_guard', name:'深海の守り', star:4, icon:RELIC_ICON.rel_deepsea_guard, // 水属性用
     base:{ hp:100.9, atk:7.4 },
     effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'mdef', pct:0.17, cond:{ type:'element', value:'water' } },
@@ -4546,7 +4546,7 @@ const RELICS = {
   rel_verdant_breath: { id:'rel_verdant_breath', name:'新緑の息吹', star:4, icon:RELIC_ICON.rel_verdant_breath, // 草属性用
     base:{ hp:100.9, atk:7.4 },
     effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'hp', pct:0.08, cond:{ type:'element', value:'grass' } }, // 同じstat(hp)なので合算、cap 34%
-      { stat:'spGain', pct:0.14, cond:{ type:'role', value:'support' } } ] },
+      { stat:'spGain', pct:0.14, cond:{ type:'role', value:'support' } } ] }, // spGain側 cap28%
   rel_earthen_weight: { id:'rel_earthen_weight', name:'大地の重み', star:4, icon:RELIC_ICON.rel_earthen_weight, // 土属性用
     base:{ hp:100.9, atk:7.4 },
     effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'pdef', pct:0.17, cond:{ type:'element', value:'earth' } },
