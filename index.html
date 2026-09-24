@@ -2196,6 +2196,17 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gc-pull1 small{ color:var(--dim); }
 .gc-pull10{ flex:1.6; border:none; background:linear-gradient(180deg,#e8b455,#c98f2e); color:#1a1206; font-size:14px; }
 
+.fav-pickup-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+.fav-pickup-cell{
+  display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px;
+  border-radius:12px; background:var(--panel2); border:1px dashed var(--line); color:var(--text); cursor:pointer;
+}
+.fav-pickup-cell.set{ border-style:solid; border-color:rgba(232,180,85,.5); }
+.fav-pickup-cell img{ width:36px; height:36px; object-fit:contain; image-rendering:pixelated; }
+.fav-pickup-ic{ font-size:22px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; }
+.fav-pickup-elem{ font-size:9.5px; color:var(--dim); }
+.fav-pickup-name{ font-size:10px; font-weight:700; text-align:center; line-height:1.2; }
+
 /* ---------- full-screen overlays (profile / settings / notices) ---------- */
 #overlay{ position:absolute; inset:0; z-index:20; display:none; }
 #overlay.show{ display:block; }
@@ -2413,7 +2424,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.050';
+const GAME_VERSION = 'α0.0.051';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3748,6 +3759,7 @@ const DEFAULT_STATE = () => ({
   pitySinceRare: 0,        // pulls since the last ★4+
   universalSouls: 0,
   summonPoints: 0,         // carried over between banners
+  favoritePickup: {},      // 常設バナー限定: 属性 → 選んだ★4/★5モンスターID(pickMonsterOfRarityで優先排出)
   pendingSouls: {},        // souls of monsters not owned yet (befriend at UNLOCK_SOULS)
   stamina: STAMINA_MAX,
   staminaAt: Date.now(),   // when stamina was last brought up to date
@@ -3841,6 +3853,7 @@ function normalizeState(){
   if(STATE.borrowed === undefined) STATE.borrowed = null;
   if(!STATE.tierChests) STATE.tierChests = {};
   if(!STATE.relics) STATE.relics = {};
+  if(!STATE.favoritePickup) STATE.favoritePickup = {};
   if(!STATE.pvpPoints) STATE.pvpPoints = 0;
   if(STATE.pvpDefenseSlots === undefined) STATE.pvpDefenseSlots = null;
   if(STATE.pvpDefenseFormation === undefined) STATE.pvpDefenseFormation = null;
@@ -7589,6 +7602,8 @@ function renderMonGacha(){
         <small>${UNIVERSAL_PER_SOUL}個で好きなモンスターのソウル1個に交換できます</small></div>
     </div>
 
+    ${banner.key === 'default' ? renderFavoritePickupPanel() : ''}
+
     <div class="panel">
       <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
       <div class="gc-rates">
@@ -7626,10 +7641,73 @@ function renderMonGacha(){
         <b>排出率</b>　${rates}(ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%)<br>
         <b>かぶり</b>　そのモンスターのソウルになります(初期★1:${DUP_SOULS[1]}　★2:${DUP_SOULS[2]}　★3:${DUP_SOULS[3]}　★4:${DUP_SOULS[4]}　★5:${DUP_SOULS[5]})。ソウルで★が上がります(最大★${MAX_STAR})。<br>
         <b>万能ソウル</b>　出たモンスターの初期★に応じて毎回もらえます(★1:${UNIVERSAL_SOULS[1]}　★2:${UNIVERSAL_SOULS[2]}　★3:${UNIVERSAL_SOULS[3]}　★4:${UNIVERSAL_SOULS[4]}　★5:${UNIVERSAL_SOULS[5]})。<br>
-        <b>保証</b>　10連の10枠目は★${TEN_PULL_MIN_STAR}以上。★4以上が${HIGH_PITY_PULLS}回出なければ確定。召喚ポイントはガチャが変わっても引き継がれます。
+        <b>保証</b>　10連の10枠目は★${TEN_PULL_MIN_STAR}以上。★4以上が${HIGH_PITY_PULLS}回出なければ確定。召喚ポイントはガチャが変わっても引き継がれます。${banner.key === 'default' ? `<br><b>お気に入りピックアップ</b>　常設ガチャ限定で、属性ごとに選んだ★4/★5モンスターがそのレアリティの${Math.round(PICKUP_SHARE * 100)}%を占めます(期間限定バナーには適用されません)。` : ''}
       </div>
     </div>
   `;
+}
+// 常設バナー限定: 属性ごとに1体、★4/★5のお気に入りを選んで排出率アップ対象にできる
+function renderFavoritePickupPanel(){
+  const elems = ELEM_ORDER.filter(e => MONSTERS.some(m => m.element === e && m.rarity >= 4));
+  return `
+    <div class="panel">
+      <div class="mc-head" style="margin-bottom:4px;">お気に入りピックアップ</div>
+      <div class="screen-sub" style="margin-bottom:8px;">属性ごとに★4/★5から1体選ぶと、そのレアリティが出た時に${Math.round(PICKUP_SHARE * 100)}%の確率で選んだ中から出るようになります。</div>
+      <div class="fav-pickup-grid">
+        ${elems.map(e => {
+          const favId = STATE.favoritePickup[e];
+          const fav = favId ? MON_BY_ID[favId] : null;
+          return `
+            <button class="fav-pickup-cell ${fav ? 'set' : ''}" data-fav-pickup-elem="${e}">
+              ${fav ? `<img src="${imgSrc(fav.id)}" alt="${fav.name}">` : `<span class="fav-pickup-ic">${ELEM_ICON[e]}</span>`}
+              <span class="fav-pickup-elem">${ELEM_LABEL[e]}</span>
+              <span class="fav-pickup-name">${fav ? fav.name : '未設定'}</span>
+            </button>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+let favoritePicker = null; // { elem } while the "choose a favorite" sheet is open
+function openFavoritePicker(elem){ favoritePicker = { elem }; renderFavoritePickerSheet(); }
+function closeFavoritePicker(){ favoritePicker = null; closeModal(); }
+function renderFavoritePickerSheet(){
+  const { elem } = favoritePicker;
+  const pool = MONSTERS.filter(m => m.element === elem && m.rarity >= 4)
+    .sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name, 'ja'));
+  const current = STATE.favoritePickup[elem];
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal relic-picker-modal" role="dialog" aria-label="お気に入りを選ぶ">
+      <button class="fs-close" data-close-fav-pickup="1" aria-label="閉じる">×</button>
+      <h3>${ELEM_ICON[elem]}${ELEM_LABEL[elem]}属性のお気に入り</h3>
+      <p class="fs-note">★4・★5から1体選べます。未所持でも選べます。</p>
+      <div class="relic-list">
+        ${pool.map(m => `
+          <button class="relic-row r${m.rarity} ${current === m.id ? 'on' : ''}" data-fav-pickup-pick="${m.id}">
+            <img src="${imgSrc(m.id)}" alt="" style="width:34px;height:34px;object-fit:contain;image-rendering:pixelated;flex:none;">
+            <div class="relic-row-body">
+              <div class="relic-row-name">${m.name}<span class="relic-star">★${m.rarity}</span></div>
+              <div class="relic-row-sub">${ROLE_LABEL[m.role]}${STATE.owned[m.id] ? '・所持済み' : '・未所持'}</div>
+            </div>
+          </button>`).join('')}
+      </div>
+      ${current ? `<button class="btn btn-ghost btn-block" data-fav-pickup-clear="1" style="margin-top:10px;">選択を解除する</button>` : ''}
+    </div>`;
+  layer.classList.add('show');
+}
+function setFavoritePickup(elem, monId){
+  STATE.favoritePickup[elem] = monId;
+  track('upgrade');
+  playSfx('confirm');
+  saveState();
+  closeFavoritePicker();
+  render();
+}
+function clearFavoritePickup(elem){
+  delete STATE.favoritePickup[elem];
+  saveState();
+  closeFavoritePicker();
+  render();
 }
 
 function rollRarity(minStar){
@@ -7643,7 +7721,20 @@ function rollRarity(minStar){
   return entries[entries.length - 1][0];
 }
 
+// 常設バナー(イベント未開催時)限定: プレイヤーが属性ごとに選んだお気に入り(★4/★5)の
+// うち、実際に出たロールのレアリティと一致するものだけを対象にする
+function favoritePickupPool(rarity){
+  return Object.values(STATE.favoritePickup || {})
+    .map(id => MON_BY_ID[id])
+    .filter(m => m && m.rarity === rarity);
+}
 function pickMonsterOfRarity(rarity){
+  if(rarity >= 4 && currentBanner().key === 'default'){
+    const favPool = favoritePickupPool(rarity);
+    if(favPool.length && Math.random() < PICKUP_SHARE) return favPool[Math.floor(Math.random() * favPool.length)];
+    const all = MONSTERS.filter(m => m.rarity === rarity);
+    if(all.length) return all[Math.floor(Math.random() * all.length)];
+  }
   if(rarity === 5){
     const pickup = MON_BY_ID[currentBanner().pickup];
     const others = MONSTERS.filter(m => m.rarity === 5 && m.id !== currentBanner().pickup);
@@ -12622,6 +12713,14 @@ function handlePhoneClick(ev){
     const rowEl = t.closest('[data-relic-row]');
     if(rowEl){ openRelicUpgrade(rowEl.dataset.relicRow, relicPicker.monId); return; }
   }
+  const favPickupElemEl = t.closest('[data-fav-pickup-elem]');
+  if(favPickupElemEl){ openFavoritePicker(favPickupElemEl.dataset.favPickupElem); return; }
+  if(favoritePicker){
+    if(t.closest('[data-close-fav-pickup]')){ closeFavoritePicker(); return; }
+    const pickEl = t.closest('[data-fav-pickup-pick]');
+    if(pickEl){ setFavoritePickup(favoritePicker.elem, pickEl.dataset.favPickupPick); return; }
+    if(t.closest('[data-fav-pickup-clear]')){ clearFavoritePickup(favoritePicker.elem); return; }
+  }
   if(relicSkillUpModal){
     if(t.closest('[data-close-relic-skill-up]')){ closeRelicSkillUpModal(); return; }
     if(t.closest('[data-confirm-relic-skill-up]')){
@@ -13343,6 +13442,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 41, version: 'α0.0.051', date: '9/24', body: '常設ガチャに「お気に入りピックアップ」を追加。属性ごとに★4/★5から1体選ぶと、そのレアリティが出た時に50%の確率で選んだ中から出るようになります(期間限定イベントバナーには影響しません)。' },
   { id: 40, version: 'α0.0.050', date: '9/24', body: 'ホーム画面に「新モンスター29体、参戦予定」の告知バナーを追加。お知らせ画面からも確認できます(実装はまだ行っていません)。' },
   { id: 39, version: 'α0.0.049', date: '9/23', body: '遺物ガチャに天井(召喚ポイント交換)を追加。モンスターガチャと召喚ポイントを共有し、100ポイントでピックアップ中の専用遺物と交換できます。' },
   { id: 38, version: 'α0.0.048', date: '9/23', body: '遺物図鑑に「覚醒(凸)」の絞り込みを追加。遺物図鑑のセル・装備遺物選択画面でも、覚醒で★が上がっている分を色を変えて表示するように。' },
