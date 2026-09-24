@@ -2196,16 +2196,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gc-pull1 small{ color:var(--dim); }
 .gc-pull10{ flex:1.6; border:none; background:linear-gradient(180deg,#e8b455,#c98f2e); color:#1a1206; font-size:14px; }
 
-.fav-pickup-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
-.fav-pickup-cell{
+.select-pickup-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+.select-pickup-cell{
   display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px;
   border-radius:12px; background:var(--panel2); border:1px dashed var(--line); color:var(--text); cursor:pointer;
 }
-.fav-pickup-cell.set{ border-style:solid; border-color:rgba(232,180,85,.5); }
-.fav-pickup-cell img{ width:36px; height:36px; object-fit:contain; image-rendering:pixelated; }
-.fav-pickup-ic{ font-size:22px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; }
-.fav-pickup-elem{ font-size:9.5px; color:var(--dim); }
-.fav-pickup-name{ font-size:10px; font-weight:700; text-align:center; line-height:1.2; }
+.select-pickup-cell.set{ border-style:solid; border-color:rgba(232,180,85,.5); }
+.select-pickup-cell img{ width:36px; height:36px; object-fit:contain; image-rendering:pixelated; }
+.select-pickup-ic{ font-size:22px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; }
+.select-pickup-elem{ font-size:9.5px; color:var(--dim); }
+.select-pickup-name{ font-size:10px; font-weight:700; text-align:center; line-height:1.2; }
+
+.beginner-gacha-panel{ border:1px solid rgba(232,180,85,.5); background:linear-gradient(180deg, rgba(232,180,85,.12), var(--panel)); }
 
 /* ---------- full-screen overlays (profile / settings / notices) ---------- */
 #overlay{ position:absolute; inset:0; z-index:20; display:none; }
@@ -2424,7 +2426,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.0.051';
+const GAME_VERSION = 'α0.1.001';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2682,6 +2684,9 @@ const HIGH_PITY_PULLS = 50;      // ★4+ guaranteed on the 50th pull without on
 const TEN_PULL_MIN_STAR = 3;     // 10th slot of a 10-pull is ★3+ if the first 9 weren't
 const SPARK_POINTS = 200;        // summon points (1 per pull, carried over) → pickup ★5
 const RELIC_SPARK_POINTS = 100;  // 召喚ポイントはキャラ・遺物ガチャで共有。半分の100でピックアップ専用遺物と交換できる
+const BEGINNER_GACHA_PULLS = 30;
+const BEGINNER_GACHA_COST = PULL10_COST * 3; // 通常の10連×3と同じ消費(割引なし)
+
 const DEFAULT_BANNER = {
   key: 'default',
   name: '星霜の呼び声',
@@ -3759,7 +3764,8 @@ const DEFAULT_STATE = () => ({
   pitySinceRare: 0,        // pulls since the last ★4+
   universalSouls: 0,
   summonPoints: 0,         // carried over between banners
-  favoritePickup: {},      // 常設バナー限定: 属性 → 選んだ★4/★5モンスターID(pickMonsterOfRarityで優先排出)
+  selectPickup: {},        // 常設バナー限定: 属性 → 選んだ★4/★5モンスターID(pickMonsterOfRarityで優先排出)
+  beginnerGachaDone: false, // 初心者ガチャ(30連確定★5)を使用済みか。1アカウント1回限り
   pendingSouls: {},        // souls of monsters not owned yet (befriend at UNLOCK_SOULS)
   stamina: STAMINA_MAX,
   staminaAt: Date.now(),   // when stamina was last brought up to date
@@ -3853,7 +3859,8 @@ function normalizeState(){
   if(STATE.borrowed === undefined) STATE.borrowed = null;
   if(!STATE.tierChests) STATE.tierChests = {};
   if(!STATE.relics) STATE.relics = {};
-  if(!STATE.favoritePickup) STATE.favoritePickup = {};
+  if(!STATE.selectPickup) STATE.selectPickup = {};
+  if(STATE.beginnerGachaDone === undefined) STATE.beginnerGachaDone = false;
   if(!STATE.pvpPoints) STATE.pvpPoints = 0;
   if(STATE.pvpDefenseSlots === undefined) STATE.pvpDefenseSlots = null;
   if(STATE.pvpDefenseFormation === undefined) STATE.pvpDefenseFormation = null;
@@ -4531,35 +4538,35 @@ const RELICS = {
   rel_flame_ember: { id:'rel_flame_ember', name:'業火の残り火', star:4, icon:RELIC_ICON.rel_flame_ember, // 炎属性用
     base:{ hp:34.4, atk:21.6 },
     effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'skillDmg', pct:0.17, cond:{ type:'element', value:'fire' } },
-      { stat:'critRate', pct:0.08, cond:{ type:'role', value:'attacker' } } ] }, // cap 34%
+      { stat:'critRate', pct:0.14, cond:{ type:'role', value:'attacker' } } ] }, // cap 34%
   rel_deepsea_guard: { id:'rel_deepsea_guard', name:'深海の守り', star:4, icon:RELIC_ICON.rel_deepsea_guard, // 水属性用
     base:{ hp:100.9, atk:7.4 },
     effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'mdef', pct:0.17, cond:{ type:'element', value:'water' } },
-      { stat:'pdef', pct:0.08, cond:{ type:'role', value:'tank' } } ] },
+      { stat:'pdef', pct:0.14, cond:{ type:'role', value:'tank' } } ] },
   rel_verdant_breath: { id:'rel_verdant_breath', name:'新緑の息吹', star:4, icon:RELIC_ICON.rel_verdant_breath, // 草属性用
     base:{ hp:100.9, atk:7.4 },
     effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'hp', pct:0.08, cond:{ type:'element', value:'grass' } }, // 同じstat(hp)なので合算、cap 34%
-      { stat:'spGain', pct:0.08, cond:{ type:'role', value:'support' } } ] },
+      { stat:'spGain', pct:0.14, cond:{ type:'role', value:'support' } } ] },
   rel_earthen_weight: { id:'rel_earthen_weight', name:'大地の重み', star:4, icon:RELIC_ICON.rel_earthen_weight, // 土属性用
     base:{ hp:100.9, atk:7.4 },
     effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'pdef', pct:0.17, cond:{ type:'element', value:'earth' } },
-      { stat:'mdef', pct:0.08, cond:{ type:'role', value:'tank' } } ] },
+      { stat:'mdef', pct:0.14, cond:{ type:'role', value:'tank' } } ] },
   rel_thunder_swift: { id:'rel_thunder_swift', name:'雷光の疾さ', star:4, icon:RELIC_ICON.rel_thunder_swift, // 雷属性用
     base:{ hp:34.4, atk:21.6 },
     effects:[ { stat:'atk', pct:0.09, cond:null }, { stat:'spd', pct:0.17, cond:{ type:'element', value:'thunder' } },
-      { stat:'critRate', pct:0.08, cond:{ type:'role', value:'shooter' } } ] },
+      { stat:'critRate', pct:0.14, cond:{ type:'role', value:'shooter' } } ] },
   rel_gale_slash: { id:'rel_gale_slash', name:'疾風の一閃', star:4, icon:RELIC_ICON.rel_gale_slash, // 風属性用・SPD型(レア)
     base:{ hp:67.6, atk:14.5, spd:6.5 },
     effects:[ { stat:'spd', pct:0.09, cond:null }, { stat:'pierce', pct:0.17, cond:{ type:'element', value:'wind' } },
-      { stat:'skillDmg', pct:0.08, cond:{ type:'role', value:'trickster' } } ] },
+      { stat:'skillDmg', pct:0.14, cond:{ type:'role', value:'trickster' } } ] },
   rel_holy_judgement: { id:'rel_holy_judgement', name:'聖光の裁き', star:4, icon:RELIC_ICON.rel_holy_judgement, // 光属性用
     base:{ hp:67.6, atk:14.5 },
     effects:[ { stat:'mdef', pct:0.09, cond:null }, { stat:'ultDmg', pct:0.17, cond:{ type:'element', value:'light' } },
-      { stat:'spGain', pct:0.08, cond:{ type:'role', value:'support' } } ] },
+      { stat:'spGain', pct:0.14, cond:{ type:'role', value:'support' } } ] },
   rel_dark_corrosion: { id:'rel_dark_corrosion', name:'暗黒の侵蝕', star:4, icon:RELIC_ICON.rel_dark_corrosion, // 闇属性用
     base:{ hp:67.6, atk:14.5 },
     effects:[ { stat:'hp', pct:0.09, cond:null }, { stat:'critRate', pct:0.17, cond:{ type:'element', value:'dark' } },
-      { stat:'skillDmg', pct:0.08, cond:{ type:'role', value:'trickster' } } ] },
+      { stat:'skillDmg', pct:0.14, cond:{ type:'role', value:'trickster' } } ] },
 
   // ================= ★5(汎用2種+専用6種) =================
   // 汎用2種: 常時+同条件でさらに同stat積み増し(合計cap32%)+別条件・別statのボーナス(cap32%)。
@@ -7572,6 +7579,14 @@ function renderMonGacha(){
   const rates = Object.entries(RARITY_WEIGHTS).map(([r, w]) => `★${r} ${w}%`).join('　');   // 下の「詳しい仕様」で使う
 
   return `
+    ${!STATE.beginnerGachaDone ? `
+    <div class="panel beginner-gacha-panel">
+      <div class="mc-head" style="margin-bottom:4px;">初心者ガチャ</div>
+      <div class="screen-sub" style="margin-bottom:8px;">${BEGINNER_GACHA_PULLS}連の中に★5が1体も出なければ、最後の1枠が★5全体からランダムで確定します。1アカウント1回限り。</div>
+      <button class="btn btn-block ${STATE.crystals >= BEGINNER_GACHA_COST ? '' : 'btn-ghost'}" id="beginner-gacha-btn" ${STATE.crystals >= BEGINNER_GACHA_COST ? '' : 'disabled'}>
+        ${BEGINNER_GACHA_PULLS}連<small>${CRYSTAL_ICON} ${BEGINNER_GACHA_COST.toLocaleString()}・★5確定</small>
+      </button>
+    </div>` : ''}
     ${banners.length >= 2 ? `
     <div class="gacha-tabs" role="tablist">
       ${banners.map(b => `<button class="stage-tab ${banner.key === b.key ? 'on' : ''}" data-gacha-banner="${b.key}" role="tab" aria-selected="${banner.key === b.key}">${b.name}</button>`).join('')}
@@ -7602,7 +7617,7 @@ function renderMonGacha(){
         <small>${UNIVERSAL_PER_SOUL}個で好きなモンスターのソウル1個に交換できます</small></div>
     </div>
 
-    ${banner.key === 'default' ? renderFavoritePickupPanel() : ''}
+    ${banner.key === 'default' ? renderSelectPickupPanel() : ''}
 
     <div class="panel">
       <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
@@ -7641,49 +7656,49 @@ function renderMonGacha(){
         <b>排出率</b>　${rates}(ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%)<br>
         <b>かぶり</b>　そのモンスターのソウルになります(初期★1:${DUP_SOULS[1]}　★2:${DUP_SOULS[2]}　★3:${DUP_SOULS[3]}　★4:${DUP_SOULS[4]}　★5:${DUP_SOULS[5]})。ソウルで★が上がります(最大★${MAX_STAR})。<br>
         <b>万能ソウル</b>　出たモンスターの初期★に応じて毎回もらえます(★1:${UNIVERSAL_SOULS[1]}　★2:${UNIVERSAL_SOULS[2]}　★3:${UNIVERSAL_SOULS[3]}　★4:${UNIVERSAL_SOULS[4]}　★5:${UNIVERSAL_SOULS[5]})。<br>
-        <b>保証</b>　10連の10枠目は★${TEN_PULL_MIN_STAR}以上。★4以上が${HIGH_PITY_PULLS}回出なければ確定。召喚ポイントはガチャが変わっても引き継がれます。${banner.key === 'default' ? `<br><b>お気に入りピックアップ</b>　常設ガチャ限定で、属性ごとに選んだ★4/★5モンスターがそのレアリティの${Math.round(PICKUP_SHARE * 100)}%を占めます(期間限定バナーには適用されません)。` : ''}
+        <b>保証</b>　10連の10枠目は★${TEN_PULL_MIN_STAR}以上。★4以上が${HIGH_PITY_PULLS}回出なければ確定。召喚ポイントはガチャが変わっても引き継がれます。${banner.key === 'default' ? `<br><b>セレクトピックアップ</b>　常設ガチャ限定で、属性ごとに選んだ★4/★5モンスターがそのレアリティの${Math.round(PICKUP_SHARE * 100)}%を占めます(期間限定バナーには適用されません)。` : ''}
       </div>
     </div>
   `;
 }
-// 常設バナー限定: 属性ごとに1体、★4/★5のお気に入りを選んで排出率アップ対象にできる
-function renderFavoritePickupPanel(){
+// 常設バナー限定: 属性ごとに1体、★4/★5のセレクトピックアップを選んで排出率アップ対象にできる
+function renderSelectPickupPanel(){
   const elems = ELEM_ORDER.filter(e => MONSTERS.some(m => m.element === e && m.rarity >= 4));
   return `
     <div class="panel">
-      <div class="mc-head" style="margin-bottom:4px;">お気に入りピックアップ</div>
+      <div class="mc-head" style="margin-bottom:4px;">セレクトピックアップ</div>
       <div class="screen-sub" style="margin-bottom:8px;">属性ごとに★4/★5から1体選ぶと、そのレアリティが出た時に${Math.round(PICKUP_SHARE * 100)}%の確率で選んだ中から出るようになります。</div>
-      <div class="fav-pickup-grid">
+      <div class="select-pickup-grid">
         ${elems.map(e => {
-          const favId = STATE.favoritePickup[e];
-          const fav = favId ? MON_BY_ID[favId] : null;
+          const selId = STATE.selectPickup[e];
+          const sel = selId ? MON_BY_ID[selId] : null;
           return `
-            <button class="fav-pickup-cell ${fav ? 'set' : ''}" data-fav-pickup-elem="${e}">
-              ${fav ? `<img src="${imgSrc(fav.id)}" alt="${fav.name}">` : `<span class="fav-pickup-ic">${ELEM_ICON[e]}</span>`}
-              <span class="fav-pickup-elem">${ELEM_LABEL[e]}</span>
-              <span class="fav-pickup-name">${fav ? fav.name : '未設定'}</span>
+            <button class="select-pickup-cell ${sel ? 'set' : ''}" data-select-pickup-elem="${e}">
+              ${sel ? `<img src="${imgSrc(sel.id)}" alt="${sel.name}">` : `<span class="select-pickup-ic">${ELEM_ICON[e]}</span>`}
+              <span class="select-pickup-elem">${ELEM_LABEL[e]}</span>
+              <span class="select-pickup-name">${sel ? sel.name : '未設定'}</span>
             </button>`;
         }).join('')}
       </div>
     </div>`;
 }
-let favoritePicker = null; // { elem } while the "choose a favorite" sheet is open
-function openFavoritePicker(elem){ favoritePicker = { elem }; renderFavoritePickerSheet(); }
-function closeFavoritePicker(){ favoritePicker = null; closeModal(); }
-function renderFavoritePickerSheet(){
-  const { elem } = favoritePicker;
+let selectPicker = null; // { elem } while the "choose a select pickup" sheet is open
+function openSelectPicker(elem){ selectPicker = { elem }; renderSelectPickerSheet(); }
+function closeSelectPicker(){ selectPicker = null; closeModal(); }
+function renderSelectPickerSheet(){
+  const { elem } = selectPicker;
   const pool = MONSTERS.filter(m => m.element === elem && m.rarity >= 4)
     .sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name, 'ja'));
-  const current = STATE.favoritePickup[elem];
+  const current = STATE.selectPickup[elem];
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
-    <div class="result-modal relic-picker-modal" role="dialog" aria-label="お気に入りを選ぶ">
-      <button class="fs-close" data-close-fav-pickup="1" aria-label="閉じる">×</button>
-      <h3>${ELEM_ICON[elem]}${ELEM_LABEL[elem]}属性のお気に入り</h3>
+    <div class="result-modal relic-picker-modal" role="dialog" aria-label="セレクトピックアップを選ぶ">
+      <button class="fs-close" data-close-select-pickup="1" aria-label="閉じる">×</button>
+      <h3>${ELEM_ICON[elem]}${ELEM_LABEL[elem]}属性のセレクトピックアップ</h3>
       <p class="fs-note">★4・★5から1体選べます。未所持でも選べます。</p>
       <div class="relic-list">
         ${pool.map(m => `
-          <button class="relic-row r${m.rarity} ${current === m.id ? 'on' : ''}" data-fav-pickup-pick="${m.id}">
+          <button class="relic-row r${m.rarity} ${current === m.id ? 'on' : ''}" data-select-pickup-pick="${m.id}">
             <img src="${imgSrc(m.id)}" alt="" style="width:34px;height:34px;object-fit:contain;image-rendering:pixelated;flex:none;">
             <div class="relic-row-body">
               <div class="relic-row-name">${m.name}<span class="relic-star">★${m.rarity}</span></div>
@@ -7691,22 +7706,22 @@ function renderFavoritePickerSheet(){
             </div>
           </button>`).join('')}
       </div>
-      ${current ? `<button class="btn btn-ghost btn-block" data-fav-pickup-clear="1" style="margin-top:10px;">選択を解除する</button>` : ''}
+      ${current ? `<button class="btn btn-ghost btn-block" data-select-pickup-clear="1" style="margin-top:10px;">選択を解除する</button>` : ''}
     </div>`;
   layer.classList.add('show');
 }
-function setFavoritePickup(elem, monId){
-  STATE.favoritePickup[elem] = monId;
+function setSelectPickup(elem, monId){
+  STATE.selectPickup[elem] = monId;
   track('upgrade');
   playSfx('confirm');
   saveState();
-  closeFavoritePicker();
+  closeSelectPicker();
   render();
 }
-function clearFavoritePickup(elem){
-  delete STATE.favoritePickup[elem];
+function clearSelectPickup(elem){
+  delete STATE.selectPickup[elem];
   saveState();
-  closeFavoritePicker();
+  closeSelectPicker();
   render();
 }
 
@@ -7721,17 +7736,17 @@ function rollRarity(minStar){
   return entries[entries.length - 1][0];
 }
 
-// 常設バナー(イベント未開催時)限定: プレイヤーが属性ごとに選んだお気に入り(★4/★5)の
+// 常設バナー(イベント未開催時)限定: プレイヤーが属性ごとに選んだセレクトピックアップ(★4/★5)の
 // うち、実際に出たロールのレアリティと一致するものだけを対象にする
-function favoritePickupPool(rarity){
-  return Object.values(STATE.favoritePickup || {})
+function selectPickupPool(rarity){
+  return Object.values(STATE.selectPickup || {})
     .map(id => MON_BY_ID[id])
     .filter(m => m && m.rarity === rarity);
 }
 function pickMonsterOfRarity(rarity){
   if(rarity >= 4 && currentBanner().key === 'default'){
-    const favPool = favoritePickupPool(rarity);
-    if(favPool.length && Math.random() < PICKUP_SHARE) return favPool[Math.floor(Math.random() * favPool.length)];
+    const selPool = selectPickupPool(rarity);
+    if(selPool.length && Math.random() < PICKUP_SHARE) return selPool[Math.floor(Math.random() * selPool.length)];
     const all = MONSTERS.filter(m => m.rarity === rarity);
     if(all.length) return all[Math.floor(Math.random() * all.length)];
   }
@@ -7789,6 +7804,53 @@ function doPull(times, cost){
   if(times === 10) track('gacha10');
   STATE.recentPulls = [...results.map(r => r.mon.id), ...(STATE.recentPulls || [])].slice(0, 4);
   logEvent('gacha_pull', { count: times, best: Math.max(...results.map(r => r.mon.rarity)) });
+  saveState();
+  showGachaEggs(results, before);
+  render();
+}
+
+// pullOneと同じ帳簿処理(pity解消・ポイント・万能ソウル)を、指定したモンスターに対して行う。
+// 初心者ガチャの確定★5枠のように、通常のロール抽選を経ずに特定のモンスターを付与したい時に使う。
+function pullOneForced(mon){
+  STATE.pitySinceRare = 0;
+  STATE.totalPulls += 1;
+  STATE.summonPoints += 1;
+  const universal = UNIVERSAL_SOULS[mon.rarity];
+  STATE.universalSouls += universal;
+
+  return { ...grantMonster(mon), universal, pity: false };
+}
+
+// 初心者ガチャ: 通常の10連ガチャ×3回分の消費で30連。10・20・30枠目はそれぞれ10連と同じ
+// ★3以上保証を引き継ぎ、30連の中に★5が1体も出なければ最後の枠を★5全体からランダムに
+// 確定させる(バナーのピックアップには依存しない)。1アカウント1回限り。
+function doBeginnerGacha(){
+  if(STATE.beginnerGachaDone){ toast('初心者ガチャは利用済みです'); return; }
+  if(STATE.crystals < BEGINNER_GACHA_COST){ toast('結晶が足りません'); return; }
+  STATE.crystals -= BEGINNER_GACHA_COST;
+  STATE.beginnerGachaDone = true;
+  const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
+  const results = [];
+  for(let block = 0; block < 3; block++){
+    const blockResults = [];
+    for(let i = 0; i < 10; i++){
+      const isLastPullOverall = block === 2 && i === 9;
+      let res;
+      if(isLastPullOverall && !results.some(r => r.mon.rarity === 5)){
+        const star5s = MONSTERS.filter(m => m.rarity === 5);
+        res = pullOneForced(star5s[Math.floor(Math.random() * star5s.length)]);
+      } else {
+        const isGuaranteeSlot = i === 9 && blockResults.every(r => r.mon.rarity < TEN_PULL_MIN_STAR);
+        res = pullOne(isGuaranteeSlot ? TEN_PULL_MIN_STAR : 1);
+      }
+      blockResults.push(res);
+      results.push(res);
+    }
+  }
+  track('gachaPull', BEGINNER_GACHA_PULLS);
+  track('beginnerGacha');
+  STATE.recentPulls = [...results.map(r => r.mon.id), ...(STATE.recentPulls || [])].slice(0, 4);
+  logEvent('gacha_pull', { count: BEGINNER_GACHA_PULLS, best: Math.max(...results.map(r => r.mon.rarity)), beginner: true });
   saveState();
   showGachaEggs(results, before);
   render();
@@ -8166,6 +8228,7 @@ function showGachaResults(results, before){
   const best = results.slice().sort((a, b) => b.mon.rarity - a.mon.rarity || (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0))[0];
   const newCount = results.filter(r => r.isNew).length;
   const dupCount = results.length - newCount;
+  const canRetry = results.length === 1 || results.length === 10;
   const again = results.length === 10 ? PULL10_COST : PULL_COST;
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''}">
@@ -8214,9 +8277,9 @@ function showGachaResults(results, before){
 
       <div class="br-buttons">
         <button class="btn btn-ghost" id="close-result">閉じる</button>
-        <button class="btn ${STATE.crystals >= again ? '' : 'btn-ghost'}" data-pull-again="${results.length}" ${STATE.crystals >= again ? '' : 'disabled'}>
+        ${canRetry ? `<button class="btn ${STATE.crystals >= again ? '' : 'btn-ghost'}" data-pull-again="${results.length}" ${STATE.crystals >= again ? '' : 'disabled'}>
           もう一度 ${CRYSTAL_ICON}${again.toLocaleString()}
-        </button>
+        </button>` : ''}
       </div>
     </div>
   `;
@@ -12643,6 +12706,7 @@ function handlePhoneClick(ev){
   }
   if(t.closest('#pull1')){ doPull(1, PULL_COST); return; }
   if(t.closest('#pull10')){ doPull(10, PULL10_COST); return; }
+  if(t.closest('#beginner-gacha-btn')){ doBeginnerGacha(); return; }
   const gkEl = t.closest('[data-gacha-kind]');
   if(gkEl){ gachaKind = gkEl.dataset.gachaKind; render(); return; }
   if(t.closest('#relic-pull1')){ doRelicPullAndShow(1, PULL_COST); return; }
@@ -12713,13 +12777,13 @@ function handlePhoneClick(ev){
     const rowEl = t.closest('[data-relic-row]');
     if(rowEl){ openRelicUpgrade(rowEl.dataset.relicRow, relicPicker.monId); return; }
   }
-  const favPickupElemEl = t.closest('[data-fav-pickup-elem]');
-  if(favPickupElemEl){ openFavoritePicker(favPickupElemEl.dataset.favPickupElem); return; }
-  if(favoritePicker){
-    if(t.closest('[data-close-fav-pickup]')){ closeFavoritePicker(); return; }
-    const pickEl = t.closest('[data-fav-pickup-pick]');
-    if(pickEl){ setFavoritePickup(favoritePicker.elem, pickEl.dataset.favPickupPick); return; }
-    if(t.closest('[data-fav-pickup-clear]')){ clearFavoritePickup(favoritePicker.elem); return; }
+  const selPickupElemEl = t.closest('[data-select-pickup-elem]');
+  if(selPickupElemEl){ openSelectPicker(selPickupElemEl.dataset.selectPickupElem); return; }
+  if(selectPicker){
+    if(t.closest('[data-close-select-pickup]')){ closeSelectPicker(); return; }
+    const pickEl = t.closest('[data-select-pickup-pick]');
+    if(pickEl){ setSelectPickup(selectPicker.elem, pickEl.dataset.selectPickupPick); return; }
+    if(t.closest('[data-select-pickup-clear]')){ clearSelectPickup(selectPicker.elem); return; }
   }
   if(relicSkillUpModal){
     if(t.closest('[data-close-relic-skill-up]')){ closeRelicSkillUpModal(); return; }
@@ -13442,7 +13506,8 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 41, version: 'α0.0.051', date: '9/24', body: '常設ガチャに「お気に入りピックアップ」を追加。属性ごとに★4/★5から1体選ぶと、そのレアリティが出た時に50%の確率で選んだ中から出るようになります(期間限定イベントバナーには影響しません)。' },
+  { id: 42, version: 'α0.1.001', date: '9/24', body: '初心者専用の「初心者ガチャ」を追加。30連の中に★5が1体も出なければ最後の枠が★5全体からランダムに確定します(1アカウント1回限り・通常の消費)。また★4遺物の役割条件つき効果を8%→14%に引き上げ、★3遺物との性能差を是正しました。' },
+  { id: 41, version: 'α0.0.051', date: '9/24', body: '常設ガチャに「セレクトピックアップ」を追加。属性ごとに★4/★5から1体選ぶと、そのレアリティが出た時に50%の確率で選んだ中から出るようになります(期間限定イベントバナーには影響しません)。' },
   { id: 40, version: 'α0.0.050', date: '9/24', body: 'ホーム画面に「新モンスター29体、参戦予定」の告知バナーを追加。お知らせ画面からも確認できます(実装はまだ行っていません)。' },
   { id: 39, version: 'α0.0.049', date: '9/23', body: '遺物ガチャに天井(召喚ポイント交換)を追加。モンスターガチャと召喚ポイントを共有し、100ポイントでピックアップ中の専用遺物と交換できます。' },
   { id: 38, version: 'α0.0.048', date: '9/23', body: '遺物図鑑に「覚醒(凸)」の絞り込みを追加。遺物図鑑のセル・装備遺物選択画面でも、覚醒で★が上がっている分を色を変えて表示するように。' },
