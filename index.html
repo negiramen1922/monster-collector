@@ -563,6 +563,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   grid-template-columns:repeat(4, minmax(0, 1fr));
   gap:7px;
 }
+.ticket-grid{ max-height:46vh; overflow-y:auto; padding:2px; }
+.ticket-grid .mon-cell{ cursor:pointer; }
+.ticket-grid .star b{ color:var(--gold); }
+.ticket-grid .mon-cell.picked{ outline:3px solid var(--gold); outline-offset:-1px; }
 .mon-cell{
   position:relative;
   min-width:0;
@@ -2550,9 +2554,10 @@ const ITEM_SVG_BODY = {
   core: '<circle cx="50" cy="50" r="32" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="40" cy="40" r="9" fill="#ffffff" opacity=".65"/>',
   pot: '<rect x="40" y="10" width="20" height="10" rx="3" fill="#4a4560"/><path d="M42 20h16v16l14 32c3 7-2 14-10 14H38c-8 0-13-7-10-14l14-32z" fill="#e8e3f5" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><path d="M34 64h32l5 12c2 5-1 10-7 10H36c-6 0-9-5-7-10z" fill="#7ecbe8"/>',
   box_sel: '<rect x="16" y="42" width="68" height="42" rx="4" fill="#c98f2e" stroke="#7a5416" stroke-width="6"/><rect x="16" y="30" width="68" height="16" rx="4" fill="#e8b455" stroke="#7a5416" stroke-width="6"/><rect x="44" y="20" width="12" height="64" fill="#e2572b"/>',
+  ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX' };
+const ITEM_ICON_LABEL = { scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'キャラ選択券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 
@@ -2712,6 +2717,9 @@ const LEVEL_STAT_BONUS = 0.03;     // +3% per level above 1 (also scales enemy t
 const SECOND_SKILL_STAR = 4;       // the 2nd skill slot opens at ★4 (current ★)
 const DUP_SOULS = { 1:1, 2:3, 3:30, 4:50, 5:150 };      // by initial ★
 const UNIVERSAL_SOULS = { 1:1, 2:1, 3:2, 4:5, 5:10 };   // every pull, new or duplicate
+// ガチャでピックアップ中のキャラ(バナーの★5・セレクトピックアップで選んだ★4/★5)を引くと、
+// 新規でも重複でも、そのキャラのソウルが追加でもらえる
+const PICKUP_BONUS_SOULS = { 4:50, 5:150 };
 const UNIVERSAL_PER_SOUL = 5;                           // 5 universal → 1 soul of an owned monster
 
 function levelCapOf(owned){ return STAR_TABLE[owned.star].lvCap; }
@@ -4144,8 +4152,12 @@ function addItem(key, n){
   if(!STATE.items) STATE.items = {};
   STATE.items[key] = Math.max(0, (STATE.items[key] || 0) + n);
 }
+// ★Nキャラ選択券: その★のキャラから1体選んで受け取る(持っていればソウルになる)
+const MON_TICKET_RE = /^mon_sel_([1-5])$/;
 function itemName(key){
   if(key === 'relic_scrap') return '遺物のスクラップ';
+  const tk = MON_TICKET_RE.exec(key);
+  if(tk) return `★${tk[1]}キャラ選択券`;
   const rc = /^relic_core_([1-3])$/.exec(key);
   if(rc) return `遺物のコア Tier${TIER_LABEL[rc[1]]}`;
   if(EXP_POT_VALUE[key]) return `EXPポット Tier${TIER_LABEL[Number(key.slice(3))]}`;
@@ -4158,6 +4170,7 @@ function itemName(key){
 function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</span>`; }
 function itemIcon(key){
   if(key === 'relic_scrap') return `<span class="item-ic">${ITEM_ICON.scrap}</span>`;
+  if(MON_TICKET_RE.test(key)) return `<span class="item-ic">${ITEM_ICON.ticket}</span>`;
   const rc = /^relic_core_([1-3])$/.exec(key);
   if(rc) return `<span class="item-ic">${ITEM_ICON.core}${tierBadge(Number(rc[1]))}</span>`;
   if(EXP_POT_VALUE[key]) return `<span class="item-ic">${ITEM_ICON.pot}${tierBadge(Number(key.slice(3)))}</span>`;
@@ -4453,6 +4466,15 @@ function openRandomBox(tier){
   Object.entries(got).forEach(([k, n]) => addItem(k, n));
   saveState();
   return got;
+}
+function useMonTicket(key, monId){
+  const tk = MON_TICKET_RE.exec(key);
+  const mon = MON_BY_ID[monId];
+  if(!tk || !mon || mon.rarity !== Number(tk[1]) || getItem(key) <= 0) return null;
+  addItem(key, -1);
+  const r = grantMonster(mon);
+  saveState();
+  return r;
 }
 function openSelectBox(tier, fam, kind){
   const key = `box_sel_${tier}`;
@@ -6138,6 +6160,7 @@ const BEGINNER_MISSIONS = [
   { id:'b09', label:'モンスターを昇格させる',            hint:'詳細画面の「昇格」',          value:() => stat('promote'),        goal:1, reward:[{ type:'universal', n:20 }] },
   { id:'b10', label:'初級「森の主」をクリアする',     hint:'探索 → クエスト',        value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m24' }] },
   // ---- はじめてガイド2(α0.1で追加)。1〜10を終えた人も、ここから続きとして受け取れる ----
+  { id:'b20', label:'ログインする',                   hint:'今日ゲームを開くだけ',        value:() => stat('login'),          goal:1, reward:[{ type:'crystal', n:50 }] },
   { id:'b11', label:'PVPの攻撃編成を組む',            hint:'PVP画面の「攻撃編成」',     value:() => hasPvpForm('attack') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }] },
   { id:'b12', label:'PVPでバトルする',                hint:'PVP画面で相手を探して挑戦',  value:() => stat('pvpBattle'),      goal:1, reward:[{ type:'gold', n:20000 }] },
   { id:'b13', label:'フレンドを1人登録する',           hint:'メニュー → フレンド → フレンドを追加', value:() => STATE.friends.length, goal:1, reward:[{ type:'crystal', n:100 }] },
@@ -6151,7 +6174,7 @@ const BEGINNER_MISSIONS = [
 const BEGINNER_PART1 = 10;   // 1〜10がはじめてガイド、11〜がはじめてガイド2(それぞれにすべて達成のボーナス)
 // completing every beginner mission pays out a 10-pull's worth of crystals
 const BEGINNER_ALL_CLEAR = [{ type:'crystal', n:1350 }];
-const BEGINNER2_ALL_CLEAR = [{ type:'crystal', n:900 }];
+const BEGINNER2_ALL_CLEAR = [{ type:'item', key:'mon_sel_4', n:1 }];   // ★4キャラ選択券
 function beginnerAllDone(){ return !!STATE.beginnerBonusClaimed && !!STATE.beginner2BonusClaimed; }
 
 /* ---- beginner 7-day login bonus: one calendar day (not necessarily
@@ -6791,21 +6814,23 @@ buildHardStages().forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
 // read by recruitChanceOf). Registered for every event in EVENTS (not just active
 // ones) so stages stay reachable/testable even once an event's dates have passed.
 //
-// 1〜7層の初回クリア報酬に、そのイベントの属性遺物(EVENT_ELEMENT_RELIC)を組み込んだ
-// 配布スケジュール: 1層=遺物本体、2層=強化素材、3層=同じ遺物(凸1個目)、4層=強化素材、
-// 5〜7層=同じ遺物(凸2〜4個目)。全7層クリアで凸4/4(完凸)まで無料で届く。
-// 8〜10層は完凸後の深層なので、遺物本体ではなく強化素材(スクラップ・コア)を配る。
+// 1〜10層の初回クリア報酬に、そのイベントの属性遺物(EVENT_ELEMENT_RELIC)を組み込んだ
+// 配布スケジュール: 遺物本体を1・3・6・8・10層に置き、全10層クリアで凸4/4(完凸)まで届く。
+// 間の2・4・5・7・9層は強化素材(スクラップ・コア)で、深い層ほど多い。
+// (α0.1.021 までは7層で完凸・8〜10層は素材だった。素材の中身と総量は同じで、並び順だけ変えた)
+const EVENT_RELIC_LAYERS = [1, 3, 6, 8, 10];
+const EVENT_RELIC_MATS = {
+  2: [{ type:'item', key:'relic_scrap', n:800 }, { type:'item', key:'relic_core_1', n:3 }],
+  4: [{ type:'item', key:'relic_scrap', n:1500 }, { type:'item', key:'relic_core_1', n:3 }, { type:'item', key:'relic_core_2', n:2 }],
+  5: [{ type:'item', key:'relic_scrap', n:2500 }, { type:'item', key:'relic_core_2', n:4 }],
+  7: [{ type:'item', key:'relic_scrap', n:4000 }, { type:'item', key:'relic_core_3', n:3 }],
+  9: [{ type:'item', key:'relic_scrap', n:6000 }, { type:'item', key:'relic_core_3', n:5 }],
+};
 function eventStageRelicReward(ev, n){
   const relicId = EVENT_ELEMENT_RELIC[ev.element];
   if(!relicId) return [];
-  if(n === 1 || n === 3 || n === 5 || n === 6 || n === 7) return [{ type:'relic', key: relicId }];
-  if(n === 2) return [{ type:'item', key:'relic_scrap', n:800 }, { type:'item', key:'relic_core_1', n:3 }];
-  if(n === 4) return [{ type:'item', key:'relic_scrap', n:1500 }, { type:'item', key:'relic_core_1', n:3 }, { type:'item', key:'relic_core_2', n:2 }];
-  // 7層で完凸するので、8層以降は同じ遺物ではなく強化素材を配る
-  if(n === 8) return [{ type:'item', key:'relic_scrap', n:2500 }, { type:'item', key:'relic_core_2', n:4 }];
-  if(n === 9) return [{ type:'item', key:'relic_scrap', n:4000 }, { type:'item', key:'relic_core_3', n:3 }];
-  if(n === 10) return [{ type:'item', key:'relic_scrap', n:6000 }, { type:'item', key:'relic_core_3', n:5 }];
-  return [];
+  if(EVENT_RELIC_LAYERS.includes(n)) return [{ type:'relic', key: relicId }];
+  return EVENT_RELIC_MATS[n] || [];
 }
 function buildEventStages(ev){
   return ev.tiers.map((t, i) => {
@@ -7307,6 +7332,7 @@ function renderShop(){
 
 // inventory modal (with box opening)
 let bagSelect = null; // { tier, fam } while choosing what a selection box gives
+let bagTicket = null; // { key, elem } while choosing a monster with a キャラ選択券
 let bagTab = 'grow';  // 'grow' | 'mat' | 'other'
 function renderBag(){
   const layer = document.getElementById('modal-layer');
@@ -7339,6 +7365,27 @@ function renderBag(){
       </div>`;
   }
 
+  if(bagTicket){
+    const star = Number(MON_TICKET_RE.exec(bagTicket.key)[1]);
+    const pool = MONSTERS.filter(m => m.rarity === star && (!bagTicket.elem || m.element === bagTicket.elem));
+    chooser = `
+      <div class="bag-chooser">
+        <div class="bag-head">${itemName(bagTicket.key)}:受け取るキャラを1体選んでください(持っているキャラはソウル${DUP_SOULS[star]}になります)</div>
+        <div class="dex-elems">
+          <button class="dex-elem ${bagTicket.elem ? '' : 'on'}" data-ticket-elem="">全部</button>
+          ${ELEM_ORDER.filter(e => MONSTERS.some(m => m.rarity === star && m.element === e)).map(e => `<button class="dex-elem ${bagTicket.elem === e ? 'on' : ''}" data-ticket-elem="${e}">${ELEM_ICON[e]}${ELEM_LABEL[e]}</button>`).join('')}
+        </div>
+        <div class="mon-grid ticket-grid">${pool.map(m => `
+          <div class="mon-cell r${m.rarity} ${bagTicket.pick === m.id ? 'picked' : ''}" data-ticket-pick="${m.id}" role="button">
+            <img src="${imgSrc(m.id)}" alt="">
+            <div class="name">${m.name}</div>
+            <span class="star">${STATE.owned[m.id] ? `所持・◆${DUP_SOULS[star]}` : '<b>未所持</b>'}</span>
+          </div>`).join('')}</div>
+        ${bagTicket.pick ? `<button class="btn btn-block" data-ticket-confirm="1" style="margin-top:8px;">「${MON_BY_ID[bagTicket.pick].name}」と交換する${STATE.owned[bagTicket.pick] ? `(ソウル${DUP_SOULS[star]})` : ''}</button>` : ''}
+        <button class="btn btn-ghost btn-sm btn-block" data-ticket-cancel="1" style="margin-top:8px;">やめる</button>
+      </div>`;
+  }
+  const tickets = Object.keys(STATE.items || {}).filter(k => MON_TICKET_RE.test(k) && getItem(k) > 0);
   let body;
   if(bagTab === 'grow'){
     body = `
@@ -7357,6 +7404,13 @@ function renderBag(){
       <div class="bag-grid">${d.kinds().map(k => matCell(fam, k)).join('')}</div>`).join('');
   }else{
     body = `
+      ${tickets.length ? `<div class="bag-head">キャラ選択券</div>${tickets.map(k => `
+        <div class="panel panel-tight box-card">
+          <span class="sc-ic">${itemIcon(k)}</span>
+          <div class="sc-body"><div class="sc-name">${itemName(k)} ×${getItem(k)}</div>
+            <div class="sc-sub">★${MON_TICKET_RE.exec(k)[1]}のキャラから好きな1体と交換</div></div>
+          <button class="btn btn-sm" data-use-ticket="${k}">使う</button>
+        </div>`).join('')}` : ''}
       <div class="bag-head">\u80b2\u6210\u7d20\u6750BOX</div>
       ${boxes.length ? boxes.map(k => `
         <div class="panel panel-tight box-card">
@@ -7514,7 +7568,7 @@ function renderMissions(){
     : missionTab === 'weekly' ? `リセットまで ${formatDuration(msToWeeklyReset())}(毎週月曜${DAY_RESET_HOUR}時)`
     : missionTab === 'beginner' ? ((STATE.beginnerStep || 0) < BEGINNER_PART1
         ? `${STATE.beginnerStep || 0} / ${BEGINNER_PART1} 達成。すべて終えると10連分の結晶(${CRYSTAL_ICON}1350)`
-        : `はじめてガイド2 ${Math.min(STATE.beginnerStep, BEGINNER_MISSIONS.length) - BEGINNER_PART1} / ${BEGINNER_MISSIONS.length - BEGINNER_PART1} 達成。すべて終えると${CRYSTAL_ICON}${BEGINNER2_ALL_CLEAR[0].n}`)
+        : `はじめてガイド2 ${Math.min(STATE.beginnerStep, BEGINNER_MISSIONS.length) - BEGINNER_PART1} / ${BEGINNER_MISSIONS.length - BEGINNER_PART1} 達成。すべて終えると★4キャラ選択券`)
     : '段階をクリアするごとに、次の目標が現れます';
 
   const row = e => {
@@ -8172,7 +8226,8 @@ function renderMonGacha(){
     <div class="panel panel-tight">
       <div class="gacha-rules">
         <b>排出率</b>　${rates}(ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%)<br>
-        <b>かぶり</b>　そのモンスターのソウルになります(初期★1:${DUP_SOULS[1]}　★2:${DUP_SOULS[2]}　★3:${DUP_SOULS[3]}　★4:${DUP_SOULS[4]}　★5:${DUP_SOULS[5]})。ソウルで★が上がります(最大★${MAX_STAR})。<br>
+        <b>かぶり</b>　そのモンスターのソウルになります(初期★1:${DUP_SOULS[1]}　★2:${DUP_SOULS[2]}　★3:${DUP_SOULS[3]}　★4:${DUP_SOULS[4]}　★5:${DUP_SOULS[5]})。<br>
+        <b>ピックアップ</b>　ピックアップ中のキャラを引くと、新規でも重複でもソウルが追加でもらえます(★4:+${PICKUP_BONUS_SOULS[4]}　★5:+${PICKUP_BONUS_SOULS[5]})。ソウルで★が上がります(最大★${MAX_STAR})。<br>
         <b>万能ソウル</b>　出たモンスターの初期★に応じて毎回もらえます(★1:${UNIVERSAL_SOULS[1]}　★2:${UNIVERSAL_SOULS[2]}　★3:${UNIVERSAL_SOULS[3]}　★4:${UNIVERSAL_SOULS[4]}　★5:${UNIVERSAL_SOULS[5]})。<br>
         <b>保証</b>　10連の10枠目は★${TEN_PULL_MIN_STAR}以上。★4以上が${HIGH_PITY_PULLS}回出なければ確定。召喚ポイントはガチャが変わっても引き継がれます。${banner.key === 'default' ? `<br><b>セレクトピックアップ</b>　常設ガチャ限定で、属性ごとに選んだ★4/★5モンスターがそのレアリティの${Math.round(PICKUP_SHARE * 100)}%を占めます(期間限定バナーには適用されません)。` : ''}
       </div>
@@ -8306,7 +8361,15 @@ function pullOne(minStar){
   const universal = UNIVERSAL_SOULS[mon.rarity];
   STATE.universalSouls += universal;
 
-  return { ...grantMonster(mon), universal, pity: forceHigh };
+  const got = grantMonster(mon);
+  const bonus = isPickupMon(mon) ? (PICKUP_BONUS_SOULS[mon.rarity] || 0) : 0;
+  if(bonus){ STATE.owned[mon.id].souls += bonus; got.souls += bonus; got.pickupBonus = bonus; }
+  return { ...got, universal, pity: forceHigh };
+}
+function isPickupMon(mon){
+  const b = currentBanner();
+  if(b.pickup === mon.id) return true;
+  return b.key === 'default' && Object.values(STATE.selectPickup || {}).includes(mon.id);
 }
 
 function doPull(times, cost){
@@ -8536,7 +8599,9 @@ function pullIconHtml(kind, r, cls){
   return kind === 'relic' ? `<span class="${cls} pull-relic-ic">${r.def.icon}</span>` : `<img class="${cls}" src="${imgSrc(r.mon.id)}" alt="${r.mon.name}">`;
 }
 function pullSubLine(kind, r){
-  return kind === 'relic' ? (r.isNew ? '新しい遺物を手に入れました' : '重複 → 凸+1') : (r.isNew ? '新しく仲間になりました' : `ソウル+${r.souls}`);
+  if(kind === 'relic') return r.isNew ? '新しい遺物を手に入れました' : '重複 → 凸+1';
+  const bonus = r.pickupBonus ? `(ピックアップ+${r.pickupBonus})` : '';
+  return r.isNew ? `新しく仲間になりました${r.pickupBonus ? `・ソウル+${r.souls}${bonus}` : ''}` : `ソウル+${r.souls}${bonus}`;
 }
 function pullBadgeHtml(kind, r){
   if(r.isNew) return '<span class="cut-new">NEW</span>';
@@ -8761,7 +8826,7 @@ function showGachaResults(results, before){
             ${best.isNew ? '<span class="rc-new">NEW</span>' : '<span class="rc-dup">重複</span>'}
           </div>
           <div class="gr-best-name">${best.mon.name}</div>
-          <div class="gr-best-sub">${best.isNew ? '新しく仲間になりました' : `ソウル+${best.souls}`}・${ELEM_LABEL[best.mon.element]}／${ROLE_LABEL[best.mon.role]}</div>
+          <div class="gr-best-sub">${pullSubLine('mon', best)}・${ELEM_LABEL[best.mon.element]}／${ROLE_LABEL[best.mon.role]}</div>
         </div>
       </div>
 
@@ -13910,8 +13975,8 @@ function handlePhoneClick(ev){
   if(crystalBuyEl){ buyCrystalItem(crystalBuyEl.dataset.crystalBuy); return; }
   const dtabEl = t.closest('[data-dungeon-tab]');
   if(dtabEl){ dungeonTab = dtabEl.dataset.dungeonTab; render(); return; }
-  if(t.closest('[data-open-bag]')){ bagSelect = null; renderBag(); return; }
-  if(t.closest('[data-close-bag]')){ bagSelect = null; closeModal(); render(); return; }
+  if(t.closest('[data-open-bag]')){ bagSelect = null; bagTicket = null; renderBag(); return; }
+  if(t.closest('[data-close-bag]')){ bagSelect = null; bagTicket = null; closeModal(); render(); return; }
   const boxEl = t.closest('[data-open-box]');
   if(boxEl){
     const key = boxEl.dataset.openBox;
@@ -13931,6 +13996,22 @@ function handlePhoneClick(ev){
     bagSelect = null; playSfx('confirm'); renderBag(); return;
   }
   if(t.closest('[data-box-cancel]')){ bagSelect = null; renderBag(); return; }
+  const useTicketEl = t.closest('[data-use-ticket]');
+  if(useTicketEl){ bagTicket = { key: useTicketEl.dataset.useTicket, elem: '' }; bagSelect = null; renderBag(); return; }
+  const ticketElemEl = t.closest('[data-ticket-elem]');
+  if(ticketElemEl && bagTicket){ bagTicket.elem = ticketElemEl.dataset.ticketElem; renderBag(); return; }
+  if(t.closest('[data-ticket-cancel]')){ bagTicket = null; renderBag(); return; }
+  const ticketPickEl = t.closest('[data-ticket-pick]');
+  if(ticketPickEl && bagTicket){
+    bagTicket.pick = ticketPickEl.dataset.ticketPick; renderBag(); return;
+  }
+  if(t.closest('[data-ticket-confirm]') && bagTicket && bagTicket.pick){
+    const m = MON_BY_ID[bagTicket.pick];
+    const r = useMonTicket(bagTicket.key, m.id);
+    bagTicket = null;
+    if(r){ playSfx('promote'); toast(r.isNew ? `「${m.name}」が仲間になりました!` : `「${m.name}」のソウルを${r.souls}個手に入れました`); }
+    render(); renderBag(); return;
+  }
   const promoteEl = t.closest('[data-promote]');
   if(promoteEl){ promoteMonster(promoteEl.dataset.promote); return; }
   const convertEl = t.closest('[data-convert]');
@@ -14552,7 +14633,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 62, version: 'α0.1.021', date: '9/25', title: 'ミッションの追加', body: 'デイリーミッション「探索を3回クリアする」を、周回と育成ダンジョンでも数えるようにしました。デイリーに「遺物を1回強化する」「PVPを1回する」、ウィークリーに「PVPを10回する」を追加しました。初心者ミッションに「はじめてガイド2」として9つのミッションを追加しました(PVP編成・PVPバトル・フレンド登録・お助けキャラで探索・初心者ガチャ・ショップ・鉱山・育成ダンジョンのゴールドとEXP)。すでにはじめてガイドを終えた人も、続きとして報酬を受け取れます。' },
+  { id: 62, version: 'α0.1.021', date: '9/25', title: 'ミッションの追加・★4キャラ選択券・ピックアップのソウル', body: 'デイリーミッション「探索を3回クリアする」を、周回と育成ダンジョンでも数えるようにしました。デイリーに「遺物を1回強化する」「PVPを1回する」、ウィークリーに「PVPを10回する」を追加しました。初心者ミッションに「はじめてガイド2」として10のミッションを追加し、すべて達成すると★4キャラ選択券(★4から好きな1体と交換)がもらえます。すでにはじめてガイドを終えた人も、続きとして受け取れます。ガチャでピックアップ中のキャラを引くと、新規でも重複でもソウルが追加でもらえるようになりました(★4:+50、★5:+150)。イベントの属性遺物は、7層ではなく10層で完凸するように配り方を広げました(1・3・6・8・10層)。' },
   { id: 61, version: 'α0.1.020', date: '9/25', title: 'フレンド画面の作り直しと自己紹介', body: 'フレンド画面を開くと、まずフレンドリストが出るようにしました。コード入力欄のあった場所は「フレンドを追加」ボタンになり、追加画面では名前かIDで検索できます。何も入れていないときは、最近7日以内に遊んでいるテイマーから「おすすめユーザー」を表示します。プロフィールとフレンド画面にフォロー数(自分が追加したフレンド)とフォロワー数(自分を追加している人)を出し、フォロワー一覧から「フレンドを返す」ができます。プロフィールには自己紹介(100文字まで)を書けるようになり、他のテイマーのプロフィールにも表示されます。' },
   { id: 60, version: 'α0.1.019', date: '9/25', title: '図鑑の右端が切れる不具合を修正', body: 'スマホの幅によっては、図鑑のいちばん右の列が画面からはみ出して切れていたのを直しました。名前の長いキャラ(リヴァイアサンなど)が入ると列が広がっていたためで、今は長い名前は「…」で省略されます。遺物図鑑やかばんなど、同じ並べ方の画面も合わせて直しています。' },
   { id: 59, version: 'α0.1.018', date: '9/25', title: 'シースライムの立ち絵を新しく、アンヴァリの黄金指輪を調整', body: 'シースライムの立ち絵を新しい絵(体の中に魚と核が見える姿)に差し替えました。アンヴァリの黄金指輪のドワーフ向け被ダメージカットを+7.5%→15%から+10%→20%に上げ、ほかの遺物の被ダメージカットとそろえました。' },
