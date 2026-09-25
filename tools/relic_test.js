@@ -143,24 +143,28 @@ ok('rewardHtml が遺物報酬を表示できる(クラッシュしない)', E.r
 const capMult = E.relicSkillMult(E.RELIC_SKILL_MAX);
 const sumPct = (def, mon) => Math.round((def.effects || []).filter(e => E.relicEffectMatches(e.cond, mon)).reduce((s, e) => s + e.pct, 0) * capMult * 100);
 const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
-const darkMon = { id:'zzz', element:'dark', role:'support', species:'hume' };
-const grimoirePct = sumPct(E.RELICS.rel_grimoire, darkMon);
-ok('rel_grimoire: 闇属性の理想値がskillLv上限で30-35%(同stat合算)', inBand(grimoirePct, 30, 35), grimoirePct);
-const attackerMon = { id:'zzz', element:'fire', role:'attacker', species:'hume' };
-const grimoireUltPct = sumPct({ effects: E.RELICS.rel_grimoire.effects.filter(e => e.stat === 'ultDmg') }, attackerMon);
-ok('rel_grimoire: アタッカーのultDmg理想値も30-35%', inBand(grimoireUltPct, 30, 35), grimoireUltPct);
-
-// ★5 exclusive (rel_titan_heart): owner m54 (専用tier36%を含め50%台) > same-species
-// non-owner(誰でもtier+同種族tierの合算18%のみ) > unrelated monster(誰でもtier10%のみ)。
-const sameSpeciesNotOwner = { id:'m99', element:'earth', role:'attacker', species:'dwarf' };
+// α0.1 の遺物ルール(docs/design/遺物スキル枠のルール.json): スキル枠ごとの上限は★で決まり、
+// スキル1〜3で比重を変えない。★5=30%・★4/★3=25%・★2/★1=20%。被ダメージカットは★に関わらず20%。
+// 配布は15%で、ガチャ産より必ず弱い。★5専用の「本人のみ」枠だけ33%。
+const slotCap = e => Math.round(e.pct * capMult * 100);
+const CAP_BY_STAR = { 5:30, 4:25, 3:25, 2:20, 1:20 };
+// 確定データ(docs/design/新規遺物56種.json)がルール表から外れている枠。データのまま実装している
+const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33, 'rel_raiden_scale:0':20, 'rel_tyrfing:1':40, 'rel_andvari_ring:2':15 };
+const off = [];
+Object.values(E.RELICS).forEach(r => r.effects.forEach((e, i) => {
+  const want = DATA_EXCEPTIONS[`${r.id}:${i}`] || (e.stat === 'cut' ? 20 : r.channel === 'distributed' ? 15
+    : e.cond && e.cond.type === 'mon' ? 33 : CAP_BY_STAR[r.star]);
+  if(slotCap(e) !== want) off.push([r.id, e.stat, slotCap(e), want]);
+}));
+ok('全56種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
+ok('遺物は56種', Object.keys(E.RELICS).length === 56);
+const gachaMin = Math.min(...Object.values(E.RELICS).filter(r => r.channel !== 'distributed').flatMap(r => r.effects.filter(e => e.stat !== 'cut').map(slotCap)));
+const distMax = Math.max(...Object.values(E.RELICS).filter(r => r.channel === 'distributed').flatMap(r => r.effects.map(slotCap)));
+ok('配布の枠はガチャ産のどの枠(被ダメージカットを除く)より弱い', distMax < gachaMin, [distMax, gachaMin]);
 const unrelated = { id:'zzz', element:'fire', role:'attacker', species:'hume' };
 const titanPct = sumPct(E.RELICS.rel_titan_heart, titan);
-const sameSpeciesPct = sumPct(E.RELICS.rel_titan_heart, sameSpeciesNotOwner);
-const unrelatedPct = sumPct(E.RELICS.rel_titan_heart, unrelated);
-ok('rel_titan_heart: 本人(m54)は専用tier込みで50-58%', inBand(titanPct, 50, 58), titanPct);
-ok('rel_titan_heart: 同種族(ドワーフ)だが本人でなければそれより弱い(18%)', sameSpeciesPct < titanPct && inBand(sameSpeciesPct, 15, 20), [sameSpeciesPct, titanPct]);
-ok('rel_titan_heart: 無関係なモンスターは常時効果分だけでさらに弱い(10%)', unrelatedPct < sameSpeciesPct && inBand(unrelatedPct, 8, 12), [unrelatedPct, sameSpeciesPct]);
-ok('★5専用の専用tierは★5汎用の最大値(32%)より強い', titanPct > 32, titanPct);
+ok('★5専用(rel_titan_heart): 本人は専用枠込みで一番強い', titanPct > sumPct(E.RELICS.rel_titan_heart, { id:'m99', element:'earth', role:'attacker', species:'dwarf' }), titanPct);
+ok('新キャラ専用(rel_hellfire_sword)はバハムート本人に専用枠が乗る', E.RELICS.rel_hellfire_sword.effects.some(e => e.cond && e.cond.type === 'mon' && e.cond.value === 'm136'));
 
 // 配布(rel_traveler_shield): unconditional, should land 10-15% for anyone
 ok('rel_traveler_shield(配布): skillLv上限で10-15%', inBand(sumPct(E.RELICS.rel_traveler_shield, unrelated), 10, 15), sumPct(E.RELICS.rel_traveler_shield, unrelated));
