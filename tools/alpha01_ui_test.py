@@ -44,6 +44,13 @@ async def main():
             total = await pg.evaluate('() => MONSTERS.length')
             check('図鑑のモンスターは135体', total == 135, total)
             await pg.screenshot(path=str(OUT / 'a01_dex.png'))
+            # 名前の長いキャラが増えても、図鑑のグリッドが画面の右からはみ出さない(スマホ幅)
+            for w in (360, 390):
+                await pg.set_viewport_size({'width': w, 'height': 780}); await pg.wait_for_timeout(200)
+                over = await pg.evaluate('''() => { const vw = document.documentElement.clientWidth;
+                  return [...document.querySelectorAll('.mon-grid .mon-cell')].filter(c => c.getBoundingClientRect().right > vw + 1).length; }''')
+                check(f'図鑑のグリッドが幅{w}pxで右にはみ出さない', over == 0, over)
+            await pg.set_viewport_size({'width': 390, 'height': 780})
 
             await pg.evaluate("() => showMonsterDetail('m165')")
             await pg.wait_for_timeout(400)

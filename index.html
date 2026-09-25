@@ -291,10 +291,10 @@ body{
 .rank-new{ display:inline-block; margin-left:8px; font-size:10px; font-weight:800; color:var(--bg); background:var(--gold); border-radius:6px; padding:2px 6px; vertical-align:6px; }
 .rank-note{ font-size:11px; color:var(--gold); margin-top:4px; }
 .sweep-modal .fs-note{ margin-bottom:12px; }
-.sweep-opts{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:10px; }
+.sweep-opts{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
 .sweep-opts .btn small{ display:block; font-size:10px; opacity:.75; }
 .boss-stage-tag{ font-size:9px; background:var(--danger); color:#fff; border-radius:6px; padding:1px 5px; margin-right:6px; vertical-align:2px; }
-.dungeon-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:8px; }
+.dungeon-tabs{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-bottom:8px; }
 .today-mats .tm-row{ display:flex; align-items:center; gap:3px; margin-top:4px; font-size:14px; }
 .today-mats .tm-row span:first-child{ font-size:10.5px; color:var(--dim); width:70px; flex:none; }
 .today-mats small{ color:var(--dim); font-size:10px; }
@@ -319,7 +319,7 @@ body{
 .fc-sub{ font-size:11px; color:var(--dim); margin:4px 0 6px; line-height:1.6; }
 .facility.locked{ opacity:.55; }
 .base-wallet{ margin:4px 0 10px; font-size:14px; font-weight:800; color:var(--gold); }
-.alc-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin:6px 0 8px; }
+.alc-tabs{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:5px; margin:6px 0 8px; }
 .alc-tabs .stage-tab{ font-size:11px; padding:6px 2px; }
 .alc-row{ display:grid; grid-template-columns:1fr auto; grid-template-areas:"name btns" "have btns"; gap:2px 8px; padding:6px 0; border-top:1px dashed var(--line); align-items:center; }
 .alc-name{ grid-area:name; font-size:12px; font-weight:700; }
@@ -331,7 +331,7 @@ body{
 .bag-top h3{ margin:0; font-size:15px; }
 .bag-count{ margin-left:auto; font-size:10.5px; color:var(--dim); }
 .bag-head{ font-size:11px; font-weight:800; color:var(--dim); margin:12px 2px 7px; }
-.bag-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+.bag-grid{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:7px; }
 .bag-cell{ position:relative; background:var(--panel2); border:1px solid var(--line); border-radius:13px;
   padding:9px 5px 7px; text-align:center; min-height:66px; }
 .bag-cell.empty{ opacity:.4; }
@@ -527,7 +527,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   position:absolute;
   left:0;right:0;bottom:0;
   display:grid;
-  grid-template-columns:repeat(7,1fr);
+  grid-template-columns:repeat(7, minmax(0, 1fr));
   gap:0;
   background:var(--nav);
   border-top:1px solid var(--line);
@@ -560,11 +560,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* ---------- monster grid ---------- */
 .mon-grid{
   display:grid;
-  grid-template-columns:repeat(4, 1fr);
+  grid-template-columns:repeat(4, minmax(0, 1fr));
   gap:7px;
 }
 .mon-cell{
   position:relative;
+  min-width:0;
   background:var(--panel2);
   border-radius:12px;
   border:1px solid var(--line);
@@ -667,7 +668,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   padding:18px;
 }
 .result-modal h3{ margin:0 0 12px; font-size:14px; text-align:center; color:var(--gold); }
-.result-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;}
+.result-grid{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin-bottom:14px;}
 .result-card{
   background:var(--panel2);
   border-radius:12px;
@@ -1015,7 +1016,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-channel-badge.dist{ background:rgba(120,170,255,.15); color:#8ab4ff; }
 .relic-match-badge{ font-size:9px; font-weight:800; padding:1px 6px; border-radius:999px; margin-left:6px; background:rgba(92,171,82,.18); color:var(--ok); }
 /* 遺物図鑑: キャラ図鑑と同じグリッド表示(★別のグループ分けはせず、並べ替え・絞り込みで見る) */
-.relic-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+.relic-grid{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
 .relic-cell{
   position:relative;
   background:var(--panel2);
@@ -1120,7 +1121,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .pvp-result-line{ font-size:13px; margin:10px 0; }
 
 /* ---------- shop ---------- */
-.shop-tabs{ display:grid; grid-template-columns:repeat(2,1fr); gap:5px; margin:6px 0 8px; }
+.shop-tabs{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:5px; margin:6px 0 8px; }
 .shop-tabs .stage-tab{ font-size:11px; padding:6px 2px; white-space:nowrap; }
 .shop-row{
   display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -1141,7 +1142,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .reward-summary{ font-size:11px; color:var(--dim); margin-top:8px; letter-spacing:.02em; }
 
 .mat-grid{
-  display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;
+  display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px;
 }
 .mat-chip{
   background:var(--panel2); border:1px solid var(--line); border-radius:10px;
@@ -1879,7 +1880,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 @keyframes br-hop{ 0%{ transform:translateY(0);} 40%{ transform:translateY(-12px);} 100%{ transform:translateY(0);} }
 .br-rewards{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:14px; }
 .br-rewards-head{ font-size:11.5px; font-weight:800; color:var(--dim); margin-bottom:8px; text-align:left; }
-.br-rewards .mat-grid{ grid-template-columns:repeat(5, 1fr); gap:6px; }
+.br-rewards .mat-grid{ grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; }
 .br-rewards .mat-chip{ opacity:0; animation:pop .38s cubic-bezier(.2,1.4,.4,1) forwards; padding:6px 2px; }
 .br-hint{ font-size:12px; line-height:1.7; text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
 .br-actions{ display:flex; flex-direction:column; gap:8px; }
@@ -2134,7 +2135,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
-.explore-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px; }
+.explore-tabs{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-bottom:6px; }
 .gacha-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
 .gacha-tabs .stage-tab{ flex:1; min-width:100px; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
@@ -2196,7 +2197,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gc-pull1 small{ color:var(--dim); }
 .gc-pull10{ flex:1.6; border:none; background:linear-gradient(180deg,#e8b455,#c98f2e); color:#1a1206; font-size:14px; }
 
-.select-pickup-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+.select-pickup-grid{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; }
 .select-pickup-cell{
   display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px;
   border-radius:12px; background:var(--panel2); border:1px dashed var(--line); color:var(--text); cursor:pointer;
@@ -2445,7 +2446,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.018';
+const GAME_VERSION = 'α0.1.019';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -14362,6 +14363,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 60, version: 'α0.1.019', date: '9/25', title: '図鑑の右端が切れる不具合を修正', body: 'スマホの幅によっては、図鑑のいちばん右の列が画面からはみ出して切れていたのを直しました。名前の長いキャラ(リヴァイアサンなど)が入ると列が広がっていたためで、今は長い名前は「…」で省略されます。遺物図鑑やかばんなど、同じ並べ方の画面も合わせて直しています。' },
   { id: 59, version: 'α0.1.018', date: '9/25', title: 'シースライムの立ち絵を新しく、アンヴァリの黄金指輪を調整', body: 'シースライムの立ち絵を新しい絵(体の中に魚と核が見える姿)に差し替えました。アンヴァリの黄金指輪のドワーフ向け被ダメージカットを+7.5%→15%から+10%→20%に上げ、ほかの遺物の被ダメージカットとそろえました。' },
   { id: 58, version: 'α0.1.017', date: '9/25', title: 'リザードマンの種族をドラコニアに', body: 'リザードマンの種族をヒュームからドラコニアに変更しました。ドラコニアの種族ボーナスや、ドラコニア条件の遺物(ファフニールの心臓・ニーズヘッグの逆鱗など)が乗るようになります。' },
   { id: 57, version: 'α0.1.016', date: '9/25', title: '遺物2種の調整と、名前に合わせたアイコン', body: '鳴神の太鼓のSP獲得量を+10%→20%から+15%→30%に上げ、ティルヴィングの呪刃の会心倍率を+20%→40%から+15%→30%に下げて、ほかの★5遺物と同じ幅にそろえました。あわせて、α0.1で名前が変わった遺物21種のアイコンを新しい名前に合わせて描き直しています(ポセイドンの三叉槍・ソロモンの鍵・鳴神の太鼓など)。' },
