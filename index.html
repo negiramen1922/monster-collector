@@ -2445,7 +2445,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.012';
+const GAME_VERSION = 'α0.1.013';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -13612,6 +13612,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 54, version: 'α0.1.013', date: '9/25', title: '開発用の設計データをリポジトリに収録', body: 'ゲームの中身は変わりません。新モンスターと新遺物の確定データを、開発用のファイルとしてリポジトリに収めました。これまで外部のツールにしか無く、作業を引き継いだ先から見られない状態だったためです。' },
   { id: 53, version: 'α0.1.012', date: '9/25', title: '新モンスターの立ち絵を取り込み', body: '新しいモンスターの立ち絵27体分をゲームに取り込みました。まだキャラクター自体は登場しません(データとスキルの実装はこのあとになります)。シームルグ・サキュバス・死神の3体は立ち絵がまだ用意できていないため、今回は含まれていません。' },
   { id: 52, version: 'α0.1.011', date: '9/25', title: 'α0.1アップデートのお知らせを掲載', body: 'ニュースに「α0.1アップデート内容」を3件に分けて掲載しました。(1)新キャラクター30体、(2)新遺物56種、(3)新クエスト・イベント・調整内容と今後の予定です。キャラと遺物は名前と特徴を1体ずつ書いているので、タップして開いて確認してください。' },
   { id: 51, version: 'α0.1.010', date: '9/25', title: 'お知らせをタップで開く形に変更', body: 'お知らせ画面の表示を変えました。これまでは全部の内容が縦に並んでいて目的の項目を探しづらかったので、タイトルと日付だけを一覧にして、タップすると本文が開く形にしました。最新の1件は最初から開いています。「アップデート内容」の各項目にもタイトルを付けたので、バージョン番号だけでなく何が変わったのか一覧で分かります。' },
