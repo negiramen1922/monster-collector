@@ -53,7 +53,7 @@ ok('スカーボア: 1度だけHP1で耐えてSTR+30%', boar.alive && boar.hp===
 // α0.1: ガーゴイルは回避型に転換(石像化 → 石翼の舞、夜の番人は回避したら反撃)
 B.currentActor=garg; F.performAction(garg,'skill',garg.kit.skill2); B.currentActor=null;
 ok('ガーゴイル: 石翼の舞で回避率+40%、この間は受ける物理ダメージ-10%', garg.buffs.evade && garg.buffs.evade.v>=0.4 && F.cutOf(garg,'phys')>=0.1, [garg.buffs.evade && garg.buffs.evade.v, F.cutOf(garg,'phys')]);
-garg.buffs.evade={v:1,turns:9}; eh=e.hp; hit(B,e,garg,1);
+garg.buffs.evade={v:1,turns:9}; eh=e.hp; for(let i=0;i<5&&e.hp===eh;i++) hit(B,e,garg,1); // 反撃そのものが外れることがあるので数回
 ok('ガーゴイル: 回避すると反撃する', e.hp<eh, eh-e.hp);
 const front=B.party.filter(u=>u.row==='front'&&u!==bat).length;
 ok('オオコウモリ: 前衛2体以上でHATE-10', front>=2 ? F.hateOf(bat)===Math.max(1,bat.hate-10) : true, [front, bat.hate, F.hateOf(bat)]);

@@ -149,7 +149,7 @@ const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
 const slotCap = e => Math.round(e.pct * capMult * 100);
 const CAP_BY_STAR = { 5:30, 4:25, 3:25, 2:20, 1:20 };
 // 確定データ(docs/design/新規遺物56種.json)がルール表から外れている枠。データのまま実装している
-const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33, 'rel_andvari_ring:2':15 };
+const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33 };
 const off = [];
 Object.values(E.RELICS).forEach(r => r.effects.forEach((e, i) => {
   const want = DATA_EXCEPTIONS[`${r.id}:${i}`] || (e.stat === 'cut' ? 20 : r.channel === 'distributed' ? 15
