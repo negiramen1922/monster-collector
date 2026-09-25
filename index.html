@@ -2426,7 +2426,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.006';
+const GAME_VERSION = 'α0.1.007';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -6077,7 +6077,11 @@ const QUEST_SPEC = {
     { name: '冥府の人狼', terrain: 'under', element: 'dark', boss: 'm24', gimmick: 'frenzy', adds: ['m23', 'm30', 'm04'] },
     { name: '雷霆の峰', terrain: 'peak', element: 'thunder', pool: ['m20', 'm36', 'm14'], rares: ['m108'] },
     { name: '鋼の城', terrain: 'peak', element: 'earth', pool: ['m13', 'm27', 'm05'], rares: ['m46'] },
-    { name: '巨人の谷', terrain: 'peak', element: 'earth', pool: ['m22', 'm56', 'm13'], rares: ['m56'] },
+    // 魔法ステージ。エレメンタル科で固めて、敵の攻撃をほぼ魔法だけにしてある。
+    // 物理防御を積んでも通らず、魔法防御の遺物がここで初めて効く。属性が混ざるので
+    // 単一の弱点属性で押し切れないのも狙い。
+    { name: '精霊の坩堝', terrain: 'peak', element: 'none', pool: ['m87', 'm88', 'm89', 'm67'], rares: ['m106'],
+      desc: '神域エリア。四大の精霊が集う坩堝。敵の攻撃はほぼすべて魔法で、物理防御はほとんど意味をなさない。' },
     { name: '神々の庭', terrain: 'peak', element: 'light', pool: ['m106', 'm126', 'm34'], rares: ['m88'] },
     { name: '迷宮の王', terrain: 'peak', element: 'earth', boss: 'm56', gimmick: 'quake', adds: ['m22', 'm13', 'm46'] },
   ],
@@ -6220,8 +6224,9 @@ function buildQuestStages(){
         id, type: 'main', tier: t.key, no: i + 1, name: sp.name, terrain: sp.terrain, element: sp.element,
         rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 3200][i] : isBoss ? 300 : 50 + i * 5,
         requires: prev, boss: isBoss, gimmick: sp.gimmick || null, tutorial: sp.tutorial || null,
-        desc: isBoss ? `${TERRAIN[sp.terrain].label}の主「${MON_BY_ID[bossRef].name}」が待ち受ける。`
-          : `${TERRAIN[sp.terrain].label}エリア。${ELEM_LABEL[sp.element]}属性の敵が多い。`,
+        // sp.desc があればそれを使う。属性が混ざるステージは自動文が合わないため。
+        desc: sp.desc || (isBoss ? `${TERRAIN[sp.terrain].label}の主「${MON_BY_ID[bossRef].name}」が待ち受ける。`
+          : `${TERRAIN[sp.terrain].label}エリア。${ELEM_LABEL[sp.element]}属性の敵が多い。`),
         rares: sp.rares || null,
         waves,
         enemySkill: t.skill,
@@ -13578,6 +13583,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 48, version: 'α0.1.007', date: '9/25', body: '極上級8面を「巨人の谷」から「精霊の坩堝」に差し替えました。四大の精霊で固めたステージで、敵の攻撃の96%が魔法です。これまで極上級は敵の攻撃の82%が物理で、魔法防御を上げる遺物がほとんど仕事をしていませんでした。このステージでは物理防御を積んでも被ダメージが変わらず、魔法防御が初めて効きます。難度は前後のステージと同じくらいです。' },
   { id: 47, version: 'α0.1.006', date: '9/25', body: '上位クエストの推奨レベルを切りのいい数字に揃えました。極上級が推奨Lv150〜200、伝説級が210〜250、神話級が260〜300になります。それぞれ昇格の上限レベル(★5=150・★7=200・★9=260・★10=300)と対応していて、ティアの境目は10レベルずつ空いています。' },
   { id: 46, version: 'α0.1.005', date: '9/25', body: '「伝説級」と「神話級」の難度差を付け直しました。これまで伝説級の最後(推奨Lv230)と神話級の最初(推奨Lv230)が同じレベルで、神話級をすべてクリアしても伝説級のボスより敵が弱いままでした。伝説級を推奨Lv200〜240、神話級を推奨Lv250〜300に広げています。あわせて期間限定イベントに8層(推奨Lv300)・9層(Lv350)・10層(Lv400)を追加しました。深層のボスは★5→★6→★7と上がり、7層で遺物が完凸したあとは強化素材が手に入ります。' },
   { id: 45, version: 'α0.1.004', date: '9/25', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」の最終ウェーブを、4体から5体編成に変更しました。締めのウェーブが手前より軽くなっていたためです。最終ウェーブのBPはおおむね2〜3割上がります。初級〜上級とイベントの編成は変わりません。' },
