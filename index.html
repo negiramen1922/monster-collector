@@ -2426,7 +2426,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.004';
+const GAME_VERSION = 'α0.1.005';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2719,6 +2719,11 @@ const EVENTS = [
       { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
       { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
       { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
+      // 8〜10層は★8〜★10の昇格が前提の深層。護衛もボスと同じ★になる(buildEventStages)ので
+      // ここを上げると層ごと一段重くなる。
+      { lv: 300, star: 5, bossStar: 5, rate: 0.002    }, // 0.2%
+      { lv: 350, star: 5, bossStar: 6, rate: 0.005    }, // 0.5%
+      { lv: 400, star: 5, bossStar: 7, rate: 0.01     }, // 1% - ★7の最終形態
     ],
   },
   {
@@ -2741,6 +2746,11 @@ const EVENTS = [
       { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
       { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
       { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1% - full ★5 boss, the true form
+      // 8〜10層は★8〜★10の昇格が前提の深層。護衛もボスと同じ★になる(buildEventStages)ので
+      // ここを上げると層ごと一段重くなる。
+      { lv: 300, star: 5, bossStar: 5, rate: 0.002    }, // 0.2%
+      { lv: 350, star: 5, bossStar: 6, rate: 0.005    }, // 0.5%
+      { lv: 400, star: 5, bossStar: 7, rate: 0.01     }, // 1% - ★7の最終形態
     ],
   },
 ];
@@ -5979,14 +5989,16 @@ const QUEST_TIERS = [
   { key: 'q3h', label: '上級ハード', short: '💀上級', lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
   // 通常クエストは雑魚★1-4・ボス★5が上限。★6以上はハードモード専用(HARD_STAR_MAPで
   // ノーマルの★を変換)。超上級以降はレベル/スキルLvだけで難度を積み増す。
+  // レベル帯は昇格の上限Lvに合わせている: 伝説級 200(★7)〜240(★8の230をまたぐ)、
+  // 神話級 250〜300(★9の260をまたいで★10の300で終わる)。★8〜★10の解放が前提。
   { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [5, 3, 2], pots: { exp2: 6, exp3: 1 } },
   { key: 'q4h', label: '超上級ハード', short: '💀超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
   { key: 'q5', label: '極上級', lv: [150, 196], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 3], pots: { exp3: 3 } },
   { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 196], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
-  { key: 'q6', label: '伝説級', lv: [200, 230], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6, 4, 3], pots: { exp3: 5 } },
-  { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [200, 230], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
-  { key: 'q7', label: '神話級', lv: [230, 250], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [6, 5, 4], pots: { exp3: 8 } },
-  { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [230, 250], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
+  { key: 'q6', label: '伝説級', lv: [200, 240], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6, 4, 3], pots: { exp3: 5 } },
+  { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [200, 240], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
+  { key: 'q7', label: '神話級', lv: [250, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [6, 5, 4], pots: { exp3: 8 } },
+  { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [250, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
 const HARD_TIERS = QUEST_TIERS_ACTIVE.filter(t => t.hard);
@@ -6340,12 +6352,17 @@ buildHardStages().forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
 // 1〜7層の初回クリア報酬に、そのイベントの属性遺物(EVENT_ELEMENT_RELIC)を組み込んだ
 // 配布スケジュール: 1層=遺物本体、2層=強化素材、3層=同じ遺物(凸1個目)、4層=強化素材、
 // 5〜7層=同じ遺物(凸2〜4個目)。全7層クリアで凸4/4(完凸)まで無料で届く。
+// 8〜10層は完凸後の深層なので、遺物本体ではなく強化素材(スクラップ・コア)を配る。
 function eventStageRelicReward(ev, n){
   const relicId = EVENT_ELEMENT_RELIC[ev.element];
   if(!relicId) return [];
   if(n === 1 || n === 3 || n === 5 || n === 6 || n === 7) return [{ type:'relic', key: relicId }];
   if(n === 2) return [{ type:'item', key:'relic_scrap', n:800 }, { type:'item', key:'relic_core_1', n:3 }];
   if(n === 4) return [{ type:'item', key:'relic_scrap', n:1500 }, { type:'item', key:'relic_core_1', n:3 }, { type:'item', key:'relic_core_2', n:2 }];
+  // 7層で完凸するので、8層以降は同じ遺物ではなく強化素材を配る
+  if(n === 8) return [{ type:'item', key:'relic_scrap', n:2500 }, { type:'item', key:'relic_core_2', n:4 }];
+  if(n === 9) return [{ type:'item', key:'relic_scrap', n:4000 }, { type:'item', key:'relic_core_3', n:3 }];
+  if(n === 10) return [{ type:'item', key:'relic_scrap', n:6000 }, { type:'item', key:'relic_core_3', n:5 }];
   return [];
 }
 function buildEventStages(ev){
@@ -6363,11 +6380,11 @@ function buildEventStages(ev){
     ]);
     return {
       id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, name: `${ev.stageName}・${n}層`,
-      terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(10, 2 + n),
+      terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(12, 2 + n),
       firstClear: 100 * n, boss: true,
       desc: `期間限定・${n}層(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。`,
       waves,
-      gold: 1500 * n, pots: { exp2: Math.max(1, n) },
+      gold: 1500 * n, pots: n >= 8 ? { exp3: n - 5 } : { exp2: Math.max(1, n) },
       bossReward: [{ type: 'item', key: n >= 6 ? 'box_sel_4' : 'box_sel_3', n: 1 }, ...eventStageRelicReward(ev, n)],
       recruitOverride: { [ev.pickup]: t.rate },
     };
@@ -6380,7 +6397,8 @@ EVENTS.forEach(ev => {
   // clearedStages/stageStarsは残るので、期限が切れても未回収分は引き続き受け取れる。
   const maxStars = ev.tiers.length * 3;
   const starGoals = [Math.round(maxStars / 3), Math.round(maxStars * 2 / 3), maxStars];
-  const starRewards = [300, 700, 1500];
+  // 層が増えると目標★数も増えるので(層数x3)、報酬も層数に比例させる
+  const starRewards = [Math.round(300 * ev.tiers.length / 7), Math.round(700 * ev.tiers.length / 7), Math.round(1500 * ev.tiers.length / 7)];
   ACHIEVEMENTS.push({
     id: `a_event_stars_${ev.key}`,
     label: n => `「${ev.stageName}」で★${n}個獲得する`,
@@ -13559,6 +13577,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 46, version: 'α0.1.005', date: '9/25', body: '「伝説級」と「神話級」の難度差を付け直しました。これまで伝説級の最後(推奨Lv230)と神話級の最初(推奨Lv230)が同じレベルで、神話級をすべてクリアしても伝説級のボスより敵が弱いままでした。伝説級を推奨Lv200〜240、神話級を推奨Lv250〜300に広げています。あわせて期間限定イベントに8層(推奨Lv300)・9層(Lv350)・10層(Lv400)を追加しました。深層のボスは★5→★6→★7と上がり、7層で遺物が完凸したあとは強化素材が手に入ります。' },
   { id: 45, version: 'α0.1.004', date: '9/25', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」の最終ウェーブを、4体から5体編成に変更しました。締めのウェーブが手前より軽くなっていたためです。最終ウェーブのBPはおおむね2〜3割上がります。初級〜上級とイベントの編成は変わりません。' },
   { id: 44, version: 'α0.1.003', date: '9/25', body: '「データを削除」を実行しても、サインインし直すと前のデータが戻ってくる不具合を修正。削除の最後にサインアウトする際、その直前まで遊んでいた内容を端末とクラウドの両方へ保存し直してしまっていました。あわせて、サインイン前に遊んでいた分のセーブも削除対象に含めるようにしました。' },
   { id: 43, version: 'α0.1.002', date: '9/24', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」を追加(適正Lv100〜250)。通常モードの敵は★4(ボスは★5)が上限になり、★6以上はハードモード限定に。' },

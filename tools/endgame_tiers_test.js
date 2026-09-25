@@ -73,8 +73,9 @@ ok('神話級の1面はq6_10クリアが条件', E.STAGES.find(s => s.id === 'q7
 const lvOf = key => E.QUEST_TIERS.find(t => t.key === key).lv;
 ok('超上級はLv100-146', JSON.stringify(lvOf('q4')) === JSON.stringify([100, 146]));
 ok('極上級はLv150-196', JSON.stringify(lvOf('q5')) === JSON.stringify([150, 196]));
-ok('伝説級はLv200-230', JSON.stringify(lvOf('q6')) === JSON.stringify([200, 230]));
-ok('神話級はLv230-250', JSON.stringify(lvOf('q7')) === JSON.stringify([230, 250]));
+ok('伝説級はLv200-240(★7上限200から★8上限230をまたぐ)', JSON.stringify(lvOf('q6')) === JSON.stringify([200, 240]));
+ok('神話級はLv250-300(★9上限260をまたいで★10上限300で終わる)', JSON.stringify(lvOf('q7')) === JSON.stringify([250, 300]));
+ok('伝説級の終わりと神話級の始まりが重ならない', lvOf('q6')[1] < lvOf('q7')[0], [lvOf('q6')[1], lvOf('q7')[0]]);
 
 // --- every enemy/boss ref used in the 4 new tiers is a real monster ---
 let badRefs = [];
