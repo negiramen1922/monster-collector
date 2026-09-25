@@ -8,6 +8,9 @@ const api = load('game.js', src => src + `;global.__e = {
   pullFriendMon, pullFriendMat, doFriendPull, FRIEND_CHAR_GACHA_COST, FRIEND_MAT_GACHA_COST,
   getItem, addItem, MONSTERS, STAGES, sanitizeLastActive, lastActiveText, refreshFriendProfiles, friendNameOf,
   fetchIncomingFriendsList, addFriendBack, get incomingFriends(){ return incomingFriends; }, FRIEND_MAX,
+  get followerList(){ return followerList; }, removeFriend, searchFriendCandidates, fetchRecommendedUsers,
+  get friendSearch(){ return friendSearch; }, get recommendedUsers(){ return recommendedUsers; }, addFriendFromProfile,
+  sanitizeBio, profileBio, profileState, BIO_MAX, friendEntryFromProfile, publishProfile,
 };`);
 const E = global.__e;
 
@@ -282,13 +285,21 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   ok('既にフレンドの人はincoming一覧から除外される', E.incomingFriends.every(f => f.uid !== 'u-already'), E.incomingFriends);
   ok('未フレンドの追加者だけがincoming一覧に載る', E.incomingFriends.length === 2 && E.incomingFriends.some(f => f.uid === 'u-new1') && E.incomingFriends.some(f => f.uid === 'u-new2'), E.incomingFriends);
 
-  // addFriendBack: incoming一覧から自分のフレンドに追加し、相手側のincoming記録を消す(best-effort)
-  let removedIncoming = [];
+  // addFriendBack: フォロワーを自分のフレンドにも追加する(相互フォロー)。
+  // 自分側のフォロワー記録は消さない(消すとフォロワー数が減るため)。相手のフォロワーに自分を記録する
+  let removedIncoming = [], recordedBack = [];
   global.window.__authBackend.removeIncoming = async (toUid, fromUid) => { removedIncoming.push({ toUid, fromUid }); };
+  global.window.__authBackend.recordIncomingFriend = async (toUid, fromUid) => { recordedBack.push({ toUid, fromUid }); };
+  ok('フォロワー数は自分を追加している全員(フレンド済みも含む)', S.followerCount === 3, S.followerCount);
+  ok('フォロワー一覧は全員、未返しの一覧はまだフレンドでない人だけ', E.followerList.length === 3 && E.incomingFriends.length === 2);
   await E.addFriendBack('u-new1');
   ok('フレンドを返すと自分のフレンドに追加される', S.friends.some(f => f.uid === 'u-new1'), S.friends);
-  ok('フレンドを返すとincoming一覧からは消える', E.incomingFriends.every(f => f.uid !== 'u-new1'), E.incomingFriends);
-  ok('フレンドを返すとincoming記録の削除が飛ぶ', removedIncoming.length === 1 && removedIncoming[0].toUid === 'me' && removedIncoming[0].fromUid === 'u-new1', removedIncoming);
+  ok('フレンドを返すと未返しの一覧からは消える', E.incomingFriends.every(f => f.uid !== 'u-new1'), E.incomingFriends);
+  ok('フレンドを返しても自分のフォロワー記録は消さない', removedIncoming.length === 0, removedIncoming);
+  ok('フレンドを返すと相手のフォロワーに自分が記録される', recordedBack.some(r => r.toUid === 'u-new1' && r.fromUid === 'me'), recordedBack);
+  E.removeFriend('u-new1');
+  ok('フレンドを削除(フォロー解除)すると相手のフォロワー記録から自分を消す', removedIncoming.some(r => r.toUid === 'u-new1' && r.fromUid === 'me'), removedIncoming);
+  ok('フォロー解除したフォロワーは未返しの一覧に戻る', E.incomingFriends.some(f => f.uid === 'u-new1'));
 
   // 上限いっぱいだと追加されない
   S.friends = new Array(E.FRIEND_MAX).fill(0).map((_, i) => ({ uid: `cap-${i}`, playerId: `CAP-${i}`, name: 'まんたん', level: 1 }));
@@ -298,4 +309,41 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
     await E.addFriendBack(E.incomingFriends[0].uid);
     ok('フレンド上限に達していると追加されない', S.friends.length === beforeCapCount, S.friends.length);
   }
+  // --- 自己紹介 ---
+  ok('自己紹介: 長さを100文字で切る', E.sanitizeBio('あ'.repeat(300)).length === E.BIO_MAX);
+  ok('自己紹介: 文字列以外は空', E.sanitizeBio({ evil: 1 }) === '' && E.sanitizeBio(null) === '');
+  ok('自己紹介: 制御文字を落とす(改行は残す)', E.sanitizeBio('a\u0000b\nc\u0007') === 'ab\nc');
+  const withBio = E.friendEntryFromProfile({ uid: 'u-bio', name: 'ひと', bio: '<b>やあ</b>', following: 3, followers: -5 });
+  ok('公開プロフィールの自己紹介・フォロー数を取り込む(負の値は0に)', withBio.bio === '<b>やあ</b>' && withBio.following === 3 && withBio.followers === 0, withBio);
+  let published = null;
+  S.friends = [{ uid: 'f1', name: 'a' }, { uid: 'f2', name: 'b' }];
+  S.followerCount = 7;
+  E.profileState().bio = '毎晩遊んでます';
+  global.window.__authBackend.cloudProfile = async (uid, p) => { published = p; };
+  await E.publishProfile();
+  ok('公開プロフィールに自己紹介とフォロー/フォロワー数が載る', published && published.bio === '毎晩遊んでます' && published.following === 2 && published.followers === 7, published && { bio: published.bio, following: published.following, followers: published.followers });
+
+  // --- 検索とおすすめ ---
+  const DAY = 86400000, now = Date.now();
+  global.window.__authBackend.lookupPlayer = async code => code === 'ABCD-EFGH-1234' ? { uid: 'u-id', playerId: code, name: 'IDの人', updatedAt: now } : null;
+  global.window.__authBackend.searchPlayersByName = async prefix => [{ uid: 'u-n1', name: prefix + 'ぴよ', updatedAt: now }, { uid: 'me', name: prefix + '自分', updatedAt: now }];
+  await E.searchFriendCandidates('ABCDEFGH1234');
+  ok('IDで検索できる(ハイフンなしでも)', E.friendSearch.results.some(p => p.uid === 'u-id'), E.friendSearch.results.map(p => p.uid));
+  await E.searchFriendCandidates('ひよ');
+  ok('名前で検索でき、自分は結果に出ない', E.friendSearch.results.some(p => p.uid === 'u-n1') && !E.friendSearch.results.some(p => p.uid === 'me'), E.friendSearch.results.map(p => p.uid));
+  global.window.__authBackend.fetchRandomPlayers = async () => [
+    { uid: 'u-act', name: '元気', updatedAt: now - DAY },
+    { uid: 'u-old', name: 'ひさしぶり', updatedAt: now - 30 * DAY },
+    { uid: 'u-none', name: '記録なし' },
+    { uid: 'u-future', name: '未来', updatedAt: now + 10 * DAY },
+    { uid: 'f1', name: 'もうフレンド', updatedAt: now },
+    { uid: 'me', name: '自分', updatedAt: now },
+  ];
+  await E.fetchRecommendedUsers();
+  const rec = E.recommendedUsers.map(p => p.uid);
+  ok('おすすめは最近遊んでいる人だけ(7日より前・日時なし・未来の日時は出ない)', rec.includes('u-act') && !rec.includes('u-old') && !rec.includes('u-none') && !rec.includes('u-future'), rec);
+  ok('おすすめに自分と既存フレンドは出ない', !rec.includes('me') && !rec.includes('f1'), rec);
+  S.friends = [];
+  ok('検索結果から追加できる', E.addFriendFromProfile(E.recommendedUsers[0]) === true && S.friends.length === 1);
+  ok('同じ人は2回追加できない', E.addFriendFromProfile(E.recommendedUsers[0]) === false && S.friends.length === 1);
 })();

@@ -2404,7 +2404,22 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 .title-form input:focus, .acct-modal .snd-row input:focus, .friend-code-input:focus{ outline:none; border-color:var(--gold); }
 .friend-add-row{ display:flex; gap:8px; }
-.friend-add-row .friend-code-input{ flex:1; }
+.friend-add-row .friend-code-input{ flex:1; min-width:0; }
+.follow-counts{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+.follow-count{ font-family:inherit; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:8px 6px; color:var(--text); display:flex; flex-direction:column; align-items:center; gap:1px; cursor:pointer; }
+.follow-count b{ font-size:17px; font-weight:900; }
+.follow-count span{ font-size:10.5px; color:var(--dim); font-weight:700; }
+.friend-add-open{ margin-bottom:10px; }
+.follower-notice{ width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; font-family:inherit; font-size:12px; color:var(--text); cursor:pointer; text-align:left; }
+.soc-row{ display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px dashed var(--line); }
+.soc-row:first-child{ border-top:none; }
+.soc-tag{ font-size:10.5px; font-weight:800; color:var(--dim); padding:4px 8px; border:1px solid var(--line); border-radius:999px; white-space:nowrap; }
+.soc-bio{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bio-input{ width:100%; box-sizing:border-box; resize:vertical; min-height:62px; font-family:inherit; font-size:13px; line-height:1.5; color:var(--text); background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+.bio-input:focus{ outline:none; border-color:var(--gold); }
+.pf-bio-view{ white-space:pre-wrap; word-break:break-word; font-size:13px; line-height:1.6; margin-bottom:10px; }
+.pf-follow-mini{ font-size:11px; color:var(--dim); margin-top:4px; }
+.pf-follow-mini b{ color:var(--text); }
 .title-form .btn{ margin-top:4px; }
 .acct-line{ font-size:11px; color:var(--dim); margin-top:3px; }
 .acct-modal .snd-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -2446,7 +2461,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.019';
+const GAME_VERSION = 'α0.1.020';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3267,6 +3282,27 @@ const firebaseBackend = {
     if(!pSnap.exists()) return null;
     return { uid, ...pSnap.data() };
   },
+  // フレンド追加画面の名前検索: 名前の前方一致(players.name の単一フィールド索引だけで動く)
+  async searchPlayersByName(prefix, n){
+    const { fs, db } = await this.load();
+    const col = fs.collection(db, 'players');
+    const snap = await fs.getDocs(fs.query(col, fs.where('name', '>=', prefix), fs.where('name', '<=', prefix + '\uf8ff'), fs.limit(n || 20)));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  },
+  // フレンド追加画面の「おすすめユーザー」: PVPと同じ rand の切り口からランダムに取り、
+  // 最近遊んでいる(updatedAt が新しい)人だけ残す。絞り込みは呼び出し側(fetchRecommendedUsers)
+  async fetchRandomPlayers(n){
+    const { fs, db } = await this.load();
+    const col = fs.collection(db, 'players');
+    const r = Math.random();
+    const take = async op => {
+      const snap = await fs.getDocs(fs.query(col, fs.where('rand', op, r), fs.orderBy('rand'), fs.limit(n)));
+      return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    };
+    let list = await take('>=');
+    if(list.length < n) list = list.concat(await take('<'));
+    return list;
+  },
   // PVP: a handful of random opponents with a defense set, via the standard Firestore
   // "random doc" trick (every published profile carries a rand:0-1 field; query from a
   // random cut point, wrap around to the start if that side comes up short).
@@ -3501,6 +3537,9 @@ async function publishProfile(){
       avatar: STATE ? profileAvatar() : null,
       support,
       defense: buildDefenseSnapshot(),
+      bio: STATE ? profileBio() : '',
+      following: STATE ? STATE.friends.length : 0,
+      followers: STATE ? (STATE.followerCount || 0) : 0,
       rand: Math.random(),
       updatedAt: Date.now(),
     });
@@ -3568,8 +3607,18 @@ function friendEntryFromProfile(p, fallbackPlayerId){
     monsters: clampInt(p.monsters, 0, MONSTERS.length, 0),
     cleared: clampInt(p.cleared, 0, STAGES.length, 0),
     lastActive: sanitizeLastActive(p.updatedAt),
+    bio: sanitizeBio(p.bio),
+    following: clampInt(p.following, 0, 9999, 0),
+    followers: clampInt(p.followers, 0, 999999, 0),
   };
 }
+// 自己紹介文: 他人の公開プロフィールから来るので長さと制御文字を必ず落とす(表示は escapeHtml)
+const BIO_MAX = 100;
+function sanitizeBio(raw){
+  if(typeof raw !== 'string') return '';
+  return raw.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').replace(/\n{3,}/g, '\n\n').slice(0, BIO_MAX);
+}
+function profileBio(){ return sanitizeBio(profileState().bio); }
 async function addFriendByCode(code){
   if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
   // playerId is stored as XXXX-XXXX-XXXX; accept it with or without hyphens/spacing
@@ -3583,40 +3632,55 @@ async function addFriendByCode(code){
   try{
     const p = await authBackend().lookupPlayer(code);
     if(!p){ toast('そのコードのプレイヤーが見つかりません'); return; }
-    STATE.friends.push(friendEntryFromProfile(p, code));
-    saveState();
-    toast(`${p.name}をフレンドに追加しました`);
-    render();
-    // 相手側に「自分が追加した」ことを記録しておく(相手のフレンド画面の「自分を
-    // 追加している人」に出る)。best-effort: 失敗しても自分側のプレイは止めない。
-    const be = authBackend();
-    if(typeof be.recordIncomingFriend === 'function' && ACCOUNT) be.recordIncomingFriend(p.uid, ACCOUNT.uid).catch(() => {});
+    addFriendFromProfile(p, code);
   }catch(e){ toast('通信に失敗しました'); }
+}
+// 検索結果・おすすめ・フォロワー一覧から追加するとき(公開プロフィールをすでに持っている)
+function addFriendFromProfile(p, fallbackPlayerId){
+  if(!p || !p.uid) return false;
+  if(ACCOUNT && p.uid === ACCOUNT.uid){ toast('自分は追加できません'); return false; }
+  if(STATE.friends.some(f => f.uid === p.uid)){ toast('すでに追加しています'); return false; }
+  if(STATE.friends.length >= FRIEND_MAX){ toast(`フレンドは最大${FRIEND_MAX}人です`); return false; }
+  const entry = friendEntryFromProfile(p, fallbackPlayerId);
+  STATE.friends.push(entry);
+  saveState();
+  toast(`${entry.name}をフレンドに追加しました`);
+  render();
+  // 相手側に「自分が追加した」ことを記録しておく(相手のフォロワーになる)。
+  // best-effort: 失敗しても自分側のプレイは止めない。
+  const be = authBackend();
+  if(typeof be.recordIncomingFriend === 'function' && ACCOUNT) be.recordIncomingFriend(p.uid, ACCOUNT.uid).catch(() => {});
+  publishProfile();
+  return true;
 }
 // フレンド画面の「自分を追加している人」一覧。STATE.friendsとは別のuid配列を
 // 取得し、まだ自分のフレンドに入っていない人だけプロフィールを引いて表示用に持つ。
 // STATEには保存しない(常に開いた時に取り直す)。
+// フォロワー = 自分をフレンドに追加している人(players/{自分}/incoming)。フォロー = STATE.friends。
+// incomingFriends はそのうちまだフレンドを返していない人、followerList は全員。
 let incomingFriends = [];
+let followerList = [];
 async function fetchIncomingFriendsList(){
   const be = authBackend();
   if(typeof be.fetchIncoming !== 'function' || !ACCOUNT) return;
   let uids;
   try{ uids = await be.fetchIncoming(ACCOUNT.uid); }
   catch(e){ return; }
+  uids = uids.filter(uid => uid !== ACCOUNT.uid);
+  if(STATE.followerCount !== uids.length){ STATE.followerCount = uids.length; saveState(); publishProfile(); }
   const known = new Set(STATE.friends.map(f => f.uid));
-  const pending = uids.filter(uid => uid !== ACCOUNT.uid && !known.has(uid));
-  if(!pending.length){ incomingFriends = []; render(); return; }
-  if(typeof be.fetchProfiles !== 'function'){ incomingFriends = []; return; }
+  if(!uids.length || typeof be.fetchProfiles !== 'function'){ incomingFriends = []; followerList = []; render(); return; }
   let profiles;
-  try{ profiles = await be.fetchProfiles(pending); }
+  try{ profiles = await be.fetchProfiles(uids); }
   catch(e){ return; }
-  incomingFriends = profiles.map(p => friendEntryFromProfile(p));
+  followerList = profiles.map(p => friendEntryFromProfile(p));
+  incomingFriends = followerList.filter(f => !known.has(f.uid));
   render();
 }
 // 「フレンドを返す」: 自分を追加している相手を、自分のフレンドにも追加する
 async function addFriendBack(uid){
   if(!friendsAvailable()) return;
-  const entry = incomingFriends.find(f => f.uid === uid);
+  const entry = incomingFriends.find(f => f.uid === uid) || followerList.find(f => f.uid === uid);
   if(!entry) return;
   if(STATE.friends.some(f => f.uid === uid)){ incomingFriends = incomingFriends.filter(f => f.uid !== uid); render(); return; }
   if(STATE.friends.length >= FRIEND_MAX){ toast(`フレンドは最大${FRIEND_MAX}人です`); return; }
@@ -3625,8 +3689,11 @@ async function addFriendBack(uid){
   saveState();
   toast(`${entry.name}にフレンドを返しました`);
   render();
+  // 相手のフォロワーにも自分を記録する(相互フォロー)。自分側のフォロワー記録は消さない
+  // (消すとフォロワー数が減ってしまう)
   const be = authBackend();
-  if(typeof be.removeIncoming === 'function' && ACCOUNT) be.removeIncoming(ACCOUNT.uid, uid).catch(() => {});
+  if(typeof be.recordIncomingFriend === 'function' && ACCOUNT) be.recordIncomingFriend(uid, ACCOUNT.uid).catch(() => {});
+  publishProfile();
 }
 // keep friends' "最終ログイン" (and support/level) fresh - called whenever the friends
 // overlay is opened, since the snapshot taken at add-time otherwise never updates.
@@ -3655,6 +3722,67 @@ function removeFriend(uid){
   STATE.friends = STATE.friends.filter(f => f.uid !== uid);
   if(STATE.borrowed && STATE.borrowed.uid === uid) returnBorrowed();
   saveState();
+  render();
+  // フォロー解除: 相手のフォロワー一覧から自分を消す(ルール上、追加した本人も消せる)
+  const be = authBackend();
+  if(typeof be.removeIncoming === 'function' && ACCOUNT) be.removeIncoming(uid, ACCOUNT.uid).catch(() => {});
+  const back = followerList.find(f => f.uid === uid);
+  if(back && !incomingFriends.some(f => f.uid === uid)) incomingFriends.push(back);
+  publishProfile();
+}
+// ---- フレンド追加画面: 名前・IDで検索 / 何も入れていないときは「おすすめユーザー」 ----
+const RECOMMEND_ACTIVE_DAYS = 7;     // この日数以内に遊んでいる人だけおすすめに出す
+const RECOMMEND_COUNT = 10;
+let friendsView = 'list';            // 'list' | 'add' | 'followers'
+let friendSearch = { q: '', results: null, loading: false };
+let recommendedUsers = null;         // null = まだ取っていない
+const viewedProfiles = {};           // uid → 公開プロフィール(フレンド以外のプロフィール表示用)
+function isActivePlayer(p, now){
+  const at = sanitizeLastActive(p.updatedAt);
+  return !!at && (now || Date.now()) - at <= RECOMMEND_ACTIVE_DAYS * 86400000;
+}
+function socialCandidates(list){
+  const me = ACCOUNT && ACCOUNT.uid;
+  const seen = new Set();
+  return list.filter(p => p && p.uid && p.uid !== me && !seen.has(p.uid) && seen.add(p.uid))
+    .map(p => { const e = friendEntryFromProfile(p); viewedProfiles[e.uid] = e; return e; });
+}
+async function fetchRecommendedUsers(){
+  const be = authBackend();
+  if(typeof be.fetchRandomPlayers !== 'function' || !ACCOUNT) { recommendedUsers = []; render(); return; }
+  recommendedUsers = null; render();
+  let list;
+  try{ list = await be.fetchRandomPlayers(RECOMMEND_COUNT * 4); }
+  catch(e){ recommendedUsers = []; render(); return; }
+  const now = Date.now();
+  const friendIds = new Set(STATE.friends.map(f => f.uid));
+  recommendedUsers = socialCandidates(list.filter(p => isActivePlayer(p, now) && !friendIds.has(p.uid)))
+    .sort(() => Math.random() - 0.5).slice(0, RECOMMEND_COUNT);
+  render();
+}
+async function searchFriendCandidates(q){
+  q = String(q || '').trim().slice(0, 20);
+  friendSearch = { q, results: null, loading: !!q };
+  if(!q){ render(); return; }
+  render();
+  const be = authBackend();
+  let found = [];
+  try{
+    const clean = q.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if(clean.length === 12){
+      const p = await be.lookupPlayer(clean.match(/.{4}/g).join('-'));
+      if(p) found.push(p);
+    }
+    if(typeof be.searchPlayersByName === 'function') found = found.concat(await be.searchPlayersByName(q, 20));
+  }catch(e){ toast('通信に失敗しました'); }
+  if(friendSearch.q !== q) return;   // もっと新しい検索が走っている
+  friendSearch = { q, results: socialCandidates(found), loading: false };
+  render();
+}
+function setFriendsView(view){
+  friendsView = view;
+  if(view === 'add'){ friendSearch = { q: '', results: null, loading: false }; if(recommendedUsers === null || !recommendedUsers.length) fetchRecommendedUsers(); }
+  if(view === 'followers') fetchIncomingFriendsList();
   render();
 }
 function borrowFriendHelper(uid){
@@ -3862,7 +3990,7 @@ const DEFAULT_STATE = () => ({
   savedAt: 0,       // when this save was last written (cloud sync compares it)
   recentPulls: [],  // the last few monsters pulled, shown on the gacha screen
   recentRelicPulls: [], // the last few relics pulled, shown on the relic gacha screen
-  profile: null,    // { avatar, favorites:[id] }
+  profile: null,    // { avatar, favorites:[id], bio }
   noticeSeen: 0,    // highest notice id the player has seen
   showDamage: true, // damage numbers over the units
   autoUlt: false,   // false: tap a unit with full SP to reserve its ultimate
@@ -3871,6 +3999,7 @@ const DEFAULT_STATE = () => ({
   friends: [],      // [{ uid, playerId, name, level, support:{id,star,level,skillLv,ultLv,passiveLv}|null }]
   borrowed: null,   // { uid, name, mon:{...} } - the friend's お助けキャラ currently on loan
   friendPoints: 0,
+  followerCount: 0, // 自分をフレンドに追加している人の数(フレンド画面を開いたときに取り直す)
   friendSendDaily: null,   // { key, sent: { [friendUid]: true } } - 1回/日/フレンド
   tierChests: {},   // `${tierKey}_${stars}` → true once that milestone chest is claimed
   relics: {},       // defId → { level, wall, skillLv, dupe, dupeUsed, equippedTo }
@@ -13804,6 +13933,33 @@ function handlePhoneClick(ev){
   }
   const removeFriendEl = t.closest('[data-remove-friend]');
   if(removeFriendEl){ removeFriend(removeFriendEl.dataset.removeFriend); return; }
+  const fvEl = t.closest('[data-friends-view]');
+  if(fvEl){ setFriendsView(fvEl.dataset.friendsView); return; }
+  const ofEl = t.closest('[data-open-friends]');
+  if(ofEl){ openOverlay('friends'); setFriendsView(ofEl.dataset.openFriends); return; }
+  const addUidEl = t.closest('[data-add-friend-uid]');
+  if(addUidEl){
+    const uid = addUidEl.dataset.addFriendUid;
+    const p = viewedProfiles[uid] || followerList.find(x => x.uid === uid);
+    if(p) addFriendFromProfile(p);
+    return;
+  }
+  if(t.closest('[data-friend-search]')){
+    const input = document.getElementById('friend-search-input');
+    searchFriendCandidates(input ? input.value : '');
+    return;
+  }
+  if(t.closest('[data-friend-search-clear]')){ friendSearch = { q: '', results: null, loading: false }; render(); return; }
+  if(t.closest('[data-friend-recommend-refresh]')){ fetchRecommendedUsers(); return; }
+  if(t.closest('[data-bio-save]')){
+    const input = document.getElementById('bio-input');
+    profileState().bio = sanitizeBio(input ? input.value : '');
+    saveState();
+    publishProfile();
+    toast('自己紹介を保存しました');
+    render();
+    return;
+  }
   const addBackEl = t.closest('[data-add-friend-back]');
   if(addBackEl){ addFriendBack(addBackEl.dataset.addFriendBack); return; }
   const viewFriendEl = t.closest('[data-view-friend]');
@@ -14363,6 +14519,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 61, version: 'α0.1.020', date: '9/25', title: 'フレンド画面の作り直しと自己紹介', body: 'フレンド画面を開くと、まずフレンドリストが出るようにしました。コード入力欄のあった場所は「フレンドを追加」ボタンになり、追加画面では名前かIDで検索できます。何も入れていないときは、最近7日以内に遊んでいるテイマーから「おすすめユーザー」を表示します。プロフィールとフレンド画面にフォロー数(自分が追加したフレンド)とフォロワー数(自分を追加している人)を出し、フォロワー一覧から「フレンドを返す」ができます。プロフィールには自己紹介(100文字まで)を書けるようになり、他のテイマーのプロフィールにも表示されます。' },
   { id: 60, version: 'α0.1.019', date: '9/25', title: '図鑑の右端が切れる不具合を修正', body: 'スマホの幅によっては、図鑑のいちばん右の列が画面からはみ出して切れていたのを直しました。名前の長いキャラ(リヴァイアサンなど)が入ると列が広がっていたためで、今は長い名前は「…」で省略されます。遺物図鑑やかばんなど、同じ並べ方の画面も合わせて直しています。' },
   { id: 59, version: 'α0.1.018', date: '9/25', title: 'シースライムの立ち絵を新しく、アンヴァリの黄金指輪を調整', body: 'シースライムの立ち絵を新しい絵(体の中に魚と核が見える姿)に差し替えました。アンヴァリの黄金指輪のドワーフ向け被ダメージカットを+7.5%→15%から+10%→20%に上げ、ほかの遺物の被ダメージカットとそろえました。' },
   { id: 58, version: 'α0.1.017', date: '9/25', title: 'リザードマンの種族をドラコニアに', body: 'リザードマンの種族をヒュームからドラコニアに変更しました。ドラコニアの種族ボーナスや、ドラコニア条件の遺物(ファフニールの心臓・ニーズヘッグの逆鱗など)が乗るようになります。' },
@@ -14466,12 +14623,14 @@ function openOverlay(view){
     STATE.updateLogSeen = Math.max(STATE.updateLogSeen || 0, UPDATE_LOG[0] ? UPDATE_LOG[0].id : 0);
     saveState();
   }
-  if(view === 'friends'){ claimFriendGifts(); refreshFriendProfiles(); fetchIncomingFriendsList(); }
+  if(view === 'friends'){ friendsView = 'list'; claimFriendGifts(); refreshFriendProfiles(); fetchIncomingFriendsList(); }
+  if(view === 'profile') fetchIncomingFriendsList();   // フォロワー数を最新にする
   render();
 }
 function closeOverlay(){
   if(overlayView === 'pick'){ overlayView = 'profile'; pickTarget = null; render(); return; }
   if(overlayView === 'friend-profile'){ overlayView = 'friends'; friendProfileUid = null; render(); return; }
+  if(overlayView === 'friends' && friendsView !== 'list'){ friendsView = 'list'; render(); return; }
   overlayView = null;
   pickTarget = null;
   render();
@@ -14524,6 +14683,17 @@ function renderProfileOverlay(){
               <span class="pf-lv-next">次まで ${t.toNext.toLocaleString()}</span>
             </div>
           </div>
+        </div>
+
+        ${friendsAvailable() ? followCountsHtml().replace(/data-friends-view=/g, 'data-open-friends=') : ''}
+
+        <div class="panel pf-bio">
+          <div class="row-between" style="margin-bottom:8px;">
+            <div class="mc-head">自己紹介</div>
+            <div class="mc-reset"><span id="bio-count">${profileBio().length}</span> / ${BIO_MAX}</div>
+          </div>
+          <textarea id="bio-input" class="bio-input" maxlength="${BIO_MAX}" rows="3" placeholder="好きなモンスターや、よく遊ぶ時間などを書いてみましょう">${escapeHtml(profileBio())}</textarea>
+          <button class="btn btn-sm" data-bio-save="1" style="margin-top:8px;">保存</button>
         </div>
 
         <div class="pf-stats">
@@ -14727,43 +14897,93 @@ function renderMenuOverlay(){
       </div>
     </div>`;
 }
+// フォロー/フォロワー数(プロフィールとフレンド画面の両方で使う)
+function followCountsHtml(){
+  return `
+    <div class="follow-counts">
+      <button class="follow-count" data-friends-view="list"><b>${STATE.friends.length}</b><span>フォロー</span></button>
+      <button class="follow-count" data-friends-view="followers"><b>${STATE.followerCount || 0}</b><span>フォロワー</span></button>
+    </div>`;
+}
+function friendIconOf(f){ return f.avatar || (f.support && f.support.id); }
+// 検索結果・おすすめ・フォロワーの1行(フレンド一覧とは別の簡易表示)
+function socialRowHtml(f, mode){
+  const icon = friendIconOf(f);
+  const isFriend = STATE.friends.some(x => x.uid === f.uid);
+  const action = isFriend ? '<span class="soc-tag">フレンド</span>'
+    : mode === 'follower' ? `<button class="btn btn-sm" data-add-friend-back="${f.uid}">フレンドを返す</button>`
+    : `<button class="btn btn-sm" data-add-friend-uid="${f.uid}">追加</button>`;
+  return `
+    <div class="soc-row">
+      <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer; align-items:center;">
+        <div class="fc-ic">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
+        <div class="fc-body">
+          <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
+          ${f.bio ? `<div class="fc-line soc-bio">${escapeHtml(f.bio.split('\n')[0])}</div>` : ''}
+          <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
+        </div>
+      </div>
+      ${action}
+    </div>`;
+}
+function renderFriendAddView(){
+  const fs = friendSearch;
+  const list = fs.q ? fs.results : recommendedUsers;
+  return `
+    <div class="panel panel-tight" style="margin-bottom:10px;">
+      <div class="mc-head" style="margin-bottom:8px;">フレンドを探す</div>
+      <div class="friend-add-row">
+        <input type="search" id="friend-search-input" class="friend-code-input" placeholder="名前 または ID(XXXX-XXXX-XXXX)" maxlength="20" value="${escapeHtml(fs.q)}" enterkeyhint="search">
+        <button class="btn btn-sm" data-friend-search="1">検索</button>
+      </div>
+    </div>
+    <div class="row-between" style="margin:4px 2px 8px;">
+      <div class="mc-head">${fs.q ? `「${escapeHtml(fs.q)}」の検索結果` : 'おすすめユーザー'}</div>
+      ${fs.q ? '<button class="btn btn-ghost btn-sm" data-friend-search-clear="1">おすすめに戻る</button>' : '<button class="btn btn-ghost btn-sm" data-friend-recommend-refresh="1">入れ替える</button>'}
+    </div>
+    ${!fs.q ? `<div class="screen-sub" style="margin:-2px 2px 8px;">最近${RECOMMEND_ACTIVE_DAYS}日以内に遊んでいるテイマーから選んでいます</div>` : ''}
+    ${(fs.loading || list === null) ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">読み込み中…</div>'
+      : !list.length ? `<div class="screen-sub" style="margin:16px 0; text-align:center;">${fs.q ? '見つかりませんでした。名前は先頭から入力してください。' : 'いまおすすめできるテイマーがいません'}</div>`
+      : `<div class="panel panel-tight">${list.map(f => socialRowHtml(f, 'search')).join('')}</div>`}
+    <div class="screen-sub" style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <span>あなたのID: <b>${ACCOUNT ? ACCOUNT.playerId : '-'}</b></span>
+      <button class="btn btn-ghost btn-sm" data-share-id="1">コピー</button>
+    </div>`;
+}
+function renderFollowersView(){
+  return `
+    <div class="mc-head" style="margin:4px 2px 8px;">フォロワー(${STATE.followerCount || 0})</div>
+    <div class="screen-sub" style="margin:-2px 2px 8px;">あなたをフレンドに追加している人です。「フレンドを返す」でお互いのフレンドになれます。</div>
+    ${followerList.length
+      ? `<div class="panel panel-tight">${followerList.map(f => socialRowHtml(f, 'follower')).join('')}</div>`
+      : '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフォロワーがいません</div>'}`;
+}
 function renderFriendsOverlay(){
   const avail = friendsAvailable();
+  const title = friendsView === 'add' ? 'フレンドを追加' : friendsView === 'followers' ? 'フォロワー' : 'フレンド';
   return `
     <div class="ov-screen">
-      ${overlayHead('フレンド', avail ? `<span class="base-wallet" style="margin:0 0 0 auto;">🎗️${(STATE.friendPoints || 0).toLocaleString()}</span>` : '')}
+      ${overlayHead(title, avail ? `<span class="base-wallet" style="margin:0 0 0 auto;">🎗️${(STATE.friendPoints || 0).toLocaleString()}</span>` : '')}
       <div class="ov-body">
-        ${!avail ? '<div class="screen-sub" style="margin:16px 0;">この機能はログイン中のみ利用できます。</div>' : `
+        ${!avail ? '<div class="screen-sub" style="margin:16px 0;">この機能はログイン中のみ利用できます。</div>'
+        : friendsView === 'add' ? renderFriendAddView()
+        : friendsView === 'followers' ? `${followCountsHtml()}${renderFollowersView()}`
+        : `
+        ${followCountsHtml()}
+        <button class="btn btn-block friend-add-open" data-friends-view="add">＋ フレンドを追加</button>
+        ${incomingFriends.length > 0 ? `
+        <button class="panel panel-tight follower-notice" data-friends-view="followers">
+          <span>まだフレンドを返していないフォロワーが <b>${incomingFriends.length}</b>人います</span><span>›</span>
+        </button>` : ''}
         ${STATE.helperLentStats && STATE.helperLentStats.count > 0 ? `
         <div class="panel panel-tight" style="margin-bottom:10px;">
           <div class="mc-head" style="margin-bottom:4px;">お助けキャラの貸し出し実績</div>
           <div class="screen-sub">クエストで使われた回数 <b>${STATE.helperLentStats.count}</b>回・獲得フレンドポイント <b>${STATE.helperLentStats.fp}</b>FP</div>
         </div>` : ''}
-        <div class="panel panel-tight" style="margin-bottom:10px;">
-          <div class="mc-head" style="margin-bottom:8px;">コードでフレンド追加</div>
-          <div class="friend-add-row">
-            <input type="text" id="friend-code-input" class="friend-code-input" placeholder="フレンドコード" maxlength="14">
-            <button class="btn btn-sm" data-add-friend="1">追加</button>
-          </div>
-        </div>
-        <div class="screen-sub" style="margin-bottom:10px;">フレンドに「ポイントを送る」と、1人1日1回、自分のフレンドポイントが+${FRIEND_POINT_PER_SEND}貯まります。他にも、自分のお助けキャラをフレンドが借りてクエストに使うと、自分に+${FRIEND_POINT_PER_BORROW_USE}FP届きます。フレンドガチャ(ガチャ画面)で使えます。</div>
-        ${incomingFriends.length > 0 ? `
-        <div class="panel panel-tight" style="margin-bottom:10px;">
-          <div class="mc-head" style="margin-bottom:8px;">自分を追加している人(${incomingFriends.length})</div>
-          ${incomingFriends.map(f => `
-          <div class="fc-head" style="margin-bottom:6px;">
-            <div style="display:flex; gap:10px; flex:1; min-width:0; align-items:center;">
-              <div class="fc-ic">${f.avatar ? `<img src="${imgSrc(f.avatar)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
-              <div class="fc-body">
-                <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
-              </div>
-            </div>
-            <button class="btn btn-sm" data-add-friend-back="${f.uid}">フレンドを返す</button>
-          </div>`).join('')}
-        </div>` : ''}
+        <div class="mc-head" style="margin:4px 2px 8px;">フレンドリスト(${STATE.friends.length} / ${FRIEND_MAX})</div>
         ${STATE.friends.length === 0
-          ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。コードを教え合って追加しましょう。</div>'
-          : STATE.friends.map(f => { const icon = f.avatar || (f.support && f.support.id); return `
+          ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。「フレンドを追加」から探してみましょう。</div>'
+          : STATE.friends.map(f => { const icon = friendIconOf(f); return `
           <div class="panel facility" style="margin-bottom:8px;">
             <div class="fc-head">
               <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer;">
@@ -14781,16 +15001,14 @@ function renderFriendsOverlay(){
               </div>
             </div>
           </div>`; }).join('')}
-        <div class="screen-sub" style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <span>あなたのコード: <b>${ACCOUNT ? ACCOUNT.playerId : '-'}</b></span>
-          <button class="btn btn-ghost btn-sm" data-share-id="1">コピー</button>
-        </div>
+        <div class="screen-sub" style="margin-top:10px;">フレンドに「ポイントを送る」と、1人1日1回、自分のフレンドポイントが+${FRIEND_POINT_PER_SEND}貯まります。自分のお助けキャラをフレンドが借りてクエストに使うと、自分に+${FRIEND_POINT_PER_BORROW_USE}FP届きます。フレンドガチャ(ガチャ画面)で使えます。</div>
         `}
       </div>
     </div>`;
 }
 function renderFriendProfileOverlay(){
-  const f = STATE.friends.find(x => x.uid === friendProfileUid);
+  const friend = STATE.friends.find(x => x.uid === friendProfileUid);
+  const f = friend || viewedProfiles[friendProfileUid] || followerList.find(x => x.uid === friendProfileUid);
   if(!f){
     return `<div class="ov-screen">${overlayHead('プロフィール')}<div class="ov-body"><div class="screen-sub" style="margin:16px 0;">フレンドが見つかりません</div></div></div>`;
   }
@@ -14798,7 +15016,7 @@ function renderFriendProfileOverlay(){
   const mains = STAGES.filter(s => s.type === 'main').length;
   return `
     <div class="ov-screen">
-      ${overlayHead('フレンドのプロフィール')}
+      ${overlayHead(friend ? 'フレンドのプロフィール' : 'プロフィール')}
       <div class="ov-body">
         <div class="pf-card">
           <div class="pf-avatar">${icon ? `<img src="${imgSrc(icon)}" alt="">` : '<span>👤</span>'}</div>
@@ -14806,8 +15024,11 @@ function renderFriendProfileOverlay(){
             <div class="pf-name-row"><div class="pf-name">${escapeHtml(f.name)}</div></div>
             <div class="pf-id">ID ${escapeHtml(f.playerId || '----')}</div>
             <div class="pf-lv"><span class="pf-lv-num">Lv.${f.level || 1}</span></div>
+            <div class="pf-follow-mini"><b>${f.following || 0}</b> フォロー　<b>${f.followers || 0}</b> フォロワー</div>
           </div>
         </div>
+        ${f.bio ? `<div class="panel pf-bio-view">${escapeHtml(f.bio)}</div>` : ''}
+        ${!friend && !(ACCOUNT && ACCOUNT.uid === f.uid) ? `<button class="btn btn-block" data-add-friend-uid="${f.uid}" style="margin-bottom:10px;">フレンドに追加</button>` : ''}
         <div class="pf-stats">
           <div class="pf-stat"><div class="pf-stat-k">図鑑</div>
             <div class="pf-stat-v">${f.monsters || 0}<small> / ${MONSTERS.length}</small></div></div>
@@ -15478,6 +15699,13 @@ function wireGlobalEvents(){
     if(ev.target.id === 'bgm-volume') saveState();
   });
   // space / P toggles pause during a battle; leaving the app pauses automatically
+  // フレンド検索: Enter でも検索する / 自己紹介: 文字数を出す
+  document.addEventListener('keydown', ev => {
+    if(ev.key === 'Enter' && ev.target && ev.target.id === 'friend-search-input'){ ev.preventDefault(); searchFriendCandidates(ev.target.value); }
+  });
+  document.addEventListener('input', ev => {
+    if(ev.target && ev.target.id === 'bio-input'){ const c = document.getElementById('bio-count'); if(c) c.textContent = ev.target.value.length; }
+  });
   document.addEventListener('keydown', ev => {
     if(currentScreen !== 'battle-fight' || !battleUI || battleUI.finished) return;
     if(document.getElementById('modal-layer').classList.contains('show')) return;
