@@ -1,0 +1,118 @@
+{
+ "note": "新モンスターの立ち絵と、index.html の sprite-data に入れる番号の対応。ファイル名が連番で中身が分からないため、確認ツールのサムネイルと画像の指紋で突き合わせて確定した(tools/match_sprites.py)。",
+ "map": {
+  "バハムート": {
+   "file": "sprite_8358.png",
+   "sprite": "136"
+  },
+  "リヴァイアサン": {
+   "file": "sprite_5296.png",
+   "sprite": "137"
+  },
+  "グリーンマン": {
+   "file": "sprite_6193.png",
+   "sprite": "138"
+  },
+  "アバドン": {
+   "file": "sprite_9145.png",
+   "sprite": "139"
+  },
+  "タロース": {
+   "file": "sprite_6260.png",
+   "sprite": "140"
+  },
+  "フェニクス": {
+   "file": "sprite_3356.png",
+   "sprite": "141"
+  },
+  "メデューサ": {
+   "file": "sprite_1949.png",
+   "sprite": "142"
+  },
+  "セルキー": {
+   "file": "sprite_8525.png",
+   "sprite": "143"
+  },
+  "ブロック": {
+   "file": "sprite_1611.png",
+   "sprite": "144"
+  },
+  "ヘパイストス": {
+   "file": "sprite_1308.png",
+   "sprite": "145"
+  },
+  "アイオロス": {
+   "file": "sprite_4424.png",
+   "sprite": "146"
+  },
+  "ドラウグル": {
+   "file": "sprite_8964.png",
+   "sprite": "147"
+  },
+  "ペルセウス": {
+   "file": "sprite_4387.png",
+   "sprite": "148"
+  },
+  "アヌビス": {
+   "file": "sprite_5797.png",
+   "sprite": "149"
+  },
+  "ロキ": {
+   "file": "sprite_4420.png",
+   "sprite": "150"
+  },
+  "アグニ": {
+   "file": "sprite_1678.png",
+   "sprite": "151"
+  },
+  "メリュジーヌ": {
+   "file": "sprite_6930.png",
+   "sprite": "152"
+  },
+  "ドリュアス": {
+   "file": "sprite_5995.png",
+   "sprite": "153"
+  },
+  "アルヴィス": {
+   "file": "sprite_9954.png",
+   "sprite": "154"
+  },
+  "土蜘蛛": {
+   "file": "sprite_1918.png",
+   "sprite": "155"
+  },
+  "雷獣": {
+   "file": "sprite_2533.png",
+   "sprite": "156"
+  },
+  "ゼピュロス": {
+   "file": "sprite_9993.png",
+   "sprite": "157"
+  },
+  "エオス": {
+   "file": "sprite_2632.png",
+   "sprite": "158"
+  },
+  "バンシー": {
+   "file": "sprite_9504.png",
+   "sprite": "159"
+  },
+  "オルペウス": {
+   "file": "sprite_7189.png",
+   "sprite": "160"
+  },
+  "のっぺらぼう": {
+   "file": "sprite_1381.png",
+   "sprite": "161"
+  },
+  "コカトリス": {
+   "file": "sprite_5733.png",
+   "sprite": "162"
+  }
+ },
+ "missing": [
+  "シームルグ",
+  "サキュバス",
+  "死神"
+ ]
+}

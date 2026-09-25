@@ -46,4 +46,30 @@ const maxStars = ev.tiers.length * 3;
 ok('最終ティアの目標は最大★数と一致', a.tiers[a.tiers.length - 1].goal === maxStars, [a.tiers[a.tiers.length - 1].goal, maxStars]);
 ok('ティアはgoalの昇順', a.tiers.every((t, i) => i === 0 || t.goal > a.tiers[i - 1].goal), a.tiers.map(t => t.goal));
 
+// --- 8〜10層(深層): 7層で完凸するので、遺物本体ではなく強化素材だけを配る ---
+ok('イベントは10層ある', ev.tiers.length === 10, ev.tiers.length);
+ok('8〜10層の推奨Lvは300/350/400', JSON.stringify(ev.tiers.slice(7).map(t => t.lv)) === '[300,350,400]',
+  ev.tiers.slice(7).map(t => t.lv));
+ok('推奨Lvは層が進むほど上がる', ev.tiers.every((t, i) => i === 0 || t.lv > ev.tiers[i - 1].lv),
+  ev.tiers.map(t => t.lv));
+ok('8〜10層のボス★は5→6→7と上がる', JSON.stringify(ev.tiers.slice(7).map(t => t.bossStar)) === '[5,6,7]',
+  ev.tiers.slice(7).map(t => t.bossStar));
+ok('仲間になる確率は層が進むほど上がる', ev.tiers.every((t, i) => i === 0 || t.rate > ev.tiers[i - 1].rate),
+  ev.tiers.map(t => t.rate));
+[8, 9, 10].forEach(n => {
+  const st = E.STAGE_BY_ID[`${ev.key}_${n}`];
+  ok(`${n}層が存在する`, !!st);
+  const rel = (st.bossReward || []).filter(r => r.type === 'relic');
+  ok(`${n}層は遺物本体を配らない(完凸済みのため)`, rel.length === 0, rel);
+  const scrap = (st.bossReward || []).find(r => r.key === 'relic_scrap');
+  ok(`${n}層は強化素材(スクラップ)を配る`, !!scrap && scrap.n > 0, scrap);
+  ok(`${n}層の最終ウェーブはボス+護衛`, st.waves[st.waves.length - 1].some(e => e.boss), st.waves.length);
+});
+ok('敵のスキルLvは10→11→12と上がる',
+  JSON.stringify([8, 9, 10].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill)) === '[10,11,12]',
+  [8, 9, 10].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill));
+ok('7層までの敵スキルLvは従来どおり(3〜9)',
+  JSON.stringify([1, 7].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill)) === '[3,9]',
+  [1, 7].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill));
+
 console.log('done');
