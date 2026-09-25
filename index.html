@@ -2467,7 +2467,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.022';
+const GAME_VERSION = 'α0.1.023';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -13228,7 +13228,7 @@ function finishBattle(win){
       type: battleUI.stage.type || 'main', wave: battleUI.waveIndex + 1, rounds: battleUI.round,
       reason: allDead(battleUI.party) ? 'wipe' : 'timeout' });
     if(allDead(battleUI.party)) logLine('パーティは全滅してしまった…', 'ko');
-    const refund = Math.floor(battleUI.staminaSpent * STAMINA_REFUND_ON_LOSS);
+    const refund = battleUI.staminaRefund ? 0 : Math.floor(battleUI.staminaSpent * STAMINA_REFUND_ON_LOSS);   // 撤退で返却済みなら返さない
     if(refund > 0){ refreshStamina(); STATE.stamina += refund; battleUI.staminaRefund = refund; track('staminaUsed', -refund); }
   }
   saveState();
@@ -13458,6 +13458,21 @@ function showBattleResult(tab){
   layer.classList.add('show');
 }
 
+// 撤退(中断)したときも、負けたときと同じくスタミナを全額返す。報酬は出ないので返しても得はしない
+function refundStaminaOnLeave(){
+  const b = battleUI;
+  if(!b || b.finished || b.pvp || b.staminaRefund || !b.staminaSpent) return;
+  const refund = Math.floor(b.staminaSpent * STAMINA_REFUND_ON_LOSS);
+  if(refund <= 0) return;
+  refreshStamina();
+  STATE.stamina += refund;
+  b.staminaRefund = refund;
+  b.finished = true;
+  track('staminaUsed', -refund);
+  logEvent('stage_fail', { stage_id: b.stage.id, tier: b.stage.tier, type: b.stage.type || 'main', wave: b.waveIndex + 1, rounds: b.round, reason: 'retreat' });
+  saveState();
+  toast(`撤退しました。スタミナが ${refund} 戻りました`);
+}
 function confirmLeaveBattle(target){
   if(!battleUI) return;
   clearTimeout(battleUI.tickTimer);
@@ -13467,7 +13482,7 @@ function confirmLeaveBattle(target){
   layer.innerHTML = `
     <div class="result-modal confirm-modal" role="alertdialog" aria-label="戦闘を中断しますか">
       <h3>戦闘を中断しますか?</h3>
-      <p>中断すると、この戦闘の報酬は手に入らず、使ったスタミナ(⚡${battleUI.staminaSpent})も戻りません。</p>
+      <p>中断すると、この戦闘の報酬は手に入りません。${battleUI.staminaSpent ? `使ったスタミナ(⚡${battleUI.staminaSpent})は戻ります。` : ''}</p>
       <div class="br-actions">
         <button class="btn btn-block" data-leave-battle="no">戦闘を続ける</button>
         <button class="btn btn-ghost btn-block" data-leave-battle="yes" data-target="${target}">中断する</button>
@@ -13843,7 +13858,7 @@ function handlePhoneClick(ev){
   const leaveEl = t.closest('[data-leave-battle]');
   if(leaveEl){
     closeModal();
-    if(leaveEl.dataset.leaveBattle === 'yes'){ goto(leaveEl.dataset.target); }
+    if(leaveEl.dataset.leaveBattle === 'yes'){ refundStaminaOnLeave(); goto(leaveEl.dataset.target); }
     else if(battleUI && !battleUI.finished){
       battleUI.paused = false;
       if(battleUI.pausedBeforeConfirm) setPaused(true);
@@ -14728,6 +14743,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 64, version: 'α0.1.023', date: '9/25', title: '撤退したときもスタミナを返す', body: '戦闘の途中で撤退(中断)したときも、負けたときと同じく使ったスタミナが全額戻るようにしました。報酬は手に入りません。' },
   { id: 63, version: 'α0.1.022', date: '9/25', title: 'ガチャ結果をSNSで共有', body: 'ガチャ(モンスター・遺物)の結果画面に「SNSで共有」ボタンを追加しました。共有すると結晶+10がもらえます(1日1回)。スマホでは共有シートから好きなアプリを選べ、共有シートが無い環境ではXの投稿画面が開きます。' },
   { id: 62, version: 'α0.1.021', date: '9/25', title: 'ミッション追加・★4キャラ選択券・共鳴石', body: 'デイリーミッション「探索を3回クリアする」を、周回と育成ダンジョンでも数えるようにしました。デイリーに「遺物を1回強化する」「PVPを1回する」、ウィークリーに「PVPを10回する」を追加しました。デイリーのまとめ報酬は、8つのうち5つ達成で受け取れます。初心者ミッションに「はじめてガイド2」として10のミッションを追加し、すべて達成すると★4キャラ選択券(★4から好きな1体と交換)と結晶500がもらえます。すでにはじめてガイドを終えた人も、続きとして受け取れます。ガチャでピックアップ中のキャラを引くと、新規でも重複でもソウルが追加でもらえます(★4:+50、★5:+150)。遺物ガチャを引くと「共鳴石」が貯まり、好きな遺物の覚醒1回分と交換できます(★5なら300個)。万能ソウルは「無形のソウル」に名前を変えました(まだどんな形にもなれるソウル)。イベントの属性遺物は、10層で完凸するように配り方を広げました(1・3・6・8・10層)。' },
   { id: 61, version: 'α0.1.020', date: '9/25', title: 'フレンド画面の作り直しと自己紹介', body: 'フレンド画面を開くと、まずフレンドリストが出るようにしました。コード入力欄のあった場所は「フレンドを追加」ボタンになり、追加画面では名前かIDで検索できます。何も入れていないときは、最近7日以内に遊んでいるテイマーから「おすすめユーザー」を表示します。プロフィールとフレンド画面にフォロー数(自分が追加したフレンド)とフォロワー数(自分を追加している人)を出し、フォロワー一覧から「フレンドを返す」ができます。プロフィールには自己紹介(100文字まで)を書けるようになり、他のテイマーのプロフィールにも表示されます。' },

@@ -5,7 +5,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE, MON_BY_ID, STAGES,
   startBattle, finishBattle, get battleUI(){ return battleUI; },
-  formationForFrontCount, lineupFromList, isMeleeRole, STAMINA_REFUND_ON_LOSS,
+  formationForFrontCount, lineupFromList, isMeleeRole, STAMINA_REFUND_ON_LOSS, refundStaminaOnLeave, confirmLeaveBattle,
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -46,5 +46,20 @@ const spent2 = E.battleUI.staminaSpent;
 E.finishBattle(true);
 ok('勝つとスタミナは戻らない(消費されたまま)', S.stamina === 1000 - spent2, S.stamina);
 ok('勝った時はstaminaRefundが設定されない', E.battleUI.staminaRefund === undefined, E.battleUI.staminaRefund);
+
+// --- retreating (中断) mid-battle also refunds the full cost, once ---
+S = setup();
+api.resetQueue();
+E.startBattle('q1_01', { skipIntro: true });
+const spent3 = E.battleUI.staminaSpent;
+ok('撤退前はスタミナが減っている', S.stamina === 1000 - spent3 && spent3 > 0, S.stamina);
+E.confirmLeaveBattle('battle');
+E.refundStaminaOnLeave();
+ok('撤退すると使ったスタミナが全額戻る', S.stamina === 1000, S.stamina);
+E.refundStaminaOnLeave();
+ok('撤退の返却は1回だけ(2回呼んでも増えない)', S.stamina === 1000, S.stamina);
+ok('撤退した戦闘は終了扱い(報酬は出ない)', E.battleUI.finished && !E.battleUI.rewards);
+E.finishBattle(false);
+ok('撤退のあとに負け処理が走っても二重に戻らない', S.stamina === 1000, S.stamina);
 
 console.log('done');
