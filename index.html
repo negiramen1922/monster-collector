@@ -2141,7 +2141,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
-.explore-tabs{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-bottom:6px; }
+.explore-tabs{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:5px; margin-bottom:6px; }
+.explore-tabs .stage-tab{ padding-left:2px; padding-right:2px; white-space:nowrap; font-size:12px; }
 .gacha-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
 .gacha-tabs .stage-tab{ flex:1; min-width:100px; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
@@ -2169,6 +2170,15 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gc-name{ font-size:18px; font-weight:800; }
 .gc-sub{ font-size:11px; color:#d9c7f0; margin-top:4px; line-height:1.7; }
 .gc-period{ font-size:11px; color:var(--gold); font-weight:800; margin-top:5px; }
+.abyss-card .ab-stats{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin:8px 0; }
+.abyss-card .ab-stats div{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:6px; text-align:center; }
+.abyss-card .ab-stats small{ display:block; font-size:10px; color:var(--dim); font-weight:700; }
+.abyss-card .ab-stats b{ font-size:16px; }
+.ab-party{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; margin:8px 0; }
+.ab-mem img{ width:100%; height:40px; object-fit:contain; image-rendering:pixelated; }
+.ab-mem.down img{ filter:grayscale(1); opacity:.45; }
+.ab-next{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin:8px 0 10px; font-size:12px; display:flex; flex-direction:column; gap:4px; }
+.ab-reward{ font-size:11px; color:var(--dim); display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
 .ev-period{ font-size:10.5px; color:var(--dim); font-weight:700; margin:-2px 0 6px; }
 .gc-hero-row img{ width:118px; height:118px; flex:none; object-fit:contain; image-rendering:pixelated;
   filter:drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
@@ -2468,7 +2478,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.025';
+const GAME_VERSION = 'α0.1.026';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2558,10 +2568,12 @@ const ITEM_SVG_BODY = {
   pot: '<rect x="40" y="10" width="20" height="10" rx="3" fill="#4a4560"/><path d="M42 20h16v16l14 32c3 7-2 14-10 14H38c-8 0-13-7-10-14l14-32z" fill="#e8e3f5" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><path d="M34 64h32l5 12c2 5-1 10-7 10H36c-6 0-9-5-7-10z" fill="#7ecbe8"/>',
   box_sel: '<rect x="16" y="42" width="68" height="42" rx="4" fill="#c98f2e" stroke="#7a5416" stroke-width="6"/><rect x="16" y="30" width="68" height="16" rx="4" fill="#e8b455" stroke="#7a5416" stroke-width="6"/><rect x="44" y="20" width="12" height="64" fill="#e2572b"/>',
   resonance: '<path d="M50 8 L78 30 L70 80 L30 80 L22 30 Z" fill="#8fd6c8" stroke="#2a6f64" stroke-width="6" stroke-linejoin="round"/><path d="M50 8 L50 80 M22 30 L78 30" stroke="#dff7f0" stroke-width="3" opacity=".8"/><circle cx="50" cy="48" r="9" fill="none" stroke="#ffffff" stroke-width="3"/><circle cx="50" cy="48" r="17" fill="none" stroke="#ffffff" stroke-width="2" opacity=".6"/>',
+  stamina: '<path d="M50 20c14-12 34-2 34 18 0 26-22 42-34 50C38 80 16 64 16 38c0-20 20-30 34-18z" fill="#f2a33a" stroke="#8a5a14" stroke-width="6"/><path d="M50 20c2-8 8-12 16-12" fill="none" stroke="#4f9a3f" stroke-width="6" stroke-linecap="round"/><path d="M54 36L40 56h10l-6 16 16-22H50l6-14z" fill="#fff4c2"/>',
+  sand: '<path d="M30 12h40M30 88h40" stroke="#8a6a3a" stroke-width="7" stroke-linecap="round"/><path d="M34 16c0 18 12 24 16 34-4 10-16 16-16 34h32c0-18-12-24-16-34 4-10 16-16 16-34z" fill="#cfe8f5" stroke="#3a6a8a" stroke-width="5" stroke-linejoin="round"/><path d="M42 80c2-8 6-12 8-14 2 2 6 6 8 14z" fill="#e8c46a"/><circle cx="50" cy="30" r="3" fill="#e8c46a"/>',
   ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { resonance:'共鳴石', scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'キャラ選択券' };
+const ITEM_ICON_LABEL = { stamina:'スタミナの実', sand:'時渡りの砂', resonance:'共鳴石', scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'キャラ選択券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const RESONANCE_ICON = `<span class="item-ic">${ITEM_ICON.resonance}</span>`;
@@ -3558,6 +3570,7 @@ async function publishProfile(){
       bio: STATE ? profileBio() : '',
       following: STATE ? STATE.friends.length : 0,
       followers: STATE ? (STATE.followerCount || 0) : 0,
+      abyss: STATE && STATE.abyss ? { season: STATE.abyss.season, best: STATE.abyss.best || 0 } : null,
       rand: Math.random(),
       updatedAt: Date.now(),
     });
@@ -3628,6 +3641,8 @@ function friendEntryFromProfile(p, fallbackPlayerId){
     bio: sanitizeBio(p.bio),
     following: clampInt(p.following, 0, 9999, 0),
     followers: clampInt(p.followers, 0, 999999, 0),
+    // 深淵回廊の今期の到達階(前の期の記録は出さない)
+    abyssBest: p.abyss && Number(p.abyss.season) === abyssSeasonIndex() ? clampInt(p.abyss.best, 0, 9999, 0) : 0,
   };
 }
 // 自己紹介文: 他人の公開プロフィールから来るので長さと制御文字を必ず落とす(表示は escapeHtml)
@@ -4020,6 +4035,7 @@ const DEFAULT_STATE = () => ({
   friendPoints: 0,
   followerCount: 0,
   resonance: 0,
+  abyss: null,      // 深淵回廊 { season, floor, checkpoint, best, claimed, snap, bestEver, history }
   tamerLvSeen: 0,   // スタミナを配り終えたテイマーLv(checkTamerLevelUp)
   shareDaily: null, // { key } ガチャ結果をSNS共有した日(結晶+10は1日1回)     // 共鳴石(遺物版の無形のソウル) // 自分をフレンドに追加している人の数(フレンド画面を開いたときに取り直す)
   friendSendDaily: null,   // { key, sent: { [friendUid]: true } } - 1回/日/フレンド
@@ -4166,12 +4182,18 @@ function addItem(key, n){
   if(!STATE.items) STATE.items = {};
   STATE.items[key] = Math.max(0, (STATE.items[key] || 0) + n);
 }
+// スタミナの実: 使うとスタミナ+60 / 時渡りの砂: 拠点の放置報酬N時間分をその場で受け取る
+const STAMINA_ITEMS = { stamina_60: 60 };
+const IDLE_ITEMS = { idle_1: 1, idle_3: 3, idle_12: 12 };
+const IDLE_ITEM_NAME = { idle_1: '時渡りの砂', idle_3: '時渡りの砂・中', idle_12: '時渡りの砂・大' };
 // ★Nキャラ選択券: その★のキャラから1体選んで受け取る(持っていればソウルになる)
 const MON_TICKET_RE = /^mon_sel_([1-5])$/;
 function itemName(key){
   if(key === 'relic_scrap') return '遺物のスクラップ';
   const tk = MON_TICKET_RE.exec(key);
   if(tk) return `★${tk[1]}キャラ選択券`;
+  if(STAMINA_ITEMS[key]) return 'スタミナの実';
+  if(IDLE_ITEMS[key]) return IDLE_ITEM_NAME[key];
   const rc = /^relic_core_([1-3])$/.exec(key);
   if(rc) return `遺物のコア Tier${TIER_LABEL[rc[1]]}`;
   if(EXP_POT_VALUE[key]) return `EXPポット Tier${TIER_LABEL[Number(key.slice(3))]}`;
@@ -4185,6 +4207,8 @@ function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</
 function itemIcon(key){
   if(key === 'relic_scrap') return `<span class="item-ic">${ITEM_ICON.scrap}</span>`;
   if(MON_TICKET_RE.test(key)) return `<span class="item-ic">${ITEM_ICON.ticket}</span>`;
+  if(STAMINA_ITEMS[key]) return `<span class="item-ic">${ITEM_ICON.stamina}</span>`;
+  if(IDLE_ITEMS[key]) return `<span class="item-ic">${ITEM_ICON.sand}<span class="tier-badge t${key === 'idle_1' ? 1 : key === 'idle_3' ? 2 : 3}">${IDLE_ITEMS[key]}h</span></span>`;
   const rc = /^relic_core_([1-3])$/.exec(key);
   if(rc) return `<span class="item-ic">${ITEM_ICON.core}${tierBadge(Number(rc[1]))}</span>`;
   if(EXP_POT_VALUE[key]) return `<span class="item-ic">${ITEM_ICON.pot}${tierBadge(Number(key.slice(3)))}</span>`;
@@ -4478,6 +4502,35 @@ function openRandomBox(tier){
     got[k] = (got[k] || 0) + 1;
   }
   Object.entries(got).forEach(([k, n]) => addItem(k, n));
+  saveState();
+  return got;
+}
+function useStaminaItem(key){
+  if(!STAMINA_ITEMS[key] || getItem(key) <= 0) return false;
+  addItem(key, -1);
+  grantStamina(STAMINA_ITEMS[key], itemName(key));
+  saveState();
+  return true;
+}
+// 今の施設レベルで、鉱山・研究所・工房のN時間ぶんをその場で受け取る(施設の放置タイマーには触らない)
+function useIdleItem(key){
+  const hours = IDLE_ITEMS[key];
+  if(!hours || getItem(key) <= 0) return null;
+  addItem(key, -1);
+  const got = {};
+  if(facilityUnlocked('mine')){ const g = Math.floor(hours * FACILITIES.mine.perHour[baseState().mine.lv]); addGold(g); got.gold = g; }
+  if(facilityUnlocked('lab')){
+    const f = baseState().lab;
+    const { pots } = expToPots(hours * FACILITIES.lab.perHour[f.lv], FACILITIES.lab.maxTier[f.lv]);
+    Object.entries(pots).forEach(([k, n]) => { addItem(k, n); got[k] = n; });
+  }
+  if(facilityUnlocked('smithy')){
+    const f = baseState().smithy;
+    const n = Math.floor(hours * FACILITIES.smithy.perHour[f.lv]);
+    const c = Math.floor(hours * FACILITIES.smithy.corePerHour[f.lv]);
+    if(n) { addItem('relic_scrap', n); got.relic_scrap = n; }
+    if(c) { addItem('relic_core_1', c); got.relic_core_1 = c; }
+  }
   saveState();
   return got;
 }
@@ -6132,13 +6185,14 @@ const DAILY_MISSIONS = [
 const DAILY_ALL_GOAL = 5;
 const DAILY_ALL_CLEAR = [{ type:'crystal', n:50 }, { type:'gold', n:10000 }, { type:'item', key:'box_rnd_1', n:1 }];
 const WEEKLY_MISSIONS = [
-  { id:'w_daily',   label:'デイリーミッションのまとめ報酬を5日受け取る', event:'dailyAllClear', goal:5,  reward:[{ type:'crystal', n:250 }] },
-  { id:'w_clear',   label:'探索を30回クリアする',                event:'stageClear',    goal:30, reward:[{ type:'crystal', n:150 }] },
+  { id:'w_daily',   label:'デイリーミッションのまとめ報酬を5日受け取る', event:'dailyAllClear', goal:5,  reward:[{ type:'crystal', n:250 }, { type:'item', key:'idle_3', n:1 }] },
+  { id:'w_clear',   label:'探索を30回クリアする',                event:'stageClear',    goal:30, reward:[{ type:'crystal', n:150 }, { type:'item', key:'stamina_60', n:2 }] },
   { id:'w_stamina', label:'スタミナを600使う',                   event:'staminaUsed',   goal:600, reward:[{ type:'crystal', n:50 }, { type:'item', key:'exp2', n:30 }] },
   { id:'w_dungeon', label:'育成ダンジョンを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:150 }, { type:'item', key:'box_rnd_4', n:1 }] },
   { id:'w_gacha',   label:'ガチャを10回引く',                    event:'gachaPull',     goal:10, reward:[{ type:'crystal', n:150 }, { type:'universal', n:30 }] },
   { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 } ] },
   { id:'w_relic',   label:'遺物を合計10回強化する',              event:'relicUpgrade',  goal:10, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_core_1', n:5 }] },
+  { id:'w_abyss',   label:'深淵回廊を5階進む',                    event:'abyssFloor',    goal:5,  reward:[{ type:'crystal', n:100 }, { type:'item', key:'stamina_60', n:2 }] },
   { id:'w_pvp',     label:'PVPを10回する',                      event:'pvpBattle',     goal:10, reward:[{ type:'crystal', n:150 }, { type:'gold', n:30000 }] },
 ];
 // achievements: tiered chains. value() reads lifetime stats or the current state.
@@ -6184,6 +6238,8 @@ const ACHIEVEMENTS = [
     tiers:[5, 6, 7].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[300, 500, 1000][i] }] })) },
   { id:'a_level', label:n => `Lv${n}のモンスターを育てる`, value:() => maxOwned('level'),
     tiers:[10, 30, 50, 100].map((g, i) => ({ goal:g, reward:[{ type:'item', key:'exp2', n:[10, 20, 30, 50][i] }, { type:'crystal', n:[50, 100, 200, 300][i] }] })) },
+  { id:'a_abyss', label:n => `深淵回廊で${n}階に到達する`, value:() => (STATE.abyss && STATE.abyss.bestEver) || 0,
+    tiers:[10, 25, 50, 100].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[100, 200, 300, 500][i] }] })) },
   { id:'a_befriend', label:n => `探索でモンスターを${n}体仲間にする`, value:() => stat('befriend'),
     tiers:[1, 5, 10].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[100, 200, 300][i] }] })) },
 ];
@@ -6324,6 +6380,7 @@ function grantRewards(list){
     else if(r.type === 'monster') grantMonster(MON_BY_ID[r.id]);
     else if(r.type === 'relic') grantRelic(RELICS[r.key]);
     else if(r.type === 'stamina') grantStamina(r.n);
+    else if(r.type === 'resonance') STATE.resonance = (STATE.resonance || 0) + r.n;
   });
 }
 function rewardHtml(list){
@@ -6335,6 +6392,7 @@ function rewardHtml(list){
     if(r.type === 'monster'){ const m = MON_BY_ID[r.id]; return `<span class="rw rw-mon"><img src="${imgSrc(m.id)}" alt="">★${m.rarity} ${m.name}</span>`; }
     if(r.type === 'relic'){ const d = RELICS[r.key]; return `<span class="rw" title="${d.name}">${d.icon}★${d.star} ${d.name}</span>`; }
     if(r.type === 'stamina') return `<span class="rw">⚡${r.n}</span>`;
+    if(r.type === 'resonance') return `<span class="rw" title="共鳴石">${RESONANCE_ICON}${r.n}</span>`;
     return '';
   }).join('');
 }
@@ -6919,6 +6977,159 @@ EVENTS.forEach(ev => {
   });
 });
 
+
+/* ---------------- 深淵回廊(無限ダンジョン) ----------------
+   スタミナを使わず、1階ずつ強くなる敵を倒して進む。2週間ごとの期(シーズン)でリセット。
+   - 1階=1wave。敵のLvは1階Lv60から1階ごとに+5(48階で300に達して頭打ち)、★は17階ごとに上がり、
+     50階から先は10階ごとに★が1つずつ上がる。5階ごとにボス(★+1)
+   - 期ごとにテーマ属性が2つあり、敵はその属性が多め
+   - HP・SPと戦闘不能は階をまたいで持ち越す。5階のボスを倒すと全回復・全員復活(チェックポイント)。
+     負けたら最後のチェックポイントの次の階からやり直し。撤退・アプリを閉じた場合は、その階の前から再開
+   - 報酬は各階の初回だけ(期ごとに受け取り直せる)。5階ごと・25階ごとに多め */
+const ABYSS_UNLOCK_STAGE = 'q3_10';
+const ABYSS_SEASON_DAYS = 14;
+const ABYSS_SEASON_ANCHOR = new Date(2026, 8, 21, DAY_RESET_HOUR).getTime();   // 2026/9/21(月)に1期目が始まる
+const ABYSS_THEMES = [['fire', 'wind'], ['water', 'thunder'], ['grass', 'light'], ['earth', 'dark'], ['fire', 'dark'], ['water', 'light'], ['grass', 'thunder'], ['earth', 'wind']];
+function abyssSeasonIndex(now){ return Math.floor(((now || Date.now()) - ABYSS_SEASON_ANCHOR) / (ABYSS_SEASON_DAYS * 86400000)); }
+function abyssSeasonEnd(idx){ return ABYSS_SEASON_ANCHOR + (idx + 1) * ABYSS_SEASON_DAYS * 86400000; }
+function abyssTheme(idx){ return ABYSS_THEMES[((idx % ABYSS_THEMES.length) + ABYSS_THEMES.length) % ABYSS_THEMES.length]; }
+function abyssUnlocked(){ return STATE.clearedStages.includes(ABYSS_UNLOCK_STAGE); }
+function ensureAbyss(){
+  const season = abyssSeasonIndex();
+  const a = STATE.abyss;
+  if(!a || a.season !== season){
+    const prev = a || {};
+    const history = { ...(prev.history || {}) };
+    if(a && a.best) history[a.season] = a.best;
+    STATE.abyss = { season, floor: 1, checkpoint: 0, best: 0, claimed: {}, snap: null,
+      bestEver: prev.bestEver || 0, history };
+  }
+  return STATE.abyss;
+}
+// 同じ期・同じ階なら敵の顔ぶれがいつも同じになるよう、期と階から決まる乱数で選ぶ
+function abyssRng(seed){
+  let t = seed >>> 0;
+  return () => { t += 0x6D2B79F5; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
+}
+function abyssEnemyLevel(floor){ return Math.min(300, 55 + 5 * floor); }
+function abyssEnemyStar(floor){
+  if(floor <= 50) return 3 + Math.floor((floor - 1) / 17);
+  return Math.min(MAX_STAR, 5 + Math.ceil((floor - 50) / 10));
+}
+function abyssStage(floor, season){
+  const idx = season === undefined ? abyssSeasonIndex() : season;
+  const theme = abyssTheme(idx);
+  const rnd = abyssRng(idx * 100003 + floor * 7919);
+  const boss = floor % 5 === 0;
+  const lv = abyssEnemyLevel(floor);
+  const star = abyssEnemyStar(floor);
+  const minR = floor < 10 ? 3 : 4;
+  const pool = MONSTERS.filter(m => m.rarity >= minR && m.rarity <= 5 && m.element !== 'none');
+  const themed = pool.filter(m => theme.includes(m.element));
+  const pick = () => { const src = (rnd() < 0.7 && themed.length) ? themed : pool; return src[Math.floor(rnd() * src.length)]; };
+  const count = Math.min(5, 3 + (floor >= 20 ? 1 : 0) + (boss ? 1 : 0));
+  const wave = [];
+  for(let i = 0; i < count; i++) wave.push({ ref: pick().id, level: lv, star: Math.max(1, star) });
+  if(boss){
+    const b5 = themed.filter(m => m.rarity === 5);
+    const bossMon = b5.length ? b5[Math.floor(rnd() * b5.length)] : pick();
+    wave[0] = { ref: bossMon.id, level: lv + 2, star: Math.min(MAX_STAR, Math.max(bossMon.rarity, star + 1)), boss: true };
+  }
+  return {
+    id: `ab_${floor}`, type: 'abyss', tier: 'abyss', floor, name: `深淵回廊・${floor}階`,
+    terrain: 'abyss', element: theme[0], rec: lv, stamina: 0, power: 1, boss,
+    enemySkill: Math.min(12, 2 + Math.floor(floor / 5)), firstClear: 0, gold: 0,
+    desc: `深淵回廊の${floor}階(敵Lv${lv})。${boss ? 'この階のボスを倒すとチェックポイント。' : ''}`,
+    waves: [wave],
+  };
+}
+// 各階の初回報酬(期ごとに受け取り直せる)
+const ABYSS_MILESTONE_ROTATION = [
+  [{ type:'resonance', n:20 }],
+  [{ type:'universal', n:30 }],
+  [{ type:'item', key:'relic_core_2', n:2 }],
+  [{ type:'item', key:'stamina_60', n:2 }],
+  [{ type:'item', key:'idle_3', n:1 }],
+];
+function abyssFloorReward(floor){
+  const out = [{ type:'gold', n: 1000 + 100 * floor }, { type:'item', key:'exp2', n: 2 + Math.floor(floor / 10) }];
+  if(floor % 5 === 0) out.push({ type:'crystal', n:10 }, ...ABYSS_MILESTONE_ROTATION[(floor / 5 - 1) % ABYSS_MILESTONE_ROTATION.length]);
+  if(floor % 25 === 0) out.push({ type:'crystal', n:100 }, { type:'item', key:'box_sel_4', n:1 });
+  return out;
+}
+// 持ち越し: モンスターIDごとにHPの割合・SP・戦闘不能を覚える(新しく入れたキャラは満タンで出る)
+function applyAbyssSnapshot(party){
+  const snap = ensureAbyss().snap;
+  if(!snap) return;
+  party.forEach(u => {
+    const x = snap[u.ref];
+    if(!x) return;
+    if(!x.alive){ u.alive = false; u.hp = 0; return; }
+    u.hp = Math.max(1, Math.round(u.maxHp * x.hp));
+    u.sp = Math.min(u.spCost, x.sp || 0);
+  });
+}
+function abyssOnFinish(b, win){
+  const a = ensureAbyss();
+  const floor = b.stage.floor;
+  if(!win){
+    a.floor = a.checkpoint + 1;
+    a.snap = null;
+    b.abyssResult = { lost: true, restart: a.floor };
+    return null;
+  }
+  const first = !a.claimed[floor];
+  const reward = first ? abyssFloorReward(floor) : [];
+  if(first){ a.claimed[floor] = true; grantRewards(reward); }
+  a.best = Math.max(a.best, floor);
+  a.bestEver = Math.max(a.bestEver || 0, floor);
+  a.floor = floor + 1;
+  if(floor % 5 === 0){ a.checkpoint = floor; a.snap = null; }
+  else a.snap = Object.fromEntries(b.party.filter(u => u.ref !== HELP_SLOT_ID).map(u => [u.ref, { hp: u.alive ? u.hp / u.maxHp : 0, sp: u.sp, alive: u.alive }]));
+  track('abyssFloor');
+  b.abyssResult = { floor, first, checkpoint: floor % 5 === 0 };
+  return {
+    items: reward.filter(r => r.type === 'item').map(r => ({ key: r.key, n: r.n })),
+    gold: reward.filter(r => r.type === 'gold').reduce((t, r) => t + r.n, 0),
+    souls: [], crystals: 0,
+    firstItems: reward.filter(r => r.type !== 'item' && r.type !== 'gold'),
+  };
+}
+function renderAbyssTab(){
+  if(!abyssUnlocked()) return `<div class="screen-sub" style="margin:28px 0;text-align:center;">上級「${STAGE_BY_ID[ABYSS_UNLOCK_STAGE].name}」をクリアすると挑戦できます</div>`;
+  const a = ensureAbyss();
+  const theme = abyssTheme(a.season);
+  const next = abyssStage(a.floor);
+  const party = getPartyIds().filter(id => id !== HELP_SLOT_ID);
+  const nextMilestone = Math.ceil(a.floor / 5) * 5;
+  const hpRow = party.map(id => {
+    const x = a.snap && a.snap[id];
+    const pct = !x ? 100 : x.alive ? Math.round(x.hp * 100) : 0;
+    return `<div class="ab-mem ${pct === 0 ? 'down' : ''}"><img src="${imgSrc(id)}" alt=""><div class="hp-bg"><div class="hp-fill ${pct <= 30 ? 'low' : ''}" style="width:${pct}%;"></div></div></div>`;
+  }).join('');
+  return `
+    <div class="panel abyss-card">
+      <div class="row-between" style="margin-bottom:4px;">
+        <div class="mc-head">🕳️ 深淵回廊</div>
+        <div class="mc-reset">リセットまで ${formatDaysHours(abyssSeasonEnd(a.season) - Date.now())}</div>
+      </div>
+      <div class="ev-period">今期のテーマ属性 ${theme.map(e => `${ELEM_ICON[e]}${ELEM_LABEL[e]}`).join('・')}(敵にこの属性が多い)</div>
+      <div class="ab-stats">
+        <div><small>次に挑む階</small><b>${a.floor}階</b></div>
+        <div><small>チェックポイント</small><b>${a.checkpoint ? `${a.checkpoint}階` : 'なし'}</b></div>
+        <div><small>今期の最高</small><b>${a.best}階</b></div>
+      </div>
+      <div class="screen-sub" style="margin:6px 0;">スタミナを使いません。HPは階をまたいで持ち越し、5階ごとのボスを倒すと全回復・全員復活します。負けたら最後のチェックポイントからやり直しです。</div>
+      ${party.length ? `<div class="ab-party">${hpRow}</div>` : ''}
+      <div class="ab-next">
+        <div><b>${a.floor}階</b>${next.boss ? '<span class="sr-rare sr-boss">BOSS</span>' : ''} 敵Lv${next.rec}・${next.waves[0].length}体 ${[...new Set(next.waves[0].map(e => MON_BY_ID[e.ref].element))].map(e => ELEM_ICON[e]).join('')}</div>
+        <div class="ab-reward">${a.claimed[a.floor] ? '報酬は受け取り済み' : `初回報酬 ${rewardHtml(abyssFloorReward(a.floor))}`}</div>
+        ${nextMilestone !== a.floor ? `<div class="ab-reward">${nextMilestone}階 ${rewardHtml(abyssFloorReward(nextMilestone).slice(2))}</div>` : ''}
+      </div>
+      <button class="btn btn-block" data-start-stage="ab_${a.floor}">${a.floor}階に挑戦する</button>
+    </div>`;
+}
+
 function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
 // early-game gating: too many choices at once confuses a brand new player
 const TUTORIAL_LAST_STAGE = 'tu3';
@@ -7429,6 +7640,7 @@ function renderBag(){
       </div>`;
   }
   const tickets = Object.keys(STATE.items || {}).filter(k => MON_TICKET_RE.test(k) && getItem(k) > 0);
+  const usables = [...Object.keys(STAMINA_ITEMS), ...Object.keys(IDLE_ITEMS)].filter(k => getItem(k) > 0);
   let body;
   if(bagTab === 'grow'){
     body = `
@@ -7453,6 +7665,13 @@ function renderBag(){
       <div class="bag-grid">${d.kinds().map(k => matCell(fam, k)).join('')}</div>`).join('');
   }else{
     body = `
+      ${usables.length ? `<div class="bag-head">使えるアイテム</div>${usables.map(k => `
+        <div class="panel panel-tight box-card">
+          <span class="sc-ic">${itemIcon(k)}</span>
+          <div class="sc-body"><div class="sc-name">${itemName(k)} ×${getItem(k)}</div>
+            <div class="sc-sub">${STAMINA_ITEMS[k] ? `スタミナ+${STAMINA_ITEMS[k]}(上限を超えても使えます)` : `拠点の放置報酬${IDLE_ITEMS[k]}時間分を今すぐ受け取る`}</div></div>
+          <button class="btn btn-sm" data-use-item="${k}">使う</button>
+        </div>`).join('')}` : ''}
       ${tickets.length ? `<div class="bag-head">キャラ選択券</div>${tickets.map(k => `
         <div class="panel panel-tight box-card">
           <span class="sc-ic">${itemIcon(k)}</span>
@@ -9941,9 +10160,11 @@ function renderBattleSelect(){
     <div class="explore-tabs" role="tablist">
       <button class="stage-tab ${stageTab === 'main' ? 'on' : ''}" data-stage-tab="main" role="tab" aria-selected="${stageTab === 'main'}">クエスト</button>
       <button class="stage-tab ${stageTab === 'dungeon' ? 'on' : ''} ${tutorialCleared() ? '' : 'locked'}" data-stage-tab="dungeon" role="tab" aria-selected="${stageTab === 'dungeon'}">${tutorialCleared() ? '' : '🔒'}育成</button>
+      <button class="stage-tab ${stageTab === 'abyss' ? 'on' : ''} ${abyssUnlocked() ? '' : 'locked'}" data-stage-tab="abyss" role="tab" aria-selected="${stageTab === 'abyss'}">深淵回廊</button>
       <button class="stage-tab ${stageTab === 'event' ? 'on' : ''} ${tutorialCleared() ? '' : 'locked'}" data-stage-tab="event" role="tab" aria-selected="${stageTab === 'event'}">${tutorialCleared() ? '' : '🔒'}イベント${evCount && tutorialCleared() ? ` 🔥${evCount}` : ''}</button>
     </div>
     ${stageTab === 'event' ? renderEventTab() : ''}
+    ${stageTab === 'abyss' ? renderAbyssTab() : ''}
     ${stageTab === 'dungeon' ? renderDungeons() : ''}
     ${stageTab === 'main' ? `
     <div class="tier-tabs" role="tablist">
@@ -10284,7 +10505,10 @@ function speedFactor(){ return STATE.battleSpeed || 1; }
 
 function findStage(id){
   const d = /^dg_(exp|gold|mat)_(\d)$/.exec(id || '');
-  return d ? dungeonStage(d[1], Number(d[2])) : STAGE_BY_ID[id];
+  if(d) return dungeonStage(d[1], Number(d[2]));
+  const ab = /^ab_(\d+)$/.exec(id || '');
+  if(ab) return abyssStage(Number(ab[1]));
+  return STAGE_BY_ID[id];
 }
 function showTutorial(stageId, page){
   const stage = findStage(stageId);
@@ -10459,6 +10683,10 @@ function startBattle(stageId, opts){
   // would otherwise let the request through.
   if(stage.tier !== 'tu' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
   if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
+  if(stage.type === 'abyss'){
+    if(!abyssUnlocked()){ toast('上級をクリアすると挑戦できます'); return; }
+    if(stage.floor !== ensureAbyss().floor){ toast(`${ensureAbyss().floor}階から挑戦できます`); return; }
+  }
   const cost = stageStaminaCost(stage);
   if(!spendStamina(cost)){ toast(`スタミナが足りません(必要 ${cost})`); return; }
   track('staminaUsed', cost);
@@ -10489,6 +10717,10 @@ function startBattle(stageId, opts){
     party.push(u);
   });
   const synergies = applySynergies(party);
+  if(stage.type === 'abyss'){
+    applyAbyssSnapshot(party);
+    if(party.every(u => !u.alive)){ toast('全員が戦闘不能です。パーティを入れ替えてください'); return; }
+  }
 
   battleUI = {
     stage, party,
@@ -13224,7 +13456,13 @@ function finishBattle(win){
   recordWave(battleUI, win ? 'win' : 'lose');
   if(battleUI.helperOwnerUid) creditHelperOwner(battleUI.helperOwnerUid);
   if(win && battleUI.helperOwnerUid) track('helperClear');
-  if(win){
+  if(battleUI.stage.type === 'abyss'){
+    battleUI.rewards = abyssOnFinish(battleUI, win);
+    battleUI.rank = 0; battleUI.prevRank = 0;
+    logEvent(win ? 'abyss_clear' : 'abyss_fail', { floor: battleUI.stage.floor, rounds: battleUI.round });
+    if(win) logLine(`${battleUI.stage.name} を突破した!`, 'ult');
+    else if(allDead(battleUI.party)) logLine('パーティは全滅してしまった…', 'ko');
+  }else if(win){
     battleUI.rewards = battleUI.stage.type === 'dungeon' ? grantDungeonRewards(battleUI.stage) : grantStageRewards(battleUI.stage, battleUI.spawned);
     battleUI.rank = battleRank(battleUI);
     if(!STATE.stageStars) STATE.stageStars = {};
@@ -13344,12 +13582,13 @@ function showBattleResult(tab){
   if(tab) b.resultTab = tab;
   const resultTab = b.resultTab || 'main';
   const layer = document.getElementById('modal-layer');
-  const isDungeon = b.stage.type === 'dungeon';
+  const isAbyss = b.stage.type === 'abyss';
+  const isDungeon = b.stage.type === 'dungeon' || isAbyss;
   const mains = STAGES.filter(st => st.type === 'main');
   // only a real main-quest stage has a "next stage" in this list; anything else (event,
   // dungeon) isn't in `mains` at all, so indexOf would return -1 and mains[-1+1] would
   // wrongly resolve to mains[0] - the very first tutorial stage.
-  const nextCandidate = b.stage.type === 'main' ? mains[mains.indexOf(b.stage) + 1] : null;
+  const nextCandidate = b.stage.type === 'main' ? mains[mains.indexOf(b.stage) + 1] : isAbyss && b.win ? abyssStage(ensureAbyss().floor) : null;
   const nextStage = nextCandidate && stageUnlocked(nextCandidate) ? nextCandidate : null;
   const retryBlocked = false;
   const timedOut = !b.win && !allDead(b.party);
@@ -13426,7 +13665,8 @@ function showBattleResult(tab){
         ${timedOut ? `${MAX_ROUNDS}ラウンド以内に倒しきれませんでした。火力を上げるか、` : 'モンスターを強化するか、'}有利な属性で編成して再挑戦しましょう。<br>
         ${counterText}
       </div>
-      ${b.staminaRefund ? `<div class="refund-note">スタミナが ${b.staminaRefund} 戻りました</div>` : ''}`;
+      ${b.staminaRefund ? `<div class="refund-note">スタミナが ${b.staminaRefund} 戻りました</div>` : ''}
+      ${isAbyss && b.abyssResult ? `<div class="refund-note">${b.abyssResult.restart}階(チェックポイントの次)から再開します。HPは全回復します</div>` : ''}`;
   }
 
   layer.innerHTML = `
@@ -13435,7 +13675,8 @@ function showBattleResult(tab){
       <div class="br-sub">
         ${b.stage.name}・${b.win ? `${b.round}ラウンドで勝利` : `WAVE ${b.waveIndex + 1}/${b.stage.waves.length} で${timedOut ? '時間切れ' : '力尽きた'}`}
       </div>
-      ${b.win ? `
+      ${b.win && isAbyss && b.abyssResult ? `<div class="br-rank"><b>${b.abyssResult.floor}階 突破</b>${b.abyssResult.checkpoint ? '<span class="rank-new">チェックポイント・全回復</span>' : ''}${b.abyssResult.first ? '' : '<div class="rank-note">この階の報酬は今期受け取り済みです</div>'}</div>` : ''}
+      ${b.win && !isAbyss ? `
         <div class="br-rank">
           ${starsText(b.rank)}${b.rank > b.prevRank ? '<span class="rank-new">NEW BEST</span>' : ''}
           <ul>${rankConditions(b.stage).map((c, i) => `<li class="${b.rank > i ? 'ok' : ''}">${b.rank > i ? '✓' : '✗'} ★${i + 1} ${c}</li>`).join('')}</ul>
@@ -13457,14 +13698,15 @@ function showBattleResult(tab){
       <div class="br-actions">
         <div class="br-stamina">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>
         ${helperSurchargeNote(nextStage || b.stage) ? `<div class="fs-note" style="margin:-4px 0 4px;">お助けキャラを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
-        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">次のステージへ<span class="go-cost">⚡${stageStaminaCost(nextStage)}</span></button>` : ''}
+        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">${isAbyss ? `${nextStage.floor}階へ進む` : '次のステージへ'}${isAbyss ? '' : `<span class="go-cost">⚡${stageStaminaCost(nextStage)}</span>`}</button>` : ''}
         ${b.win && sweepAllowed(b.stage).ok ? `<button class="btn btn-ghost btn-block" data-sweep-open="${b.stage.id}">周回する</button>` : ''}
         ${b.win ? '' : '<button class="btn btn-ghost btn-block" data-result-nav="party">パーティを強化する</button>'}
         <div class="br-buttons">
           <button class="btn btn-ghost" data-result-nav="battle">戻る</button>
+          ${isAbyss ? (b.win ? '' : `<button class="btn" data-start-stage="ab_${ensureAbyss().floor}">${ensureAbyss().floor}階から再挑戦</button>`) : `
           <button class="btn ${b.win && nextStage ? 'btn-ghost' : ''}" data-start-stage="${b.stage.id}">
             ${b.win ? 'もう一度' : '再挑戦'}<span class="go-cost">⚡${stageStaminaCost(b.stage)}</span>
-          </button>
+          </button>`}
         </div>
       </div>
     </div>
@@ -14120,6 +14362,16 @@ function handlePhoneClick(ev){
     bagSelect = null; playSfx('confirm'); renderBag(); return;
   }
   if(t.closest('[data-box-cancel]')){ bagSelect = null; renderBag(); return; }
+  const useItemEl = t.closest('[data-use-item]');
+  if(useItemEl){
+    const k = useItemEl.dataset.useItem;
+    if(STAMINA_ITEMS[k]){ if(useStaminaItem(k)){ playSfx('buff'); toast(`スタミナ+${STAMINA_ITEMS[k]}`); } }
+    else if(IDLE_ITEMS[k]){
+      const got = useIdleItem(k);
+      if(got){ playSfx('buff'); const parts = Object.entries(got).filter(([, n]) => n > 0).map(([kk, n]) => kk === 'gold' ? `ゴールド${n.toLocaleString()}` : `${itemName(kk)}×${n}`); toast(parts.length ? parts.join('、') : '受け取れる施設がまだありません'); }
+    }
+    render(); renderBag(); return;
+  }
   const useTicketEl = t.closest('[data-use-ticket]');
   if(useTicketEl){ bagTicket = { key: useTicketEl.dataset.useTicket, elem: '' }; bagSelect = null; renderBag(); return; }
   const ticketElemEl = t.closest('[data-ticket-elem]');
@@ -14757,6 +15009,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 67, version: 'α0.1.026', date: '9/25', title: '深淵回廊(無限ダンジョン)を追加', body: '探索に「深淵回廊」を追加しました(上級クリアで解放)。スタミナを使わずに、1階ずつ強くなる敵を倒して進みます。HPは階をまたいで持ち越し、5階ごとのボスを倒すと全回復・全員復活のチェックポイントになります。負けたら最後のチェックポイントから再開です。2週間ごとにリセットされ、各階の初回報酬(5階ごと・25階ごとは多め)をもう一度受け取れます。期ごとに敵に多いテーマ属性が2つあります。あわせてアイテム「スタミナの実」(スタミナ+60)と「時渡りの砂」(拠点の放置報酬1・3・12時間分をすぐ受け取れる)を追加し、深淵回廊やウィークリーミッションの報酬に入れました。' },
   { id: 66, version: 'α0.1.025', date: '9/25', title: 'テイマーのレベルアップでスタミナ+300', body: 'テイマーのレベルが上がるたびに、スタミナが300増えるようにしました(上限を超えても受け取れます。999を超える分はプレゼントボックスへ)。あわせて、クエスト・周回・育成ダンジョンをクリアするたびにテイマーの経験値が20入るようにしました(これまでは初回クリアだけでした)。' },
   { id: 65, version: 'α0.1.024', date: '9/25', title: 'イベントの残り時間を日数で表示', body: 'イベントの残り時間を「170時間12分」ではなく「7日2時間」のように日数で表示し、開催期間(開始と終了の日時)も出すようにしました。フレンド追加画面の「入れ替える」ボタンは「更新」に名前を変えました。' },
   { id: 64, version: 'α0.1.023', date: '9/25', title: '撤退したときもスタミナを返す', body: '戦闘の途中で撤退(中断)したときも、負けたときと同じく使ったスタミナが全額戻るようにしました。報酬は手に入りません。' },
@@ -14966,6 +15219,8 @@ function renderProfileOverlay(){
             <div class="pf-stat-v">${cleared}<small> / ${mains}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">パーティ総合BP</div>
             <div class="pf-stat-v gold">${power.toLocaleString()}</div></div>
+          <div class="pf-stat"><div class="pf-stat-k">深淵回廊(今期)</div>
+            <div class="pf-stat-v">${STATE.abyss && STATE.abyss.season === abyssSeasonIndex() ? STATE.abyss.best : 0}<small> 階</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">プレイ日数</div>
             <div class="pf-stat-v">${days}<small> 日</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">開始日</div>
@@ -15295,6 +15550,8 @@ function renderFriendProfileOverlay(){
             <div class="pf-stat-v">${f.monsters || 0}<small> / ${MONSTERS.length}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">クリア済</div>
             <div class="pf-stat-v">${f.cleared || 0}<small> / ${mains}</small></div></div>
+          <div class="pf-stat"><div class="pf-stat-k">深淵回廊(今期)</div>
+            <div class="pf-stat-v">${f.abyssBest || 0}<small> 階</small></div></div>
         </div>
         <div class="panel">
           <div class="mc-head" style="margin-bottom:9px;">お助けキャラ</div>
