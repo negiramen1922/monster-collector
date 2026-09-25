@@ -47,12 +47,12 @@ function waveUnits(stage, wi){
    中身は stage_axis_test.js の PLAN と同じで、null は材料不足で未設置。 */
 const AXIS = {
   q1: { mag:'q1_09', phy:'q1_01' },
-  q2: { mag:'q2_06', phy:'q2_04' },
-  q3: { mag:'q3_02', phy:'q3_03', pdef:'q3_07' },
+  q2: { mag:'q2_06', phy:'q2_04', mdef:'q2_07' },
+  q3: { mag:'q3_02', phy:'q3_03', pdef:'q3_07', mdef:'q3_09' },
   q4: { mag:'q4_01', phy:'q4_04', pdef:'q4_03', mdef:'q4_09' },
   q5: { mag:'q5_08', phy:'q5_01', pdef:'q5_07', mdef:'q5_09' },
   q6: { mag:'q6_08', phy:'q6_02', pdef:'q6_04', mdef:'q6_03' },
-  q7: { mag:'q7_04', phy:'q7_03', pdef:'q7_07', mdef:'q7_09' },
+  q7: { mag:'q7_04', phy:'q7_03', pdef:'q7_09', mdef:'q7_07' },
 };
 const AXIS_LABEL = { mag:'魔法攻撃', phy:'物理攻撃', pdef:'物理耐性', mdef:'魔法耐性' };
 const axisOf = {};

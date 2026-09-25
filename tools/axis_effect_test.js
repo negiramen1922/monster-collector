@@ -12,17 +12,15 @@ const N = Number(process.env.N || 100);
 const CORE = ['m52', 'm104'];                       // ユミル(タンク) + ユニコーン(回復)
 const PHYS = ['m24', 'm44', 'm23'];                 // ワーウルフ / レッドキャップ / スカーボア(全員物理)
 const MAG  = ['m17', 'm50', 'm63'];                 // ヘルハウンド / サイクロプス / ボルケイノタートル(全員魔法寄り)
-const UP = { star: 5, skillLv: 5, ultLv: 5, passiveLv: 5 };
+const UP_BY_TIER = { q2:{star:3,skillLv:3,ultLv:3,passiveLv:3}, q3:{star:3,skillLv:4,ultLv:4,passiveLv:4} };
+const UP_DEFAULT = { star: 5, skillLv: 5, ultLv: 5, passiveLv: 5 };
+let UP = UP_DEFAULT;
 
 /* 各ティアで指定した4軸のステージ。lv はそのティアの推奨Lvに合わせる。 */
 const ROWS = [
-  ['q1', 25, { mag:'q1_09', phy:'q1_01', pdef:'q1_04', mdef:null }],
-  ['q2', 52, { mag:'q2_06', phy:'q2_04', pdef:'q2_03', mdef:null }],
-  ['q3', 88, { mag:'q3_02', phy:'q3_03', pdef:'q3_07', mdef:null }],
-  ['q4', 131, { mag:'q4_01', phy:'q4_04', pdef:'q4_03', mdef:'q4_09' }],
-  ['q5', 183, { mag:'q5_08', phy:'q5_01', pdef:'q5_07', mdef:'q5_09' }],
-  ['q6', 223, { mag:'q6_08', phy:'q6_02', pdef:'q6_04', mdef:'q6_03' }],
-  ['q7', 280, { mag:'q7_04', phy:'q7_03', pdef:'q7_07', mdef:'q7_09' }],
+  ['q2', 52, { mag:'q2_06', phy:'q2_04', pdef:null, mdef:'q2_07' }],
+  ['q3', 88, { mag:'q3_02', phy:'q3_03', pdef:'q3_07', mdef:'q3_09' }],
+  ['q7', 280, { mag:'q7_04', phy:'q7_03', pdef:'q7_09', mdef:'q7_07' }],
 ];
 
 function measure(party, stage, lv){
@@ -40,6 +38,7 @@ console.log('「差」がプラスなら魔法編成のほうが手こずる = �
    偏っていない場所)」で測り、各ステージの差からそれを引いて正味の効果を出す。 */
 console.log('ティア ステージ           軸        物理編成       魔法編成      差    素の差を引いた正味');
 ROWS.forEach(([tier, lv, ids]) => {
+  UP = UP_BY_TIER[tier] || UP_DEFAULT;
   const diffOf = id => {
     const p = measure(CORE.concat(PHYS), id, lv);
     const m = measure(CORE.concat(MAG), id, lv);
