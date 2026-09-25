@@ -42,6 +42,21 @@ function feat(k){
     });
     (o.onHit || []).forEach(e => { if(e.st) f.st++; if(e.debuff) f.foeDebuff++; });
   });
+  /* 関数の中身を読んで、チャージ(戦闘中に溜まる)とシナジー(編成で決まる)を見分ける。
+     どちらも u.stacks を使うが、溜まり方が違うので別の傾向として扱う。 */
+  const srcOf = o => Object.keys(o || {}).map(key => {
+    const v = o[key];
+    return key + ':' + (typeof v === 'function' ? v.toString() : '');
+  }).join(' ');
+  let kitSrc = srcOf(k.passive);
+  SLOTS.forEach(n => { if(k[n]) kitSrc += ' ' + srcOf(k[n]); });
+  /* 戦闘中に溜まる = チャージ。溜め口はパッシブのフックか、スキルの run での加算。 */
+  f.charge = /stacks/.test(kitSrc)
+    && (/onTurnStart|onTurnEnd|onSkillUsed|onKill|onCrit|onDamaged/.test(kitSrc)
+        || /stacks\.\w+\s*=\s*Math\.min/.test(kitSrc)) ? 1 : 0;
+  f.synergy = /stacks/.test(kitSrc) && /onBattleStart[\s\S]{0,120}sideOf/.test(kitSrc) ? 1 : 0;
+  f.rawDmg  = /raw:/.test(kitSrc) ? 1 : 0;
+
   const p = k.passive || {}, pd = p.desc || '';
   f.pCrit    = /会心/.test(pd) ? 1 : 0;
   f.pHeal    = /回復/.test(pd) ? 1 : 0;
@@ -51,13 +66,20 @@ function feat(k){
   f.pRegen   = /ターン開始時.*回復|毎ターン.*回復/.test(pd) ? 1 : 0;
   f.pSurvive = /耐える|1で耐|復活/.test(pd) ? 1 : 0;
   if(p.cutBonus) f.pCut = 1;
-  if(p.onEvade || /回避/.test(pd)) f.pEvade = 1;
+  if(p.onEvade || p.evadeBonus || /回避率\+/.test(pd)) f.pEvade = 1;
+  /* スキルで自分に回避を配るものも回避型の候補に含める */
+  SLOTS.forEach(n => {
+    const o = k[n]; if(!o) return;
+    (o.effects || []).forEach(e => { if(e.buff === 'evade') f.evadeBuff = 1; });
+  });
   return f;
 }
 
 /* 各ロールの傾向。上から順に判定し、最初に当たったものを採用する(優先順位つき)。 */
 const RULES = {
   attacker: [
+    ['チャージ型',   f => f.charge],
+    ['シナジー型',   f => f.synergy],
     ['手数型',       f => f.hits >= 3 || (f.hits >= 2 && f.hitSlots >= 2)],
     ['吸収型',       f => f.lifesteal >= 2 || (f.lifesteal >= 1 && f.pHeal)],
     ['処刑型',       f => f.exec >= 1],
@@ -66,6 +88,8 @@ const RULES = {
     ['単体高火力型', () => true],
   ],
   shooter: [
+    ['チャージ型',   f => f.charge],
+    ['シナジー型',   f => f.synergy],
     ['貫通型',       f => f.pierce >= 1],
     ['後衛狙撃型',   f => f.back >= 1],
     ['状態異常型',   f => f.st >= 2],
@@ -73,6 +97,7 @@ const RULES = {
     ['単体狙撃型',   () => true],
   ],
   support: [
+    ['シナジー型',   f => f.synergy],
     ['蘇生・保険型', f => f.revive >= 1 || f.pSurvive],
     ['浄化・解除型', f => f.dispel >= 1],
     ['SP供給型',     f => f.sp >= 1],
@@ -82,6 +107,8 @@ const RULES = {
     ['単体回復型',   () => true],
   ],
   tank: [
+    ['回避型',         f => f.pEvade || f.evadeBuff],
+    ['チャージ型',     f => f.charge],
     ['自動シールド型', f => f.pShield],
     ['自己再生型',     f => !f.taunt && (f.pRegen || f.heal >= 2)],
     ['ガーディアン型', f => f.guard >= 1],
@@ -91,9 +118,10 @@ const RULES = {
     ['挑発・防御型',   () => true],
   ],
   trickster: [
+    ['確定ダメージ型', f => f.rawDmg],
     ['攪乱型',       f => f.confuse >= 1],
     ['妨害型',       f => f.dispel >= 1],
-    ['回避型',       f => f.pEvade],
+    ['回避型',       f => f.pEvade || f.evadeBuff],
     ['変則火力型',   () => true],
   ],
 };
