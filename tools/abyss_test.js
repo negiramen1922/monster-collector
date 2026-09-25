@@ -31,7 +31,7 @@ function fight(id){
 // --- 階の作り ---
 const s1 = E.abyssStage(1), s5 = E.abyssStage(5), s48 = E.abyssStage(48), s60 = E.abyssStage(60);
 ok('1階は敵Lv60・スタミナ0', s1.rec === 60 && s1.stamina === 0 && E.stageStaminaCost(s1) === 0);
-ok('1階ごとに敵Lv+5、48階で300に頭打ち', E.abyssStage(2).rec === 65 && s48.rec === 295 && E.abyssStage(49).rec === 300 && s60.rec === 300);
+ok('1階ごとに敵Lv+5で49階がLv300、その先は+3ずつ上がり続ける', E.abyssStage(2).rec === 65 && s48.rec === 295 && E.abyssStage(49).rec === 300 && s60.rec === 333 && E.abyssStage(100).rec === 453 && E.abyssStage(400).rec === 999);
 ok('5階ごとにボス', s5.boss && s5.waves[0].some(e => e.boss) && !E.abyssStage(4).boss);
 ok('50階より先は★が上がっていく', s60.waves[0][1].star > E.abyssStage(50).waves[0][1].star, [E.abyssStage(50).waves[0][1].star, s60.waves[0][1].star]);
 ok('同じ期・同じ階なら敵は毎回同じ', JSON.stringify(E.abyssStage(7).waves) === JSON.stringify(E.abyssStage(7).waves));
@@ -100,4 +100,7 @@ console.log('  参考: Lv200・★7・スキルLv10のパーティで一度に�
 S = setup(100, 5); E.ensureAbyss(); reached = 0;
 for(let i = 0; i < 80; i++){ const f = S.abyss.floor; const r = fight('ab_' + f); if(!r || !r.win){ break; } reached = f; }
 console.log('  参考: Lv100・★5 のパーティで一度に到達した階 =', reached);
+S = setup(300, 10); E.ensureAbyss(); reached = 0;
+for(let i = 0; i < 150; i++){ const f = S.abyss.floor; const r = fight('ab_' + f); if(!r || !r.win){ break; } reached = f; }
+console.log('  参考: Lv300・★10(遺物なし)のパーティで一度に到達した階 =', reached, '(敵Lv' + E.abyssStage(reached + 1).rec + ')');
 console.log(fails ? `${fails}件失敗` : 'すべて通過');

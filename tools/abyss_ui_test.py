@@ -35,6 +35,11 @@ async def main():
             check('深淵回廊のタブが出る', '深淵回廊' in txt and '1階に挑戦する' in txt)
             check('テーマ属性とリセットまでの日数', 'テーマ属性' in txt and 'リセットまで' in txt)
             await pg.screenshot(path=str(OUT / 'abyss_tab.png'))
+            tabs = await pg.evaluate("() => [...document.querySelectorAll('.explore-tabs .stage-tab')].map(e => { const r = e.getBoundingClientRect(); return { t: e.querySelector('.et-label').textContent, x: r.left, y: r.top, w: r.width }; })")
+            check('探索メニューが縦に メインクエスト→育成クエスト→深淵回廊→イベント と並ぶ',
+                  [t['t'] for t in tabs] == ['メインクエスト', '育成クエスト', '深淵回廊', 'イベント']
+                  and all(tabs[i]['y'] < tabs[i + 1]['y'] and abs(tabs[i]['x'] - tabs[i + 1]['x']) < 1 for i in range(3))
+                  and tabs[0]['w'] > 300, tabs)
             st0 = await pg.evaluate('() => STATE.stamina')
             await pg.evaluate("() => document.querySelector('[data-start-stage=\"ab_1\"]').click()"); await pg.wait_for_timeout(600)
             check('戦闘が始まる', await pg.evaluate("() => battleUI && battleUI.stage.id === 'ab_1'"))
