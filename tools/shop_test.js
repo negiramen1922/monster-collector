@@ -5,7 +5,7 @@
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
-  buyShopItem, shopBought, shopDailyState, todaysSaleSku, shopGoldPrice,
+  buyShopItem, shopBought, shopDailyState, todaysSaleSku, shopGoldPrice, shopSaleMap, refreshShop, shopRefreshCost, SHOP_REFRESH_COSTS,
   SHOP_GOLD_ITEMS, SHOP_PVP_ITEMS, SHOP_CRYSTAL_ITEMS, buyCrystalItem,
   pvpDailyMax, pvpChallengesLeft, ensurePvpDaily, PVP_DAILY_MAX,
   getItem, addGold, addItem, currentDayKey,
@@ -52,6 +52,37 @@ ok('特売価格が実際に請求される', S.gold === goldBeforeSale - discou
 E.shopDailyState().key = '2000-1-1';
 const st = E.shopDailyState();
 ok('日付が変わると購入済みフラグがリセットされる', st.key === E.currentDayKey() && Object.keys(st.bought).length === 0, st);
+
+// --- 特売は3品(5割・4割・3割引) ---
+const sm = E.shopSaleMap();
+ok('特売は3品で、5割・4割・3割引', Object.keys(sm).length === 3 && JSON.stringify(Object.values(sm).sort()) === JSON.stringify([0.3, 0.4, 0.5]), sm);
+ok('特売の選び方は同じ日・同じ更新回数なら変わらない', JSON.stringify(E.shopSaleMap()) === JSON.stringify(sm));
+
+// --- ショップ更新: 50→100→150石、1日3回まで。購入済みが消えて、特売が入れ替わる ---
+S.gold = 1e9;
+E.buyShopItem('gold', 'exp1');
+S.crystals = 1000;
+const saleSets = [JSON.stringify(E.shopSaleMap())];
+ok('1回目の更新は50石', E.shopRefreshCost() === 50);
+E.refreshShop();
+ok('更新すると50石減り、購入済みの商品がまた買える', S.crystals === 950 && !E.shopBought('exp1'), [S.crystals, E.shopBought('exp1')]);
+saleSets.push(JSON.stringify(E.shopSaleMap()));
+ok('2回目は100石', E.shopRefreshCost() === 100);
+E.refreshShop(); saleSets.push(JSON.stringify(E.shopSaleMap()));
+ok('3回目は150石', E.shopRefreshCost() === 150);
+E.refreshShop(); saleSets.push(JSON.stringify(E.shopSaleMap()));
+ok('3回で合計300石', S.crystals === 700, S.crystals);
+E.refreshShop();
+ok('4回目はできない(石も減らない)', S.crystals === 700 && E.shopRefreshCost() === null);
+ok('更新で特売品が入れ替わる(4通りのうち2通り以上)', new Set(saleSets).size >= 2, saleSets);
+S.crystals = 10; E.shopDailyState().key = '2000-1-1';
+ok('日付が変わると更新回数もリセット', E.shopRefreshCost() === 50);
+E.refreshShop();
+ok('石が足りないと更新できない', S.crystals === 10 && E.shopDailyState().refresh === 0);
+// 各日の特売がいろいろな商品に散らばる(いつも同じ品にならない)
+const seen = new Set();
+for(let d = 1; d <= 30; d++) Object.keys(E.shopSaleMap({ key: `2026-10-${d}`, refresh: 0 })).forEach(k => seen.add(k));
+ok('30日で特売になる商品が偏らない(8種類以上)', seen.size >= 8, [...seen]);
 
 // --- PVP points shop: relic_core_1/2/3 are all purchasable (closes the core2/3 acquisition gap) ---
 S.pvpPoints = 10000;

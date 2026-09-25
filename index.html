@@ -1138,6 +1138,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .shop-item-name{ font-size:12px; font-weight:700; }
 .shop-price{ font-size:11.5px; font-weight:800; color:var(--gold); white-space:nowrap; }
 .shop-old-price{ font-size:10px; color:var(--dim); text-decoration:line-through; margin-right:4px; }
+.shop-refresh{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 0 8px; padding:9px 12px;
+  border:1px solid var(--line); border-radius:12px; background:var(--panel2); font-size:13px; font-weight:800; }
+.shop-refresh small{ display:block; font-size:10.5px; font-weight:600; color:var(--dim); margin-top:2px; }
+.shop-refresh .btn{ flex:none; }
 .shop-sale-badge{ font-size:9px; background:var(--danger); color:#fff; border-radius:6px; padding:1px 4px; margin-left:4px; }
 .shop-row .btn{ min-width:72px; }
 
@@ -2502,7 +2506,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.030';
+const GAME_VERSION = 'α0.1.031';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4632,16 +4636,49 @@ const SHOP_PVP_ITEMS = [
   { sku: 'pvp_core2', itemKey: 'relic_core_2', qty: 1, price: 200 },
   { sku: 'pvp_core3', itemKey: 'relic_core_3', qty: 1, price: 500 },
 ];
-const SHOP_SALE_DISCOUNT = 0.4; // 本日の特売: ゴールドショップの中から1品、日替わりで4割引
+// 特売: ゴールドショップの中から3品を5割引・4割引・3割引に。日替わりで、ショップを更新すると選び直す
+const SHOP_SALE_DISCOUNTS = [0.5, 0.4, 0.3];
+// ショップの更新: 水晶を払うと、ゴールドショップの商品が全部もう一度買えるようになり、特売品も入れ替わる(1日3回まで)
+const SHOP_REFRESH_COSTS = [50, 100, 150];
 function dayHash(str){ let h = 0; for(let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
-function todaysSaleSku(){ return SHOP_GOLD_ITEMS[dayHash(currentDayKey()) % SHOP_GOLD_ITEMS.length].sku; }
 function shopDailyState(){
   const key = currentDayKey();
-  if(!STATE.shopDaily || STATE.shopDaily.key !== key) STATE.shopDaily = { key, bought: {} };
+  if(!STATE.shopDaily || STATE.shopDaily.key !== key) STATE.shopDaily = { key, bought: {}, refresh: 0 };
   return STATE.shopDaily;
 }
+// sku → 割引率。日付と更新回数から決まるので、同じ日・同じ更新回数なら何度開いても同じ
+function shopSaleMap(day){
+  const st = day || shopDailyState();
+  let h = dayHash(`${st.key}:${st.refresh || 0}`);
+  const pool = SHOP_GOLD_ITEMS.map(d => d.sku);
+  const out = {};
+  SHOP_SALE_DISCOUNTS.forEach(d => {
+    const i = h % pool.length;
+    out[pool.splice(i, 1)[0]] = d;
+    h = (Math.imul(h ^ (h >>> 13), 2654435761) + 12345) >>> 0;
+  });
+  return out;
+}
+function todaysSaleSku(){ return Object.keys(shopSaleMap())[0]; }   // いちばん割引の大きい品
 function shopBought(sku){ return !!shopDailyState().bought[sku]; }
-function shopGoldPrice(def){ return def.sku === todaysSaleSku() ? Math.max(1, Math.round(def.price * (1 - SHOP_SALE_DISCOUNT))) : def.price; }
+function shopGoldPrice(def){
+  const d = shopSaleMap()[def.sku];
+  return d ? Math.max(1, Math.round(def.price * (1 - d))) : def.price;
+}
+function shopRefreshCost(){ const n = shopDailyState().refresh || 0; return n < SHOP_REFRESH_COSTS.length ? SHOP_REFRESH_COSTS[n] : null; }
+function refreshShop(){
+  const st = shopDailyState();
+  const cost = shopRefreshCost();
+  if(cost === null){ toast('本日の更新は終わりました(1日3回まで)'); return; }
+  if((STATE.crystals || 0) < cost){ toast('水晶が足りません'); return; }
+  STATE.crystals -= cost;
+  st.refresh = (st.refresh || 0) + 1;
+  SHOP_GOLD_ITEMS.forEach(d => { delete st.bought[d.sku]; });
+  playSfx('buff');
+  toast('ショップを更新しました。商品がまた買えます');
+  saveState();
+  render();
+}
 function buyShopItem(currency, sku){
   const st = shopDailyState();
   if(st.bought[sku]){ toast('本日は購入済みです'); return; }
@@ -7619,15 +7656,17 @@ function renderBase(){
 
 let shopTab = 'gold';
 function renderShop(){
-  const saleSku = todaysSaleSku();
+  const sale = shopSaleMap();
+  const refreshCost = shopRefreshCost();
+  const refreshLeft = SHOP_REFRESH_COSTS.length - (shopDailyState().refresh || 0);
   const goldRow = def => {
     const bought = shopBought(def.sku);
-    const onSale = def.sku === saleSku;
-    const price = onSale ? shopGoldPrice(def) : def.price;
+    const onSale = !!sale[def.sku];
+    const price = shopGoldPrice(def);
     return `
       <div class="shop-row">
         <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}${def.qty > 1 ? `×${def.qty}` : ''}</span></span>
-        <span class="shop-price">${onSale ? `<span class="shop-old-price">${goldText(def.price)}</span>` : ''}${goldText(price)}${onSale ? '<span class="shop-sale-badge">特売</span>' : ''}</span>
+        <span class="shop-price">${onSale ? `<span class="shop-old-price">${goldText(def.price)}</span>` : ''}${goldText(price)}${onSale ? `<span class="shop-sale-badge">${Math.round(sale[def.sku] * 100)}%OFF</span>` : ''}</span>
         <button class="btn btn-sm ${bought || (STATE.gold || 0) < price ? 'btn-ghost' : ''}" data-shop-buy="gold:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
       </div>`;
   };
@@ -7657,8 +7696,12 @@ function renderShop(){
       <button class="stage-tab ${shopTab === 'crystal' ? 'on' : ''}" data-shop-tab="crystal">水晶ショップ</button>
     </div>
     ${shopTab === 'gold' ? `
-      <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。本日の特売品は${Math.round(SHOP_SALE_DISCOUNT * 100)}%引きです。</div>
-      <div class="panel facility">${SHOP_GOLD_ITEMS.map(goldRow).join('')}</div>
+      <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。特売品は毎日3品(${SHOP_SALE_DISCOUNTS.map(d => `${Math.round(d * 100)}%`).join('・')}引き)。</div>
+      <div class="shop-refresh">
+        <span>🔄 ショップ更新<small>商品がまた買えるようになり、特売品も入れ替わります(本日あと${refreshLeft}回)</small></span>
+        <button class="btn btn-sm ${refreshCost !== null && (STATE.crystals || 0) >= refreshCost ? '' : 'btn-ghost'}" data-shop-refresh="1" ${refreshCost === null ? 'disabled' : ''}>${refreshCost === null ? '本日終了' : `更新 ${CRYSTAL_ICON}${refreshCost}`}</button>
+      </div>
+      <div class="panel facility">${SHOP_GOLD_ITEMS.slice().sort((a, b) => (sale[b.sku] || 0) - (sale[a.sku] || 0)).map(goldRow).join('')}</div>
     ` : shopTab === 'pvp' ? `
       <div class="screen-sub">PVPの勝敗で得たPVPポイントと交換できます(1商品1日1回まで)。</div>
       <div class="panel facility">${SHOP_PVP_ITEMS.map(pvpRow).join('')}</div>
@@ -14451,6 +14494,7 @@ function handlePhoneClick(ev){
     render();
     return;
   }
+  if(t.closest('[data-shop-refresh]')){ refreshShop(); return; }
   const shopBuyEl = t.closest('[data-shop-buy]');
   if(shopBuyEl){
     const raw = shopBuyEl.dataset.shopBuy;
@@ -15131,6 +15175,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 72, version: 'α0.1.031', date: '9/25', title: 'ショップの更新と特売品を追加', body: 'ゴールドショップに「ショップ更新」を追加しました。水晶を払うと、その日に買った商品がもう一度買えるようになり、特売品も入れ替わります。1日3回まで、費用は50→100→150水晶です。あわせて特売品を1品から3品に増やしました(50%・40%・30%引き)。特売品はリストの上にまとめて表示されます。' },
   { id: 71, version: 'α0.1.030', date: '9/25', title: '初心者ガチャを10連×3回に・フォロワーが0人になる不具合を修正', body: '初心者ガチャを、30連まとめてではなく10連を3回に分けて引けるようにしました(1回あたり通常の10連と同じ消費)。3回目までに★5が1体も出なければ、3回目の最後の1枠が★5確定です。結果画面から続けて次の回を引くこともできます。すでに30連を引いた方は利用済みのままです。また、相互フレンドなのにフォロワーが0人と表示される不具合を修正しました。以前の版で「フレンドを返す」とフォロワーの記録が消えていたことなどが原因です。フレンドがこの版でゲームを起動すると、フォロワーの記録が自動で直ります。' },
   { id: 70, version: 'α0.1.029', date: '9/25', title: '深淵回廊に階層報酬の一覧を追加', body: '深淵回廊の画面の下に「階層報酬」を追加しました。5階ごとのボス階でどんな報酬が貰えるかを、階の順に並べています(25階ごとは大報酬)。受け取り済みの階には✓が付き、次のボス階が光ります。また、深淵回廊はスタミナを使わないため、戦闘結果の画面にスタミナを表示しないようにしました。' },
   { id: 69, version: 'α0.1.028', date: '9/25', title: '探索をメニュー形式に・深淵回廊の案内を追加', body: '探索を開くと「メインクエスト」「育成クエスト」「深淵回廊」「イベント」のメニューが出るようになりました。選ぶとそれぞれの画面に進み、左上の「戻る」でメニューに戻れます。戦闘のあとは遊んでいた画面に戻ります。また、深淵回廊を初めて開いたときに、門番のアヌビスが遊び方(無限に続く回廊・5階ごとのボスとチェックポイント・2週間ごとのリセット)を案内するようにしました。' },
