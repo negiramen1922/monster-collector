@@ -149,7 +149,7 @@ const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
 const slotCap = e => Math.round(e.pct * capMult * 100);
 const CAP_BY_STAR = { 5:30, 4:25, 3:25, 2:20, 1:20 };
 // 確定データ(docs/design/新規遺物56種.json)がルール表から外れている枠。データのまま実装している
-const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33, 'rel_raiden_scale:0':20, 'rel_tyrfing:1':40, 'rel_andvari_ring:2':15 };
+const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33, 'rel_andvari_ring:2':15 };
 const off = [];
 Object.values(E.RELICS).forEach(r => r.effects.forEach((e, i) => {
   const want = DATA_EXCEPTIONS[`${r.id}:${i}`] || (e.stat === 'cut' ? 20 : r.channel === 'distributed' ? 15
@@ -158,6 +158,7 @@ Object.values(E.RELICS).forEach(r => r.effects.forEach((e, i) => {
 }));
 ok('全56種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
 ok('遺物は56種', Object.keys(E.RELICS).length === 56);
+ok('全遺物にアイコンがある', Object.values(E.RELICS).every(r => typeof r.icon === 'string' && r.icon.includes('data:image')), Object.values(E.RELICS).filter(r => !r.icon).map(r => r.id));
 const gachaMin = Math.min(...Object.values(E.RELICS).filter(r => r.channel !== 'distributed').flatMap(r => r.effects.filter(e => e.stat !== 'cut').map(slotCap)));
 const distMax = Math.max(...Object.values(E.RELICS).filter(r => r.channel === 'distributed').flatMap(r => r.effects.map(slotCap)));
 ok('配布の枠はガチャ産のどの枠(被ダメージカットを除く)より弱い', distMax < gachaMin, [distMax, gachaMin]);
