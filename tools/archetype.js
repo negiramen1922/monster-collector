@@ -78,8 +78,8 @@ function feat(k){
 /* 各ロールの傾向。上から順に判定し、最初に当たったものを採用する(優先順位つき)。 */
 const RULES = {
   attacker: [
-    ['チャージ型',   f => f.charge],
     ['シナジー型',   f => f.synergy],
+    ['チャージ型',   f => f.charge],
     ['手数型',       f => f.hits >= 3 || (f.hits >= 2 && f.hitSlots >= 2)],
     ['吸収型',       f => f.lifesteal >= 2 || (f.lifesteal >= 1 && f.pHeal)],
     ['処刑型',       f => f.exec >= 1],
@@ -88,8 +88,8 @@ const RULES = {
     ['単体高火力型', () => true],
   ],
   shooter: [
-    ['チャージ型',   f => f.charge],
     ['シナジー型',   f => f.synergy],
+    ['チャージ型',   f => f.charge],
     ['貫通型',       f => f.pierce >= 1],
     ['後衛狙撃型',   f => f.back >= 1],
     ['状態異常型',   f => f.st >= 2],
@@ -108,6 +108,7 @@ const RULES = {
   ],
   tank: [
     ['回避型',         f => f.pEvade || f.evadeBuff],
+    ['シナジー型',     f => f.synergy],
     ['チャージ型',     f => f.charge],
     ['自動シールド型', f => f.pShield],
     ['自己再生型',     f => !f.taunt && (f.pRegen || f.heal >= 2)],
