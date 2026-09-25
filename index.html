@@ -869,6 +869,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gr-best-top .star{ font-size:11px; letter-spacing:-.5px; color:var(--gold); }
 .gr-best-name{ font-size:16px; font-weight:800; margin-top:3px; }
 .gr-best-sub{ font-size:10.5px; color:var(--dim); margin-top:3px; }
+.gr-share{ margin:4px 0 10px; }
+.gr-share-bonus{ font-weight:900; margin-left:4px; }
 .rc-dup{ font-size:8.5px; font-weight:800; padding:1px 6px; border-radius:6px; background:var(--panel3); color:var(--dim); }
 .gr-gains{ text-align:left; margin-bottom:10px; }
 .gr-gains .result-grid{ margin:8px 0 0; }
@@ -2465,7 +2467,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.021';
+const GAME_VERSION = 'α0.1.022';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4016,7 +4018,8 @@ const DEFAULT_STATE = () => ({
   borrowed: null,   // { uid, name, mon:{...} } - the friend's お助けキャラ currently on loan
   friendPoints: 0,
   followerCount: 0,
-  resonance: 0,     // 共鳴石(遺物版の無形のソウル) // 自分をフレンドに追加している人の数(フレンド画面を開いたときに取り直す)
+  resonance: 0,
+  shareDaily: null, // { key } ガチャ結果をSNS共有した日(結晶+10は1日1回)     // 共鳴石(遺物版の無形のソウル) // 自分をフレンドに追加している人の数(フレンド画面を開いたときに取り直す)
   friendSendDaily: null,   // { key, sent: { [friendUid]: true } } - 1回/日/フレンド
   tierChests: {},   // `${tierKey}_${stars}` → true once that milestone chest is claimed
   relics: {},       // defId → { level, wall, skillLv, dupe, dupeUsed, equippedTo }
@@ -8126,6 +8129,7 @@ function showRelicGachaFinalResult(results){
   const best = results.slice().sort((a, b) => b.def.star - a.def.star || (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0))[0];
   const newCount = results.filter(r => r.isNew).length;
   const again = results.length === 10 ? PULL10_COST : PULL_COST;
+  gachaShareText = gachaShareTextFor('relic', results);
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.def.star >= 5 ? 'best5' : best.def.star >= 4 ? 'best4' : ''}">
       <div class="gr-title pixel">RESULT</div>
@@ -8159,6 +8163,7 @@ function showRelicGachaFinalResult(results){
       <div class="gr-chips">
         ${newCount ? `<span class="gain-chip"><b class="gr-new">NEW</b> 新規 ${newCount}個</span>` : ''}
       </div>
+      ${gachaShareButtonHtml()}
 
       <div class="br-buttons">
         <button class="btn btn-ghost" id="close-result">閉じる</button>
@@ -8841,6 +8846,54 @@ function finishGachaEggs(){
   else showGachaResults(results, before);
 }
 
+/* ---- ガチャ結果のSNS共有: 共有すると結晶+10(1日1回)。共有シートが使える端末は
+   navigator.share、使えない端末はXの投稿画面を開く。実際に投稿されたかは確かめられないので、
+   共有シートを最後まで進めた(キャンセルしなかった)か、投稿画面を開いた時点で付与する ---- */
+const SHARE_REWARD_CRYSTALS = 10;
+const SHARE_URL = 'https://negiramen1922.github.io/monster-collector/';
+let gachaShareText = '';
+function shareRewardReady(){ return !STATE.shareDaily || STATE.shareDaily.key !== currentDayKey(); }
+function gachaShareTextFor(kind, results){
+  const top = (kind === 'relic'
+    ? results.slice().sort((a, b) => b.def.star - a.def.star)[0]
+    : results.slice().sort((a, b) => b.mon.rarity - a.mon.rarity)[0]);
+  const star = kind === 'relic' ? top.def.star : top.mon.rarity;
+  const name = kind === 'relic' ? top.def.name : top.mon.name;
+  const what = kind === 'relic' ? '遺物ガチャ' : 'ガチャ';
+  const count = results.length > 1 ? `${results.length}連` : '';
+  const highs = kind === 'relic' ? results.filter(r => r.def.star >= 4).length : results.filter(r => r.mon.rarity >= 4).length;
+  return `モンコレで${what}${count}を引いたら★${star}「${name}」が出た!${highs > 1 ? `(★4以上 ${highs}体)` : ''}\n#モンコレ #Monstercollect`;
+}
+function gachaShareButtonHtml(){
+  const ready = shareRewardReady();
+  return `<button class="btn btn-block gr-share ${ready ? '' : 'btn-ghost'}" data-gacha-share="1">
+    SNSで共有${ready ? ` <span class="gr-share-bonus">${CRYSTAL_ICON}+${SHARE_REWARD_CRYSTALS}</span>` : '(本日の報酬は受け取り済み)'}
+  </button>`;
+}
+function grantShareReward(){
+  if(!shareRewardReady()) return;
+  STATE.shareDaily = { key: currentDayKey() };
+  STATE.crystals += SHARE_REWARD_CRYSTALS;
+  track('share');
+  saveState();
+  toast(`共有ありがとうございます!結晶+${SHARE_REWARD_CRYSTALS}`);
+  document.querySelectorAll('[data-gacha-share]').forEach(b => { b.outerHTML = gachaShareButtonHtml(); });
+  render();
+}
+async function shareGachaResult(){
+  const text = gachaShareText || 'モンコレで遊んでいます!\n#モンコレ #Monstercollect';
+  if(navigator.share){
+    try{ await navigator.share({ title: 'Monstercollect(モンコレ)', text, url: SHARE_URL }); }
+    catch(e){ return; }            // キャンセル(AbortError)などは報酬なし
+    grantShareReward();
+    return;
+  }
+  const url = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(SHARE_URL)}`;
+  const w = window.open(url, '_blank');
+  if(!w){ toast('共有画面を開けませんでした'); return; }   // ポップアップが止められたときは報酬なし
+  try{ w.opener = null; }catch(e){}
+  grantShareReward();
+}
 function showGachaResults(results, before){
   const layer = document.getElementById('modal-layer');
   const gainedUniversal = STATE.universalSouls - before.universal;
@@ -8850,6 +8903,7 @@ function showGachaResults(results, before){
   const dupCount = results.length - newCount;
   const canRetry = results.length === 1 || results.length === 10;
   const again = results.length === 10 ? PULL10_COST : PULL_COST;
+  gachaShareText = gachaShareTextFor('mon', results);
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''}">
       <div class="gr-title pixel">RESULT</div>
@@ -8894,6 +8948,7 @@ function showGachaResults(results, before){
         ${newCount ? `<span class="gain-chip"><b class="gr-new">NEW</b> 新規 ${newCount}体</span>` : ''}
         <span class="gain-chip">召喚ポイント +${gainedPoints}・${STATE.summonPoints} / ${SPARK_POINTS}</span>
       </div>
+      ${gachaShareButtonHtml()}
 
       <div class="br-buttons">
         <button class="btn btn-ghost" id="close-result">閉じる</button>
@@ -13808,6 +13863,7 @@ function handlePhoneClick(ev){
     return;
   }
 
+  if(t.closest('[data-gacha-share]')){ shareGachaResult(); return; }
   const againEl = t.closest('[data-pull-again]');
   if(againEl){
     const n = Number(againEl.dataset.pullAgain);
@@ -14672,6 +14728,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 63, version: 'α0.1.022', date: '9/25', title: 'ガチャ結果をSNSで共有', body: 'ガチャ(モンスター・遺物)の結果画面に「SNSで共有」ボタンを追加しました。共有すると結晶+10がもらえます(1日1回)。スマホでは共有シートから好きなアプリを選べ、共有シートが無い環境ではXの投稿画面が開きます。' },
   { id: 62, version: 'α0.1.021', date: '9/25', title: 'ミッション追加・★4キャラ選択券・共鳴石', body: 'デイリーミッション「探索を3回クリアする」を、周回と育成ダンジョンでも数えるようにしました。デイリーに「遺物を1回強化する」「PVPを1回する」、ウィークリーに「PVPを10回する」を追加しました。デイリーのまとめ報酬は、8つのうち5つ達成で受け取れます。初心者ミッションに「はじめてガイド2」として10のミッションを追加し、すべて達成すると★4キャラ選択券(★4から好きな1体と交換)と結晶500がもらえます。すでにはじめてガイドを終えた人も、続きとして受け取れます。ガチャでピックアップ中のキャラを引くと、新規でも重複でもソウルが追加でもらえます(★4:+50、★5:+150)。遺物ガチャを引くと「共鳴石」が貯まり、好きな遺物の覚醒1回分と交換できます(★5なら300個)。万能ソウルは「無形のソウル」に名前を変えました(まだどんな形にもなれるソウル)。イベントの属性遺物は、10層で完凸するように配り方を広げました(1・3・6・8・10層)。' },
   { id: 61, version: 'α0.1.020', date: '9/25', title: 'フレンド画面の作り直しと自己紹介', body: 'フレンド画面を開くと、まずフレンドリストが出るようにしました。コード入力欄のあった場所は「フレンドを追加」ボタンになり、追加画面では名前かIDで検索できます。何も入れていないときは、最近7日以内に遊んでいるテイマーから「おすすめユーザー」を表示します。プロフィールとフレンド画面にフォロー数(自分が追加したフレンド)とフォロワー数(自分を追加している人)を出し、フォロワー一覧から「フレンドを返す」ができます。プロフィールには自己紹介(100文字まで)を書けるようになり、他のテイマーのプロフィールにも表示されます。' },
   { id: 60, version: 'α0.1.019', date: '9/25', title: '図鑑の右端が切れる不具合を修正', body: 'スマホの幅によっては、図鑑のいちばん右の列が画面からはみ出して切れていたのを直しました。名前の長いキャラ(リヴァイアサンなど)が入ると列が広がっていたためで、今は長い名前は「…」で省略されます。遺物図鑑やかばんなど、同じ並べ方の画面も合わせて直しています。' },
