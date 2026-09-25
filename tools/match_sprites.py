@@ -61,7 +61,8 @@ def main(thumbs_path):
     n = max([FIRST_SPRITE - 1] + [int(v['sprite']) for v in prev.values()])
     out, missing = {}, []
     for name in ORDER:
-        f = hit.get(name) or (prev.get(name) or {}).get('file')
+        # 手で決めた対応(sprite_map.json に書いたもの)を照合結果より優先する
+        f = (prev.get(name) or {}).get('file') or hit.get(name)
         if not f:
             missing.append(name); continue
         if name in prev:
