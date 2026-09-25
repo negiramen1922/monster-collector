@@ -197,6 +197,16 @@ body{
 .ms-state{ font-size:11.5px; font-weight:800; color:var(--dim2); }
 .ms-state.claim{ color:var(--gold); }
 .mission[data-claim]{ cursor:pointer; }
+.announce-modal{ text-align:left; }
+.announce-modal .an-head{ text-align:center; font-size:22px; font-weight:900; color:var(--gold); letter-spacing:.06em; margin-bottom:10px; }
+.announce-modal .an-list{ max-height:62vh; overflow-y:auto; margin-bottom:10px; }
+.an-item{ display:flex; gap:10px; align-items:flex-start; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+.an-item.level{ border-color:var(--gold); }
+.an-icon{ font-size:24px; flex:none; width:30px; text-align:center; }
+.an-body{ flex:1; min-width:0; }
+.an-body b{ font-size:14px; }
+.an-body p{ margin:3px 0 0; font-size:12px; color:var(--dim); line-height:1.6; }
+.an-stam{ margin-top:5px; font-size:12.5px; font-weight:800; color:var(--gold); }
 .reward-modal .rm-list{ font-size:11.5px; color:var(--dim); line-height:1.8; margin-bottom:12px; }
 .rm-rewards{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:14px; }
 .rm-rewards .rw{ font-size:14px; padding:4px 10px; }
@@ -2506,7 +2516,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.031';
+const GAME_VERSION = 'α0.1.032';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4181,6 +4191,7 @@ function normalizeState(){
 function saveState(){
   if(!STATE) return;
   checkTamerLevelUp();
+  checkUnlocks();
   STATE.savedAt = Date.now();   // when the data changed, not when it reached the disk:
   clearTimeout(saveTimer);      // the cloud compares this to decide which device is newer
   saveTimer = setTimeout(async () => {
@@ -7885,6 +7896,7 @@ function goto(screen){
   if(screen === 'relics' && (!STATE.guidesSeen || !STATE.guidesSeen.relics)){
     openGuideToast('pixie', GUIDE_CONTENT.relics.steps, { key: 'relics' });
   }
+  showAnnouncements();
 }
 
 function toast(msg){
@@ -14329,6 +14341,7 @@ function handlePhoneClick(ev){
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
     layer.innerHTML = '';
+    showAnnouncements();   // 報酬を受け取ってレベルが上がった、などをこのまま続けて知らせる
     return;
   }
   if(t.closest('[data-close-detail]')){
@@ -15175,6 +15188,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 73, version: 'α0.1.032', date: '9/25', title: 'レベルアップ・コンテンツ解放のお知らせを追加', body: 'テイマーのレベルが上がったときや、クエストを進めて新しいコンテンツ(育成クエストの段階・拠点の施設・ハードモード・新しい難易度・深淵回廊・倍速など)が解放されたときに、何が起きたかを画面の真ん中でお知らせするようにしました。戦闘の結果画面を閉じたあとに、まとめて1回だけ表示されます。レベルアップで回復したスタミナの量もここで確認できます。' },
   { id: 72, version: 'α0.1.031', date: '9/25', title: 'ショップの更新と特売品を追加', body: 'ゴールドショップに「ショップ更新」を追加しました。水晶を払うと、その日に買った商品がもう一度買えるようになり、特売品も入れ替わります。1日3回まで、費用は50→100→150水晶です。あわせて特売品を1品から3品に増やしました(50%・40%・30%引き)。特売品はリストの上にまとめて表示されます。' },
   { id: 71, version: 'α0.1.030', date: '9/25', title: '初心者ガチャを10連×3回に・フォロワーが0人になる不具合を修正', body: '初心者ガチャを、30連まとめてではなく10連を3回に分けて引けるようにしました(1回あたり通常の10連と同じ消費)。3回目までに★5が1体も出なければ、3回目の最後の1枠が★5確定です。結果画面から続けて次の回を引くこともできます。すでに30連を引いた方は利用済みのままです。また、相互フレンドなのにフォロワーが0人と表示される不具合を修正しました。以前の版で「フレンドを返す」とフォロワーの記録が消えていたことなどが原因です。フレンドがこの版でゲームを起動すると、フォロワーの記録が自動で直ります。' },
   { id: 70, version: 'α0.1.029', date: '9/25', title: '深淵回廊に階層報酬の一覧を追加', body: '深淵回廊の画面の下に「階層報酬」を追加しました。5階ごとのボス階でどんな報酬が貰えるかを、階の順に並べています(25階ごとは大報酬)。受け取り済みの階には✓が付き、次のボス階が光ります。また、深淵回廊はスタミナを使わないため、戦闘結果の画面にスタミナを表示しないようにしました。' },
@@ -15276,8 +15290,80 @@ function checkTamerLevelUp(){
   const ups = lv - STATE.tamerLvSeen;
   STATE.tamerLvSeen = lv;
   grantStamina(ups * TAMER_LEVELUP_STAMINA, 'テイマーレベルアップ');
-  toast(`テイマーLv.${lv}に上がった!スタミナ+${ups * TAMER_LEVELUP_STAMINA}`);
+  queueAnnouncement({ kind: 'level', icon: '⬆️', title: `テイマーLv.${lv}にアップ!`,
+    body: `レベルアップのお祝いにスタミナが${ups * TAMER_LEVELUP_STAMINA}回復しました。`, stamina: ups * TAMER_LEVELUP_STAMINA });
   playSfx('promote');
+}
+
+/* ---- お知らせ(レベルアップ・コンテンツ解放): 起きたことを一度だけ、画面の真ん中にまとめて出す ----
+   戦闘中や結果画面の上には出さず、結果を閉じて画面を移ったとき(goto)に表示する。
+   起動し直しても消えないよう STATE.announceQueue に積んでおく。 */
+function unlockDefs(){
+  const st = id => STAGE_BY_ID[id] ? `「${STAGE_BY_ID[id].name}」` : '';
+  const has = id => STATE.clearedStages.includes(id);
+  const defs = [
+    { key: 'tutorial', icon: '🌱', title: '育成クエスト・イベントが解放', body: '探索メニューから、EXP・ゴールド・素材を集める「育成クエスト」と、期間限定の「イベント」に挑戦できるようになりました。', ok: tutorialCleared() },
+    { key: 'speed', icon: '⏩', title: '倍速が解放', body: '戦闘を2倍速・3倍速で進められるようになりました。戦闘中の速度ボタンや設定から切り替えられます。', ok: speedUnlocked() },
+    { key: 'abyss', icon: '🌀', title: '深淵回廊が解放', body: 'スタミナを使わない無限の回廊に挑めるようになりました。探索メニューの「深淵回廊」からどうぞ。', ok: abyssUnlocked() },
+  ];
+  ['lab', 'alchemy', 'smithy'].forEach(k => {
+    if(FACILITY_UNLOCK[k]) defs.push({ key: `fac_${k}`, icon: FACILITIES[k].icon, title: `拠点に「${FACILITIES[k].name}」が解放`,
+      body: `${st(FACILITY_UNLOCK[k])}のクリアで、拠点の${FACILITIES[k].name}が使えるようになりました。${FACILITIES[k].desc}。`, ok: has(FACILITY_UNLOCK[k]) });
+  });
+  FACILITY_LV_UNLOCK.forEach((id, lv) => {
+    if(id) defs.push({ key: `faclv_${lv}`, icon: '🏗️', title: `拠点の施設をLv${lv}まで拡張できるように`,
+      body: '鉱山・研究所・工房をさらに拡張できます。拡張するほど放置で溜まる量が増えます。', ok: has(id) });
+  });
+  DUNGEON_TIER_UNLOCK.forEach((id, i) => {
+    if(i > 0) defs.push({ key: `dg_${i + 1}`, icon: '🌱', title: `育成クエストの段階${i + 1}が解放`,
+      body: 'EXP・ゴールド・素材のダンジョンに、報酬の多い上の段階が追加されました。', ok: has(id) });
+  });
+  QUEST_TIERS_ACTIVE.filter(t => t.key !== 'tu' && !t.hidden).forEach(t => {
+    defs.push({ key: `tier_${t.key}`, icon: t.hard ? '💀' : '🗺️', title: t.hard ? `ハードモード「${t.label}」が解放` : `メインクエスト「${t.label}」が解放`,
+      body: t.hard ? '敵がぐっと強くなる代わりに報酬が豪華なハードモードに挑めます。クエスト画面の「ハードモード」から切り替えられます。'
+        : `新しい難易度「${t.label}」のクエストに挑めるようになりました(推奨Lv${t.lv[0]}〜)。`, ok: tierUnlocked(t.key) });
+  });
+  return defs;
+}
+function queueAnnouncement(a){
+  if(!STATE.announceQueue) STATE.announceQueue = [];
+  // レベルアップが続いたときは1件にまとめる(スタミナは合計)
+  const prev = a.kind === 'level' && STATE.announceQueue.find(x => x.kind === 'level');
+  if(prev){ prev.title = a.title; prev.stamina = (prev.stamina || 0) + a.stamina; prev.body = `レベルアップのお祝いにスタミナが${prev.stamina}回復しました。`; }
+  else STATE.announceQueue.push(a);
+}
+function checkUnlocks(){
+  if(!STATE || !STATE.clearedStages) return;
+  const defs = unlockDefs();
+  // 初めてこの仕組みが動いたとき(既存のセーブ)は、今開いているものを「お知らせ済み」にして黙って始める
+  if(!STATE.unlocksSeen){ STATE.unlocksSeen = {}; defs.forEach(d => { if(d.ok) STATE.unlocksSeen[d.key] = true; }); return; }
+  defs.forEach(d => {
+    if(!d.ok || STATE.unlocksSeen[d.key]) return;
+    STATE.unlocksSeen[d.key] = true;
+    queueAnnouncement({ kind: 'unlock', key: d.key, icon: d.icon, title: d.title, body: d.body });
+  });
+}
+function showAnnouncements(){
+  if(!STATE || !STATE.announceQueue || !STATE.announceQueue.length) return false;
+  const layer = document.getElementById('modal-layer');
+  if(!layer || layer.classList.contains('show') || currentScreen === 'battle-fight' || guideToastState) return false;
+  const list = STATE.announceQueue;
+  STATE.announceQueue = [];
+  const lv = list.find(a => a.kind === 'level');
+  layer.innerHTML = `
+    <div class="result-modal announce-modal" role="dialog" aria-label="お知らせ">
+      <div class="an-head">${lv ? 'LEVEL UP!' : 'NEW!'}</div>
+      <div class="an-list">${list.map(a => `
+        <div class="an-item ${a.kind}">
+          <span class="an-icon">${a.icon}</span>
+          <div class="an-body"><b>${a.title}</b><p>${a.body}</p>${a.stamina ? `<div class="an-stam">⚡ +${a.stamina}(いまのスタミナ ${STATE.stamina})</div>` : ''}</div>
+        </div>`).join('')}</div>
+      <button class="btn btn-block" id="close-result">OK</button>
+    </div>`;
+  layer.classList.add('show');
+  playSfx('promote');
+  saveState();
+  return true;
 }
 function tamerLevel(){
   const xp = tamerXp();
