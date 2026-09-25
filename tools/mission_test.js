@@ -6,7 +6,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   DEFAULT_STATE, DAILY_MISSIONS, WEEKLY_MISSIONS, BEGINNER_MISSIONS, BEGINNER_PART1, missionEntries, claimMission, track,
   grantDungeonRewards, grantStageRewards, findStage, dungeonStage, runSweep, ensureDaily, ensureWeekly, baseState,
-  beginnerAllDone, buyShopItem, SHOP_GOLD_ITEMS, renderMissions, renderBeginnerCard, useMonTicket, pullOne, currentBanner, EVENTS,
+  beginnerAllDone, pullRelicOne, resonateRelic, RELICS, RESONANCE_PER_DUPE, grantRelic, buyShopItem, SHOP_GOLD_ITEMS, renderMissions, renderBeginnerCard, useMonTicket, pullOne, currentBanner, EVENTS,
   set tab(v){ missionTab = v; },
 };`);
 const E = global.__e;
@@ -37,7 +37,11 @@ E.track('relicUpgrade', 1);
 ok('遺物を強化するとデイリーが受け取れる', entry('d:d_relic').state === 'claim');
 for(let i = 0; i < 10; i++) E.track('pvpBattle');
 ok('PVP 1回でデイリー、10回でウィークリーが受け取れる', entry('d:d_pvp').state === 'claim' && entry('w:w_pvp').state === 'claim');
-ok('デイリーのすべて達成は8個になる', entry('d:all').goal === E.DAILY_MISSIONS.length && E.DAILY_MISSIONS.length === 8, entry('d:all').goal);
+ok('デイリーは8個、まとめ報酬は5つ達成で受け取れる', E.DAILY_MISSIONS.length === 8 && entry('d:all').goal === 5, entry('d:all').goal);
+['d_login', 'd_clear', 'd_relic', 'd_pvp'].forEach(id => E.claimMission('d:' + id));
+ok('4つではまだ受け取れない', entry('d:all').state === 'progress');
+E.track('gachaPull'); E.claimMission('d:d_gacha');
+ok('5つ達成で受け取れる', entry('d:all').state === 'claim');
 
 // --- はじめてガイド2: 1〜10を終えた人 ---
 api.STATE = E.DEFAULT_STATE();
@@ -62,8 +66,9 @@ E.baseState().mine.lv = 2; E.claimMission('b:b17');
 T.stageStars = { dg_gold_0: 1, dg_exp_0: 1 }; E.claimMission('b:b18'); E.claimMission('b:b19');
 ok('b12〜b19 を順に受け取れる', T.beginnerStep === 20, T.beginnerStep);
 ok('ガイド2のすべて達成が受け取れる', entry('b:all2').state === 'claim');
+const cBefore = T.crystals;
 E.claimMission('b:all2');
-ok('ガイド2のすべて達成で★4キャラ選択券がもらえる', (T.items.mon_sel_4 || 0) === 1);
+ok('ガイド2のすべて達成で★4キャラ選択券と結晶500がもらえる', (T.items.mon_sel_4 || 0) === 1 && T.crystals - cBefore === 500, T.crystals - cBefore);
 ok('両方のボーナスを受け取ると初心者タブが消える', E.beginnerAllDone());
 const star4 = api.MONSTERS.filter(m => m.rarity === 4);
 ok('★5のキャラは★4選択券で受け取れない', E.useMonTicket('mon_sel_4', api.MONSTERS.find(m => m.rarity === 5).id) === null && T.items.mon_sel_4 === 1);
@@ -101,4 +106,18 @@ api.STATE.beginnerStep = 3;
 ok('ガイド1の途中なら b11 はまだロック', entry('b:b11').state === 'locked' && entry('b:all2').state === 'locked');
 api.STATE.clearedStages = api.STAGES.map(s => s.id);
 ok('ミッション画面が描ける', typeof E.renderMissions() === 'string' && E.renderBeginnerCard() !== undefined);
+// --- 共鳴石 ---
+api.STATE = E.DEFAULT_STATE();
+const V = api.STATE;
+const r0 = E.pullRelicOne();
+ok('遺物ガチャを引くと★に応じた共鳴石が貯まる', V.resonance === r0.resonance && r0.resonance >= 1, [V.resonance, r0.def.star]);
+const five = Object.values(E.RELICS).find(r => r.star === 5);
+E.grantRelic(five);
+V.resonance = E.RESONANCE_PER_DUPE[5] - 1;
+E.resonateRelic(five.id);
+ok('共鳴石が足りないと覚醒できない', (V.relics[five.id].dupeUsed || 0) === 0 && V.resonance === 749);
+V.resonance = 800;
+E.resonateRelic(five.id);
+ok('★5は共鳴石750で覚醒1回', V.relics[five.id].dupeUsed === 1 && V.resonance === 50, [V.relics[five.id].dupeUsed, V.resonance]);
+ok('交換レートはキャラと同じ(重複ソウル×5)', E.RESONANCE_PER_DUPE[5] === 150 * 5 && E.RESONANCE_PER_DUPE[4] === 50 * 5 && E.RESONANCE_PER_DUPE[3] === 30 * 5);
 console.log(fails ? `${fails}件失敗` : 'すべて通過');
