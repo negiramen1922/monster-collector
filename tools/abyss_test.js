@@ -1,7 +1,7 @@
 /* 深淵回廊(無限ダンジョン)の回帰テスト */
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, ensureAbyss, abyssStage, abyssSeasonIndex, abyssTheme, abyssFloorReward,
-  abyssOnFinish, applyAbyssSnapshot, startBattle, finishBattle, get battleUI(){ return battleUI; }, formationForFrontCount, lineupFromList,
+  abyssOnFinish, applyAbyssSnapshot, abyssGiveUp, abyssCanGiveUp, startBattle, finishBattle, get battleUI(){ return battleUI; }, formationForFrontCount, lineupFromList,
   isMeleeRole, MON_BY_ID, STAGES, useIdleItem, useStaminaItem, baseState, getItem, addItem, renderAbyssTab, stageStaminaCost, findStage,
   ACHIEVEMENTS, WEEKLY_MISSIONS, ABYSS_SEASON_DAYS, MAX_STAR };`);
 const E = global.__e;
@@ -81,6 +81,17 @@ ok('タブが描ける', E.renderAbyssTab().includes('深淵回廊'));
 // --- 上級クリア前は入れない ---
 S.clearedStages = ['tu1', 'tu2', 'tu3'];
 ok('上級をクリアするまでは挑戦できない', fight('ab_1') === null && E.renderAbyssTab().includes('クリアすると挑戦できます'));
+
+// --- 諦める: チェックポイントの次の階から全回復でやり直し ---
+S = setup(50); E.ensureAbyss();
+Object.assign(S.abyss, { floor: 18, checkpoint: 15, best: 17, snap: { m68: { hp: 0.1, sp: 0, alive: true } } });
+ok('チェックポイントより先にいるときは諦められる', E.abyssCanGiveUp() === true);
+E.abyssGiveUp();
+ok('諦めると16階(15階のチェックポイントの次)に戻り、HPの持ち越しが消える', S.abyss.floor === 16 && S.abyss.snap === null && S.abyss.best === 17, S.abyss);
+ok('チェックポイントの次の階では諦めるボタンは出ない', E.abyssCanGiveUp() === false && E.abyssGiveUp() === false);
+Object.assign(S.abyss, { floor: 3, checkpoint: 0 });
+E.abyssGiveUp();
+ok('チェックポイントがなければ1階に戻る', S.abyss.floor === 1);
 
 // --- アイテム ---
 S = setup(50);

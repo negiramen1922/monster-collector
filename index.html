@@ -2203,6 +2203,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ab-next{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin:8px 0 10px; font-size:12px; display:flex; flex-direction:column; gap:4px; }
 .ab-reward{ font-size:11px; color:var(--dim); display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
 .ab-chart{ margin-top:10px; }
+.ab-giveup{ margin-top:8px; }
+.abyss-giveup{ text-align:left; }
+.abyss-giveup h3{ margin:0 0 8px; color:var(--danger); }
+.abyss-giveup p{ font-size:13px; margin:0 0 6px; }
+.abyss-giveup ul{ margin:0 0 12px; padding-left:18px; font-size:12px; color:var(--dim); line-height:1.7; }
 .ab-timeline{ list-style:none; margin:0 0 8px; padding:0; position:relative; }
 .ab-timeline::before{ content:''; position:absolute; left:10px; top:8px; bottom:8px; width:2px; background:var(--line); }
 .ab-tl-row{ position:relative; display:flex; gap:10px; align-items:flex-start; padding:6px 0; }
@@ -2516,7 +2521,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.032';
+const GAME_VERSION = 'α0.1.033';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7191,6 +7196,37 @@ function abyssOnFinish(b, win){
     firstItems: reward.filter(r => r.type !== 'item' && r.type !== 'gold'),
   };
 }
+// 諦める: 勝てそうにない階で、最後のチェックポイントの次の階から(全回復して)やり直す
+function abyssCanGiveUp(){ const a = ensureAbyss(); return a.floor > a.checkpoint + 1; }
+function abyssGiveUp(){
+  const a = ensureAbyss();
+  if(!abyssCanGiveUp()) return false;
+  a.floor = a.checkpoint + 1;
+  a.snap = null;
+  saveState();
+  return true;
+}
+function showAbyssGiveUpConfirm(){
+  const a = ensureAbyss();
+  if(!abyssCanGiveUp()) return;
+  const restart = a.checkpoint + 1;
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal abyss-giveup" role="dialog" aria-label="諦める">
+      <h3>⚠️ 諦めますか?</h3>
+      <p>諦めると<b>チェックポイントからやり直し</b>になります。</p>
+      <ul>
+        <li>いまの<b>${a.floor}階</b>から、<b>${restart}階</b>(${a.checkpoint ? `${a.checkpoint}階のチェックポイントの次` : '最初'})に戻ります</li>
+        <li>パーティのHP・SPは全回復し、戦闘不能の仲間も復活します</li>
+        <li>${restart}〜${a.floor - 1}階の報酬は受け取り済みのため、もう一度は貰えません</li>
+      </ul>
+      <div class="br-buttons">
+        <button class="btn btn-ghost" id="close-result">やめる</button>
+        <button class="btn btn-danger" data-abyss-giveup-ok="1">諦めて${restart}階から</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
+}
 function renderAbyssTab(){
   if(!abyssUnlocked()) return `<div class="screen-sub" style="margin:28px 0;text-align:center;">上級「${STAGE_BY_ID[ABYSS_UNLOCK_STAGE].name}」をクリアすると挑戦できます</div>`;
   const a = ensureAbyss();
@@ -7223,6 +7259,7 @@ function renderAbyssTab(){
         ${nextMilestone !== a.floor ? `<div class="ab-reward">${nextMilestone}階 ${rewardHtml(abyssFloorReward(nextMilestone).slice(2))}</div>` : ''}
       </div>
       <button class="btn btn-block" data-start-stage="ab_${a.floor}">${a.floor}階に挑戦する</button>
+      ${abyssCanGiveUp() ? `<button class="btn btn-ghost btn-block btn-sm ab-giveup" data-abyss-giveup="1">🏳️ 諦めて${a.checkpoint + 1}階(チェックポイント)からやり直す</button>` : ''}
     </div>
     ${renderAbyssRewardChart(a)}`;
 }
@@ -14813,6 +14850,8 @@ function handlePhoneClick(ev){
   const openEl = t.closest('[data-stage-open]');
   if(openEl){ stageSheet = openEl.dataset.stageOpen; renderStageSheet(); return; }
   if(t.closest('[data-close-sheet]')){ stageSheet = null; closeModal(); return; }
+  if(t.closest('[data-abyss-giveup]')){ showAbyssGiveUpConfirm(); return; }
+  if(t.closest('[data-abyss-giveup-ok]')){ closeModal(); if(abyssGiveUp()){ toast(`${ensureAbyss().floor}階からやり直します。HPは全回復しました`); render(); } return; }
   if(t.closest('[data-abyss-chart-more]')){ abyssChartMore += 50; render(); return; }
   const tabEl = t.closest('[data-stage-tab]');
   if(tabEl){
@@ -15188,6 +15227,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 74, version: 'α0.1.033', date: '9/25', title: '深淵回廊に「諦める」を追加', body: '深淵回廊で、HPが減ってこれ以上は勝てそうにないときに「諦める」を選べるようにしました。諦めると最後のチェックポイントの次の階からやり直しになり、パーティのHP・SPは全回復、戦闘不能の仲間も復活します。押すと確認の画面が出るので、間違えて押しても大丈夫です。' },
   { id: 73, version: 'α0.1.032', date: '9/25', title: 'レベルアップ・コンテンツ解放のお知らせを追加', body: 'テイマーのレベルが上がったときや、クエストを進めて新しいコンテンツ(育成クエストの段階・拠点の施設・ハードモード・新しい難易度・深淵回廊・倍速など)が解放されたときに、何が起きたかを画面の真ん中でお知らせするようにしました。戦闘の結果画面を閉じたあとに、まとめて1回だけ表示されます。レベルアップで回復したスタミナの量もここで確認できます。' },
   { id: 72, version: 'α0.1.031', date: '9/25', title: 'ショップの更新と特売品を追加', body: 'ゴールドショップに「ショップ更新」を追加しました。水晶を払うと、その日に買った商品がもう一度買えるようになり、特売品も入れ替わります。1日3回まで、費用は50→100→150水晶です。あわせて特売品を1品から3品に増やしました(50%・40%・30%引き)。特売品はリストの上にまとめて表示されます。' },
   { id: 71, version: 'α0.1.030', date: '9/25', title: '初心者ガチャを10連×3回に・フォロワーが0人になる不具合を修正', body: '初心者ガチャを、30連まとめてではなく10連を3回に分けて引けるようにしました(1回あたり通常の10連と同じ消費)。3回目までに★5が1体も出なければ、3回目の最後の1枠が★5確定です。結果画面から続けて次の回を引くこともできます。すでに30連を引いた方は利用済みのままです。また、相互フレンドなのにフォロワーが0人と表示される不具合を修正しました。以前の版で「フレンドを返す」とフォロワーの記録が消えていたことなどが原因です。フレンドがこの版でゲームを起動すると、フォロワーの記録が自動で直ります。' },
