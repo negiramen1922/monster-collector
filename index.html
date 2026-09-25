@@ -2188,6 +2188,21 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ab-mem.down img{ filter:grayscale(1); opacity:.45; }
 .ab-next{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin:8px 0 10px; font-size:12px; display:flex; flex-direction:column; gap:4px; }
 .ab-reward{ font-size:11px; color:var(--dim); display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.ab-chart{ margin-top:10px; }
+.ab-timeline{ list-style:none; margin:0 0 8px; padding:0; position:relative; }
+.ab-timeline::before{ content:''; position:absolute; left:10px; top:8px; bottom:8px; width:2px; background:var(--line); }
+.ab-tl-row{ position:relative; display:flex; gap:10px; align-items:flex-start; padding:6px 0; }
+.ab-tl-dot{ flex:none; width:22px; height:22px; border-radius:50%; background:var(--panel2); border:2px solid var(--line);
+  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:var(--bg); z-index:1; }
+.ab-tl-row.big .ab-tl-dot{ border-color:var(--gold); }
+.ab-tl-row.done .ab-tl-dot{ background:#5cab52; border-color:#5cab52; }
+.ab-tl-row.done .ab-tl-body{ opacity:.55; }
+.ab-tl-row.next .ab-tl-dot{ background:var(--gold); border-color:var(--gold); box-shadow:0 0 0 4px rgba(240,190,80,.25); }
+.ab-tl-body{ flex:1; min-width:0; }
+.ab-tl-floor{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; margin-bottom:3px; }
+.ab-tl-floor small{ margin-left:auto; font-size:10.5px; color:var(--dim); font-weight:700; }
+.ab-tl-tag{ font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:6px; background:var(--gold); color:var(--bg); }
+.ab-tl-tag.next{ background:transparent; border:1px solid var(--gold); color:var(--gold); }
 .ev-period{ font-size:10.5px; color:var(--dim); font-weight:700; margin:-2px 0 6px; }
 .gc-hero-row img{ width:118px; height:118px; flex:none; object-fit:contain; image-rendering:pixelated;
   filter:drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
@@ -2487,7 +2502,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.028';
+const GAME_VERSION = 'α0.1.029';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7142,6 +7157,42 @@ function renderAbyssTab(){
         ${nextMilestone !== a.floor ? `<div class="ab-reward">${nextMilestone}階 ${rewardHtml(abyssFloorReward(nextMilestone).slice(2))}</div>` : ''}
       </div>
       <button class="btn btn-block" data-start-stage="ab_${a.floor}">${a.floor}階に挑戦する</button>
+    </div>
+    ${renderAbyssRewardChart(a)}`;
+}
+// 階層報酬のタイムチャート: 5階ごとのボス階に何が貰えるかを縦に並べる(毎階の報酬は先頭にまとめて書く)
+let abyssChartMore = 0;
+// 同じ種類の報酬(石10+石100など)を1つにまとめて表示する
+function mergeRewardList(list){
+  const out = [];
+  list.forEach(r => {
+    const same = out.find(x => x.type === r.type && x.key === r.key);
+    if(same) same.n += r.n; else out.push({ ...r });
+  });
+  return out;
+}
+function renderAbyssRewardChart(a){
+  const nextMilestone = Math.ceil(a.floor / 5) * 5;
+  const upto = Math.max(50, Math.ceil((Math.max(a.best, a.floor) + 1) / 25) * 25 + 25) + abyssChartMore;
+  const rows = [];
+  for(let f = 5; f <= upto; f += 5){
+    const done = !!a.claimed[f];
+    const cls = done ? 'done' : f === nextMilestone ? 'next' : '';
+    rows.push(`<li class="ab-tl-row ${cls} ${f % 25 === 0 ? 'big' : ''}">
+      <span class="ab-tl-dot">${done ? '✓' : ''}</span>
+      <div class="ab-tl-body">
+        <div class="ab-tl-floor">${f}階${f % 25 === 0 ? '<span class="ab-tl-tag">大報酬</span>' : ''}${f === nextMilestone && !done ? '<span class="ab-tl-tag next">次のボス</span>' : ''}<small>敵Lv${abyssEnemyLevel(f) + 2}</small></div>
+        <div class="ab-reward">${rewardHtml(mergeRewardList(abyssFloorReward(f).slice(2)))}</div>
+      </div>
+    </li>`);
+  }
+  return `
+    <div class="panel ab-chart">
+      <div class="mc-head">🎁 階層報酬</div>
+      <div class="screen-sub" style="margin:4px 0 8px;">各階を初めて突破したときに貰えます(2週間ごとのリセットで受け取り直せます)。<br>
+        毎階: ${rewardHtml([{ type:'gold', n: 1000 }, { type:'item', key:'exp2', n: 2 }])} から、階が進むほど増えます(ゴールド+100/階・EXP素材+1/10階)</div>
+      <ol class="ab-timeline">${rows.join('')}</ol>
+      <button class="btn btn-ghost btn-block btn-sm" data-abyss-chart-more="1">さらに先を見る(+50階)</button>
     </div>`;
 }
 
@@ -13741,8 +13792,8 @@ function showBattleResult(tab){
       </div>
       ${resultTab === 'report' ? renderBattleReport(b) : body}
       <div class="br-actions">
-        <div class="br-stamina">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>
-        ${helperSurchargeNote(nextStage || b.stage) ? `<div class="fs-note" style="margin:-4px 0 4px;">お助けキャラを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
+        ${isAbyss ? '' : `<div class="br-stamina">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>`}
+        ${!isAbyss && helperSurchargeNote(nextStage || b.stage) ? `<div class="fs-note" style="margin:-4px 0 4px;">お助けキャラを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
         ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">${isAbyss ? `${nextStage.floor}階へ進む` : '次のステージへ'}${isAbyss ? '' : `<span class="go-cost">⚡${stageStaminaCost(nextStage)}</span>`}</button>` : ''}
         ${b.win && sweepAllowed(b.stage).ok ? `<button class="btn btn-ghost btn-block" data-sweep-open="${b.stage.id}">周回する</button>` : ''}
         ${b.win ? '' : '<button class="btn btn-ghost btn-block" data-result-nav="party">パーティを強化する</button>'}
@@ -14682,6 +14733,7 @@ function handlePhoneClick(ev){
   const openEl = t.closest('[data-stage-open]');
   if(openEl){ stageSheet = openEl.dataset.stageOpen; renderStageSheet(); return; }
   if(t.closest('[data-close-sheet]')){ stageSheet = null; closeModal(); return; }
+  if(t.closest('[data-abyss-chart-more]')){ abyssChartMore += 50; render(); return; }
   const tabEl = t.closest('[data-stage-tab]');
   if(tabEl){
     const tab = tabEl.dataset.stageTab;
@@ -15056,6 +15108,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 70, version: 'α0.1.029', date: '9/25', title: '深淵回廊に階層報酬の一覧を追加', body: '深淵回廊の画面の下に「階層報酬」を追加しました。5階ごとのボス階でどんな報酬が貰えるかを、階の順に並べています(25階ごとは大報酬)。受け取り済みの階には✓が付き、次のボス階が光ります。また、深淵回廊はスタミナを使わないため、戦闘結果の画面にスタミナを表示しないようにしました。' },
   { id: 69, version: 'α0.1.028', date: '9/25', title: '探索をメニュー形式に・深淵回廊の案内を追加', body: '探索を開くと「メインクエスト」「育成クエスト」「深淵回廊」「イベント」のメニューが出るようになりました。選ぶとそれぞれの画面に進み、左上の「戻る」でメニューに戻れます。戦闘のあとは遊んでいた画面に戻ります。また、深淵回廊を初めて開いたときに、門番のアヌビスが遊び方(無限に続く回廊・5階ごとのボスとチェックポイント・2週間ごとのリセット)を案内するようにしました。' },
   { id: 68, version: 'α0.1.027', date: '9/25', title: '探索メニューを縦並びに・深淵回廊の敵Lv上限を撤廃', body: '探索画面のメニューを「メインクエスト」「育成クエスト」「深淵回廊」「イベント」の縦並びのボタンにしました。深淵回廊の敵は、これまで49階のLv300で頭打ちでしたが、その先も1階ごとにLv+3ずつ強くなり続けます(100階でLv453)。遺物やシナジーで鍛えたパーティでどこまで登れるか挑戦してください。' },
   { id: 67, version: 'α0.1.026', date: '9/25', title: '深淵回廊(無限ダンジョン)を追加', body: '探索に「深淵回廊」を追加しました(上級クリアで解放)。スタミナを使わずに、1階ずつ強くなる敵を倒して進みます。HPは階をまたいで持ち越し、5階ごとのボスを倒すと全回復・全員復活のチェックポイントになります。負けたら最後のチェックポイントから再開です。2週間ごとにリセットされ、各階の初回報酬(5階ごと・25階ごとは多め)をもう一度受け取れます。期ごとに敵に多いテーマ属性が2つあります。あわせてアイテム「スタミナの実」(スタミナ+60)と「時渡りの砂」(拠点の放置報酬1・3・12時間分をすぐ受け取れる)を追加し、深淵回廊やウィークリーミッションの報酬に入れました。' },
@@ -16139,7 +16192,7 @@ const GUIDE_CONTENT = {
       { title: '深淵回廊へようこそ', body: '我はアヌビス、この回廊の門番だ。深淵回廊は底の見えぬ無限の回廊。1階ずつ強くなる敵を倒し、どこまで降りられるかを試す場所だ。スタミナは要らぬ。' },
       { body: '回廊では傷が癒えぬ。HPやSP、倒れた仲間は次の階へそのまま持ち越される。一度の挑戦で無理はするな。', highlight: '.ab-party' },
       { body: '5階ごとにボスが待つ。ボスを倒せばそこがチェックポイントとなり、仲間は全回復・全員復活する。敗れても、最後のチェックポイントの次の階から挑み直せるぞ。', highlight: '.ab-stats' },
-      { body: '各階を初めて越えたときに報酬を授けよう。5階・25階ごとには多めに用意してある。', highlight: '.ab-next' },
+      { body: '各階を初めて越えたときに報酬を授けよう。5階・25階ごとには多めに用意してある。どの階で何が得られるかは、下の「階層報酬」に記してあるぞ。', highlight: '.ab-chart' },
       { body: '回廊は2週間ごとに姿を変える。そのとき1階に戻り、報酬ももう一度受け取れる。期ごとに多く現れる属性(テーマ属性)も変わるゆえ、編成を工夫して挑むがよい。', highlight: '.mc-reset' },
     ],
   },
