@@ -2527,7 +2527,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.034';
+const GAME_VERSION = 'α0.1.035';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8544,6 +8544,7 @@ function showRelicGachaFinalResult(results){
   const newCount = results.filter(r => r.isNew).length;
   const again = results.length === 10 ? PULL10_COST : PULL_COST;
   gachaShareText = gachaShareTextFor('relic', results);
+  prepareGachaShareImage('relic', results, pullBannerTitle('relic'));
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.def.star >= 5 ? 'best5' : best.def.star >= 4 ? 'best4' : ''}">
       <div class="gr-title pixel">RESULT</div>
@@ -9297,8 +9298,116 @@ function grantShareReward(){
   document.querySelectorAll('[data-gacha-share]').forEach(b => { b.outerHTML = gachaShareButtonHtml(); });
   render();
 }
+/* ---- 共有用の画像: ガチャ結果(引いたキャラ/遺物の一覧)を1枚の画像に描く ----
+   結果画面を出した時点で作っておき、共有ボタンを押したらすぐ添付できるようにする
+   (共有シートはタップ直後にしか開けないので、押してから作ると間に合わない端末がある)。 */
+let gachaShareFile = null;
+const SHARE_RARITY_COLOR = { 1: '#8f8fa0', 2: '#5cab52', 3: '#3aa0d6', 4: '#b06fe0', 5: '#e8b455', 6: '#ff7a59', 7: '#ff5fa2' };
+function loadShareImage(src){
+  return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+}
+function shareItemOf(kind, r){
+  if(kind === 'relic'){
+    const body = RELIC_SVG_BODY[r.def.id];
+    const src = body ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="200" height="200">${body}</svg>`) : null;
+    return { src, star: r.def.star, name: r.def.name, isNew: r.isNew, pixel: false };
+  }
+  return { src: imgSrc(r.mon.id), star: r.mon.rarity, name: r.mon.name, isNew: r.isNew, pixel: true };
+}
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+async function buildGachaShareImage(kind, results, bannerName){
+  const items = results.map(r => shareItemOf(kind, r));
+  const imgs = await Promise.all(items.map(it => it.src ? loadShareImage(it.src) : null));
+  const W = 1080;
+  const cols = items.length === 1 ? 1 : Math.min(5, items.length);
+  const rows = Math.ceil(items.length / cols);
+  const cellW = items.length === 1 ? 460 : 188, cellH = items.length === 1 ? 560 : 262, gap = 16;
+  const gridW = cols * cellW + (cols - 1) * gap;
+  const top = 250, H = top + rows * cellH + (rows - 1) * gap + 190;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#231a3d'); bg.addColorStop(1, '#0f0c1a');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const font = (w, px) => `${w} ${px}px "Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#e8b455'; ctx.font = font(900, 64);
+  ctx.fillText(kind === 'relic' ? '遺物ガチャ結果' : 'ガチャ結果', W / 2, 110);
+  ctx.fillStyle = '#cfc6e8'; ctx.font = font(700, 34);
+  ctx.fillText(`${bannerName || ''}${items.length > 1 ? `・${items.length}連` : ''}`, W / 2, 168);
+  const best = Math.max(...items.map(it => it.star));
+  const highs = items.filter(it => it.star >= 4).length;
+  ctx.fillStyle = SHARE_RARITY_COLOR[best] || '#fff'; ctx.font = font(800, 30);
+  ctx.fillText(`最高 ★${best}${highs ? `・★4以上 ${highs}体` : ''}`, W / 2, 214);
+  const x0 = (W - gridW) / 2;
+  items.forEach((it, i) => {
+    const x = x0 + (i % cols) * (cellW + gap), y = top + Math.floor(i / cols) * (cellH + gap);
+    const col = SHARE_RARITY_COLOR[it.star] || '#8f8fa0';
+    roundRect(ctx, x, y, cellW, cellH, 18);
+    ctx.fillStyle = it.star >= 5 ? 'rgba(232,180,85,.18)' : it.star === 4 ? 'rgba(176,111,224,.16)' : 'rgba(255,255,255,.05)'; ctx.fill();
+    ctx.lineWidth = it.star >= 4 ? 6 : 3; ctx.strokeStyle = col; ctx.stroke();
+    const pad = items.length === 1 ? 40 : 14, imgSize = cellW - pad * 2;
+    const im = imgs[i];
+    if(im){
+      ctx.imageSmoothingEnabled = !it.pixel;
+      const ratio = Math.min(imgSize / im.width, imgSize / im.height);
+      const w = im.width * ratio, h = im.height * ratio;
+      ctx.drawImage(im, x + (cellW - w) / 2, y + pad + (imgSize - h) / 2, w, h);
+    }
+    const big = items.length === 1;
+    ctx.fillStyle = col; ctx.font = font(900, big ? 44 : 24);
+    ctx.fillText('★'.repeat(it.star), x + cellW / 2, y + pad + imgSize + (big ? 60 : 30));
+    ctx.fillStyle = '#ffffff'; ctx.font = font(800, big ? 40 : 21);
+    let name = it.name;
+    while(ctx.measureText(name).width > cellW - 16 && name.length > 1) name = name.slice(0, -1);
+    ctx.fillText(name === it.name ? name : name + '…', x + cellW / 2, y + pad + imgSize + (big ? 112 : 58));
+    if(it.isNew){
+      ctx.font = font(900, big ? 30 : 18);
+      const tw = ctx.measureText('NEW').width + 16;
+      roundRect(ctx, x + 8, y + 8, tw, big ? 42 : 28, 8); ctx.fillStyle = '#e0435a'; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText('NEW', x + 16, y + (big ? 40 : 28)); ctx.textAlign = 'center';
+    }
+  });
+  const fy = H - 110;
+  ctx.fillStyle = '#e8b455'; ctx.font = font(900, 46); ctx.fillText('Monstercollect(モンコレ)', W / 2, fy);
+  ctx.fillStyle = '#9d94bd'; ctx.font = font(700, 26); ctx.fillText(SHARE_URL.replace(/^https?:\/\//, ''), W / 2, fy + 52);
+  const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+  return blob ? new File([blob], 'monstercollect-gacha.png', { type: 'image/png' }) : null;
+}
+function prepareGachaShareImage(kind, results, bannerName){
+  gachaShareFile = null;
+  if(typeof document === 'undefined' || !document.createElement('canvas').getContext) return;
+  buildGachaShareImage(kind, results, bannerName).then(f => { gachaShareFile = f; }).catch(() => {});
+}
+function downloadShareImage(file){
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
 async function shareGachaResult(){
   const text = gachaShareText || 'モンコレで遊んでいます!\n#モンコレ #Monstercollect';
+  const file = gachaShareFile;
+  // 画像つきで共有できる端末(スマホの共有シート)なら結果画像を添付する
+  if(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
+    try{ await navigator.share({ title: 'Monstercollect(モンコレ)', text: `${text}\n${SHARE_URL}`, files: [file] }); }
+    catch(e){ return; }
+    grantShareReward();
+    return;
+  }
+  // 画像を添付できないPCなど: 結果画像を保存してから投稿画面を開く(画像はそこで添付してもらう)
+  if(file && !navigator.share){
+    const url = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(SHARE_URL)}`;
+    const w = window.open(url, '_blank');
+    if(!w){ toast('共有画面を開けませんでした'); return; }
+    try{ w.opener = null; }catch(e){}
+    downloadShareImage(file);
+    toast('結果の画像を保存しました。投稿に添付してください');
+    grantShareReward();
+    return;
+  }
   if(navigator.share){
     try{ await navigator.share({ title: 'Monstercollect(モンコレ)', text, url: SHARE_URL }); }
     catch(e){ return; }            // キャンセル(AbortError)などは報酬なし
@@ -9322,6 +9431,7 @@ function showGachaResults(results, before){
   const canRetry = lastPullBeginner ? beginnerLeft > 0 : (results.length === 1 || results.length === 10);
   const again = lastPullBeginner ? BEGINNER_GACHA_COST : results.length === 10 ? PULL10_COST : PULL_COST;
   gachaShareText = gachaShareTextFor('mon', results);
+  prepareGachaShareImage('mon', results, currentBanner().name);
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''}">
       <div class="gr-title pixel">RESULT</div>
@@ -15233,6 +15343,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 76, version: 'α0.1.035', date: '9/25', title: 'ガチャ結果を画像つきでSNSに共有', body: 'ガチャ結果の「SNSで共有」で、引いたキャラ(遺物)の一覧を1枚の画像にして一緒に投稿できるようにしました。10連なら10体すべてが★の数・NEWの印つきで並びます。スマホでは共有画面にそのまま画像が添付されます。画像を添付できないPCでは、結果の画像を保存してからXの投稿画面を開くので、保存した画像を添付してください。' },
   { id: 75, version: 'α0.1.034', date: '9/25', title: '貸出中のお助けキャラを分かりやすく', body: 'プロフィールの「お気に入り」の一番左は、フレンドに貸し出すお助けキャラです。分かりやすいように黄色の枠と「貸出」のタグを付け、下に「黄色の枠はフレンドに貸し出すお助けキャラです」と説明を入れました。' },
   { id: 74, version: 'α0.1.033', date: '9/25', title: '深淵回廊に「諦める」を追加', body: '深淵回廊で、HPが減ってこれ以上は勝てそうにないときに「諦める」を選べるようにしました。諦めると最後のチェックポイントの次の階からやり直しになり、パーティのHP・SPは全回復、戦闘不能の仲間も復活します。押すと確認の画面が出るので、間違えて押しても大丈夫です。' },
   { id: 73, version: 'α0.1.032', date: '9/25', title: 'レベルアップ・コンテンツ解放のお知らせを追加', body: 'テイマーのレベルが上がったときや、クエストを進めて新しいコンテンツ(育成クエストの段階・拠点の施設・ハードモード・新しい難易度・深淵回廊・倍速など)が解放されたときに、何が起きたかを画面の真ん中でお知らせするようにしました。戦闘の結果画面を閉じたあとに、まとめて1回だけ表示されます。レベルアップで回復したスタミナの量もここで確認できます。' },
