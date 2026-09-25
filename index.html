@@ -2468,7 +2468,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.024';
+const GAME_VERSION = 'α0.1.025';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4020,6 +4020,7 @@ const DEFAULT_STATE = () => ({
   friendPoints: 0,
   followerCount: 0,
   resonance: 0,
+  tamerLvSeen: 0,   // スタミナを配り終えたテイマーLv(checkTamerLevelUp)
   shareDaily: null, // { key } ガチャ結果をSNS共有した日(結晶+10は1日1回)     // 共鳴石(遺物版の無形のソウル) // 自分をフレンドに追加している人の数(フレンド画面を開いたときに取り直す)
   friendSendDaily: null,   // { key, sent: { [friendUid]: true } } - 1回/日/フレンド
   tierChests: {},   // `${tierKey}_${stars}` → true once that milestone chest is claimed
@@ -4117,6 +4118,7 @@ function normalizeState(){
 
 function saveState(){
   if(!STATE) return;
+  checkTamerLevelUp();
   STATE.savedAt = Date.now();   // when the data changed, not when it reached the disk:
   clearTimeout(saveTimer);      // the cloud compares this to decide which device is newer
   saveTimer = setTimeout(async () => {
@@ -14755,6 +14757,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 66, version: 'α0.1.025', date: '9/25', title: 'テイマーのレベルアップでスタミナ+300', body: 'テイマーのレベルが上がるたびに、スタミナが300増えるようにしました(上限を超えても受け取れます。999を超える分はプレゼントボックスへ)。あわせて、クエスト・周回・育成ダンジョンをクリアするたびにテイマーの経験値が20入るようにしました(これまでは初回クリアだけでした)。' },
   { id: 65, version: 'α0.1.024', date: '9/25', title: 'イベントの残り時間を日数で表示', body: 'イベントの残り時間を「170時間12分」ではなく「7日2時間」のように日数で表示し、開催期間(開始と終了の日時)も出すようにしました。フレンド追加画面の「入れ替える」ボタンは「更新」に名前を変えました。' },
   { id: 64, version: 'α0.1.023', date: '9/25', title: '撤退したときもスタミナを返す', body: '戦闘の途中で撤退(中断)したときも、負けたときと同じく使ったスタミナが全額戻るようにしました。報酬は手に入りません。' },
   { id: 63, version: 'α0.1.022', date: '9/25', title: 'ガチャ結果をSNSで共有', body: 'ガチャ(モンスター・遺物)の結果画面に「SNSで共有」ボタンを追加しました。共有すると結晶+10がもらえます(1日1回)。スマホでは共有シートから好きなアプリを選べ、共有シートが無い環境ではXの投稿画面が開きます。' },
@@ -14829,10 +14832,28 @@ const unreadNotices = () => liveNotices().filter(n => n.id > (STATE.noticeSeen |
   + UPDATE_LOG.filter(n => n.id > (STATE.updateLogSeen || 0)).length;
 
 /* テイマーLv: クリア数・仲間の数・育成の進み具合から決まる、進行度の目安 */
+// テイマーXP: 初回クリア120・仲間1体40・モンスターLv合計・★上げ1つ20に加えて、
+// 周回(クエスト・周回・育成ダンジョンのクリア)1回ごとに TAMER_XP_PER_RUN
+const TAMER_XP_PER_RUN = 20;
+const TAMER_LEVELUP_STAMINA = 300;   // テイマーLvが上がるたびにスタミナをこれだけ足す(上限を超えてもよい)
 function tamerXp(){
   const owned = Object.values(STATE.owned);
   return (STATE.clearedStages || []).length * 120 + owned.length * 40
-    + owned.reduce((a, o) => a + (o.level || 1) + ((o.star || 1) - 1) * 20, 0);
+    + owned.reduce((a, o) => a + (o.level || 1) + ((o.star || 1) - 1) * 20, 0)
+    + stat('exploreClear') * TAMER_XP_PER_RUN;
+}
+// レベルが上がっていたらスタミナを足す。tamerLvSeen が無い古いセーブは、今のLvを起点にする
+// (この仕組みを入れる前に上がっていた分はさかのぼって配らない)
+function checkTamerLevelUp(){
+  if(!STATE || !STATE.owned) return;
+  const lv = tamerLevel().lv;
+  if(!STATE.tamerLvSeen){ STATE.tamerLvSeen = lv; return; }
+  if(lv <= STATE.tamerLvSeen) return;
+  const ups = lv - STATE.tamerLvSeen;
+  STATE.tamerLvSeen = lv;
+  grantStamina(ups * TAMER_LEVELUP_STAMINA, 'テイマーレベルアップ');
+  toast(`テイマーLv.${lv}に上がった!スタミナ+${ups * TAMER_LEVELUP_STAMINA}`);
+  playSfx('promote');
 }
 function tamerLevel(){
   const xp = tamerXp();
