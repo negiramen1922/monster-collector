@@ -2426,7 +2426,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.007';
+const GAME_VERSION = 'α0.1.008';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -6030,7 +6030,7 @@ const QUEST_SPEC = {
     { name: '苔むす森の入口', terrain: 'forest', element: 'grass', fixed: [{ f:['m32'], b:['m03', 'm39'] }, { f:['m32', 'm10'], b:['m39'] }, { f:['m32', 'm32', 'm32'], b:['m03', 'm39'] }], rares: ['m01'] },
     { name: '焚き火の野営地', terrain: 'forest', element: 'fire', fixed: [{ f:['m128', 'm33', 'm128'], b:['m129'] }, { f:['m33', 'm128', 'm33'], b:['m129'] }, { f:['m128', 'm128', 'm33'], b:['m129', 'm129'] }], rares: ['m17'] },
     { name: '雷鳴の木立', terrain: 'forest', element: 'thunder', fixed: [{ f:['m132', 'm132'], b:['m14', 'm03'] }, { f:['m132', 'm21', 'm132'], b:['m14'] }, { f:['m132', 'm132', 'm132'], b:['m14', 'm14'] }], rares: ['m62'] },
-    { name: '月影の泉', terrain: 'forest', element: 'water', fixed: [{ f:['m06', 'm06'], b:['m131', 'm03'] }, { f:['m06', 'm06'], b:['m131', 'm131', 'm03'] }, { f:['m06', 'm06', 'm06'], b:['m131', 'm131'] }], rares: ['m19'] },
+    { name: '月影の泉', terrain: 'forest', element: 'water', fixed: [{ f:['m06'], b:['m131', 'm133'] }, { f:['m06'], b:['m131', 'm131', 'm133'] }, { f:['m06'], b:['m131', 'm131', 'm133', 'm03'] }], rares: ['m19'] },
     { name: '蜘蛛の棲む森', terrain: 'forest', element: 'grass', fixed: [{ f:['m32'], b:['m10', 'm03'] }, { f:['m32', 'm10'], b:['m39'] }, { f:['*m121', 'm32'], b:['m10', 'm03'] }], boss: true },
   ],
   q2: [
@@ -6039,7 +6039,7 @@ const QUEST_SPEC = {
     { name: '地底湖', terrain: 'cave', element: 'water', fixed: [{ f:['m06', 'm49'], b:['m117', 'm80', 'm131'] }, { f:['m06', 'm49', 'm49'], b:['m117', 'm80'] }, { f:['m06', 'm06', 'm49'], b:['m117', 'm80'] }], rares: ['m75'] },
     { name: 'コボルトの坑道', terrain: 'cave', element: 'earth', fixed: [{ f:['m47', 'm47', 'm45'], b:['m48', 'm134'] }, { f:['m45', 'm45', 'm51'], b:['m48', 'm134'] }, { f:['m45', 'm45', 'm47'], b:['m134', 'm134'] }], rares: ['m123'] },
     { name: '鉱山の主', terrain: 'cave', element: 'earth', fixed: [{ f:['m47', 'm45'], b:['m48', 'm134', 'm134'] }, { f:['m56', 'm45', 'm47'], b:['m134', 'm134'] }, { f:['*m89', 'm51', 'm45'], b:['m48', 'm134'] }], boss: true },
-    { name: '燃え残る遺跡', terrain: 'ruins', element: 'fire', fixed: [{ f:['m128', 'm128', 'm33'], b:['m129', 'm127'] }, { f:['m59', 'm33'], b:['m129', 'm129', 'm127'] }, { f:['m59', 'm59', 'm128'], b:['m129', 'm127'] }], rares: ['m66', 'm05'] },
+    { name: '燃え残る遺跡', terrain: 'ruins', element: 'fire', fixed: [{ f:['m33', 'm33'], b:['m129', 'm127'] }, { f:['m33'], b:['m129', 'm127', 'm127'] }, { f:['m33', 'm33', 'm33'], b:['m129', 'm127'] }], rares: ['m66', 'm72'] },
     { name: '聖なる祭壇', terrain: 'ruins', element: 'light', fixed: [{ f:['m71', 'm11', 'm11'], b:['m91', 'm91'] }, { f:['m124', 'm11', 'm11'], b:['m91', 'm34'] }, { f:['m71', 'm11', 'm11'], b:['m91', 'm91'] }], rares: ['m98', 'm106'] },
     { name: 'ゴブリンの隠れ砦', terrain: 'ruins', element: 'none', fixed: [{ f:['m21', 'm21'], b:['m39', 'm39'] }, { f:['m21', 'm21'], b:['m39', 'm40'] }, { f:['m21', 'm21'], b:['m39', 'm40'] }], rares: ['m44', 'm46'] },
     { name: '風化した神殿', terrain: 'ruins', element: 'wind', fixed: [{ f:['m71', 'm135', 'm135', 'm130'], b:['m100'] }, { f:['m71', 'm135', 'm135', 'm130'], b:['m122'] }, { f:['m71', 'm135', 'm135'], b:['m118', 'm122'] }], rares: ['m108'] },
@@ -6047,26 +6047,26 @@ const QUEST_SPEC = {
   ],
   q3: [
     { name: '火口のふもと', terrain: 'lava', element: 'fire', fixed: [{ f:['m33', 'm59', 'm128'], b:['m127', 'm129'] }, { f:['m59', 'm59'], b:['m129', 'm129', 'm127'] }, { f:['m33', 'm59', 'm128'], b:['m127', 'm129'] }], rares: ['m17'] },
-    { name: '溶岩の川', terrain: 'lava', element: 'fire', fixed: [{ f:['m72', 'm128'], b:['m129', 'm129', 'm127'] }, { f:['m33', 'm128', 'm128'], b:['m129', 'm127'] }, { f:['m72', 'm59', 'm128'], b:['m127', 'm129'] }], rares: ['m67'] },
+    { name: '溶岩の川', terrain: 'lava', element: 'fire', fixed: [{ f:['m72', 'm33'], b:['m129', 'm129', 'm127'] }, { f:['m72', 'm33'], b:['m129', 'm127', 'm127'] }, { f:['m72', 'm72', 'm33'], b:['m129', 'm127'] }], rares: ['m67'] },
     { name: '焦土の荒野', terrain: 'lava', element: 'earth', fixed: [{ f:['m27', 'm45', 'm47'], b:['m48', 'm134'] }, { f:['m123', 'm45', 'm70'], b:['m134', 'm134'] }, { f:['m27', 'm123', 'm51'], b:['m48', 'm134'] }], rares: ['m56'] },
     { name: '燃える樹海', terrain: 'lava', element: 'grass', fixed: [{ f:['m58', 'm01', 'm32'], b:['m83', 'm39'] }, { f:['m09', 'm01', 'm84'], b:['m86', 'm26'] }, { f:['m58', 'm01', 'm01'], b:['m83', 'm26'] }], rares: ['m121'] },
     { name: '炎の巨人の玉座', terrain: 'lava', element: 'fire', fixed: [{ f:['m59', 'm59', 'm33'], b:['m127', 'm129'] }, { f:['m63', 'm59', 'm128'], b:['m127', 'm129'] }, { f:['*m53', 'm63', 'm33'], b:['m87', 'm129'] }], boss: true },
     { name: '凍てつく入江', terrain: 'ice', element: 'water', fixed: [{ f:['m06', 'm78', 'm49'], b:['m117', 'm80'] }, { f:['m49', 'm78', 'm78'], b:['m80', 'm80'] }, { f:['m61', 'm78', 'm49'], b:['m117', 'm80'] }], rares: ['m76'] },
-    { name: '氷雷の洞窟', terrain: 'ice', element: 'thunder', fixed: [{ f:['m61', 'm65', 'm132'], b:['m55', 'm20'] }, { f:['m96', 'm65', 'm50'], b:['m14', 'm55'] }, { f:['m61', 'm50', 'm65'], b:['m55', 'm20'] }], rares: ['m74'] },
+    { name: '氷雷の洞窟', terrain: 'ice', element: 'thunder', fixed: [{ f:['m73', 'm36', 'm132'], b:['m20', 'm14'] }, { f:['m36', 'm73', 'm36'], b:['m20', 'm14'] }, { f:['m73', 'm36', 'm73'], b:['m20', 'm20'] }], rares: ['m74'] },
     { name: '吹雪の峠', terrain: 'ice', element: 'wind', fixed: [{ f:['m109', 'm135', 'm130'], b:['m118', 'm122'] }, { f:['m105', 'm109'], b:['m118', 'm122', 'm100'] }, { f:['m109', 'm109', 'm135'], b:['m118', 'm100'] }], rares: ['m08'] },
     { name: '白銀の聖域', terrain: 'ice', element: 'light', fixed: [{ f:['m71', 'm126', 'm11'], b:['m91', 'm98'] }, { f:['m124', 'm126', 'm126'], b:['m91', 'm91'] }, { f:['m71', 'm126', 'm11'], b:['m98', 'm91'] }], rares: ['m104'] },
     { name: '氷の城塞', terrain: 'ice', element: 'water', fixed: [{ f:['m06', 'm78', 'm78'], b:['m117', 'm80'] }, { f:['m61', 'm73', 'm76'], b:['m117', 'm88'] }, { f:['*m52', 'm76', 'm61'], b:['m88', 'm75'] }], boss: true },
   ],
   q4: [
-    { name: 'さざ波の海岸', terrain: 'sea', element: 'water', pool: ['m80', 'm06', 'm19'], rares: ['m88'] },
+    { name: 'さざ波の海岸', terrain: 'sea', element: 'water', pool: ['m19', 'm75', 'm06', 'm88'], rares: ['m88'] },
     { name: '珊瑚の迷路', terrain: 'sea', element: 'water', pool: ['m35', 'm80', 'm34'], rares: ['m88'] },
-    { name: '嵐の海原', terrain: 'sea', element: 'thunder', pool: ['m14', 'm36', 'm20'], rares: ['m08'] },
+    { name: '嵐の海原', terrain: 'sea', element: 'thunder', pool: ['m36', 'm74', 'm20'], rares: ['m08'] },
     { name: '沈没船の墓場', terrain: 'sea', element: 'dark', pool: ['m30', 'm04', 'm23'], rares: ['m24'] },
     { name: '深海の番人', terrain: 'sea', element: 'water', boss: 'm88', gimmick: 'tide', adds: ['m73', 'm80', 'm19'] },
     { name: '雲海の岬', terrain: 'sky', element: 'wind', pool: ['m02', 'm118', 'm70'], rares: ['m108'] },
     { name: '天空の回廊', terrain: 'sky', element: 'light', pool: ['m34', 'm126', 'm11'], rares: ['m106'] },
     { name: '風神の祠', terrain: 'sky', element: 'wind', pool: ['m118', 'm08', 'm02'], rares: ['m108'] },
-    { name: '星降る丘', terrain: 'sky', element: 'light', pool: ['m126', 'm106', 'm34'], rares: ['m08'] },
+    { name: '星降る丘', terrain: 'sky', element: 'light', pool: ['m106', 'm104', 'm108'], rares: ['m08'] },
     { name: '天空の覇者', terrain: 'sky', element: 'wind', boss: 'm108', gimmick: 'gale', adds: ['m118', 'm08', 'm02'] },
   ],
   q5: [
@@ -6082,31 +6082,31 @@ const QUEST_SPEC = {
     // 単一の弱点属性で押し切れないのも狙い。
     { name: '精霊の坩堝', terrain: 'peak', element: 'none', pool: ['m87', 'm88', 'm89', 'm67'], rares: ['m106'],
       desc: '神域エリア。四大の精霊が集う坩堝。敵の攻撃はほぼすべて魔法で、物理防御はほとんど意味をなさない。' },
-    { name: '神々の庭', terrain: 'peak', element: 'light', pool: ['m106', 'm126', 'm34'], rares: ['m88'] },
+    { name: '神々の庭', terrain: 'peak', element: 'light', pool: ['m89', 'm106', 'm104'], rares: ['m88'] },
     { name: '迷宮の王', terrain: 'peak', element: 'earth', boss: 'm56', gimmick: 'quake', adds: ['m22', 'm13', 'm46'] },
   ],
   q6: [
     { name: '奈落の断崖', terrain: 'abyss', element: 'dark', pool: ['m101', 'm24', 'm97'], rares: ['m120'] },
     { name: '亡者の回廊', terrain: 'abyss', element: 'dark', pool: ['m95', 'm30', 'm44'], rares: ['m101'] },
-    { name: '巨石の墓標', terrain: 'abyss', element: 'earth', pool: ['m89', 'm13', 'm51'], rares: ['m56'] },
-    { name: '深淵の坑道', terrain: 'abyss', element: 'earth', pool: ['m123', 'm27', 'm70'], rares: ['m54'] },
+    { name: '巨石の墓標', terrain: 'abyss', element: 'earth', pool: ['m89', 'm48', 'm89'], rares: ['m56'] },
+    { name: '深淵の坑道', terrain: 'abyss', element: 'earth', pool: ['m27', 'm13', 'm123'], rares: ['m54'] },
     { name: '巨神の眠る底', terrain: 'abyss', element: 'earth', boss: 'm54', gimmick: 'shell', adds: ['m89', 'm13', 'm51'] },
     { name: '雷鳴の荒野', terrain: 'tempest', element: 'thunder', pool: ['m74', 'm65', 'm20'], rares: ['m125'] },
     { name: '嵐の吹き溜まり', terrain: 'tempest', element: 'wind', pool: ['m108', 'm109', 'm135'], rares: ['m105'] },
-    { name: '暴風の砦', terrain: 'tempest', element: 'thunder', pool: ['m62', 'm96', 'm132'], rares: ['m74'] },
+    { name: '暴風の砦', terrain: 'tempest', element: 'thunder', pool: ['m50', 'm100', 'm100'], rares: ['m74'] },
     { name: '天穿つ竜巻', terrain: 'tempest', element: 'wind', pool: ['m130', 'm118', 'm122'], rares: ['m108'] },
     { name: '暴威の狼王', terrain: 'tempest', element: 'wind', boss: 'm68', gimmick: 'enrage', adds: ['m108', 'm109', 'm135'] },
   ],
   q7: [
     { name: '虚ろなる回廊', terrain: 'void', element: 'dark', pool: ['m101', 'm115', 'm120'], rares: ['m97'] },
     { name: '狐火の迷い道', terrain: 'void', element: 'fire', pool: ['m67', 'm17', 'm66'], rares: ['m53'] },
-    { name: '無明の祭壇', terrain: 'void', element: 'dark', pool: ['m24', 'm40', 'm44'], rares: ['m101'] },
+    { name: '無明の祭壇', terrain: 'void', element: 'dark', pool: ['m24', 'm44', 'm101'], rares: ['m101'] },
     { name: '焔立つ虚空', terrain: 'void', element: 'fire', pool: ['m63', 'm72', 'm87'], rares: ['m67'] },
     { name: '九尾の棲む社', terrain: 'void', element: 'fire', boss: 'm116', gimmick: 'scorch', adds: ['m67', 'm17', 'm87'] },
     { name: '星屑の回廊', terrain: 'astral', element: 'light', pool: ['m104', 'm106', 'm98'], rares: ['m113'] },
-    { name: '天使の階', terrain: 'astral', element: 'light', pool: ['m91', 'm124', 'm34'], rares: ['m104'] },
+    { name: '天使の階', terrain: 'astral', element: 'light', pool: ['m71', 'm124', 'm34'], rares: ['m104'] },
     { name: '聖竜の巣', terrain: 'astral', element: 'light', pool: ['m126', 'm133', 'm71'], rares: ['m106'] },
-    { name: '神話の門前', terrain: 'astral', element: 'light', pool: ['m104', 'm106', 'm91'], rares: ['m113'] },
+    { name: '神話の門前', terrain: 'astral', element: 'light', pool: ['m104', 'm106', 'm89'], rares: ['m113'] },
     { name: '神話に眠る竜', terrain: 'astral', element: 'light', boss: 'm113', gimmick: 'regrowth', adds: ['m104', 'm106', 'm34'] },
   ],
 };
@@ -13583,6 +13583,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 49, version: 'α0.1.008', date: '9/25', body: '各クエストに「敵の攻め方・守り方が偏ったステージ」を置きました。魔法攻撃ばかり仕掛けてくるステージ(初級9・中級6・上級2・超上級1・極上級8・伝説級8・神話級4)と、物理攻撃だけのステージ(初級1・中級4・上級3・超上級4・極上級1・伝説級2・神話級3)。さらに超上級以降には、物理防御が固くて魔法が通りやすいステージと、その逆のステージを用意しました。編成を組み替える手がかりにしてください。' },
   { id: 48, version: 'α0.1.007', date: '9/25', body: '極上級8面を「巨人の谷」から「精霊の坩堝」に差し替えました。四大の精霊で固めたステージで、敵の攻撃の96%が魔法です。これまで極上級は敵の攻撃の82%が物理で、魔法防御を上げる遺物がほとんど仕事をしていませんでした。このステージでは物理防御を積んでも被ダメージが変わらず、魔法防御が初めて効きます。難度は前後のステージと同じくらいです。' },
   { id: 47, version: 'α0.1.006', date: '9/25', body: '上位クエストの推奨レベルを切りのいい数字に揃えました。極上級が推奨Lv150〜200、伝説級が210〜250、神話級が260〜300になります。それぞれ昇格の上限レベル(★5=150・★7=200・★9=260・★10=300)と対応していて、ティアの境目は10レベルずつ空いています。' },
   { id: 46, version: 'α0.1.005', date: '9/25', body: '「伝説級」と「神話級」の難度差を付け直しました。これまで伝説級の最後(推奨Lv230)と神話級の最初(推奨Lv230)が同じレベルで、神話級をすべてクリアしても伝説級のボスより敵が弱いままでした。伝説級を推奨Lv200〜240、神話級を推奨Lv250〜300に広げています。あわせて期間限定イベントに8層(推奨Lv300)・9層(Lv350)・10層(Lv400)を追加しました。深層のボスは★5→★6→★7と上がり、7層で遺物が完凸したあとは強化素材が手に入ります。' },

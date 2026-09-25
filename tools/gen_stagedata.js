@@ -3,7 +3,7 @@
    使い方: python3 tools/extract.py してから  cd tools && node gen_stagedata.js > out.json */
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e={
-  STAGES, MONSTERS, MON_BY_ID, QUEST_TIERS_ACTIVE, buildUnit, waveFormationOf, placeRows,
+  STAGES, MONSTERS, MON_BY_ID, QUEST_TIERS_ACTIVE, kitOf, buildUnit, waveFormationOf, placeRows,
   applyFormationBonus, preferredRow, slotRowIn, slotX, skillSlotsFor, applySynergies, ENEMY_SYNERGY,
 };`);
 const E = global.__e;
@@ -43,6 +43,38 @@ function waveUnits(stage, wi){
   return units;
 }
 
+/* 各ティアに置いた4軸ステージ。確認ツールでバッジとして出す。
+   中身は stage_axis_test.js の PLAN と同じで、null は材料不足で未設置。 */
+const AXIS = {
+  q1: { mag:'q1_09', phy:'q1_01' },
+  q2: { mag:'q2_06', phy:'q2_04' },
+  q3: { mag:'q3_02', phy:'q3_03', pdef:'q3_07' },
+  q4: { mag:'q4_01', phy:'q4_04', pdef:'q4_03', mdef:'q4_09' },
+  q5: { mag:'q5_08', phy:'q5_01', pdef:'q5_07', mdef:'q5_09' },
+  q6: { mag:'q6_08', phy:'q6_02', pdef:'q6_04', mdef:'q6_03' },
+  q7: { mag:'q7_04', phy:'q7_03', pdef:'q7_07', mdef:'q7_09' },
+};
+const AXIS_LABEL = { mag:'魔法攻撃', phy:'物理攻撃', pdef:'物理耐性', mdef:'魔法耐性' };
+const axisOf = {};
+Object.keys(AXIS).forEach(t => Object.keys(AXIS[t]).forEach(k => {
+  const id = AXIS[t][k];
+  if(id){ axisOf[id] = k; axisOf[id + 'h'] = k; }
+}));
+
+/* 敵の攻撃のうち魔法が占める割合と、最終ウェーブの 物防-魔防 の差 */
+function magShareOf(mon){
+  const k = E.kitOf(mon);
+  let mag = 0, tot = 0;
+  ['normal', 'skill1', 'skill2', 'ult'].forEach(n => {
+    const o = k[n]; if(!o || !o.pow) return;
+    const w = o.pow * (o.hits || 1);
+    tot += w; if(o.atk === 'mag') mag += w;
+  });
+  return tot ? mag / tot : 0;
+}
+const magCache = {};
+const magOf = id => magCache[id] != null ? magCache[id] : (magCache[id] = magShareOf(E.MON_BY_ID[id]));
+
 const tiers = E.QUEST_TIERS_ACTIVE.map(t => ({ key: t.key, label: t.label, lv: t.lv, skill: t.skill,
   hard: !!t.hard, waves: t.waves, star: t.star, bossStar: t.bossStar }));
 tiers.push({ key: 'event', label: 'イベント', lv: null, skill: null, hard: false, waves: 5, star: null, bossStar: null });
@@ -54,8 +86,14 @@ const data = E.STAGES.map(s => {
     return { bp: us.reduce((a, u) => a + bpOf(u), 0),
       e: us.map(u => ({ r: u.ref, n: u.name, lv: u.level, st: u.star, b: !!u.boss, row: u.row, bp: bpOf(u) })) };
   });
+  const refs = s.waves.flat().map(e => e.ref);
+  const mag = refs.length ? refs.reduce((a, r) => a + magOf(r), 0) / refs.length : 0;
+  const last = s.waves.slice(-1)[0].map(e => E.MON_BY_ID[e.ref]);
+  const gap = (last.reduce((a, m) => a + m.pdef, 0) - last.reduce((a, m) => a + m.mdef, 0)) / last.length;
   return { id: s.id, tier: s.tier || s.type, name: s.name, req: s.requires || null,
     sk: s.enemySkill || 1, rec: s.rec, ref,
+    mag: Math.round(mag * 100), gap: Math.round(gap * 10) / 10,
+    axis: axisOf[s.id] || null, axisJa: AXIS_LABEL[axisOf[s.id]] || null,
     peak: w.reduce((a, x) => Math.max(a, x.bp), 0), total: w.reduce((a, x) => a + x.bp, 0), w };
 });
 console.log('/* 全' + data.length + 'ステージの敵編成とBP。tools/gen_stagedata.js が index.html から生成。 */');
