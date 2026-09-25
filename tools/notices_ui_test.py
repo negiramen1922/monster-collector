@@ -10,7 +10,8 @@ import asyncio, os, pathlib, sys
 from playwright.async_api import async_playwright
 from _serve import game_url, use_mock_auth, start_as_guest
 
-OUT = pathlib.Path(__file__).resolve().parent
+# スクリーンショットは目視確認用。リポジトリを汚さないよう一時ディレクトリに出す。
+OUT = pathlib.Path(os.environ.get('SHOT_DIR', '/tmp'))
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
 
 bad = 0
@@ -59,7 +60,18 @@ async def main():
             check('ニュースが全件出ている', n == n_news, f'{n} / {n_news}')
             check('ニューズも最新1件だけ開く', await pg.locator('.nt-row.on').count() == 1)
             t = await pg.locator('.nt-row').first.inner_text()
-            check('最新ニュースは敵の編成の話', '敵の編成' in t, t.split('\n')[0])
+            check('最新ニュースはα0.1アップデート内容(1)', 'α0.1アップデート内容(1)' in t, t.split('\n')[0])
+            # 長い本文の小見出しと箇条書きが崩れずに出ているか
+            check('小見出しが出ている', await pg.locator('.nt-row.on .nt-h').count() >= 3,
+                  await pg.locator('.nt-row.on .nt-h').count())
+            n_item = await pg.locator('.nt-row.on .nt-i').count()
+            check('キャラ30体ぶんの行が出ている', n_item == 30, n_item)
+            # 横にはみ出していないこと(スマホ幅で本文が切れると読めない)
+            over = await pg.evaluate('''() => {
+              const el = document.querySelector('.nt-row.on');
+              return el ? el.scrollWidth - el.clientWidth : -1;
+            }''')
+            check('本文が横にはみ出していない', over <= 1, over)
             await pg.screenshot(path=str(OUT / 'nt_news.png'))
 
             # 全部開いてスクロールできるか
