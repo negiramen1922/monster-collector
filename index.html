@@ -2502,7 +2502,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.029';
+const GAME_VERSION = 'α0.1.030';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -2798,8 +2798,9 @@ const HIGH_PITY_PULLS = 50;      // ★4+ guaranteed on the 50th pull without on
 const TEN_PULL_MIN_STAR = 3;     // 10th slot of a 10-pull is ★3+ if the first 9 weren't
 const SPARK_POINTS = 200;        // summon points (1 per pull, carried over) → pickup ★5
 const RELIC_SPARK_POINTS = 100;  // 召喚ポイントはキャラ・遺物ガチャで共有。半分の100でピックアップ専用遺物と交換できる
-const BEGINNER_GACHA_PULLS = 30;
-const BEGINNER_GACHA_COST = PULL10_COST * 3; // 通常の10連×3と同じ消費(割引なし)
+const BEGINNER_GACHA_ROUNDS = 3;              // 初心者ガチャは10連を3回まで
+const BEGINNER_GACHA_PULLS = 10;              // 1回あたりの連数
+const BEGINNER_GACHA_COST = PULL10_COST;      // 1回あたりの消費(通常の10連と同じ・割引なし)
 
 const DEFAULT_BANNER = {
   key: 'default',
@@ -3598,7 +3599,20 @@ async function publishProfile(){
       rand: Math.random(),
       updatedAt: Date.now(),
     });
+    syncFollowRecords();
   }catch(e){ console.warn('profile: not published', e); }
+}
+// 自分がフォローしている全員の「フォロワー」欄(players/{相手}/incoming/{自分})に自分を書き直す。
+// 古い版では「フレンドを返す」で自分側の記録を消していたり、フォロワー機能より前に追加した
+// フレンドは記録がなかったりして、相互なのにフォロワーが0人になっていた。起動ごとに1回だけ
+// 書き直して、その穴を埋める(ドキュメントIDが自分のuidなので何度書いても1件のまま)。
+let followRecordsSynced = false;
+function syncFollowRecords(){
+  const be = authBackend();
+  if(followRecordsSynced || !ACCOUNT || !STATE || typeof be.recordIncomingFriend !== 'function') return;
+  followRecordsSynced = true;
+  STATE.friends.filter(f => f.uid && f.uid !== ACCOUNT.uid)
+    .forEach(f => be.recordIncomingFriend(f.uid, ACCOUNT.uid).catch(() => {}));
 }
 
 /* ---- friends & the お助けキャラ they lend out ---- */
@@ -4028,7 +4042,9 @@ const DEFAULT_STATE = () => ({
   universalSouls: 0,
   summonPoints: 0,         // carried over between banners
   selectPickup: {},        // 常設バナー限定: 属性 → 選んだ★4/★5モンスターID(pickMonsterOfRarityで優先排出)
-  beginnerGachaDone: false, // 初心者ガチャ(30連確定★5)を使用済みか。1アカウント1回限り
+  beginnerGachaDone: false, // 初心者ガチャ(10連×3回・★5確定)を3回とも引き終えたか
+  beginnerGachaCount: 0,    // 初心者ガチャを引いた回数(0〜3)
+  beginnerGachaHad5: false, // 初心者ガチャでここまでに★5が出たか(出ていなければ3回目の最後の枠が★5確定)
   pendingSouls: {},        // souls of monsters not owned yet (befriend at UNLOCK_SOULS)
   stamina: STAMINA_MAX,
   staminaAt: Date.now(),   // when stamina was last brought up to date
@@ -4129,6 +4145,8 @@ function normalizeState(){
   if(!STATE.relics) STATE.relics = {};
   if(!STATE.selectPickup) STATE.selectPickup = {};
   if(STATE.beginnerGachaDone === undefined) STATE.beginnerGachaDone = false;
+  if(STATE.beginnerGachaCount === undefined) STATE.beginnerGachaCount = STATE.beginnerGachaDone ? BEGINNER_GACHA_ROUNDS : 0;
+  if(STATE.beginnerGachaHad5 === undefined) STATE.beginnerGachaHad5 = !!STATE.beginnerGachaDone;
   if(!STATE.pvpPoints) STATE.pvpPoints = 0;
   if(STATE.pvpDefenseSlots === undefined) STATE.pvpDefenseSlots = null;
   if(STATE.pvpDefenseFormation === undefined) STATE.pvpDefenseFormation = null;
@@ -6288,7 +6306,7 @@ const BEGINNER_MISSIONS = [
   { id:'b12', label:'PVPでバトルする',                hint:'PVP画面で相手を探して挑戦',  value:() => stat('pvpBattle'),      goal:1, reward:[{ type:'gold', n:20000 }] },
   { id:'b13', label:'フレンドを1人登録する',           hint:'メニュー → フレンド → フレンドを追加', value:() => STATE.friends.length, goal:1, reward:[{ type:'crystal', n:100 }] },
   { id:'b14', label:'フレンドからキャラを借りて探索する', hint:'フレンド画面の「借りる」→ パーティに入れて探索', value:() => stat('helperClear'), goal:1, reward:[{ type:'item', key:'exp2', n:10 }] },
-  { id:'b15', label:'初心者ガチャを回す',              hint:'ガチャ画面の「初心者ガチャ」', value:() => STATE.beginnerGachaDone ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
+  { id:'b15', label:'初心者ガチャを回す',              hint:'ガチャ画面の「初心者ガチャ」', value:() => (STATE.beginnerGachaDone || STATE.beginnerGachaCount > 0) ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
   { id:'b16', label:'ショップで買い物をする',           hint:'ショップ画面',              value:() => stat('shopBuy'),        goal:1, reward:[{ type:'gold', n:20000 }] },
   { id:'b17', label:'鉱山のレベルを上げる',            hint:'拠点 → 鉱山',              value:() => baseState().mine.lv >= 2 ? 1 : 0, goal:1, reward:[{ type:'gold', n:30000 }] },
   { id:'b18', label:'育成ダンジョン「ゴールド」Lv1をクリアする', hint:'探索 → 育成ダンジョン', value:() => (STATE.stageStars || {}).dg_gold_0 ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }] },
@@ -8494,9 +8512,9 @@ function renderMonGacha(){
     ${!STATE.beginnerGachaDone ? `
     <div class="panel beginner-gacha-panel">
       <div class="mc-head" style="margin-bottom:4px;">初心者ガチャ</div>
-      <div class="screen-sub" style="margin-bottom:8px;">${BEGINNER_GACHA_PULLS}連の中に★5が1体も出なければ、最後の1枠が★5全体からランダムで確定します。1アカウント1回限り。</div>
+      <div class="screen-sub" style="margin-bottom:8px;">10連を${BEGINNER_GACHA_ROUNDS}回まで引けます(1アカウント限り)。${BEGINNER_GACHA_ROUNDS}回目までに★5が1体も出なければ、${BEGINNER_GACHA_ROUNDS}回目の最後の1枠が★5全体からランダムで確定します。</div>
       <button class="btn btn-block ${STATE.crystals >= BEGINNER_GACHA_COST ? '' : 'btn-ghost'}" id="beginner-gacha-btn" ${STATE.crystals >= BEGINNER_GACHA_COST ? '' : 'disabled'}>
-        ${BEGINNER_GACHA_PULLS}連<small>${CRYSTAL_ICON} ${BEGINNER_GACHA_COST.toLocaleString()}・★5確定</small>
+        10連(${(STATE.beginnerGachaCount || 0) + 1}/${BEGINNER_GACHA_ROUNDS}回目)<small>${CRYSTAL_ICON} ${BEGINNER_GACHA_COST.toLocaleString()}・${STATE.beginnerGachaHad5 ? '★5獲得済み' : '3回目までに★5確定'}</small>
       </button>
     </div>` : ''}
     ${banners.length >= 2 ? `
@@ -8712,9 +8730,12 @@ function isPickupMon(mon){
   return b.key === 'default' && Object.values(STATE.selectPickup || {}).includes(mon.id);
 }
 
+// 直前のガチャが初心者ガチャだったか(結果画面の「もう一度」を初心者ガチャの次の回にするため)
+let lastPullBeginner = false;
 function doPull(times, cost){
   if(STATE.crystals < cost){ toast('結晶が足りません'); return; }
   STATE.crystals -= cost;
+  lastPullBeginner = false;
   const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
   const results = [];
   for(let i = 0; i < times; i++){
@@ -8742,32 +8763,32 @@ function pullOneForced(mon){
   return { ...grantMonster(mon), universal, pity: false };
 }
 
-// 初心者ガチャ: 通常の10連ガチャ×3回分の消費で30連。10・20・30枠目はそれぞれ10連と同じ
-// ★3以上保証を引き継ぎ、30連の中に★5が1体も出なければ最後の枠を★5全体からランダムに
-// 確定させる(バナーのピックアップには依存しない)。1アカウント1回限り。
+// 初心者ガチャ: 通常の10連と同じ消費の10連を3回まで引ける。10枠目は通常の10連と同じ★3以上保証。
+// 3回(30連)の中に★5が1体も出なければ、3回目の最後の枠を★5全体からランダムに確定させる
+// (バナーのピックアップには依存しない)。1アカウント限り。
 function doBeginnerGacha(){
-  if(STATE.beginnerGachaDone){ toast('初心者ガチャは利用済みです'); return; }
+  const count = STATE.beginnerGachaCount || 0;
+  if(STATE.beginnerGachaDone || count >= BEGINNER_GACHA_ROUNDS){ toast('初心者ガチャは利用済みです'); return; }
   if(STATE.crystals < BEGINNER_GACHA_COST){ toast('結晶が足りません'); return; }
   STATE.crystals -= BEGINNER_GACHA_COST;
-  STATE.beginnerGachaDone = true;
+  lastPullBeginner = true;
+  const lastRound = count + 1 === BEGINNER_GACHA_ROUNDS;
   const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
   const results = [];
-  for(let block = 0; block < 3; block++){
-    const blockResults = [];
-    for(let i = 0; i < 10; i++){
-      const isLastPullOverall = block === 2 && i === 9;
-      let res;
-      if(isLastPullOverall && !results.some(r => r.mon.rarity === 5)){
-        const star5s = MONSTERS.filter(m => m.rarity === 5);
-        res = pullOneForced(star5s[Math.floor(Math.random() * star5s.length)]);
-      } else {
-        const isGuaranteeSlot = i === 9 && blockResults.every(r => r.mon.rarity < TEN_PULL_MIN_STAR);
-        res = pullOne(isGuaranteeSlot ? TEN_PULL_MIN_STAR : 1);
-      }
-      blockResults.push(res);
-      results.push(res);
+  for(let i = 0; i < BEGINNER_GACHA_PULLS; i++){
+    let res;
+    if(lastRound && i === BEGINNER_GACHA_PULLS - 1 && !STATE.beginnerGachaHad5 && !results.some(r => r.mon.rarity === 5)){
+      const star5s = MONSTERS.filter(m => m.rarity === 5);
+      res = pullOneForced(star5s[Math.floor(Math.random() * star5s.length)]);
+    } else {
+      const isGuaranteeSlot = i === BEGINNER_GACHA_PULLS - 1 && results.every(r => r.mon.rarity < TEN_PULL_MIN_STAR);
+      res = pullOne(isGuaranteeSlot ? TEN_PULL_MIN_STAR : 1);
     }
+    results.push(res);
   }
+  if(results.some(r => r.mon.rarity === 5)) STATE.beginnerGachaHad5 = true;
+  STATE.beginnerGachaCount = count + 1;
+  if(lastRound) STATE.beginnerGachaDone = true;
   track('gachaPull', BEGINNER_GACHA_PULLS);
   track('beginnerGacha');
   STATE.recentPulls = [...results.map(r => r.mon.id), ...(STATE.recentPulls || [])].slice(0, 4);
@@ -9199,8 +9220,9 @@ function showGachaResults(results, before){
   const best = results.slice().sort((a, b) => b.mon.rarity - a.mon.rarity || (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0))[0];
   const newCount = results.filter(r => r.isNew).length;
   const dupCount = results.length - newCount;
-  const canRetry = results.length === 1 || results.length === 10;
-  const again = results.length === 10 ? PULL10_COST : PULL_COST;
+  const beginnerLeft = lastPullBeginner ? BEGINNER_GACHA_ROUNDS - (STATE.beginnerGachaCount || 0) : 0;
+  const canRetry = lastPullBeginner ? beginnerLeft > 0 : (results.length === 1 || results.length === 10);
+  const again = lastPullBeginner ? BEGINNER_GACHA_COST : results.length === 10 ? PULL10_COST : PULL_COST;
   gachaShareText = gachaShareTextFor('mon', results);
   layer.innerHTML = `
     <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''}">
@@ -9250,8 +9272,8 @@ function showGachaResults(results, before){
 
       <div class="br-buttons">
         <button class="btn btn-ghost" id="close-result">閉じる</button>
-        ${canRetry ? `<button class="btn ${STATE.crystals >= again ? '' : 'btn-ghost'}" data-pull-again="${results.length}" ${STATE.crystals >= again ? '' : 'disabled'}>
-          もう一度 ${CRYSTAL_ICON}${again.toLocaleString()}
+        ${canRetry ? `<button class="btn ${STATE.crystals >= again ? '' : 'btn-ghost'}" ${lastPullBeginner ? 'data-beginner-again="1"' : `data-pull-again="${results.length}"`} ${STATE.crystals >= again ? '' : 'disabled'}>
+          ${lastPullBeginner ? `初心者ガチャ ${BEGINNER_GACHA_ROUNDS - beginnerLeft + 1}/${BEGINNER_GACHA_ROUNDS}回目` : 'もう一度'} ${CRYSTAL_ICON}${again.toLocaleString()}
         </button>` : ''}
       </div>
     </div>
@@ -14243,6 +14265,7 @@ function handlePhoneClick(ev){
   if(t.closest('#pull1')){ doPull(1, PULL_COST); return; }
   if(t.closest('#pull10')){ doPull(10, PULL10_COST); return; }
   if(t.closest('#beginner-gacha-btn')){ doBeginnerGacha(); return; }
+  if(t.closest('[data-beginner-again]')){ closeModal(); doBeginnerGacha(); return; }
   const gkEl = t.closest('[data-gacha-kind]');
   if(gkEl){ gachaKind = gkEl.dataset.gachaKind; render(); return; }
   if(t.closest('#relic-pull1')){ doRelicPullAndShow(1, PULL_COST); return; }
@@ -15108,6 +15131,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 71, version: 'α0.1.030', date: '9/25', title: '初心者ガチャを10連×3回に・フォロワーが0人になる不具合を修正', body: '初心者ガチャを、30連まとめてではなく10連を3回に分けて引けるようにしました(1回あたり通常の10連と同じ消費)。3回目までに★5が1体も出なければ、3回目の最後の1枠が★5確定です。結果画面から続けて次の回を引くこともできます。すでに30連を引いた方は利用済みのままです。また、相互フレンドなのにフォロワーが0人と表示される不具合を修正しました。以前の版で「フレンドを返す」とフォロワーの記録が消えていたことなどが原因です。フレンドがこの版でゲームを起動すると、フォロワーの記録が自動で直ります。' },
   { id: 70, version: 'α0.1.029', date: '9/25', title: '深淵回廊に階層報酬の一覧を追加', body: '深淵回廊の画面の下に「階層報酬」を追加しました。5階ごとのボス階でどんな報酬が貰えるかを、階の順に並べています(25階ごとは大報酬)。受け取り済みの階には✓が付き、次のボス階が光ります。また、深淵回廊はスタミナを使わないため、戦闘結果の画面にスタミナを表示しないようにしました。' },
   { id: 69, version: 'α0.1.028', date: '9/25', title: '探索をメニュー形式に・深淵回廊の案内を追加', body: '探索を開くと「メインクエスト」「育成クエスト」「深淵回廊」「イベント」のメニューが出るようになりました。選ぶとそれぞれの画面に進み、左上の「戻る」でメニューに戻れます。戦闘のあとは遊んでいた画面に戻ります。また、深淵回廊を初めて開いたときに、門番のアヌビスが遊び方(無限に続く回廊・5階ごとのボスとチェックポイント・2週間ごとのリセット)を案内するようにしました。' },
   { id: 68, version: 'α0.1.027', date: '9/25', title: '探索メニューを縦並びに・深淵回廊の敵Lv上限を撤廃', body: '探索画面のメニューを「メインクエスト」「育成クエスト」「深淵回廊」「イベント」の縦並びのボタンにしました。深淵回廊の敵は、これまで49階のLv300で頭打ちでしたが、その先も1階ごとにLv+3ずつ強くなり続けます(100階でLv453)。遺物やシナジーで鍛えたパーティでどこまで登れるか挑戦してください。' },

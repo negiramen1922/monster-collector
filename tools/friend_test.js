@@ -320,7 +320,13 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   S.followerCount = 7;
   E.profileState().bio = '毎晩遊んでます';
   global.window.__authBackend.cloudProfile = async (uid, p) => { published = p; };
+  recordedBack = [];
   await E.publishProfile();
+  ok('起動後の公開時に、フォロー中の全員のフォロワー欄へ自分を書き直す(古い版で消えた/無かった記録の修復)',
+    ['f1', 'f2'].every(u => recordedBack.some(r => r.toUid === u && r.fromUid === 'me')), recordedBack);
+  const n1 = recordedBack.length;
+  await E.publishProfile();
+  ok('フォロワー欄の書き直しは起動ごとに1回だけ', recordedBack.length === n1, recordedBack.length);
   ok('公開プロフィールに自己紹介とフォロー/フォロワー数が載る', published && published.bio === '毎晩遊んでます' && published.following === 2 && published.followers === 7, published && { bio: published.bio, following: published.following, followers: published.followers });
 
   // --- 検索とおすすめ ---
