@@ -37,7 +37,7 @@ let h=tank.hp; F.startTurn(tank);
 ok('毒の上限(付与側の最大HP×20%×層)', h-tank.hp===Math.round(5*venom.maxHp*0.2), [h-tank.hp, 5*venom.maxHp*0.2]);
 // iron slime counter & stun
 iron.hp=iron.maxHp; let cnt=0; for(let i=0;i<200;i++){ const eh=e.hp=99999; e.maxHp=99999; F.strike({actor:e,act:{atk:'phys'},kind:'normal'}, iron, {pow:0.01}); if(e.hp<eh) cnt++; iron.hp=iron.maxHp; }
-ok('帯電ボディ: 物理を受けると約30%で反撃', cnt>30&&cnt<95, cnt);
+ok('帯電ボディ: 物理を受けると約50%で反撃(α0.1でカウンター型に転換)', cnt>70&&cnt<130, cnt);
 F.applyStatus(e,'stun',iron); let acted=B.actionCount; e.skillCd=[9]; F.takeTurn(e);
 ok('気絶: 行動を1回休んで解ける', !e.statuses.stun);
 

@@ -59,17 +59,9 @@ async def main():
             await pg.wait_for_timeout(400)
             n = await pg.locator('.nt-row').count()
             check('ニュースが全件出ている', n == n_news, f'{n} / {n_news}')
-            # draft のお知らせは文面を書き終えていても表に出さない
-            body = await pg.evaluate('() => document.body.innerText')
-            check('下書きのお知らせが出ていない', n_draft > 0 and 'アップデート内容(' not in body,
-                  f'下書き{n_draft}件')
-            check('ニューズも最新1件だけ開く', await pg.locator('.nt-row.on').count() == 1)
-            # 下書きを表に出したときに、長い本文が崩れず出るか(実装が入ったらこの形で出る)
-            await pg.evaluate('() => { NOTICES.forEach(n => n.draft = false); render(); }')
-            await pg.wait_for_timeout(300)
-            n2 = await pg.locator('.nt-row').count()
-            check('下書きを出すと件数が増える', n2 == n + n_draft, f'{n} → {n2}')
-            await pg.locator('.nt-row').first.click(); await pg.wait_for_timeout(250)
+            # α0.1 の実装が入ったので、アップデート内容(1)〜(3)は公開済み(draft なし)
+            check('下書きのお知らせが残っていない', n_draft == 0, f'下書き{n_draft}件')
+            check('ニュースも最新1件だけ開く', await pg.locator('.nt-row.on').count() == 1)
             t = await pg.locator('.nt-row').first.inner_text()
             check('先頭はα0.1アップデート内容(1)', 'α0.1アップデート内容(1)' in t, t.split('\n')[0])
             check('小見出しが出ている', await pg.locator('.nt-row.on .nt-h').count() >= 3,

@@ -30,6 +30,8 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | make_branding.py | favicon(64/180)とOGP画像(1200×630)を `assets/` に書き出す |
 | _serve.py | 画面テスト用のローカルHTTPサーバ(BGMの `fetch` は `file://` では通らないため) |
 | shot*.py | playwrightの画面テスト |
+| alpha01_kit_test.js | α0.1: 新キャラ30体のキットと新しい状態異常(麻痺・石化・拘束・混乱・魅了)の回帰テスト(30項目) |
+| alpha01_ui_test.py | α0.1: 新キャラ・新遺物を画面で開き、新キャラだけの編成で戦闘を最後まで回す |
 
 ## playwright(画面テスト)
 
