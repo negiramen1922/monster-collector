@@ -6009,16 +6009,16 @@ const QUEST_SPEC = {
     { name: '自分でやってみよう', terrain: 'field', element: 'grass', pool: ['m16', 'm03', 'm21', 'm10'], waves: [[2], [2], [3]], tutorial: 'self' },
   ],
   q1: [
-    { name: 'そよ風の草原', terrain: 'plains', element: 'none', fixed: [{ f:['m21', 'm16'], b:[] }, { f:['m16', 'm21'], b:['m29'] }, { f:['m21', 'm16', 'm21'], b:['m29', 'm29'] }], rares: ['m15', 'm22'] },
-    { name: '陽だまりの丘', terrain: 'plains', element: 'light', fixed: [{ f:['m11'], b:['m133'] }, { f:['m11', 'm16'], b:['m133'] }, { f:['m11', 'm11', 'm11'], b:['m133', 'm29'] }], rares: ['m126'] },
-    { name: '風鳴りの野', terrain: 'plains', element: 'wind', fixed: [{ f:['m130'], b:['m122'] }, { f:['m130'], b:['m02', 'm122'] }, { f:['m130', 'm16', 'm130'], b:['m02', 'm122'] }], rares: ['m105', 'm57'] },
+    { name: 'そよ風の草原', terrain: 'plains', element: 'none', fixed: [{ f:['m21', 'm16'], b:[] }, { f:['m16', 'm21'], b:['m29'] }, { f:['m21', 'm16', 'm21'], b:['m29'] }], rares: ['m15', 'm22'] },
+    { name: '陽だまりの丘', terrain: 'plains', element: 'light', fixed: [{ f:['m11'], b:['m133'] }, { f:['m11', 'm16'], b:['m133'] }, { f:['m11', 'm11', 'm11'], b:['m29'] }], rares: ['m126'] },
+    { name: '風鳴りの野', terrain: 'plains', element: 'wind', fixed: [{ f:['m130'], b:['m122'] }, { f:['m130'], b:['m02', 'm122'] }, { f:['m130', 'm16', 'm130'], b:['m02'] }], rares: ['m105', 'm57'] },
     { name: '岩肌の小道', terrain: 'plains', element: 'earth', fixed: [{ f:['m47', 'm47', 'm47'], b:['m134'] }, { f:['m47', 'm16', 'm47'], b:['m134'] }, { f:['m47', 'm47', 'm47'], b:['m134', 'm134'] }], rares: ['m13'] },
-    { name: '巨獣の縄張り', terrain: 'plains', element: 'none', fixed: [{ f:['m21', 'm16'], b:['m29'] }, { f:['m16', 'm16'], b:['m29'] }, { f:['*m60', 'm16', 'm16'], b:['m29', 'm29'] }], boss: true },
+    { name: '巨獣の縄張り', terrain: 'plains', element: 'none', fixed: [{ f:['m21', 'm16'], b:['m29'] }, { f:['m16', 'm16'], b:['m29'] }, { f:['*m60', 'm16'], b:['m29', 'm29'] }], boss: true },
     { name: '苔むす森の入口', terrain: 'forest', element: 'grass', fixed: [{ f:['m32'], b:['m03', 'm39'] }, { f:['m32', 'm10'], b:['m39'] }, { f:['m32', 'm32', 'm32'], b:['m03', 'm39'] }], rares: ['m01'] },
     { name: '焚き火の野営地', terrain: 'forest', element: 'fire', fixed: [{ f:['m128', 'm33', 'm128'], b:['m129'] }, { f:['m33', 'm128', 'm33'], b:['m129'] }, { f:['m128', 'm128', 'm33'], b:['m129', 'm129'] }], rares: ['m17'] },
     { name: '雷鳴の木立', terrain: 'forest', element: 'thunder', fixed: [{ f:['m132', 'm132'], b:['m14', 'm03'] }, { f:['m132', 'm21', 'm132'], b:['m14'] }, { f:['m132', 'm132', 'm132'], b:['m14', 'm14'] }], rares: ['m62'] },
     { name: '月影の泉', terrain: 'forest', element: 'water', fixed: [{ f:['m06', 'm06'], b:['m131', 'm03'] }, { f:['m06', 'm06'], b:['m131', 'm131', 'm03'] }, { f:['m06', 'm06', 'm06'], b:['m131', 'm131'] }], rares: ['m19'] },
-    { name: '蜘蛛の棲む森', terrain: 'forest', element: 'grass', fixed: [{ f:['m32'], b:['m10', 'm03'] }, { f:['m32', 'm10'], b:['m39'] }, { f:['*m121', 'm32', 'm32'], b:['m10', 'm03'] }], boss: true },
+    { name: '蜘蛛の棲む森', terrain: 'forest', element: 'grass', fixed: [{ f:['m32'], b:['m10', 'm03'] }, { f:['m32', 'm10'], b:['m39'] }, { f:['*m121', 'm32'], b:['m10', 'm03'] }], boss: true },
   ],
   q2: [
     { name: '薄暗い洞窟', terrain: 'cave', element: 'dark', fixed: [{ f:['m95', 'm30'], b:['m04', 'm120', 'm02'] }, { f:['m30', 'm115'], b:['m04', 'm04', 'm35'] }, { f:['m95', 'm30', 'm115'], b:['m04', 'm120'] }], rares: ['m23'] },
@@ -6028,7 +6028,7 @@ const QUEST_SPEC = {
     { name: '鉱山の主', terrain: 'cave', element: 'earth', fixed: [{ f:['m47', 'm45'], b:['m48', 'm134', 'm134'] }, { f:['m56', 'm45', 'm47'], b:['m134', 'm134'] }, { f:['*m89', 'm51', 'm45'], b:['m48', 'm134'] }], boss: true },
     { name: '燃え残る遺跡', terrain: 'ruins', element: 'fire', fixed: [{ f:['m128', 'm128', 'm33'], b:['m129', 'm127'] }, { f:['m59', 'm33'], b:['m129', 'm129', 'm127'] }, { f:['m59', 'm59', 'm128'], b:['m129', 'm127'] }], rares: ['m66', 'm05'] },
     { name: '聖なる祭壇', terrain: 'ruins', element: 'light', fixed: [{ f:['m71', 'm11', 'm11'], b:['m91', 'm91'] }, { f:['m124', 'm11', 'm11'], b:['m91', 'm34'] }, { f:['m71', 'm11', 'm11'], b:['m91', 'm91'] }], rares: ['m98', 'm106'] },
-    { name: 'ゴブリンの隠れ砦', terrain: 'ruins', element: 'none', fixed: [{ f:['m21', 'm21'], b:['m39', 'm39'] }, { f:['m21', 'm21'], b:['m39', 'm40'] }, { f:['m21', 'm21', 'm21'], b:['m39', 'm40'] }], rares: ['m44', 'm46'] },
+    { name: 'ゴブリンの隠れ砦', terrain: 'ruins', element: 'none', fixed: [{ f:['m21', 'm21'], b:['m39', 'm39'] }, { f:['m21', 'm21'], b:['m39', 'm40'] }, { f:['m21', 'm21'], b:['m39', 'm40'] }], rares: ['m44', 'm46'] },
     { name: '風化した神殿', terrain: 'ruins', element: 'wind', fixed: [{ f:['m71', 'm135', 'm135', 'm130'], b:['m100'] }, { f:['m71', 'm135', 'm135', 'm130'], b:['m122'] }, { f:['m71', 'm135', 'm135'], b:['m118', 'm122'] }], rares: ['m108'] },
     { name: '首なし騎士の墓所', terrain: 'ruins', element: 'dark', fixed: [{ f:['m95', 'm95'], b:['m04', 'm04', 'm120'] }, { f:['m24', 'm97', 'm95'], b:['m04', 'm120'] }, { f:['*m101', 'm97', 'm30'], b:['m04', 'm04'] }], boss: true },
   ],
@@ -6360,7 +6360,6 @@ function buildEventStages(ev){
     waves.push([
       { ref: ev.pickup, level: rec + 2, star: t.bossStar, boss: true },
       escort(ev.escorts[0], 4), escort(ev.escorts[1], 4),
-      escort(ev.escorts[2 % ev.escorts.length], 4), escort(ev.escorts[3 % ev.escorts.length], 4),
     ]);
     return {
       id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, name: `${ev.stageName}・${n}層`,
@@ -13560,7 +13559,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 45, version: 'α0.1.004', date: '9/25', body: 'チュートリアルを除くすべてのクエストとイベントで、最終ウェーブを5体編成に統一しました。これまで初級・中級の一部と超上級以降は最終ウェーブが3〜4体で、締めが手前のウェーブより軽くなることがありました。最終ウェーブのBPはおおむね2〜3割上がります。' },
+  { id: 45, version: 'α0.1.004', date: '9/25', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」の最終ウェーブを、4体から5体編成に変更しました。締めのウェーブが手前より軽くなっていたためです。最終ウェーブのBPはおおむね2〜3割上がります。初級〜上級とイベントの編成は変わりません。' },
   { id: 44, version: 'α0.1.003', date: '9/25', body: '「データを削除」を実行しても、サインインし直すと前のデータが戻ってくる不具合を修正。削除の最後にサインアウトする際、その直前まで遊んでいた内容を端末とクラウドの両方へ保存し直してしまっていました。あわせて、サインイン前に遊んでいた分のセーブも削除対象に含めるようにしました。' },
   { id: 43, version: 'α0.1.002', date: '9/24', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」を追加(適正Lv100〜250)。通常モードの敵は★4(ボスは★5)が上限になり、★6以上はハードモード限定に。' },
   { id: 42, version: 'α0.1.001', date: '9/24', body: '初心者専用の「初心者ガチャ」を追加。30連の中に★5が1体も出なければ最後の枠が★5全体からランダムに確定します(1アカウント1回限り・通常の消費)。また★4遺物の役割条件つき効果を8%→14%に引き上げ、★3遺物との性能差を是正しました。' },
