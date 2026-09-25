@@ -2426,7 +2426,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.002';
+const GAME_VERSION = 'α0.1.003';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3357,16 +3357,36 @@ async function signOutAccount(){
   ACCOUNT = null;
   try{ await storage.remove(ACCOUNT_KEY); }catch(e){}
 }
+// 削除中は保存を一切通さないための印。これが立っているあいだ writeSave と cloudPush は
+// 何もしない。立てずに消すと、削除の途中で保存が走ってデータが書き戻ってしまう。
+let saveTimer = null;
+let deletingData = false;
 // 「データを削除」: クラウド同期されている分(saves/players、best-effort)と、この端末の
 // セーブデータの両方を消してサインアウトする。呼び出し側(handleAccountAction)が確認
 // モーダルを経てから呼び、この後のタイトル画面への遷移も呼び出し側が行う。
+//
+// 順番が重要:
+//  1. 予約済みの保存(saveStateの250msタイマー、cloudPushのタイマー)を先に止める。
+//     止めないとクラウド削除を待つあいだに発火して書き戻す。
+//  2. STATE を null にして deletingData を立てる。signOutAccount が呼ぶ flushSave は
+//     writeSave と cloudPush(true) を実行するので、ここで塞いでおかないと
+//     「消した直後に同じデータを保存し直す」ことになる(ログインし直すと復活する原因)。
+//  3. 端末側を先に消し、クラウドは最後。待っているあいだに書き戻される隙をなくす。
+//  4. 端末側はアカウント別のキーと、サインイン前の匿名キーの両方を消す。
 async function deleteAllData(){
+  clearTimeout(saveTimer);
+  clearTimeout(cloud.timer);
+  cloud.dirty = false;
+  deletingData = true;
+  STATE = null;
   const be = authBackend();
-  if(ACCOUNT && typeof be.deleteCloudData === 'function'){
-    try{ await be.deleteCloudData(ACCOUNT.uid); }catch(e){ /* best-effort: still wipe local below */ }
+  const uid = ACCOUNT ? ACCOUNT.uid : null;
+  try{ if(uid) await storage.remove(saveKeyFor(uid)); }catch(e){}
+  try{ await storage.remove(SAVE_KEY); }catch(e){}
+  if(uid && typeof be.deleteCloudData === 'function'){
+    try{ await be.deleteCloudData(uid); }catch(e){ /* best-effort: ローカルは上で消えている */ }
   }
-  try{ await storage.remove(ACCOUNT ? saveKeyFor(ACCOUNT.uid) : SAVE_KEY); }catch(e){}
-  await signOutAccount();
+  try{ await signOutAccount(); }finally{ deletingData = false; }
 }
 // claim the friend code so PVP and friend lookups can go from code → uid
 async function ensurePlayerId(){
@@ -3684,6 +3704,7 @@ function cloudPayload(){
   return { savedAt: STATE.savedAt || Date.now(), version: STATE_VERSION, data: JSON.stringify(STATE) };
 }
 async function cloudPush(now){
+  if(deletingData) return;
   if(!ACCOUNT || !STATE || !cloudAvailable() || cloud.blocked) return;
   clearTimeout(cloud.timer);
   if(!now){
@@ -3809,7 +3830,6 @@ const DEFAULT_STATE = () => ({
 });
 
 let STATE = null;
-let saveTimer = null;
 
 async function loadState(){
   const key = ACCOUNT ? saveKeyFor(ACCOUNT.uid) : SAVE_KEY;
@@ -3898,7 +3918,7 @@ function saveState(){
   }, 250);
 }
 async function writeSave(){
-  if(!STATE) return;
+  if(!STATE || deletingData) return;
   try{ await storage.set(ACCOUNT ? saveKeyFor(ACCOUNT.uid) : SAVE_KEY, JSON.stringify(STATE)); }
   catch(e){ /* storage unavailable, ignore in prototype */ }
 }
@@ -13539,6 +13559,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 44, version: 'α0.1.003', date: '9/25', body: '「データを削除」を実行しても、サインインし直すと前のデータが戻ってくる不具合を修正。削除の最後にサインアウトする際、その直前まで遊んでいた内容を端末とクラウドの両方へ保存し直してしまっていました。あわせて、サインイン前に遊んでいた分のセーブも削除対象に含めるようにしました。' },
   { id: 43, version: 'α0.1.002', date: '9/24', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」を追加(適正Lv100〜250)。通常モードの敵は★4(ボスは★5)が上限になり、★6以上はハードモード限定に。' },
   { id: 42, version: 'α0.1.001', date: '9/24', body: '初心者専用の「初心者ガチャ」を追加。30連の中に★5が1体も出なければ最後の枠が★5全体からランダムに確定します(1アカウント1回限り・通常の消費)。また★4遺物の役割条件つき効果を8%→14%に引き上げ、★3遺物との性能差を是正しました。' },
   { id: 41, version: 'α0.0.051', date: '9/24', body: '常設ガチャに「セレクトピックアップ」を追加。属性ごとに★4/★5から1体選ぶと、そのレアリティが出た時に50%の確率で選んだ中から出るようになります(期間限定イベントバナーには影響しません)。' },
