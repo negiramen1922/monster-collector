@@ -2461,7 +2461,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.020';
+const GAME_VERSION = 'α0.1.021';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3982,6 +3982,7 @@ const DEFAULT_STATE = () => ({
   guidesSeen: {},          // key → true once its mascot guide has been dismissed
   beginnerStep: 0,
   beginnerBonusClaimed: false,
+  beginner2BonusClaimed: false, // はじめてガイド2(b11〜)のすべて達成ボーナス
   beginnerLogin: null,     // { day, key, claimed } — see ensureBeginnerLogin
   dailyLogin: null,        // { day, key, claimed } — see ensureDailyLogin (repeats forever)
   clearedStages: [],
@@ -4523,6 +4524,7 @@ function buyShopItem(currency, sku){
   if(currency === 'gold') addGold(-price); else STATE.pvpPoints -= price;
   addItem(itemKey, qty);
   st.bought[sku] = true;
+  track('shopBuy');
   playSfx('buff');
   toast(`${itemName(itemKey)}${qty > 1 ? `×${qty}` : ''}を購入しました`);
   saveState();
@@ -4543,6 +4545,7 @@ function buyCrystalItem(sku){
   STATE.crystals -= def.price;
   if(sku === 'stamina') grantStamina(def.qty);
   else if(sku === 'pvp_ticket') ensurePvpDaily().bonus = (ensurePvpDaily().bonus || 0) + def.qty;
+  track('shopBuy');
   playSfx('buff');
   toast(`${def.label}(+${def.qty})を購入しました`);
   saveState();
@@ -5894,6 +5897,7 @@ function grantDungeonRewards(stage){
     });
   }
   track('dungeonClear');
+  track('exploreClear');
   return { items, gold, souls: [], crystals: 0 };
 }
 
@@ -6053,11 +6057,13 @@ function giveSouls(id, n){
 // from missions alone, before achievements and first clears).
 const DAILY_MISSIONS = [
   { id:'d_login',   label:'ログインする',                 event:'login',       goal:1,  reward:[{ type:'crystal', n:40 }] },
-  { id:'d_clear',   label:'探索を3回クリアする',           event:'stageClear',  goal:3,  reward:[{ type:'crystal', n:40 }] },
+  { id:'d_clear',   label:'探索を3回クリアする(周回・ダンジョンも含む)', event:'exploreClear', goal:3, reward:[{ type:'crystal', n:40 }] },
   { id:'d_dungeon', label:'育成ダンジョンを1回クリアする',  event:'dungeonClear', goal:1, reward:[{ type:'crystal', n:30 }, { type:'item', key:'exp2', n:5 }] },
   { id:'d_upgrade', label:'モンスターを1回強化する',        event:'upgrade',     goal:1,  reward:[{ type:'stamina', n:80 }] },
   { id:'d_gacha',   label:'ガチャを1回引く',               event:'gachaPull',   goal:1,  reward:[{ type:'crystal', n:20 }, { type:'universal', n:5 }] },
   { id:'d_stamina', label:'スタミナを60使う',              event:'staminaUsed', goal:60, reward:[{ type:'crystal', n:40 }] },
+  { id:'d_relic',   label:'遺物を1回強化する',              event:'relicUpgrade', goal:1, reward:[{ type:'crystal', n:20 }, { type:'item', key:'relic_scrap', n:20 }] },
+  { id:'d_pvp',     label:'PVPを1回する',                  event:'pvpBattle',   goal:1,  reward:[{ type:'crystal', n:30 }, { type:'gold', n:5000 }] },
 ];
 const DAILY_ALL_CLEAR = [{ type:'crystal', n:50 }, { type:'gold', n:10000 }, { type:'item', key:'box_rnd_1', n:1 }];
 const WEEKLY_MISSIONS = [
@@ -6068,6 +6074,7 @@ const WEEKLY_MISSIONS = [
   { id:'w_gacha',   label:'ガチャを10回引く',                    event:'gachaPull',     goal:10, reward:[{ type:'crystal', n:150 }, { type:'universal', n:30 }] },
   { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 } ] },
   { id:'w_relic',   label:'遺物を合計10回強化する',              event:'relicUpgrade',  goal:10, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_core_1', n:5 }] },
+  { id:'w_pvp',     label:'PVPを10回する',                      event:'pvpBattle',     goal:10, reward:[{ type:'crystal', n:150 }, { type:'gold', n:30000 }] },
 ];
 // achievements: tiered chains. value() reads lifetime stats or the current state.
 const ownedCount = () => Object.keys(STATE.owned).length;
@@ -6130,9 +6137,22 @@ const BEGINNER_MISSIONS = [
   { id:'b08', label:'育成ダンジョンをクリアする',        hint:'探索 → 育成ダンジョン',      value:() => stat('dungeonClear'),   goal:1, reward:[{ type:'gold', n:20000 }] },
   { id:'b09', label:'モンスターを昇格させる',            hint:'詳細画面の「昇格」',          value:() => stat('promote'),        goal:1, reward:[{ type:'universal', n:20 }] },
   { id:'b10', label:'初級「森の主」をクリアする',     hint:'探索 → クエスト',        value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m24' }] },
+  // ---- はじめてガイド2(α0.1で追加)。1〜10を終えた人も、ここから続きとして受け取れる ----
+  { id:'b11', label:'PVPの攻撃編成を組む',            hint:'PVP画面の「攻撃編成」',     value:() => hasPvpForm('attack') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }] },
+  { id:'b12', label:'PVPでバトルする',                hint:'PVP画面で相手を探して挑戦',  value:() => stat('pvpBattle'),      goal:1, reward:[{ type:'gold', n:20000 }] },
+  { id:'b13', label:'フレンドを1人登録する',           hint:'メニュー → フレンド → フレンドを追加', value:() => STATE.friends.length, goal:1, reward:[{ type:'crystal', n:100 }] },
+  { id:'b14', label:'フレンドからキャラを借りて探索する', hint:'フレンド画面の「借りる」→ パーティに入れて探索', value:() => stat('helperClear'), goal:1, reward:[{ type:'item', key:'exp2', n:10 }] },
+  { id:'b15', label:'初心者ガチャを回す',              hint:'ガチャ画面の「初心者ガチャ」', value:() => STATE.beginnerGachaDone ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
+  { id:'b16', label:'ショップで買い物をする',           hint:'ショップ画面',              value:() => stat('shopBuy'),        goal:1, reward:[{ type:'gold', n:20000 }] },
+  { id:'b17', label:'鉱山のレベルを上げる',            hint:'拠点 → 鉱山',              value:() => baseState().mine.lv >= 2 ? 1 : 0, goal:1, reward:[{ type:'gold', n:30000 }] },
+  { id:'b18', label:'育成ダンジョン「ゴールド」Lv1をクリアする', hint:'探索 → 育成ダンジョン', value:() => (STATE.stageStars || {}).dg_gold_0 ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }] },
+  { id:'b19', label:'育成ダンジョン「EXP」Lv1をクリアする',     hint:'探索 → 育成ダンジョン', value:() => (STATE.stageStars || {}).dg_exp_0 ? 1 : 0, goal:1, reward:[{ type:'item', key:'exp1', n:50 }] },
 ];
+const BEGINNER_PART1 = 10;   // 1〜10がはじめてガイド、11〜がはじめてガイド2(それぞれにすべて達成のボーナス)
 // completing every beginner mission pays out a 10-pull's worth of crystals
 const BEGINNER_ALL_CLEAR = [{ type:'crystal', n:1350 }];
+const BEGINNER2_ALL_CLEAR = [{ type:'crystal', n:900 }];
+function beginnerAllDone(){ return !!STATE.beginnerBonusClaimed && !!STATE.beginner2BonusClaimed; }
 
 /* ---- beginner 7-day login bonus: one calendar day (not necessarily
    consecutive) advances it, so a new player never loses progress by missing a day ---- */
@@ -6287,9 +6307,13 @@ function missionEntries(){
     const val = i === step ? m.value() : 0;
     out.push({ key:`b:${m.id}`, section:'beginner', label:m.label, hint:m.hint, progress: i < step ? m.goal : val, goal:m.goal, reward:m.reward, stepNo:i + 1,
       state: i < step ? 'done' : i > step ? 'locked' : val >= m.goal ? 'claim' : 'progress' });
+    if(i === BEGINNER_PART1 - 1)
+      out.push({ key:'b:all', section:'beginner', bonus:true, label:'はじめてガイドをすべて達成', progress:Math.min(step, BEGINNER_PART1), goal:BEGINNER_PART1, reward:BEGINNER_ALL_CLEAR,
+        state: STATE.beginnerBonusClaimed ? 'done' : step >= BEGINNER_PART1 ? 'claim' : 'locked' });
   });
-  out.push({ key:'b:all', section:'beginner', bonus:true, label:'はじめてガイドをすべて達成', progress:Math.min(step, BEGINNER_MISSIONS.length), goal:BEGINNER_MISSIONS.length, reward:BEGINNER_ALL_CLEAR,
-    state: STATE.beginnerBonusClaimed ? 'done' : step >= BEGINNER_MISSIONS.length ? 'claim' : 'locked' });
+  const part2 = BEGINNER_MISSIONS.length - BEGINNER_PART1;
+  out.push({ key:'b:all2', section:'beginner', bonus:true, label:'はじめてガイド2をすべて達成', progress:Math.max(0, Math.min(step, BEGINNER_MISSIONS.length) - BEGINNER_PART1), goal:part2, reward:BEGINNER2_ALL_CLEAR,
+    state: STATE.beginner2BonusClaimed ? 'done' : step >= BEGINNER_MISSIONS.length ? 'claim' : 'locked' });
   return out;
 }
 function claimableCount(section){
@@ -6311,6 +6335,7 @@ function claimMission(key){
     STATE.achievements[id] = (STATE.achievements[id] || 0) + 1;
   }else if(kind === 'b'){
     if(id === 'all') STATE.beginnerBonusClaimed = true;
+    else if(id === 'all2') STATE.beginner2BonusClaimed = true;
     else STATE.beginnerStep = (STATE.beginnerStep || 0) + 1;
   }
   grantRewards(e.reward);
@@ -7471,20 +7496,25 @@ let missionTab = null; // first visit: beginner tab while it has steps left, oth
 function renderMissions(){
   const entries = missionEntries();
   const tabs = [
-    { key:'beginner', label:'初心者', hide: !!STATE.beginnerBonusClaimed },
+    { key:'beginner', label:'初心者', hide: beginnerAllDone() },
     { key:'daily', label:'デイリー' },
     { key:'weekly', label:'ウィークリー' },
     { key:'achieve', label:'実績' },
   ].filter(t => !t.hide);
   if(!tabs.some(t => t.key === missionTab)) missionTab = tabs[0].key; // beginner (if any) comes first
-  const list = entries.filter(e => e.section === missionTab);
+  // はじめてガイド1を受け取り終えたら、そのぶんは畳んでガイド2だけを見せる
+  const part1Done = STATE.beginnerBonusClaimed && (STATE.beginnerStep || 0) >= BEGINNER_PART1;
+  const list = entries.filter(e => e.section === missionTab
+    && !(missionTab === 'beginner' && part1Done && (e.key === 'b:all' || (e.stepNo && e.stepNo <= BEGINNER_PART1))));
   const claimable = list.filter(e => e.state === 'claim').length;
   const order = { claim:0, progress:1, locked:2, done:3 };
   const sorted = missionTab === 'beginner' ? list : list.slice().sort((a, b) => (a.bonus ? -1 : 0) - (b.bonus ? -1 : 0) || order[a.state] - order[b.state]);
 
   const resetText = missionTab === 'daily' ? `リセットまで ${formatDuration(msToDailyReset())}`
     : missionTab === 'weekly' ? `リセットまで ${formatDuration(msToWeeklyReset())}(毎週月曜${DAY_RESET_HOUR}時)`
-    : missionTab === 'beginner' ? `${Math.min(STATE.beginnerStep || 0, BEGINNER_MISSIONS.length)} / ${BEGINNER_MISSIONS.length} 達成。すべて終えると10連分の結晶(${CRYSTAL_ICON}1350)`
+    : missionTab === 'beginner' ? ((STATE.beginnerStep || 0) < BEGINNER_PART1
+        ? `${STATE.beginnerStep || 0} / ${BEGINNER_PART1} 達成。すべて終えると10連分の結晶(${CRYSTAL_ICON}1350)`
+        : `はじめてガイド2 ${Math.min(STATE.beginnerStep, BEGINNER_MISSIONS.length) - BEGINNER_PART1} / ${BEGINNER_MISSIONS.length - BEGINNER_PART1} 達成。すべて終えると${CRYSTAL_ICON}${BEGINNER2_ALL_CLEAR[0].n}`)
     : '段階をクリアするごとに、次の目標が現れます';
 
   const row = e => {
@@ -7667,7 +7697,7 @@ function tickBanner(){
 
 // home: the beginner mission track, shown as a single "what's next" line until it's fully claimed
 function renderBeginnerCard(){
-  if(STATE.beginnerBonusClaimed) return '';
+  if(beginnerAllDone()) return '';
   const list = missionEntries().filter(m => m.section === 'beginner');
   const current = list.find(m => m.state === 'progress' || m.state === 'claim');
   if(!current) return '';
@@ -10209,6 +10239,7 @@ function finishPvpBattle(win){
   clearTimeout(battleUI.tickTimer);
   const points = win ? PVP_WIN_POINTS : PVP_LOSE_POINTS;
   STATE.pvpPoints = (STATE.pvpPoints || 0) + points;
+  track('pvpBattle');
   battleUI.pvpPointsGained = points;
   if(win){
     grantRewards(PVP_WIN_REWARD);
@@ -13021,6 +13052,7 @@ function finishBattle(win){
   clearTimeout(battleUI.tickTimer);
   recordWave(battleUI, win ? 'win' : 'lose');
   if(battleUI.helperOwnerUid) creditHelperOwner(battleUI.helperOwnerUid);
+  if(win && battleUI.helperOwnerUid) track('helperClear');
   if(win){
     battleUI.rewards = battleUI.stage.type === 'dungeon' ? grantDungeonRewards(battleUI.stage) : grantStageRewards(battleUI.stage, battleUI.spawned);
     battleUI.rank = battleRank(battleUI);
@@ -13352,6 +13384,7 @@ function grantStageRewards(stage, spawned){
     [...(stage.bossReward || []), ...(stage.reward || [])].forEach(r => { grantRewards([r]); firstItems.push(r); });
   }
   track('stageClear');
+  track('exploreClear');   // デイリー「探索を3回」: 周回・育成ダンジョンも同じく数える
   if(stage.boss) track('bossClear');
   souls.filter(x => x.joined).forEach(() => track('befriend'));
   return { items, gold, souls, crystals, firstItems };
@@ -14519,6 +14552,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 62, version: 'α0.1.021', date: '9/25', title: 'ミッションの追加', body: 'デイリーミッション「探索を3回クリアする」を、周回と育成ダンジョンでも数えるようにしました。デイリーに「遺物を1回強化する」「PVPを1回する」、ウィークリーに「PVPを10回する」を追加しました。初心者ミッションに「はじめてガイド2」として9つのミッションを追加しました(PVP編成・PVPバトル・フレンド登録・お助けキャラで探索・初心者ガチャ・ショップ・鉱山・育成ダンジョンのゴールドとEXP)。すでにはじめてガイドを終えた人も、続きとして報酬を受け取れます。' },
   { id: 61, version: 'α0.1.020', date: '9/25', title: 'フレンド画面の作り直しと自己紹介', body: 'フレンド画面を開くと、まずフレンドリストが出るようにしました。コード入力欄のあった場所は「フレンドを追加」ボタンになり、追加画面では名前かIDで検索できます。何も入れていないときは、最近7日以内に遊んでいるテイマーから「おすすめユーザー」を表示します。プロフィールとフレンド画面にフォロー数(自分が追加したフレンド)とフォロワー数(自分を追加している人)を出し、フォロワー一覧から「フレンドを返す」ができます。プロフィールには自己紹介(100文字まで)を書けるようになり、他のテイマーのプロフィールにも表示されます。' },
   { id: 60, version: 'α0.1.019', date: '9/25', title: '図鑑の右端が切れる不具合を修正', body: 'スマホの幅によっては、図鑑のいちばん右の列が画面からはみ出して切れていたのを直しました。名前の長いキャラ(リヴァイアサンなど)が入ると列が広がっていたためで、今は長い名前は「…」で省略されます。遺物図鑑やかばんなど、同じ並べ方の画面も合わせて直しています。' },
   { id: 59, version: 'α0.1.018', date: '9/25', title: 'シースライムの立ち絵を新しく、アンヴァリの黄金指輪を調整', body: 'シースライムの立ち絵を新しい絵(体の中に魚と核が見える姿)に差し替えました。アンヴァリの黄金指輪のドワーフ向け被ダメージカットを+7.5%→15%から+10%→20%に上げ、ほかの遺物の被ダメージカットとそろえました。' },
