@@ -72,10 +72,12 @@ ok('神話級の1面はq6_10クリアが条件', E.STAGES.find(s => s.id === 'q7
 // --- recommended level bands land where agreed ---
 const lvOf = key => E.QUEST_TIERS.find(t => t.key === key).lv;
 ok('超上級はLv100-146', JSON.stringify(lvOf('q4')) === JSON.stringify([100, 146]));
-ok('極上級はLv150-196', JSON.stringify(lvOf('q5')) === JSON.stringify([150, 196]));
-ok('伝説級はLv200-240(★7上限200から★8上限230をまたぐ)', JSON.stringify(lvOf('q6')) === JSON.stringify([200, 240]));
-ok('神話級はLv250-300(★9上限260をまたいで★10上限300で終わる)', JSON.stringify(lvOf('q7')) === JSON.stringify([250, 300]));
-ok('伝説級の終わりと神話級の始まりが重ならない', lvOf('q6')[1] < lvOf('q7')[0], [lvOf('q6')[1], lvOf('q7')[0]]);
+ok('極上級はLv150-200(★5上限150から★7上限200まで)', JSON.stringify(lvOf('q5')) === JSON.stringify([150, 200]));
+ok('伝説級はLv210-250(★8上限230が真ん中)', JSON.stringify(lvOf('q6')) === JSON.stringify([210, 250]));
+ok('神話級はLv260-300(★9上限260から★10上限300まで)', JSON.stringify(lvOf('q7')) === JSON.stringify([260, 300]));
+ok('上位3ティアの境目は10レベルずつ空いている',
+  lvOf('q6')[0] - lvOf('q5')[1] === 10 && lvOf('q7')[0] - lvOf('q6')[1] === 10,
+  [lvOf('q5')[1], lvOf('q6')[0], lvOf('q6')[1], lvOf('q7')[0]]);
 
 // --- every enemy/boss ref used in the 4 new tiers is a real monster ---
 let badRefs = [];

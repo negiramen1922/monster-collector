@@ -2426,7 +2426,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.005';
+const GAME_VERSION = 'α0.1.006';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5989,16 +5989,17 @@ const QUEST_TIERS = [
   { key: 'q3h', label: '上級ハード', short: '💀上級', lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
   // 通常クエストは雑魚★1-4・ボス★5が上限。★6以上はハードモード専用(HARD_STAR_MAPで
   // ノーマルの★を変換)。超上級以降はレベル/スキルLvだけで難度を積み増す。
-  // レベル帯は昇格の上限Lvに合わせている: 伝説級 200(★7)〜240(★8の230をまたぐ)、
-  // 神話級 250〜300(★9の260をまたいで★10の300で終わる)。★8〜★10の解放が前提。
+  // レベル帯は昇格の上限Lvに合わせている: 極上級 150(★5上限)〜200(★7上限)、
+  // 伝説級 210〜250(★8上限230が真ん中)、神話級 260(★9上限)〜300(★10上限)。
+  // 上位3ティアの境目は10レベルずつ空けてある。神話級は★8〜★10の解放が前提。
   { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [5, 3, 2], pots: { exp2: 6, exp3: 1 } },
   { key: 'q4h', label: '超上級ハード', short: '💀超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
-  { key: 'q5', label: '極上級', lv: [150, 196], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 3], pots: { exp3: 3 } },
-  { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 196], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
-  { key: 'q6', label: '伝説級', lv: [200, 240], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6, 4, 3], pots: { exp3: 5 } },
-  { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [200, 240], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
-  { key: 'q7', label: '神話級', lv: [250, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [6, 5, 4], pots: { exp3: 8 } },
-  { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [250, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
+  { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 3], pots: { exp3: 3 } },
+  { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 200], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
+  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6, 4, 3], pots: { exp3: 5 } },
+  { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [210, 250], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
+  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [6, 5, 4], pots: { exp3: 8 } },
+  { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [260, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
 const HARD_TIERS = QUEST_TIERS_ACTIVE.filter(t => t.hard);
@@ -13577,6 +13578,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 47, version: 'α0.1.006', date: '9/25', body: '上位クエストの推奨レベルを切りのいい数字に揃えました。極上級が推奨Lv150〜200、伝説級が210〜250、神話級が260〜300になります。それぞれ昇格の上限レベル(★5=150・★7=200・★9=260・★10=300)と対応していて、ティアの境目は10レベルずつ空いています。' },
   { id: 46, version: 'α0.1.005', date: '9/25', body: '「伝説級」と「神話級」の難度差を付け直しました。これまで伝説級の最後(推奨Lv230)と神話級の最初(推奨Lv230)が同じレベルで、神話級をすべてクリアしても伝説級のボスより敵が弱いままでした。伝説級を推奨Lv200〜240、神話級を推奨Lv250〜300に広げています。あわせて期間限定イベントに8層(推奨Lv300)・9層(Lv350)・10層(Lv400)を追加しました。深層のボスは★5→★6→★7と上がり、7層で遺物が完凸したあとは強化素材が手に入ります。' },
   { id: 45, version: 'α0.1.004', date: '9/25', body: '新クエスト「超上級」「極上級」「伝説級」「神話級」の最終ウェーブを、4体から5体編成に変更しました。締めのウェーブが手前より軽くなっていたためです。最終ウェーブのBPはおおむね2〜3割上がります。初級〜上級とイベントの編成は変わりません。' },
   { id: 44, version: 'α0.1.003', date: '9/25', body: '「データを削除」を実行しても、サインインし直すと前のデータが戻ってくる不具合を修正。削除の最後にサインアウトする際、その直前まで遊んでいた内容を端末とクラウドの両方へ保存し直してしまっていました。あわせて、サインイン前に遊んでいた分のセーブも削除対象に含めるようにしました。' },
