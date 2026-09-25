@@ -3,7 +3,7 @@
    耐性は同レアリティの平均と比べた比で見る(レアリティが上がれば素の値も上がるため)。
    使い方: python3 tools/extract.py してから  cd tools && node roster_axes.js [--json] */
 const load = require('./harness.js');
-const api = load('game.js', src => src + ';global.__e={MONSTERS,MON_BY_ID,kitOf,ELEM_LABEL,ROLE_LABEL};');
+const api = load('game.js', src => src + `;global.__e={MONSTERS,MON_BY_ID,kitOf,ELEM_LABEL,ROLE_LABEL,\n  buildUnit,effDef,cutOf,DAMAGE_MIN_RATIO};`);
 const E = global.__e;
 
 function magShare(mon){
@@ -29,10 +29,35 @@ const rows = E.MONSTERS.map(m => ({
   mag: magShare(m), pdef: m.pdef, mdef: m.mdef,
   pr: m.pdef / avgBy[m.rarity].p, mr: m.mdef / avgBy[m.rarity].m,
 }));
+/* 受けるダメージが物理と魔法のどちらで小さくなるか。素の防御だけでなく、パッシブの
+   被ダメージカットも効く(ゴーストは物防6/魔防5だが物理を20%切るので物理耐性)。
+   ゲームと同じ「防御を引いてからカットを掛ける」順で被ダメージを出して比べる。
+   確認ツールのキャラ一覧の「耐性」フィルタは、これと同じ判定をしている。 */
+function defTypeOf(mon){
+  const u = E.buildUnit(mon, 1, false, mon.rarity, false, 1,
+    { skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 });
+  const raw = u.maxHp * 0.6;
+  const taken = atk => {
+    const pre = Math.max(raw * E.DAMAGE_MIN_RATIO, raw - E.effDef(u, atk));
+    return pre * (1 - E.cutOf(u, atk, pre));
+  };
+  const r = taken('mag') / taken('phys');
+  return r <= 0.93 ? '魔法耐性' : r >= 1.07 ? '物理耐性' : '均等';
+}
+rows.forEach(r => { r.def = defTypeOf(E.MON_BY_ID[r.id]); });
+
 if(process.argv.includes('--json')){ console.log(JSON.stringify(rows)); process.exit(0); }
 
 const line = r => `  ${r.id.padEnd(5)}★${r.star} ${r.n.padEnd(11, '　')} ${r.el}/${r.role.padEnd(6, '　')}`
   + ` 魔法${String(Math.round(r.mag * 100)).padStart(3)}%  物防${String(r.pdef).padStart(3)}(${r.pr.toFixed(2)})  魔防${String(r.mdef).padStart(3)}(${r.mr.toFixed(2)})`;
+
+console.log('=== 受けるダメージの偏り(パッシブの被ダメージカット込み) ===');
+['魔法耐性', '物理耐性'].forEach(t => {
+  const g = rows.filter(r => r.def === t).sort((a, b) => b.star - a.star);
+  console.log('-- ' + t + ' (' + g.length + '体) --');
+  g.forEach(r => console.log(`  ★${r.star} ${r.n.padEnd(11, '　')} ${r.el}/${r.role.padEnd(6, '　')} 物防${String(r.pdef).padStart(3)} 魔防${String(r.mdef).padStart(3)}`));
+});
+console.log('-- 均等 ' + rows.filter(r => r.def === '均等').length + '体 --');
 
 [1, 2, 3, 4, 5].forEach(star => {
   const g = rows.filter(r => r.star === star);
