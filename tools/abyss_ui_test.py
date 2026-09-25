@@ -29,17 +29,43 @@ async def main():
               STATE.clearedStages = STAGES.map(s => s.id); STATE.autoUlt = true; saveState();
               stageTab = 'abyss'; currentScreen = 'battle'; render(); }""")
             # 初心者ガイドの吹き出しがボタンに重なるので消しておく
-            await pg.evaluate("() => { const g = document.getElementById('guide-toast'); if(g) g.remove(); }")
+            await pg.evaluate("() => { clearGuideToast(); const g = document.getElementById('guide-toast'); if(g){ g.classList.remove('show'); g.innerHTML = ''; } }")
             await pg.wait_for_timeout(400)
             txt = await pg.locator('.abyss-card').inner_text()
             check('深淵回廊のタブが出る', '深淵回廊' in txt and '1階に挑戦する' in txt)
             check('テーマ属性とリセットまでの日数', 'テーマ属性' in txt and 'リセットまで' in txt)
             await pg.screenshot(path=str(OUT / 'abyss_tab.png'))
-            tabs = await pg.evaluate("() => [...document.querySelectorAll('.explore-tabs .stage-tab')].map(e => { const r = e.getBoundingClientRect(); return { t: e.querySelector('.et-label').textContent, x: r.left, y: r.top, w: r.width }; })")
-            check('探索メニューが縦に メインクエスト→育成クエスト→深淵回廊→イベント と並ぶ',
+            # 探索メニュー: 下のナビで探索を押すとメニュー、押すと各画面、左上の「戻る」でメニューへ
+            await pg.evaluate("() => document.querySelector('.nav-btn[data-nav=battle]').click()"); await pg.wait_for_timeout(300)
+            tabs = await pg.evaluate("() => [...document.querySelectorAll('.explore-tabs .stage-tab')].map(e => { const r = e.getBoundingClientRect(); return { t: e.querySelector('.et-label').firstChild.textContent, x: r.left, y: r.top, w: r.width }; })")
+            check('探索を開くと メインクエスト→育成クエスト→深淵回廊→イベント が縦に並ぶ',
                   [t['t'] for t in tabs] == ['メインクエスト', '育成クエスト', '深淵回廊', 'イベント']
                   and all(tabs[i]['y'] < tabs[i + 1]['y'] and abs(tabs[i]['x'] - tabs[i + 1]['x']) < 1 for i in range(3))
-                  and tabs[0]['w'] > 300, tabs)
+                  and tabs[0]['w'] > 300 and await pg.locator('.abyss-card').count() == 0 and await pg.locator('.explore-back').count() == 0, tabs)
+            await pg.screenshot(path=str(OUT / 'explore_menu.png'))
+            for key, sel in [('main', '.tier-tabs'), ('dungeon', '[data-dungeon-tab]'), ('abyss', '.abyss-card')]:
+                await pg.evaluate(f"() => document.querySelector('.explore-tabs [data-stage-tab={key}]').click()"); await pg.wait_for_timeout(250)
+                inside = await pg.locator(sel).count() > 0 and await pg.locator('.explore-tabs').count() == 0
+                back = await pg.locator('.explore-back').count() == 1
+                if key == 'abyss': await pg.screenshot(path=str(OUT / 'explore_abyss.png'))
+                await pg.evaluate("() => document.querySelector('.explore-back').click()"); await pg.wait_for_timeout(250)
+                check(f'{key} を押すと中に入り、左上の戻るでメニューに戻る', inside and back and await pg.locator('.explore-tabs').count() == 1)
+            # 初めて深淵回廊に入るとアヌビスの説明が出て、読み終えると二度と出ない
+            await pg.evaluate("() => { delete STATE.guidesSeen.abyss; }")
+            await pg.evaluate("() => document.querySelector('.explore-tabs [data-stage-tab=abyss]').click()"); await pg.wait_for_timeout(300)
+            g = await pg.evaluate("() => { const el = document.getElementById('guide-toast'); return el && el.classList.contains('show') ? el.innerText : ''; }")
+            check('初めて入るとアヌビスが無限・5階ごとのボスとチェックポイント・2週間リセットを説明する', 'アヌビス' in g and '無限' in g and '1 / 5' in g, g[:60])
+            await pg.screenshot(path=str(OUT / 'abyss_guide.png'))
+            texts = [g]
+            for _ in range(4):
+                await pg.evaluate("() => document.querySelector('[data-guide-next]').click()"); await pg.wait_for_timeout(150)
+                texts.append(await pg.evaluate("() => document.getElementById('guide-toast').innerText"))
+            allt = ''.join(texts)
+            check('説明の中身', all(k in allt for k in ['5階ごと', 'チェックポイント', '2週間', '持ち越']) and 'いざ深淵へ' in texts[-1])
+            await pg.evaluate("() => document.querySelector('[data-guide-next]').click()"); await pg.wait_for_timeout(200)
+            await pg.evaluate("() => document.querySelector('.explore-back').click()"); await pg.wait_for_timeout(200)
+            await pg.evaluate("() => document.querySelector('.explore-tabs [data-stage-tab=abyss]').click()"); await pg.wait_for_timeout(300)
+            check('2回目以降は出ない', await pg.evaluate("() => STATE.guidesSeen.abyss === true && !document.getElementById('guide-toast').classList.contains('show')"))
             st0 = await pg.evaluate('() => STATE.stamina')
             await pg.evaluate("() => document.querySelector('[data-start-stage=\"ab_1\"]').click()"); await pg.wait_for_timeout(600)
             check('戦闘が始まる', await pg.evaluate("() => battleUI && battleUI.stage.id === 'ab_1'"))

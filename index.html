@@ -2144,8 +2144,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .explore-tabs{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
 .explore-tabs .stage-tab{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; font-size:14px; padding:11px 14px; }
 .explore-tabs .et-icon{ font-size:17px; width:22px; text-align:center; flex:none; }
+.explore-tabs .stage-tab{ padding:14px; font-size:15px; color:var(--text); }
+.explore-tabs .et-icon{ font-size:22px; width:30px; }
 .explore-tabs .et-label{ flex:1; min-width:0; }
+.explore-tabs .et-label small{ display:block; font-size:11px; font-weight:600; color:var(--dim); margin-top:3px; }
 .explore-tabs .et-badge{ font-size:12px; flex:none; }
+.explore-tabs .et-arrow{ font-size:20px; color:var(--dim); flex:none; }
+.explore-head{ display:flex; align-items:center; gap:8px; min-width:0; }
+.explore-back{ flex:none; }
 .gacha-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
 .gacha-tabs .stage-tab{ flex:1; min-width:100px; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
@@ -2481,7 +2487,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.027';
+const GAME_VERSION = 'α0.1.028';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -6848,6 +6854,7 @@ const MASCOTS = {
   hanoko: { id: 'm86',  name: 'ハノコ' },   // monster detail screen (caring)
   ketsy:  { id: 'm55',  name: 'ケットシー' }, // welcome message, missions (gentlemanly)
   pixie:  { id: 'm133', name: 'ピクシー' }, // relic dex screen (cheerful)
+  anubis: { id: 'm149', name: 'アヌビス' }, // 深淵回廊の門番(落ち着いた口調)
 };
 
 /* ---- tutorial texts (narrated by ヒノコ) ---- */
@@ -7930,7 +7937,7 @@ function nextAction(){
     eyebrow,
     title: 'メインの探索はすべてクリア',
     sub: '育成ダンジョンで素材を集めるか、ガチャで新しい仲間を探そう',
-    main: { label: '育成ダンジョンへ', nav: 'battle' },
+    main: { label: '育成ダンジョンへ', nav: 'battle', tab: 'dungeon' },
     side: { label: 'ガチャ', nav: 'gacha' },
   };
 }
@@ -8114,7 +8121,7 @@ function renderHome(){
   const claim = claimableCount();
   const btn = (b, primary) => {
     if(!b) return '';
-    const attr = b.stage ? `data-stage="${b.stage}"` : b.stageOpen ? `data-stage-open="${b.stageOpen}"` : `data-nav="${b.nav}"`;
+    const attr = b.stage ? `data-stage="${b.stage}"` : b.stageOpen ? `data-stage-open="${b.stageOpen}"` : `data-nav="${b.nav}"${b.tab ? ` data-stage-tab-set="${b.tab}"` : ''}`;
     return `<button class="btn ${primary ? 'next-go' : 'next-side'}" ${attr} ${b.disabled ? 'disabled' : ''}>${b.label}</button>`;
   };
 
@@ -9931,7 +9938,28 @@ function renderParty(){
 
 /* ---------------- BATTLE: stage select ---------------- */
 
-let stageTab = 'main';
+// 探索画面: 'menu' は4つのメニュー(メインクエスト/育成クエスト/深淵回廊/イベント)を並べた入口
+let stageTab = 'menu';
+const EXPLORE_MENU = [
+  { key: 'main', icon: '🗺️', label: 'メインクエスト', sub: 'ストーリーを進めて新しい地域へ' },
+  { key: 'dungeon', icon: '🌱', label: '育成クエスト', sub: 'EXP・ゴールド・スキル素材を集める' },
+  { key: 'abyss', icon: '🌀', label: '深淵回廊', sub: 'スタミナ不要・2週間ごとにリセット' },
+  { key: 'event', icon: '🎪', label: 'イベント', sub: '期間限定のステージ' },
+];
+// 深淵回廊を初めて開いたときだけ、門番のアヌビスが遊び方を説明する
+function maybeAbyssGuide(){
+  if(currentScreen !== 'battle' || stageTab !== 'abyss' || !abyssUnlocked()) return;
+  if(STATE.guidesSeen && STATE.guidesSeen.abyss) return;
+  openGuideToast('anubis', GUIDE_CONTENT.abyss.steps, { key: 'abyss', doneLabel: 'いざ深淵へ' });
+}
+// 遊んだステージがどのメニューのものか(戦闘のあとにそのメニューへ戻るため)
+function stageTabOf(stage){
+  if(!stage) return 'main';
+  if(stage.type === 'abyss') return 'abyss';
+  if(stage.type === 'dungeon') return 'dungeon';
+  if(stage.type === 'event') return 'event';
+  return 'main';
+}
 let questTier = null;  // selected difficulty tier (always a base/normal key - see hardMode for the hard-mode toggle)
 let hardMode = false;  // whether the current tier's hard-mode stages are shown (toggled by the 💀 button, falls back to normal if unavailable)
 let stageSheet = null; // stage whose details are shown
@@ -10151,6 +10179,8 @@ function renderBattleSelect(){
   refreshStamina();
   ensureDaily();
   if(questTier && !tierUnlocked(questTier)) questTier = null;
+  // チュートリアル中はメニューを挟まず、そのままクエストを出す
+  if(!tutorialCleared()) stageTab = 'main';
   if(stageTab === 'main' && !questTier) questTier = QUEST_TIERS_ACTIVE.filter(t => tierUnlocked(t.key) && !t.hard).slice(-1)[0].key;
   const effTier = effectiveQuestTier();
   const tier2 = effTier ? QUEST_TIERS.find(t => t.key === effTier) : null;
@@ -10162,18 +10192,21 @@ function renderBattleSelect(){
 
   return `
     <div class="row-between" style="margin:10px 0 6px;">
-      <div class="screen-title" style="margin:0;">探索</div>
+      ${stageTab !== 'menu' && tutorialCleared() ? `<div class="explore-head">
+        <button class="btn btn-ghost btn-sm explore-back" data-stage-tab="menu" aria-label="探索メニューに戻る">‹ 戻る</button>
+        <div class="screen-title" style="margin:0;">${(EXPLORE_MENU.find(m => m.key === stageTab) || EXPLORE_MENU[0]).label}</div>
+      </div>` : `<div class="screen-title" style="margin:0;">探索</div>`}
       <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
     </div>
-    <div class="explore-tabs" role="tablist">
-      ${[
-        { key: 'main', icon: '🗺️', label: 'メインクエスト', open: true },
-        { key: 'dungeon', icon: '🌱', label: '育成クエスト', open: tutorialCleared() },
-        { key: 'abyss', icon: '🌀', label: '深淵回廊', open: abyssUnlocked() },
-        { key: 'event', icon: '🎪', label: 'イベント', open: tutorialCleared(), badge: evCount && tutorialCleared() ? `🔥${evCount}` : '' },
-      ].map(t => `<button class="stage-tab ${stageTab === t.key ? 'on' : ''} ${t.open ? '' : 'locked'}" data-stage-tab="${t.key}" role="tab" aria-selected="${stageTab === t.key}">
-        <span class="et-icon">${t.open ? t.icon : '🔒'}</span><span class="et-label">${t.label}</span>${t.badge ? `<span class="et-badge">${t.badge}</span>` : ''}</button>`).join('')}
-    </div>
+    ${stageTab === 'menu' ? `<div class="explore-tabs">
+      ${EXPLORE_MENU.map(t => {
+        const open = t.key === 'abyss' ? abyssUnlocked() : t.key === 'main' || tutorialCleared();
+        const badge = t.key === 'event' && evCount ? `🔥${evCount}` : '';
+        const sub = t.key === 'abyss' && !open ? '上級をクリアすると解放' : t.key === 'event' && !evCount ? '開催中のイベントはありません' : t.sub;
+        return `<button class="stage-tab ${open ? '' : 'locked'}" data-stage-tab="${t.key}">
+          <span class="et-icon">${open ? t.icon : '🔒'}</span><span class="et-label">${t.label}<small>${sub}</small></span>${badge ? `<span class="et-badge">${badge}</span>` : ''}<span class="et-arrow">›</span></button>`;
+      }).join('')}
+    </div>` : ''}
     ${stageTab === 'event' ? renderEventTab() : ''}
     ${stageTab === 'abyss' ? renderAbyssTab() : ''}
     ${stageTab === 'dungeon' ? renderDungeons() : ''}
@@ -10732,6 +10765,7 @@ function startBattle(stageId, opts){
     applyAbyssSnapshot(party);
     if(party.every(u => !u.alive)){ toast('全員が戦闘不能です。パーティを入れ替えてください'); return; }
   }
+  stageTab = stageTabOf(stage);
 
   battleUI = {
     stage, party,
@@ -14141,7 +14175,9 @@ function handlePhoneClick(ev){
   const navEl = t.closest('[data-nav]');
   if(navEl){
     if(navEl.dataset.stageTabSet && (navEl.dataset.stageTabSet === 'main' || tutorialCleared())) stageTab = navEl.dataset.stageTabSet;
+    else if(navEl.classList.contains('nav-btn') && navEl.dataset.nav === 'battle') stageTab = 'menu';
     goto(navEl.dataset.nav);
+    maybeAbyssGuide();
     return;
   }
 
@@ -14649,8 +14685,8 @@ function handlePhoneClick(ev){
   const tabEl = t.closest('[data-stage-tab]');
   if(tabEl){
     const tab = tabEl.dataset.stageTab;
-    if(tab !== 'main' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
-    stageTab = tab; render(); return;
+    if(tab !== 'main' && tab !== 'menu' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
+    stageTab = tab; render(); maybeAbyssGuide(); return;
   }
   const gachaBannerEl = t.closest('[data-gacha-banner]');
   if(gachaBannerEl){ gachaBannerKey = gachaBannerEl.dataset.gachaBanner; render(); return; }
@@ -15020,6 +15056,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 69, version: 'α0.1.028', date: '9/25', title: '探索をメニュー形式に・深淵回廊の案内を追加', body: '探索を開くと「メインクエスト」「育成クエスト」「深淵回廊」「イベント」のメニューが出るようになりました。選ぶとそれぞれの画面に進み、左上の「戻る」でメニューに戻れます。戦闘のあとは遊んでいた画面に戻ります。また、深淵回廊を初めて開いたときに、門番のアヌビスが遊び方(無限に続く回廊・5階ごとのボスとチェックポイント・2週間ごとのリセット)を案内するようにしました。' },
   { id: 68, version: 'α0.1.027', date: '9/25', title: '探索メニューを縦並びに・深淵回廊の敵Lv上限を撤廃', body: '探索画面のメニューを「メインクエスト」「育成クエスト」「深淵回廊」「イベント」の縦並びのボタンにしました。深淵回廊の敵は、これまで49階のLv300で頭打ちでしたが、その先も1階ごとにLv+3ずつ強くなり続けます(100階でLv453)。遺物やシナジーで鍛えたパーティでどこまで登れるか挑戦してください。' },
   { id: 67, version: 'α0.1.026', date: '9/25', title: '深淵回廊(無限ダンジョン)を追加', body: '探索に「深淵回廊」を追加しました(上級クリアで解放)。スタミナを使わずに、1階ずつ強くなる敵を倒して進みます。HPは階をまたいで持ち越し、5階ごとのボスを倒すと全回復・全員復活のチェックポイントになります。負けたら最後のチェックポイントから再開です。2週間ごとにリセットされ、各階の初回報酬(5階ごと・25階ごとは多め)をもう一度受け取れます。期ごとに敵に多いテーマ属性が2つあります。あわせてアイテム「スタミナの実」(スタミナ+60)と「時渡りの砂」(拠点の放置報酬1・3・12時間分をすぐ受け取れる)を追加し、深淵回廊やウィークリーミッションの報酬に入れました。' },
   { id: 66, version: 'α0.1.025', date: '9/25', title: 'テイマーのレベルアップでスタミナ+300', body: 'テイマーのレベルが上がるたびに、スタミナが300増えるようにしました(上限を超えても受け取れます。999を超える分はプレゼントボックスへ)。あわせて、クエスト・周回・育成ダンジョンをクリアするたびにテイマーの経験値が20入るようにしました(これまでは初回クリアだけでした)。' },
@@ -16095,6 +16132,15 @@ const GUIDE_CONTENT = {
   tutorialDone: {
     steps: [
       { title: 'おつかれさま!', body: `戦闘チュートリアルはここまで!おつかれさまでした。これからの冒険の足しに、${CRYSTAL_ICON}3200個を受け取ってね。ここから先は自分の力で進んでいこう!` },
+    ],
+  },
+  abyss: {
+    steps: [
+      { title: '深淵回廊へようこそ', body: '我はアヌビス、この回廊の門番だ。深淵回廊は底の見えぬ無限の回廊。1階ずつ強くなる敵を倒し、どこまで降りられるかを試す場所だ。スタミナは要らぬ。' },
+      { body: '回廊では傷が癒えぬ。HPやSP、倒れた仲間は次の階へそのまま持ち越される。一度の挑戦で無理はするな。', highlight: '.ab-party' },
+      { body: '5階ごとにボスが待つ。ボスを倒せばそこがチェックポイントとなり、仲間は全回復・全員復活する。敗れても、最後のチェックポイントの次の階から挑み直せるぞ。', highlight: '.ab-stats' },
+      { body: '各階を初めて越えたときに報酬を授けよう。5階・25階ごとには多めに用意してある。', highlight: '.ab-next' },
+      { body: '回廊は2週間ごとに姿を変える。そのとき1階に戻り、報酬ももう一度受け取れる。期ごとに多く現れる属性(テーマ属性)も変わるゆえ、編成を工夫して挑むがよい。', highlight: '.mc-reset' },
     ],
   },
   relics: {
