@@ -2318,6 +2318,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .pf-favs{ display:flex; gap:7px; }
 .pf-fav{ flex:1; border-radius:12px; background:var(--panel2); border:1px solid rgba(232,180,85,.2); padding:6px;
   text-align:center; cursor:pointer; min-width:0; }
+.pf-fav{ position:relative; }
+.pf-fav.lend{ border:2px solid var(--gold); box-shadow:0 0 10px -3px rgba(232,180,85,.7); background:linear-gradient(180deg, rgba(232,180,85,.16), var(--panel2)); }
+.pf-lend-tag{ position:absolute; top:-7px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:900; color:var(--bg);
+  background:var(--gold); border-radius:6px; padding:1px 6px; white-space:nowrap; z-index:1; }
+.pf-lend-note{ display:flex; align-items:center; gap:6px; margin-top:9px; font-size:11px; color:var(--dim); }
+.pf-lend-swatch{ width:12px; height:12px; border-radius:3px; border:2px solid var(--gold); background:rgba(232,180,85,.2); flex:none; }
 .pf-fav img{ width:100%; height:52px; object-fit:contain; image-rendering:pixelated; }
 .pf-fav-name{ font-size:9.5px; font-weight:800; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pf-fav-sub{ font-size:9px; color:var(--gold); }
@@ -2521,7 +2527,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.033';
+const GAME_VERSION = 'α0.1.034';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3595,7 +3601,7 @@ async function publishProfile(){
   const be = authBackend();
   if(!ACCOUNT || !be.cloudProfile) return;
   try{
-    const favId = STATE && profileState().favorites[0];
+    const favId = STATE && (profileState().favorites || []).filter(id => STATE.owned[id])[0];   // プロフィールの黄色い枠(貸出)と同じキャラ
     const favOwned = favId && STATE.owned[favId];
     const support = favOwned ? {
       id: favId, star: favOwned.star, level: favOwned.level,
@@ -15227,6 +15233,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 75, version: 'α0.1.034', date: '9/25', title: '貸出中のお助けキャラを分かりやすく', body: 'プロフィールの「お気に入り」の一番左は、フレンドに貸し出すお助けキャラです。分かりやすいように黄色の枠と「貸出」のタグを付け、下に「黄色の枠はフレンドに貸し出すお助けキャラです」と説明を入れました。' },
   { id: 74, version: 'α0.1.033', date: '9/25', title: '深淵回廊に「諦める」を追加', body: '深淵回廊で、HPが減ってこれ以上は勝てそうにないときに「諦める」を選べるようにしました。諦めると最後のチェックポイントの次の階からやり直しになり、パーティのHP・SPは全回復、戦闘不能の仲間も復活します。押すと確認の画面が出るので、間違えて押しても大丈夫です。' },
   { id: 73, version: 'α0.1.032', date: '9/25', title: 'レベルアップ・コンテンツ解放のお知らせを追加', body: 'テイマーのレベルが上がったときや、クエストを進めて新しいコンテンツ(育成クエストの段階・拠点の施設・ハードモード・新しい難易度・深淵回廊・倍速など)が解放されたときに、何が起きたかを画面の真ん中でお知らせするようにしました。戦闘の結果画面を閉じたあとに、まとめて1回だけ表示されます。レベルアップで回復したスタミナの量もここで確認できます。' },
   { id: 72, version: 'α0.1.031', date: '9/25', title: 'ショップの更新と特売品を追加', body: 'ゴールドショップに「ショップ更新」を追加しました。水晶を払うと、その日に買った商品がもう一度買えるようになり、特売品も入れ替わります。1日3回まで、費用は50→100→150水晶です。あわせて特売品を1品から3品に増やしました(50%・40%・30%引き)。特売品はリストの上にまとめて表示されます。' },
@@ -15466,12 +15473,14 @@ function renderProfileOverlay(){
   const startedAt = a.createdAt ? new Date(a.createdAt) : null;
   const startedAtLabel = startedAt ? `${startedAt.getFullYear()}/${startedAt.getMonth() + 1}/${startedAt.getDate()}` : '-';
   const relicCount = ownedRelicIds().length;
+  // 1番左(favorites[0])はフレンドに貸し出すお助けキャラ。黄色の枠と「貸出」タグで見分けられるようにする
   const favCell = (id, i) => id ? `
-    <div class="pf-fav" data-pick="fav${i}">
+    <div class="pf-fav ${i === 0 ? 'lend' : ''}" data-pick="fav${i}">
+      ${i === 0 ? '<span class="pf-lend-tag">貸出</span>' : ''}
       <img src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">
       <div class="pf-fav-name">${MON_BY_ID[id].name}</div>
       <div class="pf-fav-sub">★${STATE.owned[id].star} Lv${STATE.owned[id].level}</div>
-    </div>` : `<div class="pf-fav empty" data-pick="fav${i}">＋</div>`;
+    </div>` : `<div class="pf-fav empty ${i === 0 ? 'lend' : ''}" data-pick="fav${i}">${i === 0 ? '<span class="pf-lend-tag">貸出</span>' : ''}＋</div>`;
 
   return `
     <div class="ov-screen">
@@ -15530,6 +15539,7 @@ function renderProfileOverlay(){
             <div class="mc-reset">プロフィールに表示される3体</div>
           </div>
           <div class="pf-favs">${[0, 1, 2].map(i => favCell(fav[i], i)).join('')}</div>
+          <div class="pf-lend-note"><span class="pf-lend-swatch"></span>黄色の枠はフレンドに貸し出すお助けキャラです</div>
         </div>
 
         <div class="panel">
