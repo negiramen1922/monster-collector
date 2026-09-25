@@ -38,7 +38,7 @@ def main(thumbs_path):
     thumbs = json.load(io.open(thumbs_path, encoding='utf-8'))
     T = {n: sig(Image.open(io.BytesIO(base64.b64decode(u.split(',', 1)[1]))))
          for n, u in thumbs.items()}
-    F = {os.path.basename(f): sig(Image.open(f)) for f in sorted(glob.glob('sprite_*.png'))}
+    F = {os.path.basename(f): sig(Image.open(f)) for f in sorted(glob.glob('sprite_*.png') + glob.glob('dreamina-*.png'))}
     print('サムネイル %d件 / 立ち絵 %d件' % (len(T), len(F)))
 
     hit = {}
@@ -52,13 +52,23 @@ def main(thumbs_path):
         else:
             print('  %-12s 一致なし(最も近くて距離%d)' % (name, d))
 
-    out, n, missing = {}, FIRST_SPRITE - 1, []
+    # 既に番号を振ったキャラは番号を変えない(index.html 側の sprite-data がずれるため)。
+    # 新しく見つかったキャラだけ、いまの最大番号の次から振る
+    try:
+        prev = json.load(io.open('tools/sprite_map.json', encoding='utf-8'))['map']
+    except (OSError, ValueError, KeyError):
+        prev = {}
+    n = max([FIRST_SPRITE - 1] + [int(v['sprite']) for v in prev.values()])
+    out, missing = {}, []
     for name in ORDER:
-        f = hit.get(name)
+        f = hit.get(name) or (prev.get(name) or {}).get('file')
         if not f:
             missing.append(name); continue
-        n += 1
-        out[name] = {'file': f, 'sprite': str(n)}
+        if name in prev:
+            out[name] = {'file': f, 'sprite': prev[name]['sprite']}
+        else:
+            n += 1
+            out[name] = {'file': f, 'sprite': str(n)}
     json.dump({'note': '新モンスターの立ち絵と、index.html の sprite-data に入れる番号の対応。'
                        'ファイル名が連番で中身が分からないため、確認ツールのサムネイルと'
                        '画像の指紋で突き合わせて確定した(tools/match_sprites.py)。',

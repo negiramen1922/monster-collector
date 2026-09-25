@@ -108,11 +108,19 @@
   "コカトリス": {
    "file": "sprite_5733.png",
    "sprite": "162"
+  },
+  "シームルグ": {
+   "file": "dreamina-2026-09-24-2307_transparent.png",
+   "sprite": "163"
+  },
+  "サキュバス": {
+   "file": "dreamina-2026-09-25-9859_transparent.png",
+   "sprite": "164"
+  },
+  "死神": {
+   "file": "dreamina-2026-09-25-9178_transparent.png",
+   "sprite": "165"
   }
  },
- "missing": [
-  "シームルグ",
-  "サキュバス",
-  "死神"
- ]
+ "missing": []
 }
