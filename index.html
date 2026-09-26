@@ -779,7 +779,74 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .egg-slot.open:not(.hatching) .egg-star{ opacity:1; }
 .egg-new{ position:absolute; top:0; right:0; font-size:8px; font-weight:800; padding:1px 5px; border-radius:6px;
   background:var(--ok); color:#0d1a0c; }
+/* タップで割る: 閉じた卵は同じ見た目。★4は紫、★5は金の光と揺れで「予兆」だけ見せる */
+.reveal-head .reveal-btns{ display:flex; gap:6px; flex:none; }
+.egg-slot .egg-mon, .egg-slot .egg-star, .egg-slot .egg-new{ z-index:2; }
+.reveal-foot{ font-size:10px; color:var(--dim); text-align:center; margin-top:10px; }
+.reveal-grid .egg-slot.closed{ cursor:pointer; }
+.reveal-grid .egg-slot.closed:active .egg-svg{ transform:scale(.92); }
+.egg-aura{ position:absolute; inset:-6% -10%; border-radius:50%; pointer-events:none; z-index:0; }
+.egg-slot .egg-svg, .egg-slot .egg-art{ position:relative; z-index:1; }
+.egg-slot.hint4 .egg-aura{ inset:-12% -18%; background:radial-gradient(circle, rgba(190,120,255,.85), rgba(190,120,255,0) 62%); animation:aura4 1.6s ease-in-out infinite; }
+.egg-slot.hint4 .egg-svg{ filter:drop-shadow(0 0 7px rgba(200,140,255,.95)); }
+@keyframes aura4{ 0%,100%{ opacity:.25; transform:scale(.85); } 50%{ opacity:1; transform:scale(1.08); } }
+.egg-slot.hint5 .egg-aura{ inset:-18% -24%; background:
+    radial-gradient(circle, rgba(255,230,120,.8), rgba(255,200,80,0) 60%),
+    repeating-conic-gradient(from 0deg, rgba(255,236,160,.55) 0deg 6deg, rgba(255,236,160,0) 6deg 22deg);
+  -webkit-mask:radial-gradient(circle, #000 30%, transparent 70%); mask:radial-gradient(circle, #000 30%, transparent 70%);
+  animation:aura5 3.2s linear infinite; }
+@keyframes aura5{ 0%{ transform:rotate(0) scale(.95); opacity:.7; } 50%{ opacity:1; transform:rotate(180deg) scale(1.1); } 100%{ transform:rotate(360deg) scale(.95); opacity:.7; } }
+.reveal-grid .egg-slot.hint5 .egg-svg{ animation:egg-tremble 2.6s ease-in-out infinite; animation-delay:calc(var(--i) * 170ms); }
+@keyframes egg-tremble{ 0%,70%,100%{ transform:rotate(0); } 74%{ transform:rotate(-10deg) translateX(-2px); } 78%{ transform:rotate(10deg) translateX(2px); }
+  82%{ transform:rotate(-8deg); } 86%{ transform:rotate(8deg); } 90%{ transform:rotate(0); } }
+/* 割れたあと: レア度の色で光る */
+.egg-slot.open.r4 .egg-mon{ filter:drop-shadow(0 0 8px rgba(190,120,255,.9)); }
+.egg-slot.open.r5 .egg-mon{ filter:drop-shadow(0 0 10px rgba(255,220,110,1)); }
+.egg-star.r4{ color:#d6a6ff; } .egg-star.r5{ color:#ffe06a; text-shadow:0 0 6px rgba(255,224,106,.9); }
+.egg-slot.open.hatching.r4::before, .egg-slot.open.hatching.r5::before{ content:''; position:absolute; inset:-20%; border-radius:50%; z-index:0;
+  animation:burst-ring .9s ease-out .7s backwards; }
+.egg-slot.open.hatching.r4::before{ background:radial-gradient(circle, rgba(200,140,255,.9), rgba(200,140,255,0) 60%); }
+.egg-slot.open.hatching.r5::before{ background:radial-gradient(circle, rgba(255,236,150,1), rgba(255,236,150,0) 60%); }
+@keyframes burst-ring{ 0%{ opacity:0; transform:scale(.3); } 30%{ opacity:1; } 100%{ opacity:0; transform:scale(1.6); } }
+/* ★5の1段目: ほかの卵が暗くなり、その卵だけが激しく揺れて金色のヒビから光が漏れる */
+.reveal-grid.cracking .egg-slot:not(.crack5){ opacity:.25; transition:opacity .4s; }
+.reveal-grid .egg-slot.crack5 .egg-svg{ animation:egg-violent .12s linear infinite !important; filter:drop-shadow(0 0 14px rgba(255,220,110,1)) brightness(1.3); }
+.reveal-grid .egg-slot.crack5 .egg-aura, .reveal-grid .egg-slot.crack5::after{ content:''; position:absolute; inset:-60%; border-radius:50%; z-index:2; pointer-events:none;
+  background:repeating-conic-gradient(from 0deg, rgba(255,240,170,.9) 0deg 3deg, rgba(255,240,170,0) 3deg 14deg);
+  -webkit-mask:radial-gradient(circle, #000 20%, transparent 65%); mask:radial-gradient(circle, #000 20%, transparent 65%);
+  animation:crack-rays 1.15s ease-in forwards; }
+@keyframes crack-rays{ 0%{ opacity:0; transform:scale(.4) rotate(0); } 100%{ opacity:1; transform:scale(1.5) rotate(90deg); } }
+@keyframes egg-violent{ 0%,100%{ transform:translate(0,0) rotate(0); } 25%{ transform:translate(-3px,1px) rotate(-12deg); } 50%{ transform:translate(3px,-1px) rotate(12deg); } 75%{ transform:translate(-2px,-2px) rotate(-8deg); } }
+/* ★5の2段目: 暗転してシルエット */
+.cut-stage.silhouette{ background:#000; }
+.sil-glow{ position:absolute; left:50%; top:46%; width:360px; height:360px; margin:-180px 0 0 -180px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,220,120,.55), rgba(255,160,60,.15) 45%, rgba(0,0,0,0) 70%); animation:sil-pulse .65s ease-in-out infinite; }
+@keyframes sil-pulse{ 0%,100%{ transform:scale(.85); opacity:.6; } 50%{ transform:scale(1.1); opacity:1; } }
+.cut-mon.sil-mon{ width:232px; height:232px; filter:brightness(0) drop-shadow(0 0 3px #fff) drop-shadow(0 0 16px rgba(255,220,120,.9)); animation:sil-in 1.3s ease-out; }
+@keyframes sil-in{ 0%{ opacity:0; transform:scale(.6); } 40%{ opacity:1; } 100%{ transform:scale(1.05); } }
+.sil-text{ font-size:26px; color:#ffe06a; margin-top:8px; animation:flash .5s ease-in-out infinite; }
 /* ★4 / ★5 cut-ins */
+.cut-pickup{ display:inline-block; font-size:13px; color:#fff; background:linear-gradient(90deg,#ff4f7a,#ffb23f); padding:4px 14px; border-radius:6px;
+  margin-bottom:10px; box-shadow:0 0 16px rgba(255,120,120,.8); animation:pickup-in .5s cubic-bezier(.2,1.6,.4,1) .3s backwards; }
+@keyframes pickup-in{ from{ opacity:0; transform:scale(2.2) rotate(-8deg); } }
+.cut-stars{ display:flex; justify-content:center; gap:2px; margin-top:6px; font-size:24px; color:#fff; }
+.cut-stage.rare .cut-stars{ color:#e7c8ff; text-shadow:0 0 10px rgba(200,140,255,.9); }
+.cut-stage.legend .cut-stars{ font-size:30px; color:#ffe06a; text-shadow:0 0 12px rgba(255,224,106,1), 0 0 2px #fff; }
+.cut-stars span{ display:inline-block; animation:star-stamp .32s cubic-bezier(.2,1.7,.4,1) backwards; }
+@keyframes star-stamp{ 0%{ opacity:0; transform:scale(3) rotate(-30deg); } 100%{ opacity:1; transform:scale(1) rotate(0); } }
+.cut-stage.legend .cut-name{ animation:name-slam .45s cubic-bezier(.2,1.6,.4,1) 1.2s backwards; letter-spacing:.04em; }
+@keyframes name-slam{ 0%{ opacity:0; transform:scale(2.4); filter:blur(4px); } 100%{ opacity:1; transform:scale(1); filter:blur(0); } }
+.cut-stage.legend .cut-sub, .cut-stage.legend .cut-badges{ animation:fade-in .4s ease-out 1.5s backwards; }
+.cut-stage.legend .cut-rays{ opacity:.55; animation-duration:8s; }
+.confetti{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.confetti i{ position:absolute; top:-12px; width:8px; height:13px; border-radius:2px; opacity:.95; animation:confetti-fall linear forwards; }
+@keyframes confetti-fall{ 0%{ transform:translateY(0) rotate(0); } 100%{ transform:translateY(900px) rotate(var(--rot)); opacity:.6; } }
+.gacha-shake{ animation:scr-shake .4s ease-in-out; }
+.gacha-shake-strong{ animation:scr-shake-strong .65s ease-in-out; }
+@keyframes scr-shake{ 0%,100%{ transform:translate(0,0); } 25%{ transform:translate(-4px,2px); } 50%{ transform:translate(4px,-2px); } 75%{ transform:translate(-3px,-1px); } }
+@keyframes scr-shake-strong{ 0%,100%{ transform:translate(0,0); } 10%{ transform:translate(-10px,5px); } 25%{ transform:translate(9px,-6px); } 40%{ transform:translate(-8px,-4px); }
+  55%{ transform:translate(7px,5px); } 70%{ transform:translate(-5px,3px); } 85%{ transform:translate(3px,-2px); } }
+@media (prefers-reduced-motion: reduce){ .gacha-shake, .gacha-shake-strong{ animation:none; } }
 .cut-stage{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; }
 .cut-stage.rare{ background:radial-gradient(circle at 50% 46%, #d8b6f5 0%, #8a55c9 22%, #3b2050 58%, #120f22 100%); }
 .cut-stage.legend{ background:radial-gradient(circle at 50% 46%, #fff6dd 0%, #f0c6ef 18%, #a06fd8 42%, #4b2a70 72%, #140f24 100%); }
@@ -2527,7 +2594,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.036';
+const GAME_VERSION = 'α0.1.037';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9051,8 +9118,7 @@ function jarSvg(rarity){
 // relic gacha ('relic', results shaped like grantRelic() = {def, isNew}) - these accessors
 // are the only place that shape difference is read, everything else in the sequence just
 // calls pullRarity()/pullIconHtml()/etc and doesn't care which kind it's showing.
-let gachaSeq = null;   // { results, before, phase, opened, just, cut, kind, timer }
-const REVEAL_STEP = 430;
+let gachaSeq = null;   // { results, before, phase, open[], cut, kind, notes, skipping }
 
 function pullRarity(kind, r){ return kind === 'relic' ? r.def.star : r.mon.rarity; }
 function pullIconHtml(kind, r, cls){
@@ -9075,18 +9141,21 @@ function pullBannerTitle(kind){
   return MON_BY_ID[currentBanner().pickup].name;
 }
 
+// 卵(壺)の見た目: 閉じている間はどれも同じ色。レア度は「予兆」(★4は紫の光、★5は金の光と揺れ)でだけ見せる
+function eggHint(rarity){ return rarity >= 5 ? 'hint5' : rarity === 4 ? 'hint4' : ''; }
 function eggFace(r, i, state, kind){
-  // state: 'egg' (closed) | 'next' (about to open) | 'open'
+  // state: 'egg' (closed) | 'open'
   const rarity = pullRarity(kind, r);
+  const closed = state === 'egg';
   return `
-    <div class="egg-slot ${eggClass(rarity)} ${state}" style="--i:${i}">
-      ${kind === 'relic' ? jarSvg(rarity) : (eggArt(rarity) || eggSvg(rarity))}
+    <div class="egg-slot egg-blue ${closed ? `closed ${eggHint(rarity)}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目を割る"` : ''}>
+      ${closed && rarity >= 4 ? '<span class="egg-aura"></span>' : ''}
+      ${kind === 'relic' ? jarSvg(1) : (eggArt(1) || eggSvg(1))}
       ${pullIconHtml(kind, r, 'egg-mon')}
-      <div class="egg-star">${'★'.repeat(rarity)}</div>
-      ${state === 'open' && r.isNew ? '<span class="egg-new">NEW</span>' : ''}
+      <div class="egg-star r${Math.min(5, rarity)}">${'★'.repeat(rarity)}</div>
+      ${!closed && r.isNew ? '<span class="egg-new">NEW</span>' : ''}
     </div>`;
 }
-
 function gachaChestHtml(n){
   return `
     <div class="chest-wrap">
@@ -9098,32 +9167,59 @@ function gachaChestHtml(n){
       </div>
       ${Array.from({ length: n }, (_, i) => {
         const col = i % 5, row = Math.floor(i / 5);
-        const r = gachaSeq.results[i];
-        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} ${eggClass(pullRarity(gachaSeq.kind, r))}" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; animation-delay:${300 + i * 70}ms"></div>`;
+        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} egg-blue" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; animation-delay:${300 + i * 70}ms"></div>`;
       }).join('')}
     </div>`;
 }
-
+// 紙吹雪(★5のカットイン)
+function confettiHtml(n){
+  const cols = ['#ffe06a', '#ff8fd0', '#7ee07a', '#6fb7ff', '#ffffff', '#e8b455'];
+  return `<div class="confetti">${Array.from({ length: n }, (_, i) => `<i style="left:${Math.round(Math.random() * 100)}%;background:${cols[i % cols.length]};animation-delay:${Math.round(Math.random() * 900)}ms;animation-duration:${1600 + Math.round(Math.random() * 1400)}ms;--rot:${Math.round(Math.random() * 720 - 360)}deg"></i>`).join('')}</div>`;
+}
 function cutInHtml(r, phaseKind, kind){
   const rarity = pullRarity(kind, r);
   const name = kind === 'relic' ? r.def.name : r.mon.name;
   const extra = kind === 'relic' ? '' : `・${ELEM_LABEL[r.mon.element]}／${ROLE_LABEL[r.mon.role]}`;
+  const legend = phaseKind === 'legend';
+  const pickup = kind !== 'relic' && r.pickupBonus;
   return `
     <div class="cut-stage ${phaseKind}">
       <div class="cut-rays"></div>
+      ${legend ? confettiHtml(46) : ''}
       <div class="cut-body">
-        <div class="cut-badges">
-          <span class="cut-star pixel">★ ${rarity}</span>
-          ${pullBadgeHtml(kind, r)}
-        </div>
+        ${pickup ? '<div class="cut-pickup pixel">PICK UP!</div>' : ''}
+        <div class="cut-badges">${pullBadgeHtml(kind, r)}</div>
         ${pullIconHtml(kind, r, `cut-mon ${phaseKind}`)}
+        <div class="cut-stars">${Array.from({ length: rarity }, (_, k) => `<span style="animation-delay:${(legend ? 520 : 300) + k * 170}ms">★</span>`).join('')}</div>
         <div class="cut-name ${phaseKind}">${name}</div>
         <div class="cut-sub">${pullSubLine(kind, r)}${extra}</div>
       </div>
       <div class="cut-tap">タップして続ける</div>
     </div>`;
 }
-
+// ★5の2段目: 暗転してシルエットだけ見せる
+function silhouetteHtml(r, kind){
+  return `
+    <div class="cut-stage silhouette">
+      <div class="sil-glow"></div>
+      <div class="cut-body">${pullIconHtml(kind, r, 'cut-mon sil-mon')}<div class="sil-text pixel">!?</div></div>
+    </div>`;
+}
+function revealHeadHtml(g){
+  const closed = g.results.map((r, i) => i).filter(i => !g.open[i]);
+  const low = closed.filter(i => pullRarity(g.kind, g.results[i]) <= 3);
+  const sub = !closed.length ? 'すべて割れました!' : low.length ? '卵をタップして割ろう' : '残った卵をタップ!';
+  return `
+    <div>
+      <div class="reveal-title">${pullBannerTitle(g.kind)}</div>
+      <div class="reveal-sub">${g.results.length}連召喚・${sub}</div>
+    </div>
+    <div class="reveal-btns">
+      ${!closed.length ? '<button class="btn btn-sm" data-gacha-result="1">結果を見る</button>'
+        : `${low.length && g.results.length > 1 ? `<button class="btn btn-sm" data-gacha-openall="1">まとめて開く</button>` : ''}
+           <button class="btn btn-ghost btn-sm" data-gacha-skip="1">スキップ</button>`}
+    </div>`;
+}
 function renderGachaStage(){
   const g = gachaSeq;
   if(!g) return;
@@ -9135,117 +9231,188 @@ function renderGachaStage(){
       ${gachaChestHtml(n)}
       <div class="summon-cap"><div class="pixel">SUMMONING</div><div class="summon-tap">タップでスキップ</div></div>`;
   }else if(g.phase === 'rare' || g.phase === 'legend'){
-    inner = cutInHtml(g.results[g.cut], g.phase === 'legend' ? 'legend' : 'rare', g.kind);
+    inner = cutInHtml(g.results[g.cut], g.phase, g.kind);
+  }else if(g.phase === 'silhouette'){
+    inner = silhouetteHtml(g.results[g.cut], g.kind);
   }else{
     inner = `
-      <div class="reveal-head">
-        <div>
-          <div class="reveal-title">${pullBannerTitle(g.kind)}</div>
-          <div class="reveal-sub">${n}連召喚・${g.kind === 'relic' ? '壺' : '卵'}の色がレア度です</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" data-gacha-skip="1">スキップ</button>
+      <div class="reveal-head">${revealHeadHtml(g)}</div>
+      <div class="reveal-grid ${n > 3 ? 'many' : 'one'} ${g.phase === 'crack' ? 'cracking' : ''}">
+        ${g.results.map((r, i) => eggFace(r, i, g.open[i] && !(g.phase === 'crack' && i === g.cut) ? 'open' : 'egg', g.kind)).join('')}
       </div>
-      <div class="reveal-grid ${n > 3 ? 'many' : 'one'}">
-        ${g.results.map((r, i) => eggFace(r, i, i < g.opened ? 'open' : i === g.opened ? 'next' : 'egg', g.kind)).join('')}
-      </div>`;
+      ${g.results.length > 1 ? '<div class="reveal-foot">★3以下は「まとめて開く」、光る卵は1つずつ割るのがおすすめ</div>' : ''}`;
   }
   layer.innerHTML = `<div class="gacha-stage ph-${g.phase}" data-gacha-stage="1">${inner}</div>`;
   layer.classList.add('show');
-  if(g.just != null){
-    const slot = layer.querySelectorAll('.egg-slot')[g.just];
-    if(slot) slot.classList.add('hatching');
-    g.just = null;
+  if(g.phase === 'crack'){
+    const slot = layer.querySelectorAll('.egg-slot')[g.cut];
+    if(slot) slot.classList.add('crack5');
   }
 }
+// 画面の中の卵だけを書き換える(割っている途中の卵のアニメを消さないよう、全体は描き直さない)
+function hatchSlotsInPlace(indices){
+  const g = gachaSeq;
+  const layer = document.getElementById('modal-layer');
+  const slots = layer.querySelectorAll('.reveal-grid .egg-slot');
+  indices.forEach(i => {
+    const slot = slots[i];
+    if(!slot) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = eggFace(g.results[i], i, 'open', g.kind).trim();
+    const fresh = tmp.firstElementChild;
+    fresh.classList.add('hatching');
+    slot.replaceWith(fresh);
+  });
+  const head = layer.querySelector('.reveal-head');
+  if(head) head.innerHTML = revealHeadHtml(g);
+}
+
+// ---- 手ざわり: 音程が上がっていく音・和音・振動・画面の揺れ ----
+function gachaTone(freqs, dur, type, vol, delayMs){
+  const st = STATE && sfxSettings();
+  if(!st || !st.on || !sfx.ctx) return;
+  if(sfx.ctx.state === 'suspended') sfx.ctx.resume();
+  const t0 = sfx.ctx.currentTime + (delayMs || 0) / 1000;
+  freqs.forEach(f => {
+    const o = sfx.ctx.createOscillator(), gn = sfx.ctx.createGain();
+    o.type = type || 'triangle'; o.frequency.value = f;
+    gn.gain.setValueAtTime(0.0001, t0);
+    gn.gain.exponentialRampToValueAtTime(vol || 0.12, t0 + 0.02);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(gn); gn.connect(sfx.gain);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  });
+}
+function gachaVibrate(pattern){
+  try{ if(STATE && sfxSettings().on && navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+}
+function gachaShake(strong){
+  const phone = document.getElementById('phone');
+  if(!phone) return;
+  phone.classList.remove('gacha-shake', 'gacha-shake-strong');
+  void phone.offsetWidth;
+  phone.classList.add(strong ? 'gacha-shake-strong' : 'gacha-shake');
+  setTimeout(() => phone.classList.remove('gacha-shake', 'gacha-shake-strong'), 700);
+}
+const GACHA_SCALE = [523, 587, 659, 698, 784, 880, 988, 1047, 1175, 1319];   // 割るたびに1音ずつ上がる
 
 function showGachaEggs(results, before, kind){
   clearTimeout(gachaTimer);
-  gachaSeq = { results, before, phase: 'summon', opened: 0, just: null, cut: null, kind: kind || 'mon' };
+  gachaSeq = { results, before, phase: 'summon', open: results.map(() => false), cut: null, kind: kind || 'mon', notes: 0 };
   renderGachaStage();
   playSfx('open');
   gachaTimer = setTimeout(() => {
-    if(!gachaSeq) return;
+    if(!gachaSeq || gachaSeq.phase !== 'summon') return;
     gachaSeq.phase = 'reveal';
     renderGachaStage();
-    openNextEgg();
   }, 1900);
 }
-
-function openNextEgg(){
+// 1つ割る。★5は3段階(ヒビ→シルエット→カットイン)、★4は割れたあとカットイン(タップで戻る)
+function openEgg(i){
+  const g = gachaSeq;
+  if(!g || g.phase !== 'reveal' || g.open[i]) return;
+  const rarity = pullRarity(g.kind, g.results[i]);
+  if(rarity >= 5){ startLegend(i); return; }
+  g.open[i] = true;
+  hatchSlotsInPlace([i]);
+  playSfx(rarity >= 4 ? 'confirm' : 'open');
+  gachaTone([GACHA_SCALE[Math.min(GACHA_SCALE.length - 1, g.notes++)]], 0.25, 'triangle', 0.08, 700);
+  if(rarity === 4){
+    gachaVibrate(60);
+    clearTimeout(gachaTimer);
+    gachaTimer = setTimeout(() => {
+      if(!gachaSeq || gachaSeq.phase !== 'reveal') return;
+      gachaFlash('');
+      gachaSeq.phase = 'rare'; gachaSeq.cut = i; renderGachaStage();
+      gachaTone([659, 831, 988], 0.6, 'triangle', 0.09);
+    }, 1050);
+  }
+}
+// ★3以下をまとめて割る。★4以上の卵は残して、あとで1つずつ割れるようにする
+function openAllLow(){
   const g = gachaSeq;
   if(!g || g.phase !== 'reveal') return;
-  if(g.opened >= g.results.length){ finishReveal(); return; }
-  const i = g.opened;
-  const r = g.results[i];
-  const rarity = pullRarity(g.kind, r);
-  g.opened += 1;
-  g.just = i;
-  renderGachaStage();
-  playSfx(rarity >= 5 ? 'boss' : rarity >= 4 ? 'confirm' : 'open');
-  if(rarity >= 5){
-    gachaFlash('white');
-    gachaTimer = setTimeout(() => { if(!gachaSeq) return; gachaSeq.phase = 'legend'; gachaSeq.cut = i; renderGachaStage(); }, 620);
-    return;
-  }
-  if(rarity === 4){
-    gachaTimer = setTimeout(() => {
-      if(!gachaSeq) return;
-      gachaSeq.phase = 'rare'; gachaSeq.cut = i; renderGachaStage();
-      gachaTimer = setTimeout(() => backToReveal(), 1700);
-    }, 90);
-    return;
-  }
-  gachaTimer = setTimeout(openNextEgg, REVEAL_STEP);
+  const list = g.results.map((r, i) => i).filter(i => !g.open[i] && pullRarity(g.kind, g.results[i]) <= 3);
+  if(!list.length) return;
+  list.forEach(i => { g.open[i] = true; });
+  hatchSlotsInPlace(list);
+  playSfx('open');
+  list.slice(0, 6).forEach((_, k) => gachaTone([GACHA_SCALE[Math.min(GACHA_SCALE.length - 1, g.notes + k)]], 0.2, 'triangle', 0.06, 650 + k * 70));
+  g.notes += list.length;
 }
-
+function startLegend(i){
+  const g = gachaSeq;
+  g.open[i] = true;
+  g.cut = i;
+  g.phase = 'crack';
+  clearTimeout(gachaTimer);
+  renderGachaStage();
+  playSfx('boss');
+  gachaVibrate([70, 60, 70, 60, 70]);
+  gachaTone([196, 247], 1.0, 'sawtooth', 0.05);
+  gachaTimer = setTimeout(() => {
+    if(!gachaSeq || gachaSeq.phase !== 'crack') return;
+    gachaSeq.phase = 'silhouette';
+    renderGachaStage();
+    // だんだん上がっていく音
+    [262, 330, 392, 523, 659].forEach((f, k) => gachaTone([f], 0.3, 'square', 0.04, k * 190));
+    gachaTimer = setTimeout(() => revealLegend(), 1300);
+  }, 1150);
+}
+function revealLegend(){
+  const g = gachaSeq;
+  if(!g || (g.phase !== 'crack' && g.phase !== 'silhouette')) return;
+  clearTimeout(gachaTimer);
+  g.phase = 'legend';
+  gachaFlash('rainbow');
+  gachaShake(true);
+  gachaVibrate([300, 80, 400]);
+  renderGachaStage();
+  playSfx('ult');
+  gachaTone([523, 659, 784, 1047], 1.6, 'triangle', 0.1, 80);
+  const stars = pullRarity(g.kind, g.results[g.cut]);
+  for(let k = 0; k < stars; k++) gachaTone([1047 + k * 110], 0.12, 'square', 0.05, 520 + k * 170);
+}
 function backToReveal(){
   const g = gachaSeq;
   if(!g) return;
   clearTimeout(gachaTimer);
-  if(g.opened >= g.results.length){ finishReveal(); return; }
+  if(g.skipping && g.open.every(Boolean)){ finishReveal(); return; }
   g.phase = 'reveal'; g.cut = null;
   renderGachaStage();
-  gachaTimer = setTimeout(openNextEgg, 220);
 }
-
 function finishReveal(){
   const g = gachaSeq;
   if(!g) return;
   clearTimeout(gachaTimer);
   g.phase = 'done';
-  gachaTimer = setTimeout(() => {
-    gachaFlash('white');
-    gachaTimer = setTimeout(() => finishGachaEggs(), 800);
-  }, 700);
+  gachaFlash('white');
+  gachaTimer = setTimeout(() => finishGachaEggs(), 500);
 }
-
 function skipGacha(){
   const g = gachaSeq;
   if(!g) return;
   clearTimeout(gachaTimer);
-  const firstFive = g.results.findIndex((r, i) => i >= g.opened && pullRarity(g.kind, r) >= 5);
-  g.opened = g.results.length;
+  const firstFive = g.results.findIndex((r, i) => !g.open[i] && pullRarity(g.kind, r) >= 5);
+  g.open = g.results.map(() => true);
+  g.skipping = true;
   if(firstFive >= 0){
-    g.phase = 'legend'; g.cut = firstFive;
-    renderGachaStage();
+    g.cut = firstFive; g.phase = 'silhouette';
+    revealLegend();
     return;
   }
-  g.phase = 'reveal'; g.cut = null;
-  renderGachaStage();
   finishReveal();
 }
-
-// tap anywhere on the stage: skip the chest, dismiss a cut-in, or jump to the result
 function tapGachaStage(){
   const g = gachaSeq;
   if(!g) return;
-  if(g.phase === 'summon'){ clearTimeout(gachaTimer); g.phase = 'reveal'; renderGachaStage(); openNextEgg(); return; }
+  if(g.phase === 'summon'){ clearTimeout(gachaTimer); g.phase = 'reveal'; renderGachaStage(); return; }
+  if(g.phase === 'crack' || g.phase === 'silhouette'){ revealLegend(); return; }
   if(g.phase === 'rare' || g.phase === 'legend'){ backToReveal(); return; }
   if(g.phase === 'done'){ clearTimeout(gachaTimer); finishGachaEggs(); return; }
-  skipGacha();
+  // reveal: 卵以外の場所をタップしても何もしない(勝手に進まない)
 }
 
-// a burst of light over the whole frame
 function gachaFlash(kind){
   const phone = document.getElementById('phone');
   if(!phone) return;
@@ -14437,6 +14604,9 @@ function handlePhoneClick(ev){
   const acctEl = t.closest('[data-account]');
   if(acctEl){ handleAccountAction(acctEl.dataset.account); return; }
   if(gachaSeq && t.closest('[data-gacha-skip]')){ skipGacha(); return; }
+  if(gachaSeq && gachaSeq.phase === 'reveal' && t.closest('[data-egg-open]')){ openEgg(Number(t.closest('[data-egg-open]').dataset.eggOpen)); return; }
+  if(gachaSeq && t.closest('[data-gacha-openall]')){ openAllLow(); return; }
+  if(gachaSeq && t.closest('[data-gacha-result]')){ finishReveal(); return; }
   if(gachaSeq && t.closest('[data-gacha-stage]')){ tapGachaStage(); return; }
   // battle controls make their sound on pointerdown instead
   if(!t.closest('#pause-btn, #resume-btn, #speed-btn, #auto-ult-btn, [data-ult], [data-open-log]')){
@@ -15350,6 +15520,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 78, version: 'α0.1.037', date: '9/26', title: 'ガチャ演出をリニューアル', body: '10連ガチャで卵が勝手に次々割れていたのをやめ、自分でタップして割るようにしました。卵は最初どれも同じ見た目で、★4の卵は紫の光、★5の卵は金の光を放ってときどき揺れる「予兆」でだけ分かります。「まとめて開く」で★3以下を一気に割り、光る卵を最後に取っておくこともできます。★5は、卵が激しく揺れてヒビから光が漏れる→暗転してシルエット→閃光とともに登場、の3段階で、★が1つずつ刻まれ紙吹雪が舞います。ピックアップのキャラには「PICK UP!」が出ます。割るたびに音が少しずつ高くなり、★4・★5ではスマホが振動します(効果音OFFのときは振動しません)。「スキップ」を押すと★5の登場だけ見て結果に進みます。' },
   { id: 77, version: 'α0.1.036', date: '9/26', title: 'HATE(狙われやすさ)を見直し', body: 'これまでは戦闘が始まるとすぐ、与えたダメージの量でHATEが数百〜数千まで増え、モンスターごとの初期HATE(タンクは高く、サポートは低い)がほとんど意味を持っていませんでした。行動で増えるHATEを「相手の最大HPの何%を削ったか」「味方の何%を回復したか」で数えるように変え、初期HATEと同じくらいの大きさにしました。これでタンクがしっかり狙われ、後衛やサポートは狙われにくくなります。また、シールドや被ダメージ軽減をかける守りのスキルは、HPが50%以下の味方を優先し、いなければ狙われやすい味方(ふつうはタンク)にかけるように揃えました。' },
   { id: 76, version: 'α0.1.035', date: '9/25', title: 'ガチャ結果を画像つきでSNSに共有', body: 'ガチャ結果の「SNSで共有」で、引いたキャラ(遺物)の一覧を1枚の画像にして一緒に投稿できるようにしました。10連なら10体すべてが★の数・NEWの印つきで並びます。スマホでは共有画面にそのまま画像が添付されます。画像を添付できないPCでは、結果の画像を保存してからXの投稿画面を開くので、保存した画像を添付してください。' },
   { id: 75, version: 'α0.1.034', date: '9/25', title: '貸出中のお助けキャラを分かりやすく', body: 'プロフィールの「お気に入り」の一番左は、フレンドに貸し出すお助けキャラです。分かりやすいように黄色の枠と「貸出」のタグを付け、下に「黄色の枠はフレンドに貸し出すお助けキャラです」と説明を入れました。' },
