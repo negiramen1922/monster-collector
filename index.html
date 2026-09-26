@@ -2662,7 +2662,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.047';
+const GAME_VERSION = 'α0.1.048';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3939,15 +3939,32 @@ async function refreshFriendProfiles(){
   STATE.friends.forEach(f => {
     const p = byUid[f.uid];
     if(!p) return;
-    f.lastActive = sanitizeLastActive(p.updatedAt);
-    f.level = Math.max(1, Math.min(999, Number(p.level) || f.level || 1));
-    f.support = sanitizeSupport(p.support);
-    f.avatar = sanitizeAvatar(p.avatar);
-    f.monsters = clampInt(p.monsters, 0, MONSTERS.length, f.monsters || 0);
-    f.cleared = clampInt(p.cleared, 0, STAGES.length, f.cleared || 0);
+    mergeFriendProfile(f, p);
     changed = true;
   });
   if(changed){ saveState(); render(); }
+}
+// 公開プロフィールの内容でフレンドの記録を丸ごと新しくする(自己紹介・深淵回廊・フォロー数なども)。
+// 以前は最終ログインやレベルだけ更新していて、自己紹介や到達階が追加した時のままだった
+function mergeFriendProfile(f, p){
+  const fresh = friendEntryFromProfile(p, f.playerId);
+  Object.assign(f, fresh, { uid: f.uid, playerId: fresh.playerId || f.playerId, name: p.name ? fresh.name : f.name });
+  return f;
+}
+// 1人のプロフィールを開いたときに、その人の最新の公開プロフィールを取り直す
+async function refreshOneProfile(uid){
+  const be = authBackend();
+  if(!uid || typeof be.fetchProfiles !== 'function') return;
+  let profiles;
+  try{ profiles = await be.fetchProfiles([uid]); }catch(e){ return; }
+  const p = (profiles || []).find(x => x.uid === uid);
+  if(!p) return;
+  const friend = STATE.friends.find(f => f.uid === uid);
+  if(friend){ mergeFriendProfile(friend, p); saveState(); }
+  if(viewedProfiles[uid]) viewedProfiles[uid] = friendEntryFromProfile(p);
+  const fi = followerList.findIndex(x => x.uid === uid);
+  if(fi >= 0) followerList[fi] = friendEntryFromProfile(p);
+  if(overlayView === 'friend-profile' && friendProfileUid === uid) render();
 }
 function removeFriend(uid){
   STATE.friends = STATE.friends.filter(f => f.uid !== uid);
@@ -7311,6 +7328,7 @@ function applyAbyssSnapshot(party){
     u.sp = Math.min(u.spCost, x.sp || 0);
   });
 }
+let abyssPublishTimer = null;
 function abyssOnFinish(b, win){
   const a = ensureAbyss();
   const floor = b.stage.floor;
@@ -7323,8 +7341,11 @@ function abyssOnFinish(b, win){
   const first = !a.claimed[floor];
   const reward = first ? abyssFloorReward(floor) : [];
   if(first){ a.claimed[floor] = true; grantRewards(reward); }
+  const newBest = floor > a.best;
   a.best = Math.max(a.best, floor);
   a.bestEver = Math.max(a.bestEver || 0, floor);
+  // 今期の最高記録が伸びたら公開プロフィールにも反映(フレンドから見える)。続けて登るので少しまとめて送る
+  if(newBest){ clearTimeout(abyssPublishTimer); abyssPublishTimer = setTimeout(() => publishProfile(), 3000); }
   a.floor = floor + 1;
   if(floor % 5 === 0){ a.checkpoint = floor; a.snap = null; }
   else a.snap = Object.fromEntries(b.party.filter(u => u.ref !== HELP_SLOT_ID).map(u => [u.ref, { hp: u.alive ? u.hp / u.maxHp : 0, sp: u.sp, alive: u.alive }]));
@@ -15340,7 +15361,7 @@ function handlePhoneClick(ev){
   const addBackEl = t.closest('[data-add-friend-back]');
   if(addBackEl){ addFriendBack(addBackEl.dataset.addFriendBack); return; }
   const viewFriendEl = t.closest('[data-view-friend]');
-  if(viewFriendEl){ friendProfileUid = viewFriendEl.dataset.viewFriend; overlayView = 'friend-profile'; playSfx('open'); render(); return; }
+  if(viewFriendEl){ friendProfileUid = viewFriendEl.dataset.viewFriend; overlayView = 'friend-profile'; playSfx('open'); render(); refreshOneProfile(friendProfileUid); return; }
   const sendPointEl = t.closest('[data-send-friend-point]');
   if(sendPointEl){ sendFriendPoint(sendPointEl.dataset.sendFriendPoint); return; }
   if(t.closest('[data-add-friend]')){
@@ -15911,6 +15932,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 89, version: 'α0.1.048', date: '9/26', title: 'フレンドのプロフィールが最新にならない不具合を修正', body: 'フレンドのプロフィールで、自己紹介や深淵回廊の到達階、フォロー・フォロワー数が、フレンドに追加したときのまま更新されていなかった不具合を直しました。プロフィールを開くたびに最新の内容を読み込みます。また、深淵回廊で今期の最高記録が伸びたときに、自分の公開プロフィールの到達階もすぐ更新されるようにしました。' },
   { id: 88, version: 'α0.1.047', date: '9/26', title: '長押し・なぞるとキラキラがついてくる', body: '画面を長押ししている間や、押したまま指を動かしている間は、青いキラキラが指についてくるようにしました。指を離すと止まります。' },
   { id: 87, version: 'α0.1.046', date: '9/26', title: 'タップした場所にキラキラ・ガチャはタップで結果へ', body: '画面をタップした場所に青いキラキラが出るようにしました。どこを押したかが分かりやすくなります。また、ガチャで卵(壺)を全部割ったあとは、「結果を見る」を押さなくても画面のどこかをタップすれば結果に進めます。' },
   { id: 86, version: 'α0.1.045', date: '9/26', title: 'ガチャ結果への切り替えをフェードに', body: 'ガチャの演出から結果画面に移るときの白いフラッシュがまぶしかったので、ふわっと暗く消えてから結果が浮かび上がる切り替えにしました。また、卵(壺)が並んだときに「タップして卵を割る!」と大きく表示するようにしました。光る卵だけ残ると「残った卵をタップ!」に変わります。' },

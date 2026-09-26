@@ -1,7 +1,7 @@
 /* 深淵回廊(無限ダンジョン)の回帰テスト */
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, ensureAbyss, abyssStage, abyssSeasonIndex, abyssTheme, abyssFloorReward,
-  abyssOnFinish, applyAbyssSnapshot, abyssGiveUp, abyssCanGiveUp, startBattle, finishBattle, get battleUI(){ return battleUI; }, formationForFrontCount, lineupFromList,
+  abyssOnFinish, applyAbyssSnapshot, setAccount: a => { ACCOUNT = a; }, abyssGiveUp, abyssCanGiveUp, startBattle, finishBattle, get battleUI(){ return battleUI; }, formationForFrontCount, lineupFromList,
   isMeleeRole, MON_BY_ID, STAGES, useIdleItem, useStaminaItem, baseState, getItem, addItem, renderAbyssTab, stageStaminaCost, findStage,
   ACHIEVEMENTS, WEEKLY_MISSIONS, ABYSS_SEASON_DAYS, MAX_STAR };`);
 const E = global.__e;
@@ -81,6 +81,16 @@ ok('タブが描ける', E.renderAbyssTab().includes('深淵回廊'));
 // --- 上級クリア前は入れない ---
 S.clearedStages = ['tu1', 'tu2', 'tu3'];
 ok('上級をクリアするまでは挑戦できない', fight('ab_1') === null && E.renderAbyssTab().includes('クリアすると挑戦できます'));
+
+// --- 今期の最高記録が伸びたら公開プロフィールに反映する(フレンドから見える) ---
+S = setup(200, 7); E.ensureAbyss();
+let pub = null;
+E.setAccount({ uid: 'me', playerId: 'ME', name: 'わたし' });
+global.window.__authBackend = { kind: 'mock', async cloudProfile(uid, p){ pub = p; } };
+fight('ab_1');
+api.drainQueue();
+ok('階を突破して記録が伸びると、公開プロフィールの到達階も更新される', pub && pub.abyss && pub.abyss.best === 1 && pub.abyss.season === S.abyss.season, pub && pub.abyss);
+E.setAccount(null); global.window.__authBackend = { kind: 'local' };
 
 // --- 諦める: チェックポイントの次の階から全回復でやり直し ---
 S = setup(50); E.ensureAbyss();

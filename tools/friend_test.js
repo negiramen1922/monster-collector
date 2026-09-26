@@ -10,7 +10,7 @@ const api = load('game.js', src => src + `;global.__e = {
   fetchIncomingFriendsList, addFriendBack, get incomingFriends(){ return incomingFriends; }, FRIEND_MAX,
   get followerList(){ return followerList; }, removeFriend, searchFriendCandidates, fetchRecommendedUsers,
   get friendSearch(){ return friendSearch; }, get recommendedUsers(){ return recommendedUsers; }, addFriendFromProfile,
-  sanitizeBio, profileBio, profileState, BIO_MAX, friendEntryFromProfile, publishProfile,
+  sanitizeBio, profileBio, profileState, BIO_MAX, friendEntryFromProfile, publishProfile, refreshOneProfile, abyssSeasonIndex,
 };`);
 const E = global.__e;
 
@@ -224,6 +224,16 @@ global.window.__authBackend = { kind: 'local' }; // no lookupPlayer: simulates o
   await E.refreshFriendProfiles();
   const refreshed = S.friends.find(f => f.uid === 'u-evil-avatar');
   ok('refreshFriendProfilesでavatar/monsters/clearedも更新される', refreshed && refreshed.avatar === 'm03' && refreshed.monsters === 20 && refreshed.cleared === 15, refreshed);
+  const nameBefore = refreshed.name;
+  global.window.__authBackend.fetchProfiles = async uids => uids.map(uid => ({ uid, updatedAt: Date.now(), level: 99, bio: '深淵で待つ', following: 4, followers: 9,
+    abyss: { season: E.abyssSeasonIndex(), best: 37 } }));
+  await E.refreshFriendProfiles();
+  const r2 = S.friends.find(f => f.uid === 'u-evil-avatar');
+  ok('refreshFriendProfilesで自己紹介・深淵回廊の到達階・フォロー数も新しくなる', r2.bio === '深淵で待つ' && r2.abyssBest === 37 && r2.following === 4 && r2.followers === 9, r2);
+  ok('公開プロフィールに名前が無くてもフレンドの名前は消さない', r2.name === nameBefore, r2.name);
+  global.window.__authBackend.fetchProfiles = async uids => uids.map(uid => ({ uid, name: r2.name, updatedAt: Date.now(), level: 99, bio: 'きょうは40階', abyss: { season: E.abyssSeasonIndex(), best: 40 } }));
+  await E.refreshOneProfile('u-evil-avatar');
+  ok('プロフィールを開いたときにその人の最新を取り直す', r2.bio === 'きょうは40階' && r2.abyssBest === 40, r2);
 
   // --- claimFriendGifts: 'borrow'-reason gifts (お助けキャラがクエストで使われた分、
   // see friend_borrow_battle_test.js for who actually sends these) are counted separately
