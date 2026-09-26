@@ -783,6 +783,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .reveal-head .reveal-btns{ display:flex; gap:6px; flex:none; }
 .egg-slot .egg-mon, .egg-slot .egg-star, .egg-slot .egg-new{ z-index:2; }
 .egg-slot.hatching .egg-new{ opacity:0; animation:fade-in .3s ease-out 1.1s forwards; }
+.reveal-call{ min-height:42px; display:flex; justify-content:center; align-items:center; margin-top:14px; }
+.reveal-call span{ font-size:20px; font-weight:900; color:#fff; letter-spacing:.04em;
+  text-shadow:0 0 12px rgba(232,180,85,.9), 0 2px 0 #000; animation:call-pulse 1.1s ease-in-out infinite; }
+@keyframes call-pulse{ 0%,100%{ transform:scale(1); opacity:.85; } 50%{ transform:scale(1.08); opacity:1; } }
+.gacha-stage.fade-out > *{ animation:stage-fade-out .5s ease-in forwards; }
+@keyframes stage-fade-out{ to{ opacity:0; } }
+.gacha-result.fade-in-result{ animation:result-fade-in .45s ease-out; }
+@keyframes result-fade-in{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
 .reveal-foot{ font-size:10px; color:var(--dim); text-align:center; margin-top:10px; }
 .reveal-grid .egg-slot.closed{ cursor:pointer; }
 .reveal-grid .egg-slot.closed:active .egg-svg{ transform:scale(.92); }
@@ -2641,7 +2649,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.044';
+const GAME_VERSION = 'α0.1.045';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8661,7 +8669,7 @@ function showRelicGachaFinalResult(results){
   gachaShareText = gachaShareTextFor('relic', results);
   prepareGachaShareImage('relic', results, pullBannerTitle('relic'));
   layer.innerHTML = `
-    <div class="result-modal gacha-result ${best.def.star >= 5 ? 'best5' : best.def.star >= 4 ? 'best4' : ''}">
+    <div class="result-modal gacha-result ${best.def.star >= 5 ? 'best5' : best.def.star >= 4 ? 'best4' : ''} ${takeResultFadeIn()}">
       <div class="gr-title pixel">RESULT</div>
       <div class="gr-banner">${pullBannerTitle('relic')}</div>
 
@@ -9304,6 +9312,14 @@ function revealHeadHtml(g){
            <button class="btn btn-ghost btn-sm" data-gacha-skip="1">スキップ</button>`}
     </div>`;
 }
+// 卵(壺)が並んだら大きく「タップして割る!」。大物だけ残ったら「光る卵をタップ!」、全部割れたら消える
+function revealCallHtml(g){
+  const closed = g.results.filter((r, i) => !g.open[i]);
+  if(!closed.length) return '';
+  const v = vesselName(g.kind);
+  const bigOnly = g.results.length > 1 && closed.every(r => pullRarity(g.kind, r) >= 4);
+  return `<span>👆 ${bigOnly ? `残った${v}をタップ!` : `タップして${v}を割る!`}</span>`;
+}
 function renderGachaStage(){
   const g = gachaSeq;
   if(!g) return;
@@ -9324,6 +9340,7 @@ function renderGachaStage(){
       <div class="reveal-grid ${n > 3 ? 'many' : 'one'} ${g.phase === 'crack' ? 'cracking' : ''}">
         ${g.results.map((r, i) => eggFace(r, i, g.open[i] && !(g.phase === 'crack' && i === g.cut) ? 'open' : 'egg', g.kind)).join('')}
       </div>
+      <div class="reveal-call">${revealCallHtml(g)}</div>
       ${g.results.length > 1 ? `<div class="reveal-foot">★3以下は「まとめて開く」、光る${vesselName(g.kind)}は1つずつ割るのがおすすめ</div>` : ''}`;
   }
   layer.innerHTML = `<div class="gacha-stage ph-${g.phase}" data-gacha-stage="1">${inner}</div>`;
@@ -9349,6 +9366,8 @@ function hatchSlotsInPlace(indices){
   });
   const head = layer.querySelector('.reveal-head');
   if(head) head.innerHTML = revealHeadHtml(g);
+  const call = layer.querySelector('.reveal-call');
+  if(call) call.innerHTML = revealCallHtml(g);
 }
 
 // ---- 手ざわり: 音程が上がっていく音・和音・振動・画面の揺れ ----
@@ -9682,9 +9701,11 @@ function finishReveal(){
   if(!g) return;
   clearTimeout(gachaTimer);
   g.phase = 'done';
-  gachaFlash('white');
+  // 白いフラッシュはまぶしいので、演出の画面をふわっと暗く消してから結果を出す
+  const stage = document.querySelector('.gacha-stage');
+  if(stage) stage.classList.add('fade-out');
   gachaSfx('result', null, 350);
-  gachaTimer = setTimeout(() => finishGachaEggs(), 500);
+  gachaTimer = setTimeout(() => finishGachaEggs(), 550);
 }
 function skipGacha(){
   const g = gachaSeq;
@@ -9719,8 +9740,12 @@ function gachaFlash(kind){
   setTimeout(() => el.remove(), 1200);
 }
 let gachaTimer = null;
+// 演出から結果画面に移るときだけ、結果をふわっと出す(もう一度引いたあとなども同じ)
+let gachaResultFadeIn = false;
+function takeResultFadeIn(){ const f = gachaResultFadeIn; gachaResultFadeIn = false; return f ? 'fade-in-result' : ''; }
 function finishGachaEggs(){
   if(!gachaSeq) return;
+  gachaResultFadeIn = true;
   bgmDuck(1, 1500);   // 結果画面でBGMをゆっくり戻す
   const { results, before, kind } = gachaSeq;
   gachaSeq = null;
@@ -9898,7 +9923,7 @@ function showGachaResults(results, before){
   gachaShareText = gachaShareTextFor('mon', results);
   prepareGachaShareImage('mon', results, currentBanner().name);
   layer.innerHTML = `
-    <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''}">
+    <div class="result-modal gacha-result ${best.mon.rarity >= 5 ? 'best5' : best.mon.rarity >= 4 ? 'best4' : ''} ${takeResultFadeIn()}">
       <div class="gr-title pixel">RESULT</div>
       <div class="gr-banner">${currentBanner().name}</div>
 
@@ -15830,6 +15855,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 86, version: 'α0.1.045', date: '9/26', title: 'ガチャ結果への切り替えをフェードに', body: 'ガチャの演出から結果画面に移るときの白いフラッシュがまぶしかったので、ふわっと暗く消えてから結果が浮かび上がる切り替えにしました。また、卵(壺)が並んだときに「タップして卵を割る!」と大きく表示するようにしました。光る卵だけ残ると「残った卵をタップ!」に変わります。' },
   { id: 85, version: 'α0.1.044', date: '9/26', title: 'ガチャ中のBGMを控えめに', body: 'ガチャの演出中は、ホームのBGMを小さくして効果音が聞こえやすいようにしました。★5のヒビが入った瞬間からはBGMが止まり、静けさの中で登場を待ちます。結果画面に進むと、BGMはゆっくり元の大きさに戻ります。' },
   { id: 84, version: 'α0.1.043', date: '9/26', title: 'ガチャのキラキラ音をきれいな和音に', body: 'ガチャのキラキラした音が少し濁って聞こえていたのを直しました。キラキラはドレミソラの音階からだけ鳴らし、鈴の響きもきれいに調和する音だけにして、演出全体をひとつの調(ハ長調)にそろえています。ピックアップの★5のファンファーレは、最後に「ファ→ド」と明るく締めるようにしました。' },
   { id: 83, version: 'α0.1.042', date: '9/26', title: 'ガチャの効果音を自然な響きに', body: 'ガチャの効果音から電子音っぽさを減らしました。ピコピコした音をやめ、鈴やガラスのような響きと、部屋の残響をつけています。卵や壺が割れる音は、細かいヒビが走る「パキパキ」→殻が割れる「パリッ」になりました。' },
