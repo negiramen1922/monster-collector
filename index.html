@@ -368,6 +368,25 @@ body{
 .bag-cell{ position:relative; background:var(--panel2); border:1px solid var(--line); border-radius:13px;
   padding:9px 5px 7px; text-align:center; min-height:66px; }
 .bag-cell.empty{ opacity:.4; }
+.bag-grid.cols3{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.alchemy-modal .bag-cell.dim{ opacity:.55; }
+.alchemy-modal .bag-cell.picked{ outline:2px solid var(--gold); outline-offset:1px; }
+.alc-can{ position:absolute; top:4px; left:5px; font-size:9px; font-weight:900; padding:1px 5px; border-radius:6px; background:#5cab52; color:#fff; }
+.alc-hint{ font-size:11.5px; color:var(--dim); text-align:center; padding:10px; border:1px dashed var(--line); border-radius:12px; margin-bottom:10px; }
+.alc-recipe{ background:var(--panel2); border:1px solid var(--gold); border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+.alc-target{ display:flex; align-items:center; gap:10px; }
+.alc-target .item-ic{ font-size:26px; }
+.alc-target b{ display:block; font-size:13px; } .alc-target small{ font-size:10.5px; color:var(--dim); }
+.alc-need-head{ font-size:10.5px; font-weight:800; color:var(--dim); margin:9px 0 4px; }
+.alc-need{ display:flex; align-items:center; gap:7px; padding:5px 8px; border-radius:8px; background:rgba(0,0,0,.2); margin-bottom:4px; font-size:11.5px; }
+.alc-need span:nth-child(2){ flex:1; min-width:0; }
+.alc-need b{ font-variant-numeric:tabular-nums; }
+.alc-need.short b{ color:var(--danger); }
+.alc-need[data-item-detail-alc]{ cursor:pointer; }
+.alc-warn{ font-size:10.5px; color:#ffb35c; margin:4px 0; } .alc-note{ font-size:10.5px; color:var(--dim); margin:4px 0; }
+.alc-qty{ display:flex; align-items:center; gap:6px; margin-top:6px; }
+.alc-qty b{ min-width:26px; text-align:center; font-size:14px; }
+.alc-qty [data-alc-make]{ margin-left:auto; min-width:70px; }
 .bag-cell.tier-t1{ border-color:#8a86a0; }
 .bag-cell.tier-t2{ border-color:#3f7fbf; box-shadow:inset 0 0 10px -4px rgba(63,127,191,.8); }
 .bag-cell.tier-t3{ border-color:#9a57d0; box-shadow:inset 0 0 12px -4px rgba(154,87,208,.9); }
@@ -2709,7 +2728,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.052';
+const GAME_VERSION = 'α0.1.053';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7951,26 +7970,11 @@ function renderBase(){
           <div class="fc-line">メインステージ「${STAGE_BY_ID[FACILITY_UNLOCK.alchemy].name}」をクリアすると解放</div></div>
         </div></div>`
     : `
-      <div class="panel facility">
+      <div class="panel facility" data-open-alchemy="1" role="button">
         <div class="fc-head"><span class="fc-ic">🔮</span>
-          <div class="fc-body"><div class="fc-name">錬金術</div></div>
-        </div>
-        <div class="fc-sub">同じ素材の下位Tier ${CRAFT_RATIO}個 → 上位Tier 1個(TierIIは${goldText(CRAFT_GOLD[2])}、TierIIIは${goldText(CRAFT_GOLD[3])}、TierIVは${goldText(CRAFT_GOLD[4])})。<br>まだメインクエストで落ちないTier(いまはTier${TIER_LABEL[matTierUnlocked()]}より上)は、${CRAFT_RATIO_AHEAD}個 → 1個になります。</div>
-        <div class="alc-tabs">
-          ${Object.entries(MAT_FAMILIES).map(([k, x]) => `<button class="stage-tab ${alchemyFam === k ? 'on' : ''}" data-alc-fam="${k}">${x.label}</button>`).join('')}
-        </div>
-        <div class="alc-list">
-          ${fam.kinds().map(kind => `
-            <div class="alc-row">
-              <span class="alc-name">${fam.icon(kind)}${fam.name(kind)}</span>
-              <span class="alc-have">${[1, 2, 3, 4].map(t => `${tierBadge(t)}${getItem(matKey(alchemyFam, kind, t))}`).join(' ')}</span>
-              <span class="alc-btns">
-                ${[2, 3, 4].map(t => {
-                  const n = Math.min(Math.floor(getItem(matKey(alchemyFam, kind, t - 1)) / craftRatio(t)), Math.floor((STATE.gold || 0) / CRAFT_GOLD[t]));
-                  return `<button class="btn btn-sm ${n ? '' : 'btn-ghost'}" data-craft="${alchemyFam}:${kind}:${t}" ${n ? '' : 'disabled'} title="まとめて合成(${craftRatio(t)}個→1個)">→${TIER_LABEL[t]}${n ? `×${n}` : ''}</button>`;
-                }).join('')}
-              </span>
-            </div>`).join('')}
+          <div class="fc-body"><div class="fc-name">錬金術</div>
+          <div class="fc-line">下位Tierの素材から上位Tierの素材を作ります</div></div>
+          <button class="btn btn-sm">開く ›</button>
         </div>
       </div>`;
   return `
@@ -8143,6 +8147,7 @@ function closeItemDetail(){
   const back = itemDetail && itemDetail.back;
   itemDetail = null;
   if(back === 'skill' && skillUpgradeModal) renderSkillUpgradeModal();
+  else if(back === 'alchemy' && alchemyUI) renderAlchemy();
   else if(back === 'bag') renderBag();
   else closeModal();
 }
@@ -8156,7 +8161,8 @@ function itemDetailGo(i){
     renderItemDetail();
     return;
   }
-  itemDetail = null; skillUpgradeModal = null; skillUpgradeShort = null; bagSelect = null; bagTicket = null;
+  const itemKeyForAlchemy = itemDetail.key;
+  itemDetail = null; skillUpgradeModal = null; skillUpgradeShort = null; bagSelect = null; bagTicket = null; alchemyUI = null;
   closeModal();
   if(g.type === 'stage'){
     const st = STAGE_BY_ID[g.id], qt = QUEST_TIERS.find(q => q.key === st.tier);
@@ -8165,10 +8171,91 @@ function itemDetailGo(i){
   }else if(g.type === 'dungeon'){ stageTab = 'dungeon'; dungeonTab = g.kind; goto('battle'); }
   else if(g.type === 'main'){ stageTab = 'main'; goto('battle'); }
   else if(g.type === 'abyss'){ stageTab = 'abyss'; goto('battle'); }
-  else if(g.type === 'alchemy'){ alchemyFam = g.fam; goto('base'); }
+  else if(g.type === 'alchemy'){ alchemyFam = g.fam; goto('base'); openAlchemy({ fam: g.fam, pick: itemKeyForAlchemy }); }
   else if(g.type === 'base'){ goto('base'); }
   else if(g.type === 'shop'){ shopTab = g.tab || 'gold'; goto('shop'); }
   else if(g.type === 'missions'){ goto('missions'); }
+}
+/* ---- 錬金術の画面: 作りたい素材(TierII〜IV)を一覧から選ぶと、必要な素材とゴールドが出る ---- */
+let alchemyUI = null;   // { fam, tier: 0|2|3|4, pick: key|null, qty }
+function craftMax(fam, kind, toTier){
+  return Math.min(Math.floor(getItem(matKey(fam, kind, toTier - 1)) / craftRatio(toTier)), Math.floor((STATE.gold || 0) / CRAFT_GOLD[toTier]));
+}
+function openAlchemy(opts){
+  alchemyUI = { fam: alchemyFam, tier: 0, pick: null, qty: 1, ...(opts || {}) };
+  renderAlchemy();
+}
+function renderAlchemy(){
+  if(!alchemyUI) return;
+  const a = alchemyUI, fam = MAT_FAMILIES[a.fam];
+  const tiers = a.tier ? [a.tier] : [2, 3, 4];
+  const cells = fam.kinds().flatMap(k => tiers.map(t => {
+    const key = matKey(a.fam, k, t), can = craftMax(a.fam, k, t);
+    return `<div class="bag-cell tier-t${t} ${a.pick === key ? 'picked' : ''} ${can ? '' : 'dim'}" data-alc-pick="${key}" role="button">
+        <div class="bc-ic">${itemIcon(key)}</div><div class="bc-name">${fam.name(k)}</div><div class="bc-n">×${getItem(key)}</div>
+        ${can ? `<span class="alc-can">${can}</span>` : ''}
+      </div>`;
+  })).join('');
+  let recipe = '<div class="alc-hint">作りたい素材を選んでください</div>';
+  if(a.pick){
+    const m = parseMat(a.pick), from = matKey(m.fam, m.kind, m.tier - 1), ratio = craftRatio(m.tier);
+    const max = craftMax(m.fam, m.kind, m.tier);
+    a.qty = Math.max(1, Math.min(a.qty, Math.max(1, max)));
+    const needItem = ratio * a.qty, needGold = CRAFT_GOLD[m.tier] * a.qty;
+    const okItem = getItem(from) >= needItem, okGold = (STATE.gold || 0) >= needGold;
+    recipe = `
+      <div class="alc-recipe">
+        <div class="alc-target">${itemIcon(a.pick)}<div><b>${itemName(a.pick)}</b><small>所持 ${getItem(a.pick)}</small></div></div>
+        <div class="alc-need-head">作るのに必要(${a.qty}個)</div>
+        <div class="alc-need ${okItem ? '' : 'short'}" data-item-detail-alc="${from}" role="button">${itemIcon(from)}<span>${itemName(from)}</span><b>${getItem(from)} / ${needItem}</b></div>
+        <div class="alc-need ${okGold ? '' : 'short'}"><span class="item-ic">${GOLD_ICON}</span><span>ゴールド</span><b>${needGold.toLocaleString()}</b></div>
+        ${ratio > CRAFT_RATIO ? `<div class="alc-warn">Tier${TIER_LABEL[m.tier]}はまだメインクエストで落ちないため、${ratio}個 → 1個になります(先回り)</div>` : `<div class="alc-note">${ratio}個 → 1個</div>`}
+        <div class="alc-qty">
+          <button class="btn btn-ghost btn-sm" data-alc-qty="-1">−</button><b>${a.qty}</b><button class="btn btn-ghost btn-sm" data-alc-qty="1">＋</button>
+          <button class="btn btn-ghost btn-sm" data-alc-qty="max">最大(${max})</button>
+          <button class="btn btn-sm ${okItem && okGold ? '' : 'btn-ghost'}" data-alc-make="1" ${okItem && okGold ? '' : 'disabled'}>作る</button>
+        </div>
+      </div>`;
+  }
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal bag-modal alchemy-modal" role="dialog" aria-label="錬金術">
+      <div class="bag-top">
+        <button class="btn btn-ghost btn-sm" data-alc-close="1">‹ 戻る</button>
+        <h3>🔮 錬金術</h3>
+        <span class="bag-count">${goldText(STATE.gold || 0)}</span>
+      </div>
+      ${recipe}
+      <div class="mission-tabs">${Object.entries(MAT_FAMILIES).map(([k, x]) => `<button class="mission-tab ${a.fam === k ? 'on' : ''}" data-alc-fam2="${k}">${x.label}</button>`).join('')}</div>
+      <div class="bag-filter">${[0, 2, 3, 4].map(t => `<button class="bag-tier-chip ${t ? `t${t}` : ''} ${a.tier === t ? 'on' : ''}" data-alc-tier="${t}">${t ? `Tier${TIER_LABEL[t]}` : '全部'}</button>`).join('')}</div>
+      <div class="bag-grid ${a.tier ? '' : 'cols3'}">${cells}</div>
+    </div>`;
+  layer.classList.add('show');
+}
+function handleAlchemyClick(t){
+  const a = alchemyUI;
+  if(t.closest('[data-alc-close]')){ alchemyUI = null; closeModal(); render(); return true; }
+  const famEl = t.closest('[data-alc-fam2]');
+  if(famEl){ a.fam = famEl.dataset.alcFam2; alchemyFam = a.fam; a.pick = null; renderAlchemy(); return true; }
+  const tierEl = t.closest('[data-alc-tier]');
+  if(tierEl){ a.tier = Number(tierEl.dataset.alcTier); renderAlchemy(); return true; }
+  const pickEl = t.closest('[data-alc-pick]');
+  if(pickEl){ a.pick = pickEl.dataset.alcPick; a.qty = 1; renderAlchemy(); return true; }
+  const qEl = t.closest('[data-alc-qty]');
+  if(qEl && a.pick){
+    const m = parseMat(a.pick), max = craftMax(m.fam, m.kind, m.tier), v = qEl.dataset.alcQty;
+    a.qty = v === 'max' ? Math.max(1, max) : Math.max(1, a.qty + Number(v));
+    renderAlchemy(); return true;
+  }
+  if(t.closest('[data-alc-make]') && a.pick){
+    const m = parseMat(a.pick);
+    craftMat(m.fam, m.kind, m.tier, a.qty);
+    a.qty = 1;
+    renderAlchemy(); return true;
+  }
+  const detEl = t.closest('[data-item-detail-alc]');
+  if(detEl){ openItemDetail(detEl.dataset.itemDetailAlc, 'alchemy'); return true; }
+  return true;   // 錬金術の画面の中のタップは、ほかの処理に流さない
 }
 let bagTierFilter = 0;     // 素材タブのTierフィルター(0 = 全部)
 let bagOwnedOnly = false;  // 素材タブ: 持っているものだけ表示
@@ -15436,6 +15523,8 @@ function handlePhoneClick(ev){
   if(wallEl){ breakWall(wallEl.dataset.breakWall); return; }
   const skEl = t.closest('[data-skill-up]');
   if(skEl){ openSkillUpgradeModal(skEl.dataset.skillUp, skEl.dataset.field); return; }
+  if(alchemyUI && !itemDetail && t.closest('.alchemy-modal, #modal-layer')){ if(handleAlchemyClick(t)) return; }
+  if(t.closest('[data-open-alchemy]')){ openAlchemy(); playSfx('open'); return; }
   if(itemDetail){
     if(t.closest('[data-item-detail-close]') || t === document.getElementById('modal-layer')){ closeItemDetail(); return; }
     const goEl = t.closest('[data-item-go]');
@@ -16211,6 +16300,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 94, version: 'α0.1.053', date: '9/26', title: '錬金術を専用の画面に', body: '拠点の錬金術がごちゃごちゃしていたので、拠点には「錬金術」のボタンだけを置くようにしました。押すと錬金術の画面が開き、作りたい素材(TierII〜IV)を一覧から選ぶと、作るのに何がいくつ必要か(下位Tierの素材とゴールド)が表示されます。個数を選んで「作る」で合成できます。今作れる数は素材の左上に緑の数字で出ます。種類(欠片・魂・証)とTierで絞り込めます。' },
   { id: 93, version: 'α0.1.052', date: '9/26', title: '持ち物の素材をTierごとに表示', body: '持ち物の「素材」タブで、育成素材をTierごとに別のアイテムとして並べるようにしました。縁の色でTierが分かります(Tier I=灰、II=青、III=紫、IV=金)。上のボタンでTierごとに絞り込めて、「所持のみ」で持っている素材だけを表示できます。押すとそのTierのアイテム詳細が開きます。' },
   { id: 92, version: 'α0.1.051', date: '9/26', title: 'アイテム詳細画面を追加', body: 'アイテムの詳細画面を追加しました。アイコンと所持数、かんたんな説明と、どこで手に入るか(入手手段)が並び、「移動」を押すとその場所へすぐ行けます。スキル強化で必要な素材を押したときや、持ち物のアイテムを押したときに開きます。育成素材はTierを切り替えて見られ、選択BOXを持っていればその場で使えます。閉じると元の画面に戻ります。' },
   { id: 91, version: 'α0.1.050', date: '9/26', title: '育成素材のTierの出方を整理・TierIVをメインクエストに追加', body: 'メインクエストで手に入る育成素材のTierを、難易度に合わせて整理しました。初級はTierI、中級・上級はTierIIまで、超上級・極上級はTierIIIまで、伝説級・神話級はTierIVまで手に入ります(TierIVがメインクエストで落ちるようになりました)。ボスは数が多く、ハードモードは上のTierが多めに出ます。これまで初級のボスや初級ハードで上のTierが出てスキルレベルだけ先に上がりすぎていたのを防ぎます。\n\nステージごとに落ちる素材は、出てくる敵の属性・種族・ロールをもとに3種類に固定し、ステージ詳細に名前つきで表示するようにしました。どの素材も、それぞれの難易度帯のどこかのステージで手に入ります。スキル強化で素材が足りないときは、素材を押すと「〇〇で集める」から、その素材が落ちるステージにすぐ行けます。\n\n錬金術はTierIVまで合成できるようになりました。まだメインクエストで落ちないTierへの合成は、15個→1個と効率が悪くなります。すでに持っている素材や、上げたスキルレベルはそのままです。' },
