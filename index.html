@@ -782,6 +782,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* タップで割る: 閉じた卵は同じ見た目。★4は紫、★5は金の光と揺れで「予兆」だけ見せる */
 .reveal-head .reveal-btns{ display:flex; gap:6px; flex:none; }
 .egg-slot .egg-mon, .egg-slot .egg-star, .egg-slot .egg-new{ z-index:2; }
+.egg-slot.hatching .egg-new{ opacity:0; animation:fade-in .3s ease-out 1.1s forwards; }
 .reveal-foot{ font-size:10px; color:var(--dim); text-align:center; margin-top:10px; }
 .reveal-grid .egg-slot.closed{ cursor:pointer; }
 .reveal-grid .egg-slot.closed:active .egg-svg{ transform:scale(.92); }
@@ -2640,7 +2641,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.039';
+const GAME_VERSION = 'α0.1.040';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9196,7 +9197,12 @@ const SUMMON_UPGRADE_CHANCE = { 4: 0.3, 5: 0.45 };   // 宝箱が1段(以上)低
 const SUMMON_UPGRADE_TWO = 0.35;                     // ★5で昇格するとき、青から2段上がる割合
 const EGG_UPGRADE_CHANCE = 0.25;                     // ★5の卵が紫の予兆で並ぶ確率
 const SUMMON_STEP_MS = 750;
-function isPickupResult(kind, r){ return kind !== 'relic' && !!r.mon && isPickupMon(r.mon); }
+// ピックアップ: キャラはバナーのピックアップキャラ、遺物はそのキャラの専用遺物
+function isPickupResult(kind, r){
+  if(kind === 'relic'){ const ex = exclusiveRelicForMon(currentBanner().pickup); return !!(ex && r.def && r.def.id === ex.id); }
+  return !!r.mon && isPickupMon(r.mon);
+}
+function vesselName(kind){ return kind === 'relic' ? '壺' : '卵'; }
 function summonTarget(kind, results){
   const top = Math.max(...results.map(r => pullRarity(kind, r)));
   if(top >= 5) return results.some(r => pullRarity(kind, r) >= 5 && isPickupResult(kind, r)) ? 3 : 2;
@@ -9220,7 +9226,7 @@ function eggFace(r, i, state, kind){
   const rarity = pullRarity(kind, r);
   const closed = state === 'egg';
   return `
-    <div class="egg-slot egg-blue ${closed ? `closed ${eggHint(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目を割る"` : ''}>
+    <div class="egg-slot egg-blue ${closed ? `closed ${eggHint(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目の${vesselName(kind)}を割る"` : ''}>
       ${closed && rarity >= 4 ? '<span class="egg-aura"></span>' : ''}
       ${kind === 'relic' ? jarSvg(1) : (eggArt(1) || eggSvg(1))}
       ${pullIconHtml(kind, r, 'egg-mon')}
@@ -9258,8 +9264,8 @@ function cutInHtml(r, phaseKind, kind){
   const pickup = isPickupResult(kind, r);
   return `
     <div class="cut-stage ${phaseKind} ${pickup && legend ? 'pickup' : ''}">
-      ${pickup && legend ? `<div class="pickup-band band-top"><span>PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name}</span></div>
-      <div class="pickup-band band-bottom"><span>PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name}</span></div>` : ''}
+      ${pickup && legend ? (() => { const t = `PICK UP! ${kind === 'relic' ? name : currentBanner().name} `.repeat(3);
+        return `<div class="pickup-band band-top"><span>${t}</span></div><div class="pickup-band band-bottom"><span>${t}</span></div>`; })() : ''}
       <div class="cut-rays"></div>
       ${legend ? confettiHtml(46) : ''}
       <div class="cut-body">
@@ -9284,7 +9290,8 @@ function silhouetteHtml(r, kind, pickup){
 function revealHeadHtml(g){
   const closed = g.results.map((r, i) => i).filter(i => !g.open[i]);
   const low = closed.filter(i => pullRarity(g.kind, g.results[i]) <= 3);
-  const sub = !closed.length ? 'すべて割れました!' : low.length ? '卵をタップして割ろう' : '残った卵をタップ!';
+  const v = vesselName(g.kind);
+  const sub = !closed.length ? 'すべて割れました!' : low.length ? `${v}をタップして割ろう` : `残った${v}をタップ!`;
   return `
     <div>
       <div class="reveal-title">${pullBannerTitle(g.kind)}</div>
@@ -9316,7 +9323,7 @@ function renderGachaStage(){
       <div class="reveal-grid ${n > 3 ? 'many' : 'one'} ${g.phase === 'crack' ? 'cracking' : ''}">
         ${g.results.map((r, i) => eggFace(r, i, g.open[i] && !(g.phase === 'crack' && i === g.cut) ? 'open' : 'egg', g.kind)).join('')}
       </div>
-      ${g.results.length > 1 ? '<div class="reveal-foot">★3以下は「まとめて開く」、光る卵は1つずつ割るのがおすすめ</div>' : ''}`;
+      ${g.results.length > 1 ? `<div class="reveal-foot">★3以下は「まとめて開く」、光る${vesselName(g.kind)}は1つずつ割るのがおすすめ</div>` : ''}`;
   }
   layer.innerHTML = `<div class="gacha-stage ph-${g.phase}" data-gacha-stage="1">${inner}</div>`;
   layer.classList.add('show');
@@ -15641,6 +15648,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 81, version: 'α0.1.040', date: '9/26', title: '遺物ガチャ(壺)も新しい演出に', body: '遺物ガチャも、キャラのガチャと同じ演出になりました。宝箱がドスンと降ってきて色で予告(昇格あり)、壺はタップで1つずつ割れ、★3以下は「まとめて開く」、★4は紫・★5は金の予兆、★5はヒビ→シルエット→登場の3段階です。いまのピックアップキャラの専用遺物が出たときは、宝箱が虹色になり、「PICK UP!」の帯が流れる専用の登場演出になります。また、割った直後に「NEW」が中身より先に見えていたのを直しました。' },
   { id: 80, version: 'α0.1.039', date: '9/26', title: 'ガチャの予告を宝箱の色に', body: '召喚のときの予告を、魔法陣から宝箱の色に変えました。宝箱が上からドスン!と降ってきて、その色が今回いちばん高いレア度の予告です(青: ★3以下、紫: ★4、金: ★5、虹色: ピックアップの★5)。ときどき宝箱が跳ねて「UP!」と色が上がる昇格演出が入り、最後の色になってからフタが開いて卵が飛び出します。' },
   { id: 79, version: 'α0.1.038', date: '9/26', title: 'ガチャ演出 第2弾: 召喚陣の予告と昇格', body: '召喚のときの魔法陣の色が、今回いちばん高いレア度の予告になりました(青: ★3以下、紫: ★4、金: ★5、虹: ピックアップの★5)。ときどき低い色から始まって、途中で「UP!」と色が上がる昇格演出が入ります。色が本当の結果より上になることはありません。また、★5の卵がたまに紫の光で並び、割るときに紫から金へ昇格することがあります。ピックアップのキャラの★5は、虹色の背景と「PICK UP!」の帯が流れる専用の登場演出になりました。' },
   { id: 78, version: 'α0.1.037', date: '9/26', title: 'ガチャ演出をリニューアル', body: '10連ガチャで卵が勝手に次々割れていたのをやめ、自分でタップして割るようにしました。卵は最初どれも同じ見た目で、★4の卵は紫の光、★5の卵は金の光を放ってときどき揺れる「予兆」でだけ分かります。「まとめて開く」で★3以下を一気に割り、光る卵を最後に取っておくこともできます。★5は、卵が激しく揺れてヒビから光が漏れる→暗転してシルエット→閃光とともに登場、の3段階で、★が1つずつ刻まれ紙吹雪が舞います。ピックアップのキャラには「PICK UP!」が出ます。割るたびに音が少しずつ高くなり、★4・★5ではスマホが振動します(効果音OFFのときは振動しません)。「スキップ」を押すと★5の登場だけ見て結果に進みます。' },

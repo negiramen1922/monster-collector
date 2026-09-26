@@ -132,6 +132,23 @@ async def main():
               const rs = Array.from({ length: 10 }, () => pullOneForced(MONSTERS.find(m => m.rarity === 3)));
               for(let k = 0; k < 30; k++) summonSteps('mon', rs).forEach(c => out.add(c)); return [...out]; }""")
             check('★3以下しかなければ宝箱は必ず青', low == ['blue'], low)
+            # --- 遺物ガチャ(壺)も同じ演出 ---
+            info = await pg.evaluate("""() => { closeModal();
+              const ex = exclusiveRelicForMon(currentBanner().pickup);
+              const by = st => Object.values(RELICS).find(d => d.star === st && d !== ex);
+              const rs = [ex, by(1), by(2), by(4), by(3), by(1), by(2), by(3), by(2), by(1)].map(def => ({ def, isNew: true, resonance: 0 }));
+              const R = Math.random; Math.random = () => 0; showGachaEggs(rs, null, 'relic'); Math.random = R; gachaSeq.fake = rs.map(() => false);
+              return { star: ex && ex.star, steps: gachaSeq.steps }; }""")
+            check('遺物ガチャも宝箱が降ってきて、専用遺物(★5)なら最後は虹色', info['star'] != 5 or info['steps'][-1] == 'rainbow', info)
+            await wait_reveal(pg)
+            check('遺物ガチャは「壺」と表示し、タップ待ちで止まる', '壺' in await pg.locator('.reveal-sub').inner_text() and await pg.evaluate("() => gachaSeq.open.every(o => !o) && document.querySelectorAll('.jar-svg').length === 10"))
+            await pg.evaluate("() => document.querySelector('[data-gacha-openall]').click()"); await pg.wait_for_timeout(1500)
+            check('遺物ガチャもまとめて開くで★4以上の壺が残る', await pg.evaluate("() => gachaSeq.open.filter(o => !o).length === 2"))
+            await pg.evaluate("() => document.querySelector('[data-egg-open=\"0\"]').click()"); await pg.wait_for_timeout(2700)
+            if info['star'] == 5:
+                check('専用遺物は虹色の専用カットイン', await pg.evaluate("() => gachaSeq.phase === 'legend' && !!document.querySelector('.cut-stage.legend.pickup .pickup-band')"))
+                await pg.wait_for_timeout(1300)
+                await pg.screenshot(path=str(OUT / 'gacha_11_relic_pickup.png'))
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')
