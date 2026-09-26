@@ -1443,8 +1443,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .enemy-side-cap{ font-size:10px; color:var(--dim); text-align:center; margin-top:4px; }
 .formation-note{ font-size:11px; color:var(--dim); line-height:1.7; margin:0 0 14px; }
 .formation-note b{ color:var(--text); }
-.party-count{ font-size:12px; font-weight:800; color:var(--gold); text-align:right; line-height:1.4; }
-.party-count .bp{ display:block; font-size:10.5px; color:var(--dim); font-weight:700; }
+.party-count{ display:flex; align-items:baseline; gap:12px; margin:0 0 6px; font-weight:800; color:var(--gold); line-height:1.2; }
+.party-count .bp{ font-size:24px; font-weight:900; color:var(--text); letter-spacing:.3px; }
+.party-count .bp small{ font-size:11px; font-weight:800; color:var(--dim); margin-right:6px; letter-spacing:0; }
+.party-count .cnt{ font-size:14px; }
+.helper-row{ cursor:default; }
+.helper-row .helper-ic{ width:48px; height:48px; flex:none; display:flex; align-items:center; justify-content:center; font-size:24px; border-radius:10px; background:var(--panel3); }
+.helper-row .helper-tag{ font-size:10px; font-weight:800; color:#1a1426; background:#ffd84a; border-radius:6px; padding:1px 5px; margin-right:5px; vertical-align:1px; }
+.helper-row .helper-acts{ display:flex; flex-direction:column; gap:4px; flex:none; }
 
 /* action menu on a placed unit */
 .party-slot.menu-open{ border:2px solid var(--gold); background:rgba(232,180,85,.08); z-index:20; }
@@ -2763,7 +2769,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.061';
+const GAME_VERSION = 'α0.1.062';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -11255,25 +11261,33 @@ function returnBorrowed(){
   saveState();
   render();
 }
-function renderHelperCard(){
+// お助けキャラはキャラリストの一番上。絞り込み中はほかのキャラと同じ条件で出し分ける
+// (まだ借りていない時の「借りる」行は、絞り込みをしていない時だけ出す)
+function renderHelperRow(){
   const b = STATE.borrowed;
+  const m = b ? MON_BY_ID[b.mon.id] : null;
+  const filtered = filterCount(rosterFilter) > 0 || rosterPromoOnly;
+  if(m ? (!matchesRosterFilter(m, rosterFilter) || rosterPromoOnly) : filtered) return '';
+  if(!m) return `
+    <div class="roster-row helper-row">
+      <div class="helper-ic">🤝</div>
+      <div class="info">
+        <div class="name">お助けキャラ</div>
+        <div class="meta">フレンドから借りられます(お気に入り1枠目)。編成に入れると出撃時のスタミナ+${HELP_STAMINA_SURCHARGE}</div>
+      </div>
+      <button class="btn btn-sm" data-overlay="friends">借りる</button>
+    </div>`;
   const placed = STATE.slots.includes(HELP_SLOT_ID);
   return `
-    <div class="panel facility" style="margin-bottom:10px;">
-      <div class="fc-head">
-        <div class="fc-ic">${b ? `<img src="${imgSrc(b.mon.id)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '🤝'}</div>
-        <div class="fc-body">
-          <div class="fc-name">お助けキャラ</div>
-          <div class="fc-line">${b
-            ? `${MON_BY_ID[b.mon.id].name} ★${b.mon.star} Lv${b.mon.level}・${escapeHtml(b.name)}から借用中`
-            : `フレンドから借りられます(お気に入り1枠目)。編成に入れると出撃時のスタミナ+${HELP_STAMINA_SURCHARGE}`}</div>
-        </div>
-        <div class="fc-act" style="display:flex; flex-direction:column; gap:6px; align-items:stretch;">
-          ${b
-            ? `<button class="btn btn-sm ${placed ? 'btn-ghost' : ''}" data-toggle-helper-slot="1">${placed ? '編成から外す' : '編成に入れる'}</button>
-               <button class="btn btn-ghost btn-sm" data-return-helper="1">返却</button>`
-            : `<button class="btn btn-sm" data-overlay="friends">フレンドから借りる</button>`}
-        </div>
+    <div class="roster-row helper-row ${placed ? 'selected' : ''}" style="--elem:${ELEM_COLOR[m.element]};">
+      <img src="${imgSrc(m.id)}" alt="${m.name}">
+      <div class="info">
+        <div class="name"><span class="helper-tag">🤝 お助け</span>${m.name} ${starsHtml(m.rarity, b.mon.star)}</div>
+        <div class="meta"><span class="roster-bp">BP ${battlePower(HELP_SLOT_ID).toLocaleString()}</span>・Lv${b.mon.level}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${escapeHtml(b.name)}から借用中</div>
+      </div>
+      <div class="helper-acts">
+        <button class="btn btn-sm ${placed ? 'btn-ghost' : ''}" data-toggle-helper-slot="1">${placed ? '外す' : '編成'}</button>
+        <button class="btn btn-ghost btn-sm" data-return-helper="1">返却</button>
       </div>
     </div>`;
 }
@@ -11289,7 +11303,7 @@ function renderParty(){
   const f = currentFormation();
   const pickId = formationPick !== null ? STATE.slots[formationPick] : null;
   const guide = formationPick === null
-    ? '陣形を選び、所持モンスターをタップして配置します。配置済みのマスをタップすると、詳細・移動・外すを選べます。'
+    ? ''
     : pickId
       ? `<b>${MON_BY_ID[pickId].name}</b>の移動先のマスをタップしてください。所持モンスターをタップすると入れ替えます(同じマスでキャンセル)。`
       : `<b>${slotLabel(f, formationPick)}</b>に配置するモンスターを所持一覧から選んでください(同じマスでキャンセル)。`;
@@ -11304,11 +11318,8 @@ function renderParty(){
       </div>
     </div>
     ${formationSetTabsHtml()}
-    <div class="row-between" style="margin:0 0 4px;">
-      <div class="party-count">${partyIds.length} / ${PARTY_MAX}体<span class="bp">総合BP ${totalBp.toLocaleString()}</span></div>
-    </div>
-    <div class="screen-sub" style="margin-bottom:6px;">${guide}</div>
-    ${renderHelperCard()}
+    <div class="party-count"><span class="bp"><small>総合BP</small>${totalBp.toLocaleString()}</span><span class="cnt">${partyIds.length} / ${PARTY_MAX}体</span></div>
+    ${guide ? `<div class="screen-sub" style="margin-bottom:6px;">${guide}</div>` : ''}
 
     ${renderFormationPicker()}
     <div class="enemy-side-cap">▲ 敵側</div>
@@ -11331,6 +11342,7 @@ function renderParty(){
     ${renderSynergyPanel(partyIds)}
 
     ${renderRosterControls(ownedList.length, ownedAll.length)}
+    ${renderHelperRow()}
     ${ownedList.length === 0 ? '<div class="roster-empty">条件に合うモンスターがいません。絞り込みを変えてください。</div>' : ''}
     ${ownedList.map(m => {
       const slot = STATE.slots.indexOf(m.id);
@@ -16574,6 +16586,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 103, version: 'α0.1.062', date: '9/26', title: '編成画面を見やすく', body: '編成画面の総合BPを大きくして、人数(n / 5体)の左に並べました。上の「陣形を選び…」の説明文はなくしました。お助けキャラは所持モンスターのリストの一番上に出るようにし、絞り込み(属性・ロール・種族)をするとほかのキャラと一緒に絞り込まれます。' },
   { id: 102, version: 'α0.1.061', date: '9/26', title: '編成を5つまで持てるように', body: '編成を「編成1〜5」の5つまで作れるようになりました。キャラ → 編成の画面の上のタブで切り替えられます。ステージ詳細・育成クエスト・深淵回廊でも、出撃する前に使う編成を選べます。遺物は編成ごとに装備します。同じ編成の中では1つの遺物を1体にしか付けられませんが、別の編成なら同じ遺物を使えます(これまでの装備は、どの編成にもそのまま引き継いでいます)。PVPの攻撃編成・防衛編成は1つずつのままで、編集画面で「どの編成の遺物を使うか」を選べます。' },
   { id: 101, version: 'α0.1.060', date: '9/26', title: '探索メニューにキャラの絵', body: '探索のメニュー(メインクエスト・育成クエスト・深淵回廊・イベント・PVP)の絵文字アイコンを、キャラの絵に変えました。深淵回廊は門番のアヌビス、イベントは開催中のイベントのキャラからランダムで1体が出ます。' },
   { id: 100, version: 'α0.1.059', date: '9/26', title: '下のメニューを5つに整理', body: '下のメニューが多すぎたので、「ガチャ・キャラ・ホーム・探索・拠点」の5つにまとめました。「キャラ」の中は画面上のタブで「編成・キャラ一覧・遺物」を切り替えられます(押すと最初は編成)。「拠点」の中は「施設・ショップ」のタブです。PVPは「探索」のメニューの一番下から入れます。' },
