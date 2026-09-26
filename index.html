@@ -221,6 +221,10 @@ body{
 .item-detail .id-have{ position:absolute; right:6px; bottom:5px; font-size:9.5px; color:var(--dim); text-align:right; line-height:1.2; }
 .item-detail .id-have b{ display:block; font-size:15px; color:var(--text); }
 .item-detail .id-desc{ font-size:11px; color:var(--dim); line-height:1.6; margin-top:8px; }
+.item-detail .id-use{ padding:10px 12px 12px; border-top:1px solid var(--line); }
+.item-detail .id-use-head{ font-size:11px; font-weight:800; margin-bottom:6px; }
+.item-detail .id-got{ font-size:11px; color:#7fdc72; margin-bottom:6px; line-height:1.5; max-height:84px; overflow-y:auto; }
+.item-detail .alc-qty [data-id-use]{ margin-left:auto; min-width:80px; }
 .item-detail .id-src-head{ font-size:11.5px; font-weight:900; padding-bottom:5px; border-bottom:1px solid var(--line); margin-bottom:4px; }
 .item-detail .id-src{ display:flex; align-items:center; gap:6px; padding:7px 0; border-bottom:1px dashed rgba(255,255,255,.08); }
 .item-detail .id-src-label{ flex:1; min-width:0; font-size:11px; font-weight:800; line-height:1.4; }
@@ -2728,7 +2732,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.053';
+const GAME_VERSION = 'α0.1.054';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8113,8 +8117,29 @@ function itemSources(key){
   return out;
 }
 function openItemDetail(key, back){
-  itemDetail = { key, back: back || null };
+  if(back === 'bag'){ const bm = document.querySelector('.bag-modal'); bagScrollSaved = bm ? bm.scrollTop : 0; }
+  itemDetail = { key, back: back || null, qty: 1, choose: false, got: '' };
   renderItemDetail();
+}
+// 持ち物から使えるアイテム(BOX・スタミナの実・時渡りの砂・選択券)
+function itemUsable(key){ return !!(STAMINA_ITEMS[key] || IDLE_ITEMS[key] || /^box_(sel|rnd)_[1-4]$/.test(key) || MON_TICKET_RE.test(key)); }
+function gotText(got){
+  return Object.entries(got).filter(([, n]) => n > 0).map(([k, n]) => k === 'gold' ? `ゴールド${n.toLocaleString()}` : k === 'stamina' ? `スタミナ+${n}` : `${itemName(k)}×${n}`).join('、');
+}
+// n個まとめて使う。選択BOXは (fam, kind) を渡す。受け取った物を {key: 個数} で返す
+function useItemN(key, n, fam, kind){
+  const got = {};
+  const add = (k, v) => { got[k] = (got[k] || 0) + v; };
+  n = Math.max(0, Math.min(n, getItem(key)));
+  for(let i = 0; i < n; i++){
+    const b = /^box_(sel|rnd)_([1-4])$/.exec(key);
+    if(b && b[1] === 'rnd'){ Object.entries(openRandomBox(Number(b[2])) || {}).forEach(([k, v]) => add(k, v)); }
+    else if(b){ Object.entries(openSelectBox(Number(b[2]), fam, kind) || {}).forEach(([k, v]) => add(k, v)); }
+    else if(STAMINA_ITEMS[key]){ if(useStaminaItem(key)) add('stamina', STAMINA_ITEMS[key]); }
+    else if(IDLE_ITEMS[key]){ Object.entries(useIdleItem(key) || {}).forEach(([k, v]) => add(k, v)); }
+  }
+  saveState();
+  return got;
 }
 function renderItemDetail(){
   if(!itemDetail) return;
@@ -8140,8 +8165,43 @@ function renderItemDetail(){
             </div>`).join('') : '<div class="screen-sub">入手手段はありません</div>'}
         </div>
       </div>
+      ${itemUsable(key) ? itemUsePanelHtml(key) : ''}
     </div>`;
   layer.classList.add('show');
+}
+function itemUsePanelHtml(key){
+  const d = itemDetail, have = getItem(key);
+  const got = d.got ? `<div class="id-got">✓ ${d.got}</div>` : '';
+  if(!have) return `<div class="id-use">${got}<div class="screen-sub">持っていません</div></div>`;
+  if(MON_TICKET_RE.test(key)) return `<div class="id-use">${got}<button class="btn btn-block" data-id-use="1">使う(キャラを選ぶ)</button></div>`;
+  d.qty = Math.max(1, Math.min(d.qty, have));
+  const sel = /^box_sel_([1-4])$/.exec(key);
+  if(d.choose && sel){
+    const f = d.fam || 'el', fam = MAT_FAMILIES[f];
+    return `<div class="id-use">
+      <div class="id-use-head">受け取る素材を選んでください(${d.qty}個使用 → ${BOX_CONTENT.sel[sel[1]] * d.qty}個)</div>
+      <div class="alc-tabs">${Object.entries(MAT_FAMILIES).map(([k, x]) => `<button class="stage-tab ${f === k ? 'on' : ''}" data-id-selfam="${k}">${x.label}</button>`).join('')}</div>
+      <div class="fs-chips">${fam.kinds().map(k => `<button class="fs-chip" data-id-selpick="${f}:${k}">${fam.icon(k)}<span>${fam.name(k)}</span><small>${getItem(matKey(f, k, Number(sel[1])))}</small></button>`).join('')}</div>
+      <button class="btn btn-ghost btn-sm btn-block" data-id-selcancel="1">やめる</button>
+    </div>`;
+  }
+  return `<div class="id-use">${got}
+    <div class="alc-qty">
+      <button class="btn btn-ghost btn-sm" data-id-qty="-1">−</button><b>${d.qty}</b><button class="btn btn-ghost btn-sm" data-id-qty="1">＋</button>
+      <button class="btn btn-ghost btn-sm" data-id-qty="max">最大(${have})</button>
+      <button class="btn btn-sm" data-id-use="1">${sel ? '選んで使う' : '使う'}</button>
+    </div></div>`;
+}
+function itemDetailUse(){
+  const d = itemDetail, key = d.key;
+  if(MON_TICKET_RE.test(key)){ itemDetail = null; bagTicket = { key, elem: '' }; bagSelect = null; renderBag(); return; }
+  if(/^box_sel_/.test(key)){ d.choose = true; renderItemDetail(); return; }
+  const got = useItemN(key, d.qty);
+  const txt = gotText(got);
+  d.got = txt || (IDLE_ITEMS[key] ? '受け取れる施設がまだありません' : '');
+  d.qty = 1;
+  playSfx(STAMINA_ITEMS[key] || IDLE_ITEMS[key] ? 'buff' : 'confirm');
+  render(); renderItemDetail();
 }
 function closeItemDetail(){
   const back = itemDetail && itemDetail.back;
@@ -8218,6 +8278,8 @@ function renderAlchemy(){
       </div>`;
   }
   const layer = document.getElementById('modal-layer');
+  const prevAlc = layer.querySelector('.alchemy-modal');
+  const keepTop = prevAlc ? prevAlc.scrollTop : 0;
   layer.innerHTML = `
     <div class="result-modal bag-modal alchemy-modal" role="dialog" aria-label="錬金術">
       <div class="bag-top">
@@ -8231,6 +8293,8 @@ function renderAlchemy(){
       <div class="bag-grid ${a.tier ? '' : 'cols3'}">${cells}</div>
     </div>`;
   layer.classList.add('show');
+  const na = layer.querySelector('.alchemy-modal');
+  if(na && keepTop) na.scrollTop = keepTop;   // 作ったり選んだりしても一番上に戻らない
 }
 function handleAlchemyClick(t){
   const a = alchemyUI;
@@ -8257,6 +8321,7 @@ function handleAlchemyClick(t){
   if(detEl){ openItemDetail(detEl.dataset.itemDetailAlc, 'alchemy'); return true; }
   return true;   // 錬金術の画面の中のタップは、ほかの処理に流さない
 }
+let bagScrollSaved = 0;   // 持ち物の画面のスクロール位置(使ったり詳細から戻ったりしても一番上に戻らないように)
 let bagTierFilter = 0;     // 素材タブのTierフィルター(0 = 全部)
 let bagOwnedOnly = false;  // 素材タブ: 持っているものだけ表示
 function renderBag(){
@@ -8343,30 +8408,18 @@ function renderBag(){
       }).join('') || '<div class="soul-none">該当する素材はありません</div>'}`;
   }else{
     body = `
-      ${usables.length ? `<div class="bag-head">使えるアイテム</div>${usables.map(k => `
-        <div class="panel panel-tight box-card">
-          <span class="sc-ic" data-item-detail="${k}" role="button">${itemIcon(k)}</span>
-          <div class="sc-body"><div class="sc-name">${itemName(k)} ×${getItem(k)}</div>
-            <div class="sc-sub">${STAMINA_ITEMS[k] ? `スタミナ+${STAMINA_ITEMS[k]}(上限を超えても使えます)` : `拠点の放置報酬${IDLE_ITEMS[k]}時間分を今すぐ受け取る`}</div></div>
-          <button class="btn btn-sm" data-use-item="${k}">使う</button>
-        </div>`).join('')}` : ''}
-      ${tickets.length ? `<div class="bag-head">キャラ選択券</div>${tickets.map(k => `
-        <div class="panel panel-tight box-card">
-          <span class="sc-ic" data-item-detail="${k}" role="button">${itemIcon(k)}</span>
-          <div class="sc-body"><div class="sc-name">${itemName(k)} ×${getItem(k)}</div>
-            <div class="sc-sub">★${MON_TICKET_RE.exec(k)[1]}のキャラから好きな1体と交換</div></div>
-          <button class="btn btn-sm" data-use-ticket="${k}">使う</button>
-        </div>`).join('')}` : ''}
-      <div class="bag-head">\u80b2\u6210\u7d20\u6750BOX</div>
-      ${boxes.length ? boxes.map(k => `
-        <div class="panel panel-tight box-card">
-          <span class="sc-ic" data-item-detail="${k}" role="button">${itemIcon(k)}</span>
-          <div class="sc-body"><div class="sc-name">${itemName(k)} \u00d7${getItem(k)}</div>
-            <div class="sc-sub">${k.startsWith('box_sel') ? '\u5c5e\u6027\u3092\u9078\u3093\u3067\u7d20\u6750\u3092\u53d7\u3051\u53d6\u308b' : '\u30e9\u30f3\u30c0\u30e0\u306b\u7d20\u6750\u3092\u53d7\u3051\u53d6\u308b'}</div></div>
-          <button class="btn btn-sm" data-open-box="${k}">\u958b\u304f</button>
-        </div>`).join('') : '<div class="soul-none">\u3042\u308a\u307e\u305b\u3093</div>'}`;
+      ${[['使えるアイテム', usables], ['キャラ選択券', tickets], ['育成素材BOX', boxes]].map(([head, list]) => list.length ? `
+        <div class="bag-head">${head}</div>
+        <div class="bag-grid">${list.map(k => {
+          const tier = (/_([1-4])$/.exec(k) || [])[1] || (k === 'idle_1' ? 1 : k === 'idle_3' ? 2 : k === 'idle_12' ? 3 : 0);
+          return `<div class="bag-cell ${tier ? `tier-t${tier}` : ''}" title="${itemName(k)}" data-item-detail="${k}" role="button">
+            <div class="bc-ic">${itemIcon(k)}</div><div class="bc-name">${itemName(k)}</div><div class="bc-n">\u00d7${getItem(k)}</div></div>`;
+        }).join('')}</div>` : '').join('') || '<div class="soul-none">\u3042\u308a\u307e\u305b\u3093</div>'}
+      <div class="bag-note">押すと詳しい説明と入手方法が見られます。使うときは詳細画面の「使う」から(まとめて使えます)</div>`;
   }
 
+  const prevBag = layer.querySelector('.bag-modal:not(.alchemy-modal)');
+  const keepTop = prevBag ? prevBag.scrollTop : bagScrollSaved;
   layer.innerHTML = `
     <div class="result-modal bag-modal" role="dialog" aria-label="\u30a2\u30a4\u30c6\u30e0\u6b04">
       <div class="bag-top">
@@ -8382,6 +8435,9 @@ function renderBag(){
       ${body}
     </div>`;
   layer.classList.add('show');
+  const nb = layer.querySelector('.bag-modal');
+  if(nb && keepTop) nb.scrollTop = keepTop;
+  bagScrollSaved = 0;
 }
 
 let formationPick = null; // slot chosen as a move source / placement target on the party screen
@@ -15530,7 +15586,20 @@ function handlePhoneClick(ev){
     const goEl = t.closest('[data-item-go]');
     if(goEl){ itemDetailGo(Number(goEl.dataset.itemGo)); return; }
     const tierEl = t.closest('[data-item-detail]');
-    if(tierEl){ itemDetail.key = tierEl.dataset.itemDetail; renderItemDetail(); return; }
+    if(tierEl){ itemDetail.key = tierEl.dataset.itemDetail; itemDetail.got = ''; itemDetail.qty = 1; renderItemDetail(); return; }
+    const qEl = t.closest('[data-id-qty]');
+    if(qEl){ const v = qEl.dataset.idQty; itemDetail.qty = v === 'max' ? getItem(itemDetail.key) : Math.max(1, itemDetail.qty + Number(v)); renderItemDetail(); return; }
+    if(t.closest('[data-id-use]')){ itemDetailUse(); return; }
+    const sfEl = t.closest('[data-id-selfam]');
+    if(sfEl){ itemDetail.fam = sfEl.dataset.idSelfam; renderItemDetail(); return; }
+    if(t.closest('[data-id-selcancel]')){ itemDetail.choose = false; renderItemDetail(); return; }
+    const spEl = t.closest('[data-id-selpick]');
+    if(spEl){
+      const [f, k] = spEl.dataset.idSelpick.split(':');
+      const got = useItemN(itemDetail.key, itemDetail.qty, f, k);
+      Object.assign(itemDetail, { choose: false, qty: 1, got: gotText(got) });
+      playSfx('confirm'); render(); renderItemDetail(); return;
+    }
     return;
   }
   const itemDetailEl = t.closest('[data-item-detail]');
@@ -15824,6 +15893,7 @@ function handlePhoneClick(ev){
   if(bagTierEl){ bagTierFilter = Number(bagTierEl.dataset.bagTier); renderBag(); return; }
   if(t.closest('[data-bag-owned]')){ bagOwnedOnly = !bagOwnedOnly; renderBag(); return; }
   const bagTabEl = t.closest('[data-bag-tab]');
+  if(bagTabEl){ const bm = document.querySelector('.bag-modal'); if(bm) bm.scrollTop = 0; }
   if(bagTabEl){ bagTab = bagTabEl.dataset.bagTab; renderBag(); return; }
 
   if(t.closest('[data-owned-toggle]')){ dexOwnedOnly = !dexOwnedOnly; render(); return; }
@@ -16300,6 +16370,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 95, version: 'α0.1.054', date: '9/26', title: '持ち物のアイテムを詳細画面から使えるように', body: '育成素材BOX・スタミナの実・時渡りの砂・キャラ選択券などは、押すと詳細画面が開き、そこの「使う」で使うようにしました。個数を選んで(−・＋・最大)まとめて使えます。選択BOXは、まとめて使ったぶんを1種類の素材で受け取れます。受け取った物は詳細画面に表示されます。また、アイテムを使ったり、詳細画面から戻ったり、絞り込みを変えたりしたときに、持ち物や錬金術の画面が一番上までスクロールで戻ってしまう問題を直しました。' },
   { id: 94, version: 'α0.1.053', date: '9/26', title: '錬金術を専用の画面に', body: '拠点の錬金術がごちゃごちゃしていたので、拠点には「錬金術」のボタンだけを置くようにしました。押すと錬金術の画面が開き、作りたい素材(TierII〜IV)を一覧から選ぶと、作るのに何がいくつ必要か(下位Tierの素材とゴールド)が表示されます。個数を選んで「作る」で合成できます。今作れる数は素材の左上に緑の数字で出ます。種類(欠片・魂・証)とTierで絞り込めます。' },
   { id: 93, version: 'α0.1.052', date: '9/26', title: '持ち物の素材をTierごとに表示', body: '持ち物の「素材」タブで、育成素材をTierごとに別のアイテムとして並べるようにしました。縁の色でTierが分かります(Tier I=灰、II=青、III=紫、IV=金)。上のボタンでTierごとに絞り込めて、「所持のみ」で持っている素材だけを表示できます。押すとそのTierのアイテム詳細が開きます。' },
   { id: 92, version: 'α0.1.051', date: '9/26', title: 'アイテム詳細画面を追加', body: 'アイテムの詳細画面を追加しました。アイコンと所持数、かんたんな説明と、どこで手に入るか(入手手段)が並び、「移動」を押すとその場所へすぐ行けます。スキル強化で必要な素材を押したときや、持ち物のアイテムを押したときに開きます。育成素材はTierを切り替えて見られ、選択BOXを持っていればその場で使えます。閉じると元の画面に戻ります。' },
