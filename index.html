@@ -2641,7 +2641,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.043';
+const GAME_VERSION = 'α0.1.044';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8054,6 +8054,7 @@ function goto(screen){
     openGuideToast('pixie', GUIDE_CONTENT.relics.steps, { key: 'relics' });
   }
   showAnnouncements();
+  if(!gachaSeq && bgm.duck < 1) bgmDuck(1, 800);
 }
 
 function toast(msg){
@@ -9555,6 +9556,7 @@ function showGachaEggs(results, before, kind){
   // 宝箱: 0.45秒で着地(ドスン) → 昇格があれば0.75秒ごとに色が上がる → 最後の色でフタが開いて卵が飛び出す
   const openAt = CHEST_LAND_MS + 350 + (steps.length - 1) * SUMMON_STEP_MS;
   gachaSeq = { results, before, phase: 'summon', open: results.map(() => false), cut: null, kind: k, notes: 0, steps, stepAt: 0, fake, openAt };
+  bgmDuck(GACHA_BGM_DUCK, 350);   // 演出中はホームのBGMを小さく(効果音が主役)
   renderGachaStage();
   const seq = gachaSeq;
   setTimeout(() => {
@@ -9574,6 +9576,7 @@ function showGachaEggs(results, before, kind){
   }, openAt + 1500);
 }
 const CHEST_LAND_MS = 450;
+const GACHA_BGM_DUCK = 0.15;   // 演出中のBGMの大きさ(通常を1として)
 function upgradeSummon(n){
   const g = gachaSeq;
   const wrap = document.querySelector('.chest-wrap');
@@ -9628,6 +9631,7 @@ function startLegend(i){
   g.cut = i;
   g.phase = 'crack';
   clearTimeout(gachaTimer);
+  bgmDuck(0, 500);   // ★5: BGMを止めて、ヒビとシルエットの間は静けさで溜める
   renderGachaStage();
   gachaVibrate([70, 60, 70, 60, 70]);
   gachaSfx('rumble');
@@ -9655,6 +9659,7 @@ function revealLegend(){
   if(!g || (g.phase !== 'crack' && g.phase !== 'silhouette')) return;
   clearTimeout(gachaTimer);
   g.phase = 'legend';
+  bgmDuck(0, 150);
   gachaFlash('rainbow');
   gachaShake(true);
   gachaVibrate([300, 80, 400]);
@@ -9668,6 +9673,7 @@ function backToReveal(){
   if(!g) return;
   clearTimeout(gachaTimer);
   if(g.skipping && g.open.every(Boolean)){ finishReveal(); return; }
+  bgmDuck(GACHA_BGM_DUCK, 800);
   g.phase = 'reveal'; g.cut = null;
   renderGachaStage();
 }
@@ -9715,6 +9721,7 @@ function gachaFlash(kind){
 let gachaTimer = null;
 function finishGachaEggs(){
   if(!gachaSeq) return;
+  bgmDuck(1, 1500);   // 結果画面でBGMをゆっくり戻す
   const { results, before, kind } = gachaSeq;
   gachaSeq = null;
   clearTimeout(gachaTimer);
@@ -15638,7 +15645,7 @@ const BGM_TRACKS = {
   boss:   { vol: 0.5, label: 'ボス戦' },
 };
 const BGM_FADE_MS = 700;
-const bgm = { mode: null, ctx: null, gain: null, buffers: {}, src: null, srcGain: null, key: null, loading: false, wanted: null, els: {}, el: null };
+const bgm = { mode: null, ctx: null, gain: null, buffers: {}, src: null, srcGain: null, key: null, loading: false, wanted: null, els: {}, el: null, duck: 1 };
 
 function bgmSettings(){
   if(!STATE.bgm) STATE.bgm = { on: true, vol: 0.6 };
@@ -15690,7 +15697,7 @@ function bgmElement(key){
   return bgm.els[key];
 }
 function bgmElementVolume(key){
-  return Math.max(0, Math.min(1, bgmSettings().vol * BGM_TRACKS[key].vol));
+  return Math.max(0, Math.min(1, bgmSettings().vol * BGM_TRACKS[key].vol * bgm.duck));
 }
 function stopBgm(fade){
   if(bgm.el){ bgm.el.pause(); bgm.el = null; bgm.key = null; return; }
@@ -15724,7 +15731,7 @@ function playBgm(key){
   src.buffer = bgm.buffers[key];
   src.loop = true;
   const g = bgm.ctx.createGain();
-  const target = BGM_TRACKS[key].vol;
+  const target = BGM_TRACKS[key].vol * bgm.duck;
   g.gain.setValueAtTime(0, bgm.ctx.currentTime);
   g.gain.linearRampToValueAtTime(target, bgm.ctx.currentTime + BGM_FADE_MS / 1000);
   src.connect(g); g.connect(bgm.gain);
@@ -15733,6 +15740,18 @@ function playBgm(key){
 }
 // call after anything that can change the scene
 function updateBgm(){ playBgm(bgmForScreen()); }
+// BGMを一時的に小さくする(ガチャの演出中など)。level: 1 = 通常、0 = 無音。ms かけてなめらかに変える
+function bgmDuck(level, ms){
+  bgm.duck = Math.max(0, Math.min(1, level));
+  const sec = (ms == null ? 400 : ms) / 1000;
+  if(bgm.srcGain && bgm.key && bgm.ctx){
+    const g = bgm.srcGain.gain, t = bgm.ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(BGM_TRACKS[bgm.key].vol * bgm.duck, t + Math.max(0.02, sec));
+  }
+  if(bgm.el && bgm.key) bgm.el.volume = bgmElementVolume(bgm.key);
+}
 function setBgmVolume(v){
   bgmSettings().vol = v;
   if(bgm.gain) bgm.gain.gain.value = v;
@@ -15811,6 +15830,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 85, version: 'α0.1.044', date: '9/26', title: 'ガチャ中のBGMを控えめに', body: 'ガチャの演出中は、ホームのBGMを小さくして効果音が聞こえやすいようにしました。★5のヒビが入った瞬間からはBGMが止まり、静けさの中で登場を待ちます。結果画面に進むと、BGMはゆっくり元の大きさに戻ります。' },
   { id: 84, version: 'α0.1.043', date: '9/26', title: 'ガチャのキラキラ音をきれいな和音に', body: 'ガチャのキラキラした音が少し濁って聞こえていたのを直しました。キラキラはドレミソラの音階からだけ鳴らし、鈴の響きもきれいに調和する音だけにして、演出全体をひとつの調(ハ長調)にそろえています。ピックアップの★5のファンファーレは、最後に「ファ→ド」と明るく締めるようにしました。' },
   { id: 83, version: 'α0.1.042', date: '9/26', title: 'ガチャの効果音を自然な響きに', body: 'ガチャの効果音から電子音っぽさを減らしました。ピコピコした音をやめ、鈴やガラスのような響きと、部屋の残響をつけています。卵や壺が割れる音は、細かいヒビが走る「パキパキ」→殻が割れる「パリッ」になりました。' },
   { id: 82, version: 'α0.1.041', date: '9/26', title: 'ガチャの効果音を派手に', body: 'ガチャの効果音をすべて作り直しました。宝箱が落ちる「ドスン!」、昇格の「キュイーン↑」、フタが開く音、卵や壺が割れる「パリン」(割るたびに音程が上がります)、★4の「キラーン」、★5のヒビの地鳴り、シルエットの心音、登場の「ドーン!」とファンファーレ、★を刻む「カン!」、結果画面の「ジャン!」です。ピックアップの★5はファンファーレがもう一段豪華になります。効果音はOFFにもできます。' },

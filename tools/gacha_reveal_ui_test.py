@@ -46,6 +46,7 @@ async def main():
             await wait_reveal(pg)
             check('卵が並んだら止まる', await ph() == 'reveal')
             await pg.wait_for_timeout(1500)
+            check('演出中はBGMを小さくする', await pg.evaluate("() => bgm.duck") == 0.15)
             check('放っておいても勝手に割れない', await pg.evaluate("() => gachaSeq.open.every(o => !o)"))
             cls = await pg.evaluate("() => [...document.querySelectorAll('.reveal-grid .egg-slot')].map(e => e.className)")
             check('★4の卵は紫の予兆、★5の卵は金の予兆、ほかは予兆なし', 'hint4' in cls[4] and 'hint5' in cls[6] and not any('hint' in c for i, c in enumerate(cls) if i not in (4, 6)), cls)
@@ -70,6 +71,7 @@ async def main():
             # ★5
             await pg.evaluate("() => document.querySelector('[data-egg-open=\"6\"]').click()"); await pg.wait_for_timeout(500)
             check('★5は1段目: ヒビ(ほかの卵が暗くなり激しく揺れる)', await ph() == 'crack' and await pg.locator('.egg-slot.crack5').count() == 1)
+            check('★5のヒビからはBGMを止めて静けさで溜める', await pg.evaluate("() => bgm.duck") == 0)
             await pg.screenshot(path=str(OUT / 'gacha_4_crack.png'))
             await pg.wait_for_timeout(1000)
             check('2段目: 暗転してシルエット', await ph() == 'silhouette' and await pg.locator('.sil-mon').count() == 1)
@@ -80,9 +82,11 @@ async def main():
             await pg.screenshot(path=str(OUT / 'gacha_6_legend.png'))
             await pg.evaluate("() => document.querySelector('[data-gacha-stage]').click()"); await pg.wait_for_timeout(300)
             check('全部割れたら「結果を見る」', await pg.locator('[data-gacha-result]').count() == 1)
+            check('カットインから戻るとBGMは小さい音に戻る', await pg.evaluate("() => bgm.duck") == 0.15)
             await pg.screenshot(path=str(OUT / 'gacha_7_all.png'))
             await pg.evaluate("() => document.querySelector('[data-gacha-result]').click()"); await pg.wait_for_timeout(900)
             check('結果画面へ', await pg.locator('.gacha-result').count() == 1 and await pg.evaluate("() => !gachaSeq"))
+            check('結果画面でBGMを元の大きさに戻す', await pg.evaluate("() => bgm.duck") == 1)
             # スキップ: ★5があればそのカットインだけ見せて結果へ
             await pg.evaluate(SETUP); await wait_reveal(pg)
             await pg.evaluate("() => document.querySelector('[data-gacha-skip]').click()"); await pg.wait_for_timeout(300)
