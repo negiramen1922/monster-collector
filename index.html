@@ -599,7 +599,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   position:absolute;
   left:0;right:0;bottom:0;
   display:grid;
-  grid-template-columns:repeat(7, minmax(0, 1fr));
+  grid-template-columns:repeat(9, minmax(0, 1fr));
   gap:0;
   background:var(--nav);
   border-top:1px solid var(--line);
@@ -2742,7 +2742,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.057';
+const GAME_VERSION = 'α0.1.058';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7647,9 +7647,11 @@ let dexOwnedOnly = false;
 const NAV = [
   { key: 'gacha', label: 'ガチャ', icon: '🎰' },
   { key: 'relics', label: '遺物', icon: '🔮' },
+  { key: 'dex', label: 'キャラ', icon: '📖' },
   { key: 'party', label: '編成', icon: '🧩' },
   { key: 'home', label: 'ホーム', icon: '🏠' },
   { key: 'base', label: '拠点', icon: '🏯' },
+  { key: 'shop', label: 'ショップ', icon: '🛒' },
   { key: 'battle', label: '探索', icon: '⚔️' },
   { key: 'pvp', label: 'PVP', icon: '🏆' },
 ];
@@ -7997,13 +7999,6 @@ function renderBase(){
       <div class="base-wallet">${goldText(STATE.gold || 0)}</div>
     </div>
     <div class="screen-sub">施設を強化すると素材とEXPが自動で溜まります(最大24時間分)</div>
-    <div class="panel facility" data-nav="shop" role="button">
-      <div class="fc-head">
-        <span class="fc-ic">🛒</span>
-        <div class="fc-body"><div class="fc-name">ショップ</div>
-        <div class="fc-line">ゴールド・PVPポイントで素材やアイテムと交換できます</div></div>
-      </div>
-    </div>
     ${facilityCard('mine')}
     ${facilityCard('lab')}
     ${facilityCard('smithy')}
@@ -8484,12 +8479,12 @@ function canPromoteNow(id){
 // which footer nav button a given screen should highlight (some screens are reached without
 // tapping their own nav button, e.g. missions from home, or the shop from 拠点)
 function navKeyForScreen(screen){
-  return screen === 'battle-fight' ? 'battle' : screen === 'missions' ? 'home' : screen === 'shop' ? 'base' : screen;
+  return screen === 'battle-fight' ? 'battle' : screen === 'missions' ? 'home' : screen;
 }
 /* 画面の中のボタンから別の画面へ移ったときは、左上に「‹ 〇〇に戻る」を出して1つ前に戻れるようにする。
    下のメニュー(ナビ)や左右スワイプで切り替えたときは、履歴を消す(戻るは出さない) */
 let navHistory = [];
-const SCREEN_LABEL = { home: 'ホーム', gacha: 'ガチャ', dex: '図鑑', party: '編成', battle: '探索', pvp: 'PVP', missions: 'ミッション', relics: '遺物', base: '拠点', shop: 'ショップ' };
+const SCREEN_LABEL = { home: 'ホーム', gacha: 'ガチャ', dex: 'キャラ', party: '編成', battle: '探索', pvp: 'PVP', missions: 'ミッション', relics: '遺物', base: '拠点', shop: 'ショップ' };
 function goto(screen, opts){
   opts = opts || {};
   if(opts.nav) navHistory = [];
@@ -8963,7 +8958,7 @@ function renderHome(){
       <div class="row-between" style="margin-bottom:10px;">
         <div class="mc-head">パーティ<span class="home-fm">${currentFormation().name}</span></div>
         <div class="home-party-btns">
-          <button class="btn btn-ghost btn-sm" data-nav="dex">📕 図鑑</button>
+          <button class="btn btn-ghost btn-sm" data-nav="dex">📖 キャラ</button>
           <button class="btn btn-ghost btn-sm" data-nav="party">編成</button>
         </div>
       </div>
@@ -10811,7 +10806,7 @@ function renderDex(){
   return `
     <div class="screen-head">
       <div>
-        <div class="screen-title">図鑑</div>
+        <div class="screen-title">キャラ</div>
         <div class="dex-count">${ownedCount} / ${MONSTERS.length} 体${promoCount ? `・★上げできる ${promoCount}体` : ''}</div>
       </div>
       <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
@@ -11165,7 +11160,6 @@ function renderParty(){
     <div class="row-between" style="margin:10px 0 4px;">
       <div class="screen-title" style="margin:0;">編成</div>
       <div class="home-party-btns">
-        <button class="btn btn-ghost btn-sm" data-nav="dex">📕 図鑑</button>
         <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 相性</button>
       </div>
     </div>
@@ -16409,6 +16403,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 99, version: 'α0.1.058', date: '9/26', title: '下のメニューに「キャラ」と「ショップ」を追加', body: '下のメニューを見直しました。編成の左に「キャラ」を追加し、これまでの図鑑(持っているキャラの一覧・並び替え・絞り込み・★上げ)をここから開けるようにしました。また、拠点の中にあったショップを分けて、拠点の右に「ショップ」を追加しました。' },
   { id: 98, version: 'α0.1.057', date: '9/26', title: '1つ前の画面に戻るボタン', body: '画面の中のボタンから別の画面に移ったとき(編成から図鑑、拠点からショップ、プロフィールから図鑑、アイテム詳細の「移動」など)に、左上に「‹ 〇〇に戻る」ボタンを出すようにしました。押すと1つ前の画面に戻ります(プロフィールなどから移ったときは、その画面も元に戻ります)。下のメニューや左右スワイプで画面を切り替えたときは出ません。' },
   { id: 97, version: 'α0.1.056', date: '9/26', title: '画面の位置がずれないように', body: '持ち物・錬金術・アイテム詳細・スキル強化・キャラ詳細・遺物・ステージ詳細などの画面を、上揃いで固定しました。これまではタブを切り替えたりアイテムを使ったりして中身の量が変わるたびに、画面の上の位置がずれて押しにくくなっていました。持ち物と錬金術の画面は高さも固定しています。また、ランダムBOXを使ったときは、出た素材を1つずつ並べず「TierIを合計60個」のように合計だけを表示するようにしました。' },
   { id: 96, version: 'α0.1.055', date: '9/26', title: '持ち物の所持数をアイコンの右下に', body: '持ち物と錬金術の画面で、アイテムの所持数(×N)をアイコンの右下に重ねて表示するようにしました。' },
