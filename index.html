@@ -368,6 +368,18 @@ body{
 .bag-cell{ position:relative; background:var(--panel2); border:1px solid var(--line); border-radius:13px;
   padding:9px 5px 7px; text-align:center; min-height:66px; }
 .bag-cell.empty{ opacity:.4; }
+.bag-cell.tier-t1{ border-color:#8a86a0; }
+.bag-cell.tier-t2{ border-color:#3f7fbf; box-shadow:inset 0 0 10px -4px rgba(63,127,191,.8); }
+.bag-cell.tier-t3{ border-color:#9a57d0; box-shadow:inset 0 0 12px -4px rgba(154,87,208,.9); }
+.bag-cell.tier-t4{ border:1.5px solid transparent; background:linear-gradient(var(--panel2), var(--panel2)) padding-box, linear-gradient(135deg,#e8b455,#ff8fd0) border-box;
+  box-shadow:0 0 10px -4px rgba(255,160,180,.8); }
+.bag-cell[data-item-detail]{ cursor:pointer; }
+.bag-filter{ display:flex; flex-wrap:wrap; gap:4px; margin:2px 0 8px; }
+.bag-tier-chip{ font:inherit; font-size:10px; font-weight:800; padding:5px 7px; white-space:nowrap; border-radius:999px; cursor:pointer;
+  border:1.5px solid var(--line); background:var(--panel2); color:var(--dim); }
+.bag-tier-chip.t1{ border-color:#8a86a0; } .bag-tier-chip.t2{ border-color:#3f7fbf; } .bag-tier-chip.t3{ border-color:#9a57d0; } .bag-tier-chip.t4{ border-color:#e8b455; }
+.bag-tier-chip.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
+.bag-tier-chip.own{ margin-left:auto; }
 .bc-ic{ font-size:22px; line-height:1.1; }
 .bc-ic img.ico{ width:22px !important; height:22px !important; }
 .bc-name{ font-size:8.5px; font-weight:800; margin-top:4px; line-height:1.3; }
@@ -2697,7 +2709,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.051';
+const GAME_VERSION = 'α0.1.052';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8158,6 +8170,8 @@ function itemDetailGo(i){
   else if(g.type === 'shop'){ shopTab = g.tab || 'gold'; goto('shop'); }
   else if(g.type === 'missions'){ goto('missions'); }
 }
+let bagTierFilter = 0;     // 素材タブのTierフィルター(0 = 全部)
+let bagOwnedOnly = false;  // 素材タブ: 持っているものだけ表示
 function renderBag(){
   const layer = document.getElementById('modal-layer');
   const pots = ['exp1', 'exp2', 'exp3'];
@@ -8165,18 +8179,9 @@ function renderBag(){
   const total = Object.values(STATE.items || {}).reduce((a, b) => a + b, 0);
 
   const cell = (icon, name, n, title, key) =>
-    `<div class="bag-cell ${n ? '' : 'empty'}" title="${title || name}" ${key ? `data-item-detail="${key}" role="button"` : ''}>
+    `<div class="bag-cell ${n ? '' : 'empty'} ${key && EXP_POT_VALUE[key] ? `tier-t${key.slice(3)}` : ''}" title="${title || name}" ${key ? `data-item-detail="${key}" role="button"` : ''}>
        <div class="bc-ic">${icon}</div><div class="bc-name">${name}</div><div class="bc-n">\u00d7${n}</div>
      </div>`;
-  const matCell = (fam, k) => {
-    const d = MAT_FAMILIES[fam];
-    const have = [1, 2, 3, 4].map(t => getItem(matKey(fam, k, t)));
-    const firstOwned = have.findIndex(Boolean);
-    return `<div class="bag-cell ${have.some(Boolean) ? '' : 'empty'}" title="${d.name(k)}" data-item-detail="${matKey(fam, k, firstOwned >= 0 ? firstOwned + 1 : 1)}" role="button">
-        <div class="bc-ic">${d.icon(k)}</div><div class="bc-name">${d.name(k)}</div>
-        <div class="bc-tiers">${[1, 2, 3, 4].map((t, i) => `<span class="${have[i] ? '' : 'off'}">${TIER_LABEL[t]}${have[i]}</span>`).join('')}</div>
-      </div>`;
-  };
 
   let chooser = '';
   if(bagSelect){
@@ -8231,9 +8236,24 @@ function renderBag(){
       <div class="bag-grid">${pots.map(k => cell(itemIcon(k), `EXP\u30dd\u30c3\u30c8${TIER_LABEL[Number(k.slice(3))]}`, getItem(k), itemName(k), k)).join('')}</div>
       <div class="bag-note">\u5408\u8a08 EXP ${expPotTotal().toLocaleString()}\u30fb\u30b4\u30fc\u30eb\u30c9 ${goldText(STATE.gold || 0)}</div>`;
   }else if(bagTab === 'mat'){
-    body = Object.entries(MAT_FAMILIES).map(([fam, d]) => `
-      <div class="bag-head">${d.label}</div>
-      <div class="bag-grid">${d.kinds().map(k => matCell(fam, k)).join('')}</div>`).join('');
+    // Tierごとに別のアイテムとして並べる(縁の色=Tier)。フィルターでTierを絞り込める
+    const tiers = bagTierFilter ? [bagTierFilter] : [1, 2, 3, 4];
+    const tierCell = (fam, k, t) => {
+      const key = matKey(fam, k, t), n = getItem(key);
+      if(bagOwnedOnly && !n) return '';
+      return `<div class="bag-cell tier-t${t} ${n ? '' : 'empty'}" title="${itemName(key)}" data-item-detail="${key}" role="button">
+          <div class="bc-ic">${itemIcon(key)}</div><div class="bc-name">${MAT_FAMILIES[fam].name(k)}</div><div class="bc-n">\u00d7${n}</div>
+        </div>`;
+    };
+    body = `
+      <div class="bag-filter">
+        ${[0, 1, 2, 3, 4].map(t => `<button class="bag-tier-chip ${t ? `t${t}` : ''} ${bagTierFilter === t ? 'on' : ''}" data-bag-tier="${t}">${t ? `Tier${TIER_LABEL[t]}` : '全部'}</button>`).join('')}
+        <button class="bag-tier-chip own ${bagOwnedOnly ? 'on' : ''}" data-bag-owned="1">所持のみ</button>
+      </div>
+      ${Object.entries(MAT_FAMILIES).map(([fam, d]) => {
+        const cells = d.kinds().flatMap(k => tiers.map(t => tierCell(fam, k, t))).join('');
+        return cells ? `<div class="bag-head">${d.label}</div><div class="bag-grid">${cells}</div>` : '';
+      }).join('') || '<div class="soul-none">該当する素材はありません</div>'}`;
   }else{
     body = `
       ${usables.length ? `<div class="bag-head">使えるアイテム</div>${usables.map(k => `
@@ -15711,6 +15731,9 @@ function handlePhoneClick(ev){
   const dotEl = t.closest('[data-banner]');
   if(dotEl){ setBanner(Number(dotEl.dataset.banner)); tickBanner(); return; }
 
+  const bagTierEl = t.closest('[data-bag-tier]');
+  if(bagTierEl){ bagTierFilter = Number(bagTierEl.dataset.bagTier); renderBag(); return; }
+  if(t.closest('[data-bag-owned]')){ bagOwnedOnly = !bagOwnedOnly; renderBag(); return; }
   const bagTabEl = t.closest('[data-bag-tab]');
   if(bagTabEl){ bagTab = bagTabEl.dataset.bagTab; renderBag(); return; }
 
@@ -16188,6 +16211,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 93, version: 'α0.1.052', date: '9/26', title: '持ち物の素材をTierごとに表示', body: '持ち物の「素材」タブで、育成素材をTierごとに別のアイテムとして並べるようにしました。縁の色でTierが分かります(Tier I=灰、II=青、III=紫、IV=金)。上のボタンでTierごとに絞り込めて、「所持のみ」で持っている素材だけを表示できます。押すとそのTierのアイテム詳細が開きます。' },
   { id: 92, version: 'α0.1.051', date: '9/26', title: 'アイテム詳細画面を追加', body: 'アイテムの詳細画面を追加しました。アイコンと所持数、かんたんな説明と、どこで手に入るか(入手手段)が並び、「移動」を押すとその場所へすぐ行けます。スキル強化で必要な素材を押したときや、持ち物のアイテムを押したときに開きます。育成素材はTierを切り替えて見られ、選択BOXを持っていればその場で使えます。閉じると元の画面に戻ります。' },
   { id: 91, version: 'α0.1.050', date: '9/26', title: '育成素材のTierの出方を整理・TierIVをメインクエストに追加', body: 'メインクエストで手に入る育成素材のTierを、難易度に合わせて整理しました。初級はTierI、中級・上級はTierIIまで、超上級・極上級はTierIIIまで、伝説級・神話級はTierIVまで手に入ります(TierIVがメインクエストで落ちるようになりました)。ボスは数が多く、ハードモードは上のTierが多めに出ます。これまで初級のボスや初級ハードで上のTierが出てスキルレベルだけ先に上がりすぎていたのを防ぎます。\n\nステージごとに落ちる素材は、出てくる敵の属性・種族・ロールをもとに3種類に固定し、ステージ詳細に名前つきで表示するようにしました。どの素材も、それぞれの難易度帯のどこかのステージで手に入ります。スキル強化で素材が足りないときは、素材を押すと「〇〇で集める」から、その素材が落ちるステージにすぐ行けます。\n\n錬金術はTierIVまで合成できるようになりました。まだメインクエストで落ちないTierへの合成は、15個→1個と効率が悪くなります。すでに持っている素材や、上げたスキルレベルはそのままです。' },
   { id: 90, version: 'α0.1.049', date: '9/26', title: '設定画面のお知らせをコンパクトに', body: '設定画面のお知らせが長すぎたので、見出しだけの表示にしました(ニュース2件と最新のアップデート1件)。見出しを押すとその記事が開き、「ニュースを見る」「アップデート内容を見る」から一覧を読めます。あわせて、設定画面の「既定の速度」の表示が詰まって見づらかったのを直しました。' },
