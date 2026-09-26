@@ -2641,7 +2641,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.042';
+const GAME_VERSION = 'α0.1.043';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9389,18 +9389,20 @@ function gsNoise(A, { type = 'lowpass', f0, f1, q = 1, dur, vol = 0.3, delay = 0
   src.connect(f); f.connect(g); g.connect(A.out);
   src.start(t, Math.random()); src.stop(t + dur + 0.05);
 }
-// 鈴・ガラスのような音(整数倍でない倍音を重ねると電子音っぽさが消える)
+// 鈴・オルゴールのような音(サイン波に、きれいに調和する倍音だけを少し重ね、すぐ減衰させる)。
+// 整数倍でない倍音は和音と重なると濁るので使わない
 function gsBell(A, { f, dur = 1.2, vol = 0.1, delay = 0 }){
-  [[1, 1], [2.01, 0.45], [2.76, 0.3], [5.4, 0.12], [8.9, 0.05]].forEach(([r, a], k) =>
+  [[1, 1], [2, 0.38], [3, 0.14], [4, 0.06]].forEach(([r, a], k) =>
     gsOsc(A, { type: 'sine', f0: f * r, dur: dur / (1 + k * 0.6), vol: vol * a, delay, atk: 0.002 }));
 }
 // やわらかい和音(三角波をわずかにずらして重ね、こもらせる。ゆっくり立ち上がる)
 function gsPad(A, freqs, { dur, vol = 0.05, delay = 0, atk = 0.06, lp = 1800 }){
   freqs.forEach(f => [-7, 7].forEach(dt => gsOsc(A, { type: 'triangle', f0: f, dur, vol, delay, atk, detune: dt, lp })));
 }
-// キラキラ(鈴の音を少しずつずらして鳴らす)
-function gsSparkle(A, { n = 8, delay = 0, span = 0.5, base = 1800, vol = 0.04 }){
-  for(let k = 0; k < n; k++) gsBell(A, { f: base * Math.pow(2, Math.random() * 1.1), dur: 0.5, vol, delay: delay + Math.random() * span });
+// キラキラ: ハ長調のペンタトニック(ドレミソラ)からだけ選ぶので、どう重なっても濁らない
+const GS_PENTA = [1047, 1175, 1319, 1568, 1760, 2093, 2349, 2637, 3136, 3520];
+function gsSparkle(A, { n = 8, delay = 0, span = 0.5, vol = 0.04, notes = GS_PENTA }){
+  for(let k = 0; k < n; k++) gsBell(A, { f: notes[Math.floor(Math.random() * notes.length)], dur: 0.5, vol, delay: delay + Math.random() * span });
 }
 // パキパキ: 細かいヒビの音を短い間隔で何回か(高さも間隔もランダム)
 function gsCrackle(A, { n = 6, delay = 0, span = 0.14, lo = 1800, hi = 5200, vol = 0.35 }){
@@ -9426,7 +9428,9 @@ const GACHA_SFX = {
   // 昇格(UP!): 風が吹き上がる音+鈴の上がっていく和音。level が高いほど派手に
   up(A, level = 1){
     gsNoise(A, { type: 'bandpass', f0: 400, f1: 5000 + level * 800, q: 1.2, dur: 0.45, vol: 0.35, atk: 0.12 });
-    [0, 4, 7, 12].forEach((s, k) => gsBell(A, { f: 784 * Math.pow(2, (s + level * 2) / 12), dur: 1.0, vol: 0.09, delay: 0.3 + k * 0.07 }));
+    // ドミソの分散和音。色が上がるほど高い形(転回)にする(調はずっとハ長調のまま)
+    const arps = [[523, 659, 784, 1047], [659, 784, 1047, 1319], [784, 1047, 1319, 1568], [1047, 1319, 1568, 2093]];
+    arps[Math.max(0, Math.min(3, level))].forEach((f, k) => gsBell(A, { f, dur: 1.0, vol: 0.09, delay: 0.3 + k * 0.07 }));
     gsSparkle(A, { n: 8 + level * 4, delay: 0.35, span: 0.7 });
   },
   // 宝箱が開く: ガチャッ(留め金) → 光があふれる音
@@ -9449,9 +9453,9 @@ const GACHA_SFX = {
   // ★4の登場: キラーン(風+鈴の和音)
   rare(A){
     gsNoise(A, { type: 'bandpass', f0: 500, f1: 6000, q: 1.2, dur: 0.4, vol: 0.3, atk: 0.1 });
-    [659, 831, 988, 1319].forEach((f, k) => gsBell(A, { f, dur: 1.6, vol: 0.09, delay: 0.25 + k * 0.07 }));
-    gsPad(A, [330, 415, 494], { dur: 1.4, vol: 0.035, delay: 0.25, atk: 0.2 });
-    gsSparkle(A, { n: 14, delay: 0.35, span: 1.0, base: 2200 });
+    [784, 988, 1175, 1568].forEach((f, k) => gsBell(A, { f, dur: 1.6, vol: 0.09, delay: 0.25 + k * 0.07 }));
+    gsPad(A, [392, 494, 587], { dur: 1.4, vol: 0.035, delay: 0.25, atk: 0.2 });
+    gsSparkle(A, { n: 14, delay: 0.35, span: 1.0, notes: [1175, 1568, 1976, 2349, 3136] });   // ソシレ(G)の音だけ
   },
   // ★5のヒビ: ゴゴゴゴ…(地鳴り)とパキパキ
   rumble(A){
@@ -9473,17 +9477,19 @@ const GACHA_SFX = {
     [0, 0.13, 0.26].forEach((d, k) => { gsBell(A, { f: C[k], dur: 0.6, vol: 0.12, delay: 0.25 + d }); gsPad(A, [C[k] / 2], { dur: 0.16, vol: 0.05, delay: 0.25 + d, atk: 0.01 }); });
     gsPad(A, [262, 392, 523, 659, 784], { dur: 1.9, vol: 0.045, delay: 0.64, atk: 0.04, lp: 2200 });
     [1047, 1319, 1568, 2093].forEach((f, k) => gsBell(A, { f, dur: 1.8, vol: 0.08, delay: 0.64 + k * 0.05 }));
-    gsSparkle(A, { n: 22, delay: 0.7, span: 1.5, base: 2000 });
+    gsSparkle(A, { n: 22, delay: 0.7, span: 1.5, notes: [1047, 1319, 1568, 2093, 2637, 3136] });   // ドミソだけ
     if(pickup){
-      gsPad(A, [392, 494, 587, 784], { dur: 1.7, vol: 0.045, delay: 1.4, atk: 0.05, lp: 2400 });
-      [1568, 1976, 2349, 3136].forEach((f, k) => gsBell(A, { f, dur: 1.4, vol: 0.08, delay: 1.4 + k * 0.08 }));
-      gsNoise(A, { type: 'highpass', f0: 5000, dur: 1.6, vol: 0.12, delay: 1.4 });
+      // もう一段: ファ(IV)→ド(I)の終止で、明るく締める
+      gsPad(A, [349, 440, 523, 698], { dur: 0.6, vol: 0.045, delay: 1.4, atk: 0.04, lp: 2400 });
+      gsPad(A, [523, 659, 784, 1047], { dur: 1.5, vol: 0.05, delay: 1.95, atk: 0.04, lp: 2600 });
+      [1568, 2093, 2637, 3136].forEach((f, k) => gsBell(A, { f, dur: 1.4, vol: 0.08, delay: 1.95 + k * 0.08 }));
+      gsNoise(A, { type: 'highpass', f0: 5000, dur: 1.6, vol: 0.12, delay: 1.95 });
     }
   },
   // ★を刻む: カン!(金属を打つ音)
   stamp(A, k = 0){
     gsNoise(A, { type: 'bandpass', f0: 3000, q: 2, dur: 0.03, vol: 0.4 });
-    gsBell(A, { f: 1400 * Math.pow(2, k / 12 * 2), dur: 0.5, vol: 0.1 });
+    gsBell(A, { f: [1568, 1760, 1976, 2093, 2349, 2637][Math.min(5, k)], dur: 0.5, vol: 0.1 });   // ソラシドレミと上がる
     gsThump(A, { f: 140, dur: 0.12, vol: 0.25 });
   },
   // 結果画面: ジャン!
@@ -15805,6 +15811,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 84, version: 'α0.1.043', date: '9/26', title: 'ガチャのキラキラ音をきれいな和音に', body: 'ガチャのキラキラした音が少し濁って聞こえていたのを直しました。キラキラはドレミソラの音階からだけ鳴らし、鈴の響きもきれいに調和する音だけにして、演出全体をひとつの調(ハ長調)にそろえています。ピックアップの★5のファンファーレは、最後に「ファ→ド」と明るく締めるようにしました。' },
   { id: 83, version: 'α0.1.042', date: '9/26', title: 'ガチャの効果音を自然な響きに', body: 'ガチャの効果音から電子音っぽさを減らしました。ピコピコした音をやめ、鈴やガラスのような響きと、部屋の残響をつけています。卵や壺が割れる音は、細かいヒビが走る「パキパキ」→殻が割れる「パリッ」になりました。' },
   { id: 82, version: 'α0.1.041', date: '9/26', title: 'ガチャの効果音を派手に', body: 'ガチャの効果音をすべて作り直しました。宝箱が落ちる「ドスン!」、昇格の「キュイーン↑」、フタが開く音、卵や壺が割れる「パリン」(割るたびに音程が上がります)、★4の「キラーン」、★5のヒビの地鳴り、シルエットの心音、登場の「ドーン!」とファンファーレ、★を刻む「カン!」、結果画面の「ジャン!」です。ピックアップの★5はファンファーレがもう一段豪華になります。効果音はOFFにもできます。' },
   { id: 81, version: 'α0.1.040', date: '9/26', title: '遺物ガチャ(壺)も新しい演出に', body: '遺物ガチャも、キャラのガチャと同じ演出になりました。宝箱がドスンと降ってきて色で予告(昇格あり)、壺はタップで1つずつ割れ、★3以下は「まとめて開く」、★4は紫・★5は金の予兆、★5はヒビ→シルエット→登場の3段階です。いまのピックアップキャラの専用遺物が出たときは、宝箱が虹色になり、「PICK UP!」の帯が流れる専用の登場演出になります。また、割った直後に「NEW」が中身より先に見えていたのを直しました。' },
