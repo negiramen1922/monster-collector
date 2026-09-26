@@ -63,11 +63,13 @@ async def main():
             check('下書きのお知らせが残っていない', n_draft == 0, f'下書き{n_draft}件')
             check('ニュースも最新1件だけ開く', await pg.locator('.nt-row.on').count() == 1)
             t = await pg.locator('.nt-row').first.inner_text()
-            check('先頭はα0.1アップデート内容(1)', 'α0.1アップデート内容(1)' in t, t.split('\n')[0])
+            check('先頭は最新のニュース(ルーン・★10・深淵回廊)', 'ルーン' in t and '★10' in t, t.split('\n')[0])
             check('小見出しが出ている', await pg.locator('.nt-row.on .nt-h').count() >= 3,
                   await pg.locator('.nt-row.on .nt-h').count())
-            n_item = await pg.locator('.nt-row.on .nt-i').count()
-            check('キャラ30体ぶんの行が出ている', n_item == 30, n_item)
+            # α0.1アップデート内容(1) を開くと、キャラ30体ぶんの行
+            await pg.evaluate("() => { const r = [...document.querySelectorAll('.nt-row')].find(x => x.textContent.includes('α0.1アップデート内容(1)')); r.click(); }"); await pg.wait_for_timeout(200)
+            n_item = await pg.evaluate("() => { const r = [...document.querySelectorAll('.nt-row.on')].find(x => x.textContent.includes('α0.1アップデート内容(1)')); return r ? r.querySelectorAll('.nt-i').length : -1; }")
+            check('α0.1アップデート内容(1)はキャラ30体ぶんの行が出ている', n_item == 30, n_item)
             # 横にはみ出していないこと(スマホ幅で本文が切れると読めない)
             over = await pg.evaluate('''() => {
               const el = document.querySelector('.nt-row.on');
