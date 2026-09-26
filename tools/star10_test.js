@@ -15,8 +15,10 @@ ok('Lv200→300のEXPが伸び続ける', E.expToNext(230) > E.expToNext(199) &&
 ok('Lv230・260にも壁', E.LEVEL_WALLS.includes(230) && E.LEVEL_WALLS.includes(260));
 // 敵の★は★10解放の前と同じ(上限7)
 const maxEnemy = Math.max(...E.STAGES.flatMap(s => s.waves.flat().map(e => e.star || 0)));
-const abyssMax = Math.max(...[60, 70, 80, 100, 200, 500].map(f => Math.max(...E.abyssStage(f).waves.flat().map(e => e.star || 0))));
-ok('敵の★の上限は7のまま(ステージ・深淵回廊)', E.ENEMY_STAR_CAP === 7 && maxEnemy <= 7 && abyssMax === 7, { maxEnemy, abyssMax });
+const abyssStar = f => Math.max(...E.abyssStage(f).waves.flat().filter(e => !e.boss).map(e => e.star || 0));
+ok('敵の★の上限はメインクエスト・イベントでは7のまま', E.ENEMY_STAR_CAP === 7 && maxEnemy <= 7, { maxEnemy });
+const abyss = [50, 60, 70, 80, 81, 100, 101, 130, 131, 300].map(abyssStar);
+ok('深淵回廊は ≤60階★6 / 61〜80階★7 / 81〜100階★8 / 101〜130階★9 / 131階〜★10(ボスは1つ上、最大★10)', abyss.join() === '5,6,7,7,8,8,9,9,10,10' && Math.max(...E.abyssStage(300).waves.flat().map(e => e.star)) === 10 && E.abyssStage(80).waves.flat().every(e => e.star <= 7), abyss);
 // 実際に★7→★10まで上がる
 api.STATE = E.DEFAULT_STATE(); E.normalizeState();
 const S = api.STATE; S.gold = 1e9; S.owned.m06 = { star: 7, souls: 5000, level: 200, exp: 0, wall: 200, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 };

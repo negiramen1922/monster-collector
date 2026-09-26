@@ -3109,6 +3109,7 @@ function elementMultiplier(atkElem, defElem){
 const MAX_STAR = 10;
 // 敵の★の上限は別(★10解放の前と同じ7のまま。深淵回廊の深い層などで敵が急に強くならないように)
 const ENEMY_STAR_CAP = 7;
+const ABYSS_STAR_CAP = 10;   // 深淵回廊だけは81階から★8〜★10まで上がる(abyssEnemyStar)
 // ★8〜★10は docs/design/今後やりたいこと.json の「★10まで解放」の確定表どおり(★1〜★6は据え置き)
 const STAR_TABLE = {
   1: { lvCap: 50,  soulsToNext: 10,  skillCap: 10 },
@@ -8233,7 +8234,12 @@ function abyssEnemyLevel(floor){
 }
 function abyssEnemyStar(floor){
   if(floor <= 50) return 3 + Math.floor((floor - 1) / 17);
-  return Math.min(ENEMY_STAR_CAP, 5 + Math.ceil((floor - 50) / 10));
+  // 深い層ほど★がゆっくり上がる: 51〜60階★6 / 61〜80階★7 / 81〜100階★8 / 101〜130階★9 / 131階〜★10
+  if(floor <= 60) return 6;
+  if(floor <= 80) return 7;
+  if(floor <= 100) return 8;
+  if(floor <= 130) return 9;
+  return ABYSS_STAR_CAP;
 }
 function abyssStage(floor, season){
   const idx = season === undefined ? abyssSeasonIndex() : season;
@@ -8252,7 +8258,7 @@ function abyssStage(floor, season){
   if(boss){
     const b5 = themed.filter(m => m.rarity === 5);
     const bossMon = b5.length ? b5[Math.floor(rnd() * b5.length)] : pick();
-    wave[0] = { ref: bossMon.id, level: lv + 2, star: Math.min(ENEMY_STAR_CAP, Math.max(bossMon.rarity, star + 1)), boss: true };
+    wave[0] = { ref: bossMon.id, level: lv + 2, star: Math.min(floor <= 80 ? ENEMY_STAR_CAP : ABYSS_STAR_CAP, Math.max(bossMon.rarity, star + 1)), boss: true };
   }
   return {
     id: `ab_${floor}`, type: 'abyss', tier: 'abyss', floor, name: `深淵回廊・${floor}階`,
@@ -17406,7 +17412,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 108, version: 'α0.1.067', date: '9/26', title: '★10まで上げられるように', body: '★は5個まで並び、★6からは左から1つずつ金色になります(★10は5個すべて金色)。キャラの★の上限を7から10に上げました。★7→★8に500ソウル、★8→★9に500ソウル、★9→★10に1000ソウルで、レベルの上限は★8でLv230、★9でLv260、★10でLv300です(★1〜★6はこれまでと同じ)。Lv230とLv260にはゴールドで越える壁があります。敵の強さは変わりません。' },
+  { id: 108, version: 'α0.1.067', date: '9/26', title: '★10まで上げられるように', body: '★は5個まで並び、★6からは左から1つずつ金色になります(★10は5個すべて金色)。キャラの★の上限を7から10に上げました。深淵回廊の深い層では、敵も81〜100階で★8、101〜130階で★9、131階からは★10になります(80階までは今までと同じ)。★7→★8に500ソウル、★8→★9に500ソウル、★9→★10に1000ソウルで、レベルの上限は★8でLv230、★9でLv260、★10でLv300です(★1〜★6はこれまでと同じ)。Lv230とLv260にはゴールドで越える壁があります。メインクエストやイベントの敵の強さは変わりません。' },
   { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'ルーンを見直して戻しました。<span class="nt-i">・<em>枠</em> キャラの★で開きます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>Tier(Ⅰ〜Ⅹ)</em> 1つ上がるごとにほぼ同じ幅で強くなります(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。</span><span class="nt-i">・<em>合成</em> 土台のルーンに、同じTier・同じタイプ(攻撃型: STR・SPD・会心率・会心倍率 / 防御型: HP・物理防御・魔法防御)のルーン2つを合成すると、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、値がTierに合わせて伸びます。費用はゴールドです。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入り、サブ効果の振り直し(1回 100×Tier)と、ショップ(ルーンの粉ショップ)での「未鑑定のルーン」との交換に使えます。未鑑定のルーンは決まっているのがTierだけで、レア度と効果は開封するまでのお楽しみです。</span><span class="nt-i">・<em>ルーン採掘</em> 育成クエストの「素材ダンジョン」は「ルーン採掘」(7段階・TierⅦまで)になります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。</span>' },
   { id: 106, version: 'α0.1.065', date: '9/26', title: 'ルーンをいったんお休み', body: 'ルーンは仕様を見直すため、いったん取り下げました。育成クエストは「素材ダンジョン」に戻っています。すでに手に入れたルーンは消えずにデータに残っていて、ルーンが戻ったときにまた使えます。' },
   { id: 105, version: 'α0.1.064', date: '9/26', title: 'ルーンは「合成」でTierを上げる形に', body: 'ルーンの強化レベル(+1〜+12)をなくしました。代わりに、同じ効果・同じTierのルーンを3つ合成すると、Tierが1つ上がります(最大Ⅹ)。合成後のレア度は3つの平均(切り捨て)になり、サブ効果はそのレア度の数で付け直しになります。1つ目に選んだルーンが残るので、装備中のルーンもそのまま合成できます(材料の2つは、装備中・ロック中のものは使えません)。ルーン採掘ではⅥまで出て、Ⅶ〜Ⅹは合成で作れます。これまでに強化したルーンは、強化レベルが外れます。' },
