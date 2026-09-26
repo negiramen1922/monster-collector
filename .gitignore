@@ -12,3 +12,6 @@ tools/ux_detail.png
 tools/dex*.png
 tools/detail_*.png
 tools/icons_*.png
+
+# tools/tune54.js の実行で作られる一時ファイル
+tools/adj54_*.json
