@@ -46,9 +46,9 @@ async def main():
             # 探索メニュー: 下のナビで探索を押すとメニュー、押すと各画面、左上の「戻る」でメニューへ
             await pg.evaluate("() => document.querySelector('.nav-btn[data-nav=battle]').click()"); await pg.wait_for_timeout(300)
             tabs = await pg.evaluate("() => [...document.querySelectorAll('.explore-tabs .stage-tab')].map(e => { const r = e.getBoundingClientRect(); return { t: e.querySelector('.et-label').firstChild.textContent, x: r.left, y: r.top, w: r.width }; })")
-            check('探索を開くと メインクエスト→育成クエスト→深淵回廊→イベント が縦に並ぶ',
-                  [t['t'] for t in tabs] == ['メインクエスト', '育成クエスト', '深淵回廊', 'イベント']
-                  and all(tabs[i]['y'] < tabs[i + 1]['y'] and abs(tabs[i]['x'] - tabs[i + 1]['x']) < 1 for i in range(3))
+            check('探索を開くと メインクエスト→育成クエスト→深淵回廊→イベント→PVP が縦に並ぶ',
+                  [t['t'] for t in tabs] == ['メインクエスト', '育成クエスト', '深淵回廊', 'イベント', 'PVP']
+                  and all(tabs[i]['y'] < tabs[i + 1]['y'] and abs(tabs[i]['x'] - tabs[i + 1]['x']) < 1 for i in range(4))
                   and tabs[0]['w'] > 300 and await pg.locator('.abyss-card').count() == 0 and await pg.locator('.explore-back').count() == 0, tabs)
             await pg.screenshot(path=str(OUT / 'explore_menu.png'))
             for key, sel in [('main', '.tier-tabs'), ('dungeon', '[data-dungeon-tab]'), ('abyss', '.abyss-card')]:
