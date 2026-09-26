@@ -2415,6 +2415,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rr-row b{ font-size:11px; color:var(--gold); }
 .rr-row:disabled{ opacity:.5; }
 .shop-rune.rune-ic{ width:34px; height:34px; }
+.rune-ic.sealed .rune-svg{ filter:drop-shadow(0 0 4px rgba(180,170,230,.5)); }
 .shop-rune-sub{ display:block; font-size:10px; color:var(--dim); font-weight:700; }
 .rf-diff{ display:grid; gap:3px; margin:0 0 8px; }
 .rf-drow{ display:flex; justify-content:space-between; font-size:12px; padding:3px 8px; border-left:3px solid var(--c); background:var(--panel3); border-radius:6px; }
@@ -6294,7 +6295,7 @@ function migrateLegacyRunes(){
   if(STATE.runeSpecVer === RUNE_SPEC_VER) return;
   const old = STATE.runes.filter(r => r && RUNE_STATS[r.main]);
   if(old.length){
-    const dust = old.reduce((a, r) => a + Math.min(RUNE_TIERS, r.tier | 0 || 1) * (2 + (r.rarity | 0) * 2) * 2, 0);
+    const dust = old.reduce((a, r) => a + runeDustValue({ tier: Math.min(RUNE_TIERS, r.tier | 0 || 1), rarity: Math.min(4, r.rarity | 0) }) * 2, 0);
     STATE.runes = [];
     STATE.runeDust += dust;
     queueAnnouncement({ kind: 'notice', key: 'rune_legacy', icon: '💎', title: 'ルーンをルーンの粉に交換しました',
@@ -6336,7 +6337,7 @@ function runeUsers(uid){
 }
 function runeUserIn(uid, idx){ return runeUsers(uid).find(x => x.idx === idx) || null; }
 function equipRune(uid, monId, slot, idx){
-  if(!runeByUid(uid) || !MON_BY_ID[monId] || !(slot >= 0 && slot < runeSlotsOpen(monId))) return false;
+  if(!runeByUid(uid) || runeByUid(uid).sealed || !MON_BY_ID[monId] || !(slot >= 0 && slot < runeSlotsOpen(monId))) return false;
   const map = formationRunes(idx);
   Object.keys(map).forEach(m => { map[m] = (map[m] || []).map(u => u === uid ? null : u); }); // 同じ編成の中では1体だけ
   const list = runesOf(monId, idx);
@@ -6407,7 +6408,7 @@ function runeName(r){ return `${RUNE_STATS[r.main].label}のルーン`; }
 // 土台のレア度・サブ効果(当たり具合)はそのまま。土台が装備中ならそのまま。材料は装備中・ロック中は使えない
 function runeFuseCost(r){ return { gold: 2000 * r.tier }; }
 function runeFuseMaterials(base){
-  return ensureRunes().filter(r => r.uid !== base.uid && r.tier === base.tier && runeType(r) === runeType(base) && runeCanDismantle(r));
+  return ensureRunes().filter(r => r.uid !== base.uid && !r.sealed && r.tier === base.tier && runeType(r) === runeType(base) && runeCanDismantle(r));
 }
 function fuseRunes(baseUid, matUids){
   const base = runeByUid(baseUid);
@@ -6425,7 +6426,7 @@ function fuseRunes(baseUid, matUids){
   return { ok: true, rune: base };
 }
 // ルーンの粉の使い道①: サブ効果1つを振り直す(効果の種類と当たり具合を引き直し。メイン・他のサブとはかぶらない)
-function runeRerollCost(r){ return 20 * r.tier; }
+function runeRerollCost(r){ return 100 * r.tier; }
 function rerollRuneSub(uid, idx){
   const r = runeByUid(uid);
   if(!r || !r.subs[idx]) return { ok: false, why: 'サブ効果がありません' };
@@ -6438,37 +6439,45 @@ function rerollRuneSub(uid, idx){
   STATE.runeDust -= cost;
   return { ok: true, before, after: r.subs[idx] };
 }
-// ルーンの粉の使い道②: ショップで交換(分解で得られる量よりかなり割高)。Tierはルーン採掘で開いている一番深い段階
-const RUNE_SHOP = [
-  { sku: 'rune_rand', label: 'ルーン(レア度ランダム)', minRarity: null, per: 25 },
-  { sku: 'rune_gold', label: 'ルーン(金以上が確定)', minRarity: 3, per: 150 },
-  { sku: 'rune_rainbow', label: 'ルーン(虹が確定)', minRarity: 4, per: 600 },
-];
+// ルーンの粉の使い道②: ショップで「未鑑定のルーン」と交換(分解で得られる量よりかなり割高)。
+// 決まっているのはTierだけで、レア度と効果は開封してからのお楽しみ(出方はそのTierのルーン採掘と同じ)。
+// Tierはルーン採掘で開いている段階まで選べる。レア度が確定する商品は置かない(貯めて虹を買うのが正解にならないように)
+const RUNE_SHOP_PER_TIER = 150;
 function runeShopTier(){
   const d = DUNGEONS.rune;
   let t = 0;
   d.unlock.forEach((id, i) => { if(STATE.clearedStages.includes(id)) t = i + 1; });
   return t;
 }
-function runeShopPrice(item){ return item.per * runeShopTier(); }
-function buyRuneShop(sku){
-  const item = RUNE_SHOP.find(x => x.sku === sku);
-  const tier = runeShopTier();
-  if(!item || !tier) return { ok: false, why: 'ルーン採掘を解放すると交換できます' };
-  if(runeFull()) return { ok: false, why: `ルーンがいっぱいです(${RUNE_MAX}個)` };
-  const price = runeShopPrice(item);
-  if(ensureRunes() && STATE.runeDust < price) return { ok: false, why: 'ルーンの粉が足りません' };
-  let rarity;
-  if(item.minRarity === null){
-    const w = DUNGEONS.rune.rarity[tier - 1], total = w.reduce((a, b) => a + b, 0);
-    let roll = Math.random() * total; rarity = 0;
-    while(rarity < w.length - 1 && roll >= w[rarity]){ roll -= w[rarity]; rarity++; }
-  }else rarity = item.minRarity + (item.minRarity < 4 && Math.random() < 0.15 ? 1 : 0);
-  STATE.runeDust -= price;
-  return { ok: true, rune: addRune(makeRune(tier, rarity)) };
+function runeShopPrice(tier){ return RUNE_SHOP_PER_TIER * tier; }
+function rollRuneRarityForTier(tier){
+  const w = DUNGEONS.rune.rarity[Math.min(tier, DUNGEONS.rune.rarity.length) - 1], total = w.reduce((a, b) => a + b, 0);
+  let roll = Math.random() * total, rarity = 0;
+  while(rarity < w.length - 1 && roll >= w[rarity]){ roll -= w[rarity]; rarity++; }
+  return rarity;
 }
-function runeDustValue(r){ return r.tier * (2 + r.rarity * 2); }
-function runeCanDismantle(r){ return r && !r.lock && runeUsers(r.uid).length === 0; }
+function buyRuneShop(tier){
+  tier = Number(tier);
+  const max = runeShopTier();
+  if(!max) return { ok: false, why: 'ルーン採掘を解放すると交換できます' };
+  if(!(tier >= 1 && tier <= max)) return { ok: false, why: 'そのTierはまだ交換できません' };
+  if(runeFull()) return { ok: false, why: `ルーンがいっぱいです(${RUNE_MAX}個)` };
+  const price = runeShopPrice(tier);
+  if(ensureRunes() && STATE.runeDust < price) return { ok: false, why: 'ルーンの粉が足りません' };
+  STATE.runeDust -= price;
+  const r = makeRune(tier, rollRuneRarityForTier(tier));
+  r.sealed = true;
+  return { ok: true, rune: addRune(r) };
+}
+// 開封: レア度と効果が明らかになる(中身は交換した時点で決まっている)
+function openSealedRune(uid){
+  const r = runeByUid(uid);
+  if(!r || !r.sealed) return null;
+  delete r.sealed;
+  return r;
+}
+function runeDustValue(r){ return r.tier * (10 + r.rarity * 10); }
+function runeCanDismantle(r){ return r && !r.lock && !r.sealed && runeUsers(r.uid).length === 0; }
 function dismantleRunes(uids){
   let dust = 0, n = 0;
   const set = new Set(uids);
@@ -6521,8 +6530,18 @@ function runeIconSvg(r){
   </svg>`;
   return RUNE_SVG_CACHE[key] = svg;
 }
+function runeSealedSvg(tier){
+  const pts = runeShapePoints('hexagon', 1).join(' ');
+  return `<svg class="rune-svg" viewBox="0 0 100 100" aria-hidden="true">
+    <polygon points="${pts}" fill="#4a4460" stroke="#8d86a8" stroke-width="5" stroke-dasharray="7 5" stroke-linejoin="round"/>
+    <text x="50" y="53" text-anchor="middle" dominant-baseline="central" font-size="${tier >= 4 ? 25 : 28}" font-weight="900" fill="#fff" stroke="rgba(20,12,30,.85)" stroke-width="5" paint-order="stroke" font-family="serif">${RUNE_ROMAN[tier - 1]}</text>
+    <circle cx="78" cy="22" r="13" fill="#b9b0e0" stroke="#2a2440" stroke-width="3"/>
+    <text x="78" y="23" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="900" fill="#2a2440">?</text>
+  </svg>`;
+}
 function runeIconHtml(r, opts){
   const o = opts || {};
+  if(r.sealed) return `<span class="rune-ic sealed ${o.cls || ''}">${runeSealedSvg(r.tier)}</span>`;
   const used = o.used !== undefined ? o.used : (r.uid ? runeUsers(r.uid).length > 0 : false);
   return `<span class="rune-ic ${o.cls || ''}">${runeIconSvg(r)}${r.lock ? '<i class="rune-lock">🔒</i>' : ''}${used ? '<i class="rune-used">E</i>' : ''}</span>`;
 }
@@ -6554,11 +6573,16 @@ function runeFilterChipsHtml(cur, attr){
 }
 function renderRunesScreen(){
   const all = ensureRunes();
-  const list = sortRunes(all.filter(r => runeFilter === 'all' || r.main === runeFilter), runeSort);
+  const sealed = all.filter(r => r.sealed);
+  const list = [...sortRunes(sealed, 'tier'), ...sortRunes(all.filter(r => !r.sealed && (runeFilter === 'all' || r.main === runeFilter)), runeSort)]
+    .filter(r => !r.sealed || runeFilter === 'all');
   return `
     <div class="row-between" style="margin:10px 0 6px;">
       <div class="screen-title" style="margin:0;">ルーン</div>
-      <button class="btn btn-ghost btn-sm" data-rune-bulk="1">まとめて分解</button>
+      <div style="display:flex; gap:6px;">
+        ${sealed.length ? `<button class="btn btn-sm" data-rune-open-all="1">まとめて開封(${sealed.length})</button>` : ''}
+        <button class="btn btn-ghost btn-sm" data-rune-bulk="1">まとめて分解</button>
+      </div>
     </div>
     <div class="rune-head">
       <span class="${all.length >= RUNE_MAX ? 'full' : ''}">所持 <b>${all.length}</b> / ${RUNE_MAX}</span>
@@ -6611,6 +6635,18 @@ function runeFusePanelHtml(r){
 function renderRuneDetail(){
   const r = runeByUid(runeDetail.uid);
   if(!r){ runeDetail = null; closeModal(); render(); return; }
+  if(r.sealed){
+    const layer = document.getElementById('modal-layer');
+    layer.innerHTML = `
+      <div class="result-modal rune-detail-modal" role="dialog" aria-label="未鑑定のルーン">
+        <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+        <div class="rd-head">${runeIconHtml(r, { cls: 'big' })}
+          <div><div class="rd-name">未鑑定のルーン</div><div class="rd-tags">Tier${RUNE_ROMAN[r.tier - 1]}・レア度と効果は開封するまでわかりません</div></div></div>
+        <button class="btn btn-block" data-rune-unseal="${r.uid}">開封する</button>
+      </div>`;
+    layer.classList.add('show');
+    return;
+  }
   const rar = RUNE_RARITIES[r.rarity];
   const users = runeUsers(r.uid);
   const flash = runeDetail.flash;
@@ -6683,7 +6719,7 @@ function renderRunePicker(){
   const idx = STATE.formationIdx;
   const curUid = runesOf(monId)[slot];
   const cur = runeByUid(curUid);
-  const list = sortRunes(ensureRunes().filter(r => r.uid !== curUid && (filter === 'all' || r.main === filter)), 'tier');
+  const list = sortRunes(ensureRunes().filter(r => r.uid !== curUid && !r.sealed && (filter === 'all' || r.main === filter)), 'tier');
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
     <div class="result-modal rune-picker-modal" role="dialog" aria-label="ルーンを選ぶ">
@@ -7117,8 +7153,8 @@ const DUNGEONS = {
     unlock: ['tu3', 'q1_10', 'q2_10', 'q3_10', 'q4_10', 'q5_10', 'q6_10'],
     baseLv: [5, 30, 60, 100, 150, 200, 250],
     enemies: [['m14', 'm29'], ['m16', 'm70', 'm14'], ['m03', 'm02', 'm16'], ['m13', 'm04', 'm02', 'm14'], ['m27', 'm20', 'm04', 'm02'], ['m27', 'm20', 'm13', 'm04'], ['m27', 'm20', 'm13', 'm04', 'm16']],
-    rewards: [{ runes: 1, dust: 5, gold: 500 }, { runes: 2, dust: 10, gold: 1500 }, { runes: 2, dust: 15, gold: 3000 },
-              { runes: 2, dust: 20, gold: 5000 }, { runes: 3, dust: 30, gold: 8000 }, { runes: 3, dust: 35, gold: 10000 }, { runes: 3, dust: 40, gold: 12000 }],
+    rewards: [{ runes: 1, dust: 20, gold: 500 }, { runes: 2, dust: 40, gold: 1500 }, { runes: 2, dust: 60, gold: 3000 },
+              { runes: 2, dust: 80, gold: 5000 }, { runes: 3, dust: 120, gold: 8000 }, { runes: 3, dust: 140, gold: 10000 }, { runes: 3, dust: 160, gold: 12000 }],
     // レア度(白・青・紫・金・虹)の重み。合成でレア度は下がらないので、虹は最上段でも5%
     rarity: [[70, 24, 5, 1, 0], [62, 28, 8, 1.8, 0.2], [55, 30, 11, 3.5, 0.5], [48, 31, 14, 6, 1], [42, 31, 17, 8, 2], [36, 31, 20, 10, 3], [30, 31, 22, 12, 5]],
     lowerTierChance: 0.2,  // たまに1つ下のTierが出る
@@ -8842,17 +8878,16 @@ function renderShop(){
     `}`;
 }
 function renderRuneShop(){
-  const tier = runeShopTier();
-  if(!tier) return '<div class="screen-sub">育成クエストの「ルーン採掘」が開くと交換できます。</div>';
+  const max = runeShopTier();
+  if(!max) return '<div class="screen-sub">育成クエストの「ルーン採掘」が開くと交換できます。</div>';
   return `
-    <div class="screen-sub">ルーンの粉でルーンと交換できます(分解で集めるより割高です)。Tierはルーン採掘で開いている一番深い段階(いまはTier${RUNE_ROMAN[tier - 1]})。所持 ✨${ensureRunes() && STATE.runeDust.toLocaleString()}・ルーン ${STATE.runes.length}/${RUNE_MAX}</div>
-    <div class="panel facility">${RUNE_SHOP.map(item => {
-      const price = runeShopPrice(item);
-      const sample = { tier, rarity: item.minRarity === null ? 1 : item.minRarity, main: 'atk', subs: [], lock: false };
+    <div class="screen-sub">ルーンの粉で<b>未鑑定のルーン</b>と交換できます(分解で集めるより割高です)。決まっているのはTierだけで、レア度と効果は開封するまでわかりません(出方はそのTierのルーン採掘と同じ)。Tierはルーン採掘で開いている段階まで選べます。<br>所持 ✨${ensureRunes() && STATE.runeDust.toLocaleString()}・ルーン ${STATE.runes.length}/${RUNE_MAX}</div>
+    <div class="panel facility">${[...Array(max).keys()].map(i => i + 1).reverse().map(tier => {
+      const price = runeShopPrice(tier);
       return `<div class="shop-row">
-        <span class="shop-item">${runeIconHtml(sample, { used: false, cls: 'shop-rune' })}<span class="shop-item-name">${item.label}<small class="shop-rune-sub">Tier${RUNE_ROMAN[tier - 1]}・効果はランダム${item.minRarity !== null && item.minRarity < 4 ? '・15%で1つ上のレア度' : ''}</small></span></span>
+        <span class="shop-item">${runeIconHtml({ tier, sealed: true }, { cls: 'shop-rune' })}<span class="shop-item-name">未鑑定のルーン Tier${RUNE_ROMAN[tier - 1]}<small class="shop-rune-sub">レア度・効果は開封してのお楽しみ</small></span></span>
         <span class="shop-price">✨${price.toLocaleString()}</span>
-        <button class="btn btn-sm ${STATE.runeDust < price || runeFull() ? 'btn-ghost' : ''}" data-rune-shop-buy="${item.sku}">交換</button>
+        <button class="btn btn-sm ${STATE.runeDust < price || runeFull() ? 'btn-ghost' : ''}" data-rune-shop-buy="${tier}">交換</button>
       </div>`;
     }).join('')}</div>`;
 }
@@ -16407,6 +16442,16 @@ function handlePhoneClick(ev){
   if(runeOpenEl){ openRuneDetail(runeOpenEl.dataset.runeOpen); return; }
   if(runeDetail){
     if(t.closest('[data-close-rune-detail]')){ closeRuneDetail(); return; }
+    const unsealEl = t.closest('[data-rune-unseal]');
+    if(unsealEl){
+      const r = openSealedRune(unsealEl.dataset.runeUnseal);
+      if(r){
+        if(r.rarity >= 3) gachaSfx('rare'); else playSfx('buff'); saveState();
+        runeDetail.flash = `${RUNE_RARITIES[r.rarity].label}の${runeName(r)}が出た!`;
+        renderRuneDetail(); render();
+      }
+      return;
+    }
     const fpEl = t.closest('[data-rune-fuse-pick]');
     if(fpEl){ toggleRuneFusePick(fpEl.dataset.runeFusePick); return; }
     if(t.closest('[data-rune-fuse-auto]')){ autoRuneFusePick(); return; }
@@ -16440,6 +16485,14 @@ function handlePhoneClick(ev){
     if(t.closest('[data-rune-unequip]')){ unequipRune(runePicker.monId, runePicker.slot); saveState(); closeRunePicker(); render(); return; }
     const rpoEl = t.closest('[data-rune-open-picker]');
     if(rpoEl){ openRuneDetail(rpoEl.dataset.runeOpenPicker, 'picker'); return; }
+  }
+  if(t.closest('[data-rune-open-all]')){
+    const opened = ensureRunes().filter(r => r.sealed).map(r => openSealedRune(r.uid));
+    saveState(); render();
+    const best = Math.max(...opened.map(r => r.rarity));
+    if(best >= 3) gachaSfx('rare'); else playSfx('buff');
+    toast(`${opened.length}個を開封: ${RUNE_RARITIES.map((x, i) => [x.label, opened.filter(r => r.rarity === i).length]).filter(([, n]) => n).map(([l, n]) => `${l}${n}`).join('・')}`);
+    return;
   }
   if(t.closest('[data-rune-bulk]')){ runeBulk = { rar: [0, 1] }; renderRuneBulk(); return; }
   if(runeBulk){
@@ -16619,7 +16672,7 @@ function handlePhoneClick(ev){
     const res = buyRuneShop(runeShopEl.dataset.runeShopBuy);
     if(!res.ok){ toast(res.why); return; }
     playSfx('buff'); saveState(); render();
-    openRuneDetail(res.rune.uid);
+    toast(`未鑑定のルーン Tier${RUNE_ROMAN[res.rune.tier - 1]} を手に入れました(キャラ → ルーン で開封できます)`);
     return;
   }
   const shopTabEl = t.closest('[data-shop-tab]');
@@ -17354,7 +17407,7 @@ const NOTICES = [
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
   { id: 108, version: 'α0.1.067', date: '9/26', title: '★10まで上げられるように', body: '★は5個まで並び、★6からは左から1つずつ金色になります(★10は5個すべて金色)。キャラの★の上限を7から10に上げました。★7→★8に500ソウル、★8→★9に500ソウル、★9→★10に1000ソウルで、レベルの上限は★8でLv230、★9でLv260、★10でLv300です(★1〜★6はこれまでと同じ)。Lv230とLv260にはゴールドで越える壁があります。敵の強さは変わりません。' },
-  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'ルーンを見直して戻しました。<span class="nt-i">・<em>枠</em> キャラの★で開きます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>Tier(Ⅰ〜Ⅹ)</em> 1つ上がるごとにほぼ同じ幅で強くなります(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。</span><span class="nt-i">・<em>合成</em> 土台のルーンに、同じTier・同じタイプ(攻撃型: STR・SPD・会心率・会心倍率 / 防御型: HP・物理防御・魔法防御)のルーン2つを合成すると、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、値がTierに合わせて伸びます。費用はゴールドです。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入り、サブ効果の振り直しと、ショップ(ルーンの粉ショップ)でのルーン交換に使えます。</span><span class="nt-i">・<em>ルーン採掘</em> 育成クエストの「素材ダンジョン」は「ルーン採掘」(7段階・TierⅦまで)になります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。</span>' },
+  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'ルーンを見直して戻しました。<span class="nt-i">・<em>枠</em> キャラの★で開きます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>Tier(Ⅰ〜Ⅹ)</em> 1つ上がるごとにほぼ同じ幅で強くなります(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。</span><span class="nt-i">・<em>合成</em> 土台のルーンに、同じTier・同じタイプ(攻撃型: STR・SPD・会心率・会心倍率 / 防御型: HP・物理防御・魔法防御)のルーン2つを合成すると、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、値がTierに合わせて伸びます。費用はゴールドです。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入り、サブ効果の振り直し(1回 100×Tier)と、ショップ(ルーンの粉ショップ)での「未鑑定のルーン」との交換に使えます。未鑑定のルーンは決まっているのがTierだけで、レア度と効果は開封するまでのお楽しみです。</span><span class="nt-i">・<em>ルーン採掘</em> 育成クエストの「素材ダンジョン」は「ルーン採掘」(7段階・TierⅦまで)になります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。</span>' },
   { id: 106, version: 'α0.1.065', date: '9/26', title: 'ルーンをいったんお休み', body: 'ルーンは仕様を見直すため、いったん取り下げました。育成クエストは「素材ダンジョン」に戻っています。すでに手に入れたルーンは消えずにデータに残っていて、ルーンが戻ったときにまた使えます。' },
   { id: 105, version: 'α0.1.064', date: '9/26', title: 'ルーンは「合成」でTierを上げる形に', body: 'ルーンの強化レベル(+1〜+12)をなくしました。代わりに、同じ効果・同じTierのルーンを3つ合成すると、Tierが1つ上がります(最大Ⅹ)。合成後のレア度は3つの平均(切り捨て)になり、サブ効果はそのレア度の数で付け直しになります。1つ目に選んだルーンが残るので、装備中のルーンもそのまま合成できます(材料の2つは、装備中・ロック中のものは使えません)。ルーン採掘ではⅥまで出て、Ⅶ〜Ⅹは合成で作れます。これまでに強化したルーンは、強化レベルが外れます。' },
   { id: 104, version: 'α0.1.063', date: '9/26', title: 'ルーンが登場', body: 'キャラを強化する「ルーン」を追加しました。1キャラに4つまで付けられ(枠ごとの縛りなし)、編成ごとに装備します(同じ編成の中では1つのルーンを1体にだけ。別の編成なら同じルーンを使えます)。形はレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色は効果(HP・STR・物理防御・魔法防御・SPD・会心率・会心倍率)、中の数字はTier(Ⅰ〜Ⅵ)です。Tierは数値の大きさ、レア度は最初に付いているサブ効果の数(0〜4)で、強化+3ごとにサブ効果が増えるか伸びます。ルーンの粉とゴールドで強化(最大+12)、いらないルーンは分解して粉にできます(所持は200個まで)。育成クエストの「素材ダンジョン」は「ルーン採掘」(6段階)に変わりました。育成素材はメインクエストのドロップ・錬金術・育成素材BOXで集められます。' },

@@ -1,6 +1,6 @@
 /* ルーン: 生成(Tier・レアリティ)・強化・編成ごとの装備・効果・分解・上限・ルーン採掘・PVP の回帰テスト */
 const load = require('./harness.js');
-const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, fuseRunes, runeFuseCost, runeFuseMaterials, runeSlotsOpen, RUNE_SLOT_STARS, RUNE_FUSE_COUNT, RUNE_TIERS, runeSubValue, rerollRuneSub, runeRerollCost, buyRuneShop, runeShopTier, runeShopPrice, RUNE_SHOP,
+const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, fuseRunes, runeFuseCost, runeFuseMaterials, runeSlotsOpen, RUNE_SLOT_STARS, RUNE_FUSE_COUNT, RUNE_TIERS, runeSubValue, rerollRuneSub, runeRerollCost, buyRuneShop, runeShopTier, runeShopPrice, openSealedRune, runeCanDismantle, equipRune,
   equipRune, unequipRune, runesOf, runeBonusOf, runeUsers, switchFormationSet, dismantleRunes, runeDustValue, runeFull, RUNE_MAX, RUNE_STATS,
   statsWithRelic, scaledStats, MON_BY_ID, dungeonStage, grantDungeonRewards, DUNGEONS, buildDefenseSnapshot, sanitizeRuneBonus, sanitizeDefense,
   battlePower, findStage, dungeonTierUnlocked, runeIconSvg, ensureRunes };`);
@@ -47,28 +47,33 @@ S().runes = [{ uid: 'rx', tier: 2, rarity: 1, main: 'hp', lv: 9, spent: 40, subs
 S().formations[0].runes = { m06: ['rx', 'ry', null, null] };
 delete S().runeSpecVer; S().runeDust = 100; S().announceQueue = [];
 E.normalizeState();
-ok('旧仕様のルーンは粉に交換(2×(2×4 + 6×10) = 136)', S().runes.length === 0 && S().runeDust === 100 + 2 * (2 * 4 + 6 * 10), S().runeDust);
+ok('旧仕様のルーンは粉に交換(分解の2倍: 2×(2×20 + 6×50) = 680)', S().runes.length === 0 && S().runeDust === 100 + 2 * (2 * 20 + 6 * 50), S().runeDust);
 ok('装備は外れ、お知らせが1件', !S().formations[0].runes.m06 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
 S().runes = [E.makeRune(1, 0)]; E.normalizeState();
 ok('交換は1回だけ(新しいルーンは残る)', S().runes.length === 1 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
 
 // 粉の使い道: サブ効果の振り直し・ショップ交換(合成はゴールドだけ)
 ok('合成の費用はゴールドだけ', E.runeFuseCost({ tier: 3 }).dust === undefined && E.runeFuseCost({ tier: 3 }).gold === 6000);
-S().runes = []; S().runeDust = 10000;
+S().runes = []; S().runeDust = 100000;
 const rr = E.addRune(E.makeRune(3, 4, 'atk'));
 const d0 = S().runeDust;
 let rres; const seen = new Set();
 for(let i = 0; i < 30; i++){ rres = E.rerollRuneSub(rr.uid, 0); seen.add(rr.subs[0].stat); }
-ok('振り直しは粉を使い、サブの種類が変わる(メイン・他のサブとかぶらない)', S().runeDust === d0 - 30 * E.runeRerollCost(rr) && seen.size >= 2 && rr.subs.every(x => x.stat !== 'atk') && new Set(rr.subs.map(x => x.stat)).size === 4);
+ok('振り直しは粉を使い(1回 100×Tier)、サブの種類が変わる(メイン・他のサブとかぶらない)', S().runeDust === d0 - 30 * E.runeRerollCost(rr) && seen.size >= 2 && rr.subs.every(x => x.stat !== 'atk') && new Set(rr.subs.map(x => x.stat)).size === 4);
 S().runeDust = 0;
 ok('粉が足りないと振り直せない', !E.rerollRuneSub(rr.uid, 0).ok);
 S().clearedStages = ['tu3', 'q1_10', 'q2_10'];
 ok('ショップのTierは開いている一番深い採掘段階(Ⅲ)', E.runeShopTier() === 3);
-S().runeDust = 1e6; S().runes = [];
-const gold = [...Array(40)].map(() => E.buyRuneShop('rune_gold').rune);
-ok('金以上確定はレア度3以上・TierⅢ', gold.every(r => r.rarity >= 3 && r.tier === 3));
-ok('虹確定は虹', E.buyRuneShop('rune_rainbow').rune.rarity === 4);
-ok('交換は分解よりかなり割高(ランダムは分解の平均の約5倍以上)', E.runeShopPrice(E.RUNE_SHOP[0]) >= 3 * (2 + 1 * 2) * 5);
+S().runeDust = 1e7; S().runes = [];
+const sealedList = [];
+for(let b = 0; b < 4; b++){ S().runes = []; for(let i = 0; i < 100; i++) sealedList.push(E.buyRuneShop(3).rune); }
+S().runes = sealedList.slice(0, 150);
+ok('ショップは未鑑定のルーン: Tierだけ決まっていて、開封前は装備・合成・分解できない', sealedList.every(r => r.sealed && r.tier === 3) && !E.runeCanDismantle(sealedList[0]) && !E.equipRune(sealedList[0].uid, 'm06', 0));
+ok('開いている段階より上のTierは交換できない', !E.buyRuneShop(4).ok && E.buyRuneShop(1).ok);
+const opened = sealedList.map(r => { if(!S().runes.includes(r)) S().runes.push(r); const o = E.openSealedRune(r.uid); S().runes = S().runes.filter(x => x !== r); return o; });
+const rar = [0, 1, 2, 3, 4].map(k => Math.round(opened.filter(r => r.rarity === k).length / 4));
+ok('開封するとレア度・効果がわかる(出方は採掘Lv3と同じ、虹はまれ)', opened.every(r => !r.sealed) && rar[0] > 40 && rar[4] <= 3, rar);
+ok('交換は分解よりかなり割高(Tierあたり150、分解の平均の約7倍)', E.runeShopPrice(3) === 450);
 S().runes = [...Array(200)].map(() => E.makeRune(1, 0));
 ok('所持がいっぱいだと交換できない', !E.buyRuneShop('rune_rand').ok);
 
