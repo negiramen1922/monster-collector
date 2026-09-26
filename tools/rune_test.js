@@ -1,6 +1,6 @@
 /* ルーン: 生成(Tier・レアリティ)・強化・編成ごとの装備・効果・分解・上限・ルーン採掘・PVP の回帰テスト */
 const load = require('./harness.js');
-const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, enhanceRune, runeEnhanceCost,
+const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, fuseRunes, runeFuseCost, runeFuseMaterials, RUNE_FUSE_COUNT, RUNE_TIERS,
   equipRune, unequipRune, runesOf, runeBonusOf, runeUsers, switchFormationSet, dismantleRunes, runeDustValue, runeFull, RUNE_MAX, RUNE_STATS,
   statsWithRelic, scaledStats, MON_BY_ID, dungeonStage, grantDungeonRewards, DUNGEONS, buildDefenseSnapshot, sanitizeRuneBonus, sanitizeDefense,
   battlePower, findStage, dungeonTierUnlocked, runeIconSvg, ensureRunes };`);
@@ -14,23 +14,29 @@ const S = () => api.STATE;
 const subsBy = [0, 1, 2, 3, 4].map(r => E.makeRune(1, r, 'atk').subs.length);
 ok('レアリティ(白青紫金虹)で最初のサブの数が0〜4', subsBy.join() === '0,1,2,3,4', subsBy);
 const t1 = E.makeRune(1, 0, 'hp'), t6 = E.makeRune(6, 0, 'hp');
-ok('Tierが高いほどメインの数値が大きい', E.runeMainValue(t6) > E.runeMainValue(t1) * 3, [E.runeMainValue(t1), E.runeMainValue(t6)]);
+ok('Tierが高いほどメインの数値が大きい', E.runeMainValue(t6) > E.runeMainValue(t1) * 3 && E.runeMainValue(E.makeRune(10, 0, 'hp')) > E.runeMainValue(t6), [E.runeMainValue(t1), E.runeMainValue(t6)]);
 ok('メインとサブの効果はかぶらない', [...Array(200)].every(() => { const r = E.makeRune(3, 4); const k = [r.main, ...r.subs.map(s => s.stat)]; return new Set(k).size === k.length; }));
 
-// 強化: +3ごとにサブが増える / 4つ揃ったら既存が伸びる
-S().gold = 1e9; S().runeDust = 1e6;
-const w = E.addRune(E.makeRune(2, 0, 'atk'));
-for(let i = 0; i < 12; i++) E.enhanceRune(w.uid);
-ok('白を+12まで強化するとサブが4つ(全部1回ずつ)', w.lv === 12 && w.subs.length === 4 && w.subs.every(s => s.rolls === 1), w.subs);
-const rb = E.addRune(E.makeRune(2, 4, 'atk'));
-for(let i = 0; i < 12; i++) E.enhanceRune(rb.uid);
-ok('虹を+12まで強化するとサブは4つのまま、伸びた回数が合計8', rb.subs.length === 4 && rb.subs.reduce((a, s) => a + s.rolls, 0) === 8);
-ok('+12でメインは最大値', E.runeMainValue(rb) === E.RUNE_STATS.atk.main[1]);
-ok('+12より上には強化できない', !E.enhanceRune(rb.uid).ok);
-S().gold = 0;
-const c = E.addRune(E.makeRune(1, 1, 'spd'));
-ok('ゴールドが足りないと強化できない', !E.enhanceRune(c.uid).ok && c.lv === 0);
-S().gold = 1e9;
+// 合成: 同じ効果・同じTierを3つでTier+1、レア度は平均の切り捨て、最大Ⅹ
+S().gold = 1e9; S().runeDust = 1e6; S().runes = [];
+const f1 = E.addRune(E.makeRune(2, 4, 'atk')), f2 = E.addRune(E.makeRune(2, 3, 'atk')), f3 = E.addRune(E.makeRune(2, 1, 'atk'));
+E.addRune(E.makeRune(2, 4, 'hp')); E.addRune(E.makeRune(3, 4, 'atk'));
+ok('材料は同じ効果・同じTierだけ', E.runeFuseMaterials(f1).map(r => r.uid).sort().join() === [f2.uid, f3.uid].sort().join());
+ok('材料が足りないと合成できない', !E.fuseRunes(f1.uid, [f2.uid]).ok && f1.tier === 2);
+const g0 = S().gold;
+let fr = E.fuseRunes(f1.uid, [f2.uid, f3.uid]);
+ok('合成でTierが1つ上がり、材料は消える', fr.ok && f1.tier === 3 && !S().runes.some(r => r.uid === f2.uid || r.uid === f3.uid) && S().gold === g0 - E.runeFuseCost({ tier: 2 }).gold);
+ok('レア度は平均の切り捨て(虹4・金3・青1 → 2 紫)、サブはその数', f1.rarity === 2 && f1.subs.length === 2 && f1.main === 'atk', [f1.rarity, f1.subs.length]);
+ok('強化レベルはない', f1.lv === undefined && !('lv' in E.makeRune(1, 0)));
+const top = E.addRune(E.makeRune(10, 2, 'spd')), m1 = E.addRune(E.makeRune(10, 2, 'spd')), m2 = E.addRune(E.makeRune(10, 2, 'spd'));
+ok('TierⅩは最大(合成できない)', E.RUNE_TIERS === 10 && !E.fuseRunes(top.uid, [m1.uid, m2.uid]).ok);
+const L = E.addRune(E.makeRune(4, 1, 'mdef')), l1 = E.addRune(E.makeRune(4, 1, 'mdef')), l2 = E.addRune(E.makeRune(4, 1, 'mdef'));
+l2.lock = true;
+ok('ロック中は材料にできない', !E.fuseRunes(L.uid, [l1.uid, l2.uid]).ok && E.runeFuseMaterials(L).length === 1);
+// 以前のセーブ(強化レベルあり)は読み込みでレベルを外す
+S().runes = [{ uid: 'rx', tier: 2, rarity: 0, main: 'hp', lv: 9, spent: 40, subs: [{ stat: 'atk', val: 3, rolls: 1 }, { stat: 'spd', val: 1, rolls: 1 }], lock: false }];
+E.ensureRunes();
+ok('以前の強化レベルは外れ、サブ効果はレア度の数まで', S().runes[0].lv === undefined && S().runes[0].subs.length === 0);
 
 // 装備: 編成ごと、同じ編成の中では1体だけ
 S().runes = []; S().formations.forEach(f => f.runes = {});
