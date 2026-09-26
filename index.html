@@ -207,6 +207,27 @@ body{
 .an-body b{ font-size:14px; }
 .an-body p{ margin:3px 0 0; font-size:12px; color:var(--dim); line-height:1.6; }
 .an-stam{ margin-top:5px; font-size:12.5px; font-weight:800; color:var(--gold); }
+.item-detail{ text-align:left; padding:0 !important; overflow:hidden; }
+.item-detail .id-head{ position:relative; background:linear-gradient(90deg,#241c3e,#1a1530); padding:11px 40px 11px 14px; font-size:14px; font-weight:900;
+  border-left:4px solid var(--gold); }
+.item-detail .id-close{ position:absolute; right:8px; top:50%; transform:translateY(-50%); width:28px; height:28px; border-radius:50%;
+  border:1px solid var(--line); background:var(--panel2); color:var(--text); font-size:16px; cursor:pointer; }
+.item-detail .id-tiers{ display:flex; gap:5px; padding:10px 12px 0; }
+.item-detail .id-tiers .stage-tab{ flex:1; padding:6px 2px; font-size:11px; }
+.item-detail .id-body{ display:grid; grid-template-columns:minmax(0, 40%) minmax(0, 60%); gap:10px; padding:12px; }
+.item-detail .id-art{ position:relative; aspect-ratio:1; border-radius:12px; border:1px solid var(--line);
+  background:radial-gradient(circle at 50% 40%, rgba(179,108,240,.35), rgba(20,16,36,.9) 70%); display:flex; align-items:center; justify-content:center; }
+.item-detail .id-art .item-ic{ transform:scale(2.4); }
+.item-detail .id-have{ position:absolute; right:6px; bottom:5px; font-size:9.5px; color:var(--dim); text-align:right; line-height:1.2; }
+.item-detail .id-have b{ display:block; font-size:15px; color:var(--text); }
+.item-detail .id-desc{ font-size:11px; color:var(--dim); line-height:1.6; margin-top:8px; }
+.item-detail .id-src-head{ font-size:11.5px; font-weight:900; padding-bottom:5px; border-bottom:1px solid var(--line); margin-bottom:4px; }
+.item-detail .id-src{ display:flex; align-items:center; gap:6px; padding:7px 0; border-bottom:1px dashed rgba(255,255,255,.08); }
+.item-detail .id-src-label{ flex:1; min-width:0; font-size:11px; font-weight:800; line-height:1.4; }
+.item-detail .id-tag{ display:inline-block; margin-left:5px; font-size:9px; font-weight:800; padding:1px 5px; border-radius:5px; background:rgba(111,183,255,.2); color:#9fd0ff; vertical-align:1px; }
+.item-detail .id-go{ flex:none; font:inherit; font-size:10.5px; font-weight:900; padding:6px 9px; border-radius:7px; border:0; background:#1c1830;
+  color:#fff; box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; }
+.su-cost-chip{ cursor:pointer; }
 .reward-modal .rm-list{ font-size:11.5px; color:var(--dim); line-height:1.8; margin-bottom:12px; }
 .rm-rewards{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:14px; }
 .rm-rewards .rw{ font-size:14px; padding:4px 10px; }
@@ -2676,7 +2697,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.050';
+const GAME_VERSION = 'α0.1.051';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8020,20 +8041,138 @@ function renderShop(){
 let bagSelect = null; // { tier, fam } while choosing what a selection box gives
 let bagTicket = null; // { key, elem } while choosing a monster with a キャラ選択券
 let bagTab = 'grow';  // 'grow' | 'mat' | 'other'
+/* ---- アイテム詳細: 左にアイコン・所持数・説明、右に入手手段と「移動」ボタン ----
+   スキル強化の素材や持ち物から開く。閉じると開いた元(スキル強化・持ち物)に戻る。 */
+let itemDetail = null;   // { key, back: 'skill' | 'bag' | null }
+const MAT_USE_TEXT = { el: 'その属性のキャラのスキル1・スキル2', sp: 'その種族のキャラの必殺技・パッシブ', ro: 'そのロールのキャラのすべてのスキル' };
+const MAT_TIER_SKILL = { 1: 'スキルLv1〜9', 2: 'スキルLv3〜9', 3: 'スキルLv7〜9', 4: 'スキルLv10以上' };
+function itemDesc(key){
+  const m = parseMat(key);
+  if(m) return `${MAT_FAMILIES[m.fam].label}の Tier${TIER_LABEL[m.tier]}。${MAT_USE_TEXT[m.fam]}のレベル上げに使います(主に${MAT_TIER_SKILL[m.tier]})。`;
+  if(EXP_POT_VALUE[key]) return `キャラに使うとEXPが入ります(TierIの${EXP_POT_VALUE[key]}個分)。`;
+  const b = /^box_(sel|rnd)_([1-4])$/.exec(key);
+  if(b) return b[1] === 'sel' ? `開くと、好きな育成素材 Tier${TIER_LABEL[b[2]]}を${BOX_CONTENT.sel[b[2]]}個受け取れます。` : `開くと、ランダムな育成素材 Tier${TIER_LABEL[b[2]]}を${BOX_CONTENT.rnd[b[2]]}個受け取れます。`;
+  if(key === 'relic_scrap') return '遺物のレベル上げに使う素材です。';
+  if(/^relic_core_/.test(key)) return '遺物の壁(レベルの節目)を越えるのに使う素材です。';
+  if(STAMINA_ITEMS[key]) return `使うとスタミナが${STAMINA_ITEMS[key]}回復します(上限を超えても使えます)。`;
+  if(IDLE_ITEMS[key]) return `使うと拠点の放置報酬${IDLE_ITEMS[key]}時間分を今すぐ受け取れます。`;
+  if(MON_TICKET_RE.test(key)) return `★${MON_TICKET_RE.exec(key)[1]}のキャラから好きな1体と交換できます。`;
+  return '';
+}
+// 入手手段: { label, tag, go } の一覧。go は移動先(無ければボタンなし)
+function itemSources(key){
+  const out = [];
+  const m = parseMat(key);
+  if(m){
+    const stages = STAGES.filter(st => st.drops && !st.disabled && st.drops.kinds.some(([f, k]) => f === m.fam && k === m.kind) && (st.drops.tiers[m.tier - 1] || 0) > 0);
+    const open = stages.filter(st => stageUnlocked(st)).sort((a, b) => (b.drops.tiers[m.tier - 1] - a.drops.tiers[m.tier - 1]) || (STAGES.indexOf(b) - STAGES.indexOf(a)));
+    open.slice(0, 4).forEach(st => out.push({ label: `${QUEST_TIERS.find(q => q.key === st.tier).short || QUEST_TIERS.find(q => q.key === st.tier).label} ${st.name}`, tag: `ドロップ×${st.drops.tiers[m.tier - 1]}`, go: { type: 'stage', id: st.id } }));
+    if(!open.length && stages.length){
+      const st = stages[0];
+      out.push({ label: `${QUEST_TIERS.find(q => q.key === st.tier).label} ${st.name}`, tag: '未解放', go: null });
+    }
+    if(m.tier <= 2) out.push({ label: '育成クエスト「素材ダンジョン」', tag: '曜日', go: { type: 'dungeon', kind: 'mat' } });
+    if(m.tier >= 2) out.push({ label: `拠点「錬金術」(Tier${TIER_LABEL[m.tier - 1]}から)`, tag: craftRatio(m.tier) === CRAFT_RATIO ? '合成' : '合成(効率×)', go: { type: 'alchemy', fam: m.fam } });
+    out.push({ label: `育成素材BOX(選択) Tier${TIER_LABEL[m.tier]}`, tag: getItem(`box_sel_${m.tier}`) ? `所持${getItem(`box_sel_${m.tier}`)}` : 'BOX', go: getItem(`box_sel_${m.tier}`) ? { type: 'usebox', key: `box_sel_${m.tier}`, fam: m.fam, kind: m.kind } : { type: 'shop', tab: 'gold' } });
+    return out;
+  }
+  if(EXP_POT_VALUE[key]) return [
+    { label: '育成クエスト「EXPダンジョン」', tag: '確定', go: { type: 'dungeon', kind: 'exp' } },
+    { label: 'メインクエストのクリア報酬', tag: '確定', go: { type: 'main' } },
+    { label: '拠点「研究所」', tag: '放置', go: { type: 'base' } },
+    { label: 'ショップ', tag: '交換', go: { type: 'shop', tab: 'gold' } }];
+  if(/^box_/.test(key)) return [
+    { label: 'ショップ', tag: '交換', go: { type: 'shop', tab: 'gold' } },
+    { label: 'メインクエストのボス(初回)', tag: '確定', go: { type: 'main' } },
+    { label: '深淵回廊の階層報酬', tag: '確定', go: { type: 'abyss' } },
+    { label: 'ミッション', tag: '報酬', go: { type: 'missions' } }];
+  if(key === 'relic_scrap' || /^relic_core_/.test(key)) return [
+    { label: '拠点「アーティファクト工房」', tag: '放置', go: { type: 'base' } },
+    { label: 'ショップ(ゴールド・PVPポイント)', tag: '交換', go: { type: 'shop', tab: /^relic_core_[23]$/.test(key) ? 'pvp' : 'gold' } },
+    { label: 'イベント・深淵回廊', tag: '報酬', go: { type: 'abyss' } }];
+  if(STAMINA_ITEMS[key] || IDLE_ITEMS[key]) return [
+    { label: '深淵回廊の階層報酬', tag: '確定', go: { type: 'abyss' } },
+    { label: 'ウィークリーミッション', tag: '報酬', go: { type: 'missions' } }];
+  if(MON_TICKET_RE.test(key)) return [{ label: 'はじめてガイド(全部クリア)', tag: '報酬', go: { type: 'missions' } }];
+  return out;
+}
+function openItemDetail(key, back){
+  itemDetail = { key, back: back || null };
+  renderItemDetail();
+}
+function renderItemDetail(){
+  if(!itemDetail) return;
+  const key = itemDetail.key;
+  const m = parseMat(key);
+  const srcs = itemSources(key);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal item-detail" role="dialog" aria-label="${itemName(key)}">
+      <div class="id-head">${itemName(key)}<button class="id-close" data-item-detail-close="1" aria-label="閉じる">×</button></div>
+      ${m ? `<div class="id-tiers">${[1, 2, 3, 4].map(t => `<button class="stage-tab ${t === m.tier ? 'on' : ''}" data-item-detail="${matKey(m.fam, m.kind, t)}">Tier${TIER_LABEL[t]}</button>`).join('')}</div>` : ''}
+      <div class="id-body">
+        <div class="id-left">
+          <div class="id-art">${itemIcon(key)}<div class="id-have">所持数<b>${getItem(key).toLocaleString()}</b></div></div>
+          <div class="id-desc">${itemDesc(key)}</div>
+        </div>
+        <div class="id-right">
+          <div class="id-src-head">入手手段</div>
+          ${srcs.length ? srcs.map((s, i) => `
+            <div class="id-src">
+              <div class="id-src-label">${s.label}${s.tag ? `<span class="id-tag">${s.tag}</span>` : ''}</div>
+              ${s.go ? `<button class="id-go" data-item-go="${i}">移動 ›</button>` : ''}
+            </div>`).join('') : '<div class="screen-sub">入手手段はありません</div>'}
+        </div>
+      </div>
+    </div>`;
+  layer.classList.add('show');
+}
+function closeItemDetail(){
+  const back = itemDetail && itemDetail.back;
+  itemDetail = null;
+  if(back === 'skill' && skillUpgradeModal) renderSkillUpgradeModal();
+  else if(back === 'bag') renderBag();
+  else closeModal();
+}
+function itemDetailGo(i){
+  const s = itemSources(itemDetail.key)[i];
+  if(!s || !s.go) return;
+  const g = s.go;
+  if(g.type === 'usebox'){
+    const got = openSelectBox(Number(g.key.split('_')[2]), g.fam, g.kind);
+    if(got){ const [k, n] = Object.entries(got)[0]; playSfx('confirm'); toast(`${itemName(k)}を${n}個受け取りました`); }
+    renderItemDetail();
+    return;
+  }
+  itemDetail = null; skillUpgradeModal = null; skillUpgradeShort = null; bagSelect = null; bagTicket = null;
+  closeModal();
+  if(g.type === 'stage'){
+    const st = STAGE_BY_ID[g.id], qt = QUEST_TIERS.find(q => q.key === st.tier);
+    stageTab = 'main'; questTier = qt && qt.hard ? qt.hard : st.tier; hardMode = !!(qt && qt.hard);
+    goto('battle'); stageSheet = st.id; renderStageSheet();
+  }else if(g.type === 'dungeon'){ stageTab = 'dungeon'; dungeonTab = g.kind; goto('battle'); }
+  else if(g.type === 'main'){ stageTab = 'main'; goto('battle'); }
+  else if(g.type === 'abyss'){ stageTab = 'abyss'; goto('battle'); }
+  else if(g.type === 'alchemy'){ alchemyFam = g.fam; goto('base'); }
+  else if(g.type === 'base'){ goto('base'); }
+  else if(g.type === 'shop'){ shopTab = g.tab || 'gold'; goto('shop'); }
+  else if(g.type === 'missions'){ goto('missions'); }
+}
 function renderBag(){
   const layer = document.getElementById('modal-layer');
   const pots = ['exp1', 'exp2', 'exp3'];
   const boxes = [1, 2, 3, 4].flatMap(t => ['sel', 'rnd'].map(k => `box_${k}_${t}`)).filter(k => getItem(k) > 0);
   const total = Object.values(STATE.items || {}).reduce((a, b) => a + b, 0);
 
-  const cell = (icon, name, n, title) =>
-    `<div class="bag-cell ${n ? '' : 'empty'}" title="${title || name}">
+  const cell = (icon, name, n, title, key) =>
+    `<div class="bag-cell ${n ? '' : 'empty'}" title="${title || name}" ${key ? `data-item-detail="${key}" role="button"` : ''}>
        <div class="bc-ic">${icon}</div><div class="bc-name">${name}</div><div class="bc-n">\u00d7${n}</div>
      </div>`;
   const matCell = (fam, k) => {
     const d = MAT_FAMILIES[fam];
     const have = [1, 2, 3, 4].map(t => getItem(matKey(fam, k, t)));
-    return `<div class="bag-cell ${have.some(Boolean) ? '' : 'empty'}" title="${d.name(k)}">
+    const firstOwned = have.findIndex(Boolean);
+    return `<div class="bag-cell ${have.some(Boolean) ? '' : 'empty'}" title="${d.name(k)}" data-item-detail="${matKey(fam, k, firstOwned >= 0 ? firstOwned + 1 : 1)}" role="button">
         <div class="bc-ic">${d.icon(k)}</div><div class="bc-name">${d.name(k)}</div>
         <div class="bc-tiers">${[1, 2, 3, 4].map((t, i) => `<span class="${have[i] ? '' : 'off'}">${TIER_LABEL[t]}${have[i]}</span>`).join('')}</div>
       </div>`;
@@ -8089,7 +8228,7 @@ function renderBag(){
         <div class="sc-n pixel">${STATE.resonance || 0}</div>
       </div>
       <div class="bag-head">\u80b2\u6210\u30a2\u30a4\u30c6\u30e0</div>
-      <div class="bag-grid">${pots.map(k => cell(itemIcon(k), `EXP\u30dd\u30c3\u30c8${TIER_LABEL[Number(k.slice(3))]}`, getItem(k), itemName(k))).join('')}</div>
+      <div class="bag-grid">${pots.map(k => cell(itemIcon(k), `EXP\u30dd\u30c3\u30c8${TIER_LABEL[Number(k.slice(3))]}`, getItem(k), itemName(k), k)).join('')}</div>
       <div class="bag-note">\u5408\u8a08 EXP ${expPotTotal().toLocaleString()}\u30fb\u30b4\u30fc\u30eb\u30c9 ${goldText(STATE.gold || 0)}</div>`;
   }else if(bagTab === 'mat'){
     body = Object.entries(MAT_FAMILIES).map(([fam, d]) => `
@@ -8099,14 +8238,14 @@ function renderBag(){
     body = `
       ${usables.length ? `<div class="bag-head">使えるアイテム</div>${usables.map(k => `
         <div class="panel panel-tight box-card">
-          <span class="sc-ic">${itemIcon(k)}</span>
+          <span class="sc-ic" data-item-detail="${k}" role="button">${itemIcon(k)}</span>
           <div class="sc-body"><div class="sc-name">${itemName(k)} ×${getItem(k)}</div>
             <div class="sc-sub">${STAMINA_ITEMS[k] ? `スタミナ+${STAMINA_ITEMS[k]}(上限を超えても使えます)` : `拠点の放置報酬${IDLE_ITEMS[k]}時間分を今すぐ受け取る`}</div></div>
           <button class="btn btn-sm" data-use-item="${k}">使う</button>
         </div>`).join('')}` : ''}
       ${tickets.length ? `<div class="bag-head">キャラ選択券</div>${tickets.map(k => `
         <div class="panel panel-tight box-card">
-          <span class="sc-ic">${itemIcon(k)}</span>
+          <span class="sc-ic" data-item-detail="${k}" role="button">${itemIcon(k)}</span>
           <div class="sc-body"><div class="sc-name">${itemName(k)} ×${getItem(k)}</div>
             <div class="sc-sub">★${MON_TICKET_RE.exec(k)[1]}のキャラから好きな1体と交換</div></div>
           <button class="btn btn-sm" data-use-ticket="${k}">使う</button>
@@ -8114,7 +8253,7 @@ function renderBag(){
       <div class="bag-head">\u80b2\u6210\u7d20\u6750BOX</div>
       ${boxes.length ? boxes.map(k => `
         <div class="panel panel-tight box-card">
-          <span class="sc-ic">${itemIcon(k)}</span>
+          <span class="sc-ic" data-item-detail="${k}" role="button">${itemIcon(k)}</span>
           <div class="sc-body"><div class="sc-name">${itemName(k)} \u00d7${getItem(k)}</div>
             <div class="sc-sub">${k.startsWith('box_sel') ? '\u5c5e\u6027\u3092\u9078\u3093\u3067\u7d20\u6750\u3092\u53d7\u3051\u53d6\u308b' : '\u30e9\u30f3\u30c0\u30e0\u306b\u7d20\u6750\u3092\u53d7\u3051\u53d6\u308b'}</div></div>
           <button class="btn btn-sm" data-open-box="${k}">\u958b\u304f</button>
@@ -15277,6 +15416,16 @@ function handlePhoneClick(ev){
   if(wallEl){ breakWall(wallEl.dataset.breakWall); return; }
   const skEl = t.closest('[data-skill-up]');
   if(skEl){ openSkillUpgradeModal(skEl.dataset.skillUp, skEl.dataset.field); return; }
+  if(itemDetail){
+    if(t.closest('[data-item-detail-close]') || t === document.getElementById('modal-layer')){ closeItemDetail(); return; }
+    const goEl = t.closest('[data-item-go]');
+    if(goEl){ itemDetailGo(Number(goEl.dataset.itemGo)); return; }
+    const tierEl = t.closest('[data-item-detail]');
+    if(tierEl){ itemDetail.key = tierEl.dataset.itemDetail; renderItemDetail(); return; }
+    return;
+  }
+  const itemDetailEl = t.closest('[data-item-detail]');
+  if(itemDetailEl && document.querySelector('.bag-modal')){ openItemDetail(itemDetailEl.dataset.itemDetail, 'bag'); playSfx('open'); return; }
   if(skillUpgradeModal){
     if(t.closest('[data-close-skill-up]')){ closeSkillUpgradeModal(); return; }
     if(t.closest('[data-confirm-skill-up]')){
@@ -15286,12 +15435,7 @@ function handlePhoneClick(ev){
       return;
     }
     const costToggleEl = t.closest('[data-cost-toggle]');
-    if(costToggleEl){
-      const key = costToggleEl.dataset.costToggle;
-      skillUpgradeShort = skillUpgradeShort === key ? null : key;
-      renderSkillUpgradeModal();
-      return;
-    }
+    if(costToggleEl){ openItemDetail(costToggleEl.dataset.costToggle, 'skill'); playSfx('open'); return; }
     const useBoxEl = t.closest('[data-use-box]');
     if(useBoxEl){
       const [boxKey, fam, kind] = useBoxEl.dataset.useBox.split(':');
@@ -16044,6 +16188,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 92, version: 'α0.1.051', date: '9/26', title: 'アイテム詳細画面を追加', body: 'アイテムの詳細画面を追加しました。アイコンと所持数、かんたんな説明と、どこで手に入るか(入手手段)が並び、「移動」を押すとその場所へすぐ行けます。スキル強化で必要な素材を押したときや、持ち物のアイテムを押したときに開きます。育成素材はTierを切り替えて見られ、選択BOXを持っていればその場で使えます。閉じると元の画面に戻ります。' },
   { id: 91, version: 'α0.1.050', date: '9/26', title: '育成素材のTierの出方を整理・TierIVをメインクエストに追加', body: 'メインクエストで手に入る育成素材のTierを、難易度に合わせて整理しました。初級はTierI、中級・上級はTierIIまで、超上級・極上級はTierIIIまで、伝説級・神話級はTierIVまで手に入ります(TierIVがメインクエストで落ちるようになりました)。ボスは数が多く、ハードモードは上のTierが多めに出ます。これまで初級のボスや初級ハードで上のTierが出てスキルレベルだけ先に上がりすぎていたのを防ぎます。\n\nステージごとに落ちる素材は、出てくる敵の属性・種族・ロールをもとに3種類に固定し、ステージ詳細に名前つきで表示するようにしました。どの素材も、それぞれの難易度帯のどこかのステージで手に入ります。スキル強化で素材が足りないときは、素材を押すと「〇〇で集める」から、その素材が落ちるステージにすぐ行けます。\n\n錬金術はTierIVまで合成できるようになりました。まだメインクエストで落ちないTierへの合成は、15個→1個と効率が悪くなります。すでに持っている素材や、上げたスキルレベルはそのままです。' },
   { id: 90, version: 'α0.1.049', date: '9/26', title: '設定画面のお知らせをコンパクトに', body: '設定画面のお知らせが長すぎたので、見出しだけの表示にしました(ニュース2件と最新のアップデート1件)。見出しを押すとその記事が開き、「ニュースを見る」「アップデート内容を見る」から一覧を読めます。あわせて、設定画面の「既定の速度」の表示が詰まって見づらかったのを直しました。' },
   { id: 89, version: 'α0.1.048', date: '9/26', title: 'フレンドのプロフィールが最新にならない不具合を修正', body: 'フレンドのプロフィールで、自己紹介や深淵回廊の到達階、フォロー・フォロワー数が、フレンドに追加したときのまま更新されていなかった不具合を直しました。プロフィールを開くたびに最新の内容を読み込みます。また、深淵回廊で今期の最高記録が伸びたときに、自分の公開プロフィールの到達階もすぐ更新されるようにしました。' },
