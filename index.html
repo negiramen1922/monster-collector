@@ -862,6 +862,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   animation:tap-star .7s ease-out forwards; }
 @keyframes tap-star{ 0%{ opacity:1; transform:translate(0,0) scale(calc(var(--s) * 1.5)) rotate(0); }
   60%{ opacity:1; } 100%{ opacity:0; transform:translate(var(--tx), var(--ty)) scale(calc(var(--s) * .5)) rotate(180deg); } }
+.screen-back-bar{ margin:6px 0 2px; }
+.screen-back-bar .btn{ padding:6px 12px; font-size:11.5px; }
 .reveal-call{ min-height:42px; display:flex; justify-content:center; align-items:center; margin-top:14px; }
 .reveal-call span{ font-size:20px; font-weight:900; color:#fff; letter-spacing:.04em;
   text-shadow:0 0 12px rgba(232,180,85,.9), 0 2px 0 #000; animation:call-pulse 1.1s ease-in-out infinite; }
@@ -2740,7 +2742,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.056';
+const GAME_VERSION = 'α0.1.057';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8484,7 +8486,17 @@ function canPromoteNow(id){
 function navKeyForScreen(screen){
   return screen === 'battle-fight' ? 'battle' : screen === 'missions' ? 'home' : screen === 'shop' ? 'base' : screen;
 }
-function goto(screen){
+/* 画面の中のボタンから別の画面へ移ったときは、左上に「‹ 〇〇に戻る」を出して1つ前に戻れるようにする。
+   下のメニュー(ナビ)や左右スワイプで切り替えたときは、履歴を消す(戻るは出さない) */
+let navHistory = [];
+const SCREEN_LABEL = { home: 'ホーム', gacha: 'ガチャ', dex: '図鑑', party: '編成', battle: '探索', pvp: 'PVP', missions: 'ミッション', relics: '遺物', base: '拠点', shop: 'ショップ' };
+function goto(screen, opts){
+  opts = opts || {};
+  if(opts.nav) navHistory = [];
+  else if(!opts.back && screen !== currentScreen && currentScreen !== 'battle-fight' && screen !== 'battle-fight' && SCREEN_LABEL[currentScreen]){
+    navHistory.push({ screen: currentScreen, overlay: overlayView, stageTab });
+    if(navHistory.length > 10) navHistory.shift();
+  }
   if(overlayView){ overlayView = null; pickTarget = null; }
   if(screen !== currentScreen) logEvent('screen_view', { screen_name: screen });
   currentScreen = screen;
@@ -8552,6 +8564,18 @@ function stopTapTrail(){
   if(tapTrail.timer !== null) clearInterval(tapTrail.timer);
   tapTrail.timer = null; tapTrail.id = null;
 }
+function goBackScreen(){
+  const prev = navHistory.pop();
+  if(!prev) return;
+  if(prev.screen === 'battle' && prev.stageTab) stageTab = prev.stageTab;
+  goto(prev.screen, { back: true });
+  if(prev.overlay){ overlayView = prev.overlay; render(); }
+}
+function screenBackBarHtml(){
+  const prev = navHistory[navHistory.length - 1];
+  if(!prev || currentScreen === 'battle-fight') return '';
+  return `<div class="screen-back-bar"><button class="btn btn-ghost btn-sm" data-screen-back="1">‹ ${SCREEN_LABEL[prev.screen] || '前の画面'}に戻る</button></div>`;
+}
 function toast(msg){
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -8574,7 +8598,7 @@ function render(){
   app.querySelector('#statusbar').innerHTML = renderTopBar();
 
   const screenEl = document.getElementById('screen');
-  screenEl.innerHTML = renderScreen(currentScreen);
+  screenEl.innerHTML = screenBackBarHtml() + renderScreen(currentScreen);
   renderOverlay();
 
   app.classList.toggle('in-battle', currentScreen === 'battle-fight');
@@ -15436,6 +15460,7 @@ function handlePhoneClick(ev){
     }
     return;
   }
+  if(t.closest('[data-screen-back]')){ goBackScreen(); return; }
   const navEl0 = t.closest('[data-nav]');
   if(navEl0 && currentScreen === 'battle-fight' && battleUI && !battleUI.finished){
     confirmLeaveBattle(navEl0.dataset.nav);
@@ -15445,7 +15470,7 @@ function handlePhoneClick(ev){
   if(navEl){
     if(navEl.dataset.stageTabSet && (navEl.dataset.stageTabSet === 'main' || tutorialCleared())) stageTab = navEl.dataset.stageTabSet;
     else if(navEl.classList.contains('nav-btn') && navEl.dataset.nav === 'battle') stageTab = 'menu';
-    goto(navEl.dataset.nav);
+    goto(navEl.dataset.nav, { nav: navEl.classList.contains('nav-btn') });
     maybeAbyssGuide();
     return;
   }
@@ -16384,6 +16409,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 98, version: 'α0.1.057', date: '9/26', title: '1つ前の画面に戻るボタン', body: '画面の中のボタンから別の画面に移ったとき(編成から図鑑、拠点からショップ、プロフィールから図鑑、アイテム詳細の「移動」など)に、左上に「‹ 〇〇に戻る」ボタンを出すようにしました。押すと1つ前の画面に戻ります(プロフィールなどから移ったときは、その画面も元に戻ります)。下のメニューや左右スワイプで画面を切り替えたときは出ません。' },
   { id: 97, version: 'α0.1.056', date: '9/26', title: '画面の位置がずれないように', body: '持ち物・錬金術・アイテム詳細・スキル強化・キャラ詳細・遺物・ステージ詳細などの画面を、上揃いで固定しました。これまではタブを切り替えたりアイテムを使ったりして中身の量が変わるたびに、画面の上の位置がずれて押しにくくなっていました。持ち物と錬金術の画面は高さも固定しています。また、ランダムBOXを使ったときは、出た素材を1つずつ並べず「TierIを合計60個」のように合計だけを表示するようにしました。' },
   { id: 96, version: 'α0.1.055', date: '9/26', title: '持ち物の所持数をアイコンの右下に', body: '持ち物と錬金術の画面で、アイテムの所持数(×N)をアイコンの右下に重ねて表示するようにしました。' },
   { id: 95, version: 'α0.1.054', date: '9/26', title: '持ち物のアイテムを詳細画面から使えるように', body: '育成素材BOX・スタミナの実・時渡りの砂・キャラ選択券などは、押すと詳細画面が開き、そこの「使う」で使うようにしました。個数を選んで(−・＋・最大)まとめて使えます。選択BOXは、まとめて使ったぶんを1種類の素材で受け取れます。受け取った物は詳細画面に表示されます。また、アイテムを使ったり、詳細画面から戻ったり、絞り込みを変えたりしたときに、持ち物や錬金術の画面が一番上までスクロールで戻ってしまう問題を直しました。' },
@@ -17489,7 +17515,7 @@ function endSwipeVisual(commit, neighborIdx, dir, width, peekEl){
     swipeJustDragged = true;
     screenEl.style.transform = `translateX(${dir * width}px)`;
     if(peekEl) peekEl.style.transform = 'translateX(0px)';
-    setTimeout(() => { cleanup(); playSfx('tap'); goto(NAV[neighborIdx].key); }, 220);
+    setTimeout(() => { cleanup(); playSfx('tap'); goto(NAV[neighborIdx].key, { nav: true }); }, 220);
   }else{
     screenEl.style.transform = 'translateX(0px)';
     if(peekEl) peekEl.style.transform = `translateX(${dir * width}px)`;
