@@ -2527,7 +2527,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.035';
+const GAME_VERSION = 'α0.1.036';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -10565,10 +10565,15 @@ const FOLLOW_UP_POWER = 0.30;  // thunder follow-up (magic)
 const ATK_TYPE_LABEL = { phys:'物理', mag:'魔法' };
 
 // ---- hate ----
+// 行動で増えるHATEは「相手の最大HPの何%を削ったか/味方の何%を回復したか」で数える。
+// 以前はダメージ量そのまま(数百〜数千)を足していたので、初期HATE(13〜45)が1ラウンドで
+// 埋もれて役割(タンクが狙われる)が効いていなかった。今は1回の行動で+5〜+20ほどで、初期HATEと同じ桁。
 const HATE_GAIN_MULT = { tank:1.5, attacker:1.0, shooter:1.0, support:1.0, trickster:1.0 };
-const HATE_PER_DAMAGE = 1.0;
-const HATE_PER_HEAL = 1.5;
-const HATE_BUFF = 25;
+const HATE_PER_DAMAGE_PCT = 0.4;   // 敵の最大HPの1%を削るごとに+0.4(25%削ると+10)
+const HATE_DAMAGE_CAP_PCT = 50;    // 1ヒットで数えるのは最大HPの50%まで(ボスへの大ダメージで跳ね上がらないように)
+const HATE_PER_HEAL_PCT = 0.3;     // 味方の最大HPの1%を回復するごとに+0.3
+const HATE_BUFF = 6;
+const ALLY_GUARD_HP = 0.5;         // 守りのスキルが「HPが減った味方」を優先するライン
 const HATE_TAUNT = 500;
 const HATE_KEEP_PER_ROUND = 0.8;
 function hateLabel(v){ return v >= 35 ? '高い' : v >= 18 ? '普通' : '低め'; }
@@ -11109,7 +11114,7 @@ function startBattle(stageId, opts){
 const TGT_TEXT = {
   single:'敵単体', any:'敵単体(後衛も狙える)', back:'敵後衛単体', lowest:'HPの割合が低い敵', lowestAny:'HPの割合が低い敵(陣形無視)',
   frontAll:'敵前衛全体', backAll:'敵後衛全体', all:'敵全体', random:'ランダムな敵', row:'攻撃できる列の敵全員', column:'縦に重なる敵',
-  self:'自分', allies:'味方全体', allyLowest:'HPの割合が一番低い味方', allyGuard:'HATEが一番高い味方', allyTop:'STRが一番高い味方',
+  self:'自分', allies:'味方全体', allyLowest:'HPの割合が一番低い味方', allyGuard:'HPが50%以下の味方(いなければ狙われやすい味方)', allyTop:'STRが一番高い味方',
 };
 const N = (name, pow, atk, tgt, desc) => ({ name, pow, atk: atk || 'phys', tgt: tgt || 'single', desc: desc || `威力${Math.round(pow * 100)}%` });
 
@@ -11397,7 +11402,7 @@ const MONSTER_KITS = {
   m29: { // ニードルラット (redesigned from フィールドマウス)
     normal: N('針かじり', 0.7),
     skill1: { name:'針の鎧', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'thorns', v:0.3 }, { to:'allyGuard', buff:'pdefUp', v:0.15 }],
-      desc:'HATEが一番高い味方に、トゲ(受けた物理ダメージの30%を返す)と物理防御+15%を2ターン' },
+      desc:'HPが50%以下の味方(いなければ狙われやすい味方)に、トゲ(受けた物理ダメージの30%を返す)と物理防御+15%を2ターン' },
     skill2: { name:'針飛ばし', ct:4, atk:'phys', tgt:'random', pow:0.4, hits:4, desc:'ランダムな敵に威力40%×4' },
     passive: { name:'トゲトゲの背中', desc:'物理攻撃を受けたとき、受けたダメージの20%を相手に返す', thornsBonus: u => pv(u, 0.2) },
     ult: { name:'針山の陣', sp:80, tgt:'allies', effects:[{ to:'allies', buff:'thorns', v:0.25 }], desc:'味方全体にトゲ(受けた物理ダメージの25%を返す)を2ターン' },
@@ -11915,7 +11920,7 @@ const MONSTER_KITS = {
   m88: { // ウンディーネ
     normal: N('水しぶき', 0.7, 'mag'),
     skill1: { name:'癒しの泉', ct:3, tgt:'allies', effects:[{ to:'allies', heal:1.5 }], desc:'味方全体を回復(回復量150%)' },
-    skill2: { name:'水の羽衣', ct:4, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'cut', v:0.3 }], desc:'HATEが一番高い味方(HP30%以下の味方を優先)の被ダメージ-30%(2ターン)' },
+    skill2: { name:'水の羽衣', ct:4, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'cut', v:0.3 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)の被ダメージ-30%(2ターン)' },
     passive: { name:'清らかな水', desc:'スキル・必殺技で回復した味方の状態異常を1つ解除', cleanseOnHeal: true },
     ult: { name:'アクアヴェール', sp:110, tgt:'allies', effects:[{ to:'allies', heal:2.5 }, { to:'allies', buff:'regen', v:0.05, flat:true }], desc:'味方全体を回復(回復量250%)。2ターン、毎ターンHP5%回復' },
   },
@@ -11928,7 +11933,7 @@ const MONSTER_KITS = {
   },
   m106: { // カーバンクル
     normal: N('宝石の光', 0.7, 'mag'),
-    skill1: { name:'ルビーの障壁', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', shield:2.5, turns:3 }], desc:'HATEが一番高い味方にシールド(STRの250%)を3ターン' },
+    skill1: { name:'ルビーの障壁', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', shield:2.5, turns:3 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)にシールド(STRの250%)を3ターン' },
     skill2: { name:'きらめく結界', ct:4, tgt:'allies', effects:[{ to:'allies', shield:1.2, turns:2 }], desc:'味方全体にシールド(STRの120%)を2ターン' },
     passive: { name:'宝石の反射', desc:'自分のシールドが攻撃で壊れたとき、壊れたシールドの量の30%を攻撃してきた相手に返す', reflectOnBreak: 0.3 },
     ult: { name:'聖宝の守り', sp:110, tgt:'allies', effects:[{ to:'allies', shield:3.0, turns:3, immune:true }], desc:'味方全体にシールド(STRの300%)を3ターン。シールドが残っているあいだ状態異常にかからない' },
@@ -12254,7 +12259,7 @@ const MONSTER_KITS = {
   },
   m143: { // セルキー
     normal: N('潮撫で', 0.8, 'mag'),
-    skill1: { name:'海豹の皮', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:0.25 }, { to:'allyGuard', ward:2 }], desc:'HPが低い味方(いなければ狙われやすい味方)の物理防御+25%＆免疫(2ターン)' },
+    skill1: { name:'海豹の皮', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:0.25 }, { to:'allyGuard', ward:2 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)の物理防御+25%＆免疫(2ターン)' },
     skill2: { name:'寄せ波の癒し', ct:4, tgt:'allyLowest', effects:[{ to:'allyLowest', heal:0.3, base:'maxHp' }, { to:'allyLowest', buff:'regen', v:0.08, flat:true, turns:1 }], desc:'HPの割合が一番低い味方のHPを30%回復。1ターン、毎ターン最大HPの8%を回復' },
     passive: { name:'帰る場所', desc:'味方が戦闘不能になったとき、1戦闘に1度だけ味方全体のHPを最大HPの10%回復',
       onAllyDeath: u => {
@@ -12352,7 +12357,7 @@ const MONSTER_KITS = {
   m152: { // メリュジーヌ
     normal: N('水尾撃', 0.75),
     skill1: { name:'癒しの泉', ct:3, tgt:'allyLowest', effects:[{ to:'allyLowest', heal:0.25, base:'maxHp' }], desc:'HPの割合が一番低い味方のHPを25%回復' },
-    skill2: { name:'守りの鱗', ct:4, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:0.3 }, { to:'allyGuard', buff:'thorns', v:0.1 }], desc:'HPが低い味方(いなければ狙われやすい味方)の物理防御+30%。受けた物理ダメージの10%を返す(2ターン)' },
+    skill2: { name:'守りの鱗', ct:4, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:0.3 }, { to:'allyGuard', buff:'thorns', v:0.1 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)の物理防御+30%。受けた物理ダメージの10%を返す(2ターン)' },
     passive: { name:'二つの姿', desc:'HPが50%を下回ると、それ以降は自分の魔法防御+20%',
       onDamaged: u => { if(!u.flags.twoForms && u.hp / u.maxHp < 0.5){ u.flags.twoForms = true; logLine(`${nm(u)} は竜の姿を現した`, 'skill'); } },
       defBonus: (u, type) => type === 'mag' && u.flags.twoForms ? pv(u, 0.2) : 0 },
@@ -12818,10 +12823,12 @@ function selectAllies(actor, tgt, buffKey){
       const others = here.filter(u => u !== actor);
       return [lowestHpRatio(others.length ? others : here)].filter(Boolean);
     }
+    // 守りのスキル(シールド・被ダメージ軽減など): HPが半分を切った味方がいればその中で一番減っている味方、
+    // いなければ次に狙われやすい味方(HATEが一番高い=ふつうはタンク)に先にかけておく
     case 'allyGuard': {
-      const low = here.filter(u => u.hp / u.maxHp <= 0.3);
+      const low = here.filter(u => u.hp / u.maxHp <= ALLY_GUARD_HP);
       if(low.length) return [lowestHpRatio(low)];
-      return [here.slice().sort((a, b) => b.hate - a.hate)[0]].filter(Boolean);
+      return [here.slice().sort((a, b) => hateOf(b) - hateOf(a))[0]].filter(Boolean);
     }
     case 'allyTop': {
       const pool = here.filter(u => !(buffKey && hasBuff(u, buffKey)));
@@ -12994,7 +13001,7 @@ function strike(ctx, target, o){
     delete target.statuses.petrify;
     if(target.alive) logLine(`${nm(target)} の石化が砕けた`, 'debuff');
   }
-  addHate(actor, dmg * HATE_PER_DAMAGE);
+  addHate(actor, Math.min(HATE_DAMAGE_CAP_PCT, dmg / target.maxHp * 100) * HATE_PER_DAMAGE_PCT);
   pushFx(target, dmg, 'hit', { crit, eff: effectivenessOf(actor, target), fx: o.fx || hitEffectFor(actor, kind, atk) });
   gainSp(target, SP_ON_HIT, 'hit');
   if(crit) runPassive(actor, 'onCrit');
@@ -13191,7 +13198,7 @@ function applyEffect(ctx, e){
     if(e.heal){
       const amount = e.base === 'maxHp' ? t.maxHp * e.heal : effStr(actor) * sv(actor, e.heal, kind);
       const g = healUnit(actor, t, amount, { bySkill: true });
-      addHate(actor, g * HATE_PER_HEAL);
+      addHate(actor, Math.min(100, g / t.maxHp * 100) * HATE_PER_HEAL_PCT);
       pushFx(t, g, 'heal', { fx: 'heal' });
       if(g > 0){ got.heal.push(nm(t)); healed += g; }
     }
@@ -15343,6 +15350,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 77, version: 'α0.1.036', date: '9/26', title: 'HATE(狙われやすさ)を見直し', body: 'これまでは戦闘が始まるとすぐ、与えたダメージの量でHATEが数百〜数千まで増え、モンスターごとの初期HATE(タンクは高く、サポートは低い)がほとんど意味を持っていませんでした。行動で増えるHATEを「相手の最大HPの何%を削ったか」「味方の何%を回復したか」で数えるように変え、初期HATEと同じくらいの大きさにしました。これでタンクがしっかり狙われ、後衛やサポートは狙われにくくなります。また、シールドや被ダメージ軽減をかける守りのスキルは、HPが50%以下の味方を優先し、いなければ狙われやすい味方(ふつうはタンク)にかけるように揃えました。' },
   { id: 76, version: 'α0.1.035', date: '9/25', title: 'ガチャ結果を画像つきでSNSに共有', body: 'ガチャ結果の「SNSで共有」で、引いたキャラ(遺物)の一覧を1枚の画像にして一緒に投稿できるようにしました。10連なら10体すべてが★の数・NEWの印つきで並びます。スマホでは共有画面にそのまま画像が添付されます。画像を添付できないPCでは、結果の画像を保存してからXの投稿画面を開くので、保存した画像を添付してください。' },
   { id: 75, version: 'α0.1.034', date: '9/25', title: '貸出中のお助けキャラを分かりやすく', body: 'プロフィールの「お気に入り」の一番左は、フレンドに貸し出すお助けキャラです。分かりやすいように黄色の枠と「貸出」のタグを付け、下に「黄色の枠はフレンドに貸し出すお助けキャラです」と説明を入れました。' },
   { id: 74, version: 'α0.1.033', date: '9/25', title: '深淵回廊に「諦める」を追加', body: '深淵回廊で、HPが減ってこれ以上は勝てそうにないときに「諦める」を選べるようにしました。諦めると最後のチェックポイントの次の階からやり直しになり、パーティのHP・SPは全回復、戦闘不能の仲間も復活します。押すと確認の画面が出るので、間違えて押しても大丈夫です。' },
