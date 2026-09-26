@@ -2641,7 +2641,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.041';
+const GAME_VERSION = 'α0.1.042';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9389,95 +9389,129 @@ function gsNoise(A, { type = 'lowpass', f0, f1, q = 1, dur, vol = 0.3, delay = 0
   src.connect(f); f.connect(g); g.connect(A.out);
   src.start(t, Math.random()); src.stop(t + dur + 0.05);
 }
-// ブラス風の和音(のこぎり波を少しずつずらして重ね、こもらせる)
-function gsBrass(A, freqs, { dur, vol = 0.07, delay = 0, lp = 2600 }){
-  freqs.forEach(f => [-9, 0, 9].forEach(dt => gsOsc(A, { type: 'sawtooth', f0: f, dur, vol, delay, atk: 0.03, detune: dt, lp })));
+// 鈴・ガラスのような音(整数倍でない倍音を重ねると電子音っぽさが消える)
+function gsBell(A, { f, dur = 1.2, vol = 0.1, delay = 0 }){
+  [[1, 1], [2.01, 0.45], [2.76, 0.3], [5.4, 0.12], [8.9, 0.05]].forEach(([r, a], k) =>
+    gsOsc(A, { type: 'sine', f0: f * r, dur: dur / (1 + k * 0.6), vol: vol * a, delay, atk: 0.002 }));
 }
-// キラキラ(高い音を少しずつずらして鳴らす)
-function gsSparkle(A, { n = 8, delay = 0, span = 0.5, base = 1800, vol = 0.05 }){
-  for(let k = 0; k < n; k++) gsOsc(A, { type: 'sine', f0: base * Math.pow(2, Math.random() * 1.2), dur: 0.25, vol, delay: delay + Math.random() * span });
+// やわらかい和音(三角波をわずかにずらして重ね、こもらせる。ゆっくり立ち上がる)
+function gsPad(A, freqs, { dur, vol = 0.05, delay = 0, atk = 0.06, lp = 1800 }){
+  freqs.forEach(f => [-7, 7].forEach(dt => gsOsc(A, { type: 'triangle', f0: f, dur, vol, delay, atk, detune: dt, lp })));
+}
+// キラキラ(鈴の音を少しずつずらして鳴らす)
+function gsSparkle(A, { n = 8, delay = 0, span = 0.5, base = 1800, vol = 0.04 }){
+  for(let k = 0; k < n; k++) gsBell(A, { f: base * Math.pow(2, Math.random() * 1.1), dur: 0.5, vol, delay: delay + Math.random() * span });
+}
+// パキパキ: 細かいヒビの音を短い間隔で何回か(高さも間隔もランダム)
+function gsCrackle(A, { n = 6, delay = 0, span = 0.14, lo = 1800, hi = 5200, vol = 0.35 }){
+  let t = delay;
+  for(let k = 0; k < n; k++){
+    gsNoise(A, { type: 'bandpass', f0: lo + Math.random() * (hi - lo), q: 4 + Math.random() * 6, dur: 0.012 + Math.random() * 0.02, vol: vol * (0.6 + Math.random() * 0.4), delay: t, atk: 0.001 });
+    t += span / n * (0.5 + Math.random());
+  }
+}
+// ドン: 低い胴鳴り(サイン波+こもったノイズ)
+function gsThump(A, { f = 90, dur = 0.5, vol = 0.8, delay = 0 }){
+  gsOsc(A, { f0: f * 1.4, f1: f * 0.45, dur, vol, delay, atk: 0.003 });
+  gsNoise(A, { f0: 700, f1: 80, dur: dur * 1.1, vol: vol * 0.7, delay });
 }
 const GACHA_SFX = {
-  // 宝箱の着地: ドスン!
+  // 宝箱の着地: ドスン!(木箱が床に落ちる胴鳴り+床のきしみ)
   land(A){
-    gsOsc(A, { f0: 120, f1: 38, dur: 0.45, vol: 0.9, atk: 0.004 });
-    gsNoise(A, { f0: 900, f1: 90, dur: 0.55, vol: 0.7 });
-    gsNoise(A, { type: 'bandpass', f0: 2500, q: 0.8, dur: 0.06, vol: 0.35 });
-    gsOsc(A, { f0: 55, f1: 45, dur: 0.9, vol: 0.35, delay: 0.05, atk: 0.02 });
+    gsThump(A, { f: 85, dur: 0.55, vol: 0.9 });
+    gsNoise(A, { type: 'bandpass', f0: 420, q: 1.5, dur: 0.18, vol: 0.4, delay: 0.005 });
+    gsCrackle(A, { n: 4, delay: 0.03, span: 0.12, lo: 700, hi: 1800, vol: 0.18 });
+    gsNoise(A, { f0: 160, f1: 60, dur: 0.9, vol: 0.35, delay: 0.06, atk: 0.03 });
   },
-  // 昇格(UP!): キュイーン↑ とキラキラ。level が高いほど派手に
+  // 昇格(UP!): 風が吹き上がる音+鈴の上がっていく和音。level が高いほど派手に
   up(A, level = 1){
-    gsOsc(A, { type: 'sawtooth', f0: 300, f1: 1400 + level * 300, dur: 0.38, vol: 0.12, atk: 0.01, lp: 3200 });
-    gsNoise(A, { type: 'bandpass', f0: 800, f1: 6000, q: 2, dur: 0.4, vol: 0.25 });
-    [0, 4, 7, 12].forEach((s, k) => gsOsc(A, { type: 'triangle', f0: 880 * Math.pow(2, (s + level * 2) / 12), dur: 0.45, vol: 0.12, delay: 0.3 + k * 0.06 }));
-    gsSparkle(A, { n: 10 + level * 4, delay: 0.3, span: 0.6, vol: 0.05 });
+    gsNoise(A, { type: 'bandpass', f0: 400, f1: 5000 + level * 800, q: 1.2, dur: 0.45, vol: 0.35, atk: 0.12 });
+    [0, 4, 7, 12].forEach((s, k) => gsBell(A, { f: 784 * Math.pow(2, (s + level * 2) / 12), dur: 1.0, vol: 0.09, delay: 0.3 + k * 0.07 }));
+    gsSparkle(A, { n: 8 + level * 4, delay: 0.35, span: 0.7 });
   },
-  // 宝箱が開く: ガチャッ → パァァ
+  // 宝箱が開く: ガチャッ(留め金) → 光があふれる音
   chestOpen(A){
-    gsNoise(A, { type: 'bandpass', f0: 1800, q: 3, dur: 0.05, vol: 0.5 });
-    gsOsc(A, { type: 'square', f0: 240, f1: 180, dur: 0.06, vol: 0.12, delay: 0.02 });
-    gsNoise(A, { type: 'bandpass', f0: 300, f1: 5000, q: 1.2, dur: 0.8, vol: 0.3, delay: 0.08, atk: 0.2 });
-    [523, 659, 784, 1047].forEach(f => gsOsc(A, { type: 'triangle', f0: f, dur: 1.1, vol: 0.07, delay: 0.15, atk: 0.12 }));
-    gsSparkle(A, { n: 14, delay: 0.25, span: 0.8 });
+    gsNoise(A, { type: 'bandpass', f0: 1600, q: 5, dur: 0.035, vol: 0.5 });
+    gsNoise(A, { type: 'bandpass', f0: 900, q: 3, dur: 0.05, vol: 0.35, delay: 0.05 });
+    gsNoise(A, { type: 'bandpass', f0: 300, f1: 4500, q: 0.9, dur: 0.9, vol: 0.3, delay: 0.1, atk: 0.3 });
+    gsPad(A, [523, 659, 784], { dur: 1.3, vol: 0.05, delay: 0.15, atk: 0.25 });
+    gsSparkle(A, { n: 12, delay: 0.3, span: 0.9 });
   },
-  // 卵・壺が割れる(★3以下): パリン + 音程つきの「ポン」(note で1音ずつ上がる)
+  // 卵・壺が割れる: パキパキ(ヒビ)→パリッ(殻が割れる)。割るたびに少しずつ明るい音になる
   crack(A, note = 0){
-    gsNoise(A, { type: 'highpass', f0: 3000, dur: 0.09, vol: 0.45 });
-    gsNoise(A, { type: 'bandpass', f0: 4200 + Math.random() * 1500, q: 6, dur: 0.12, vol: 0.3, delay: 0.02 });
-    gsOsc(A, { type: 'triangle', f0: GACHA_SCALE[Math.min(GACHA_SCALE.length - 1, note)], dur: 0.35, vol: 0.18, delay: 0.03 });
-    gsOsc(A, { type: 'sine', f0: GACHA_SCALE[Math.min(GACHA_SCALE.length - 1, note)] * 2, dur: 0.2, vol: 0.06, delay: 0.03 });
+    const up = Math.min(note, 9) * 120;
+    gsCrackle(A, { n: 5, span: 0.1, lo: 1600 + up, hi: 4000 + up, vol: 0.3 });
+    gsNoise(A, { type: 'highpass', f0: 2500 + up, dur: 0.07, vol: 0.4, delay: 0.11 });
+    gsCrackle(A, { n: 4, delay: 0.12, span: 0.08, lo: 2500 + up, hi: 6000 + up, vol: 0.22 });
+    gsNoise(A, { f0: 500, f1: 150, dur: 0.12, vol: 0.18, delay: 0.11 });
+    gsBell(A, { f: GACHA_SCALE[Math.min(GACHA_SCALE.length - 1, note)] * 2, dur: 0.5, vol: 0.025, delay: 0.14 });
   },
-  // ★4の登場: キラーン
+  // ★4の登場: キラーン(風+鈴の和音)
   rare(A){
-    gsNoise(A, { type: 'bandpass', f0: 500, f1: 7000, q: 1.5, dur: 0.35, vol: 0.3 });
-    [659, 831, 988, 1319].forEach((f, k) => gsOsc(A, { type: 'triangle', f0: f, dur: 1.3, vol: 0.12, delay: 0.25 + k * 0.07, atk: 0.01 }));
-    gsOsc(A, { type: 'sine', f0: 2637, dur: 1.2, vol: 0.08, delay: 0.3 });
-    gsSparkle(A, { n: 16, delay: 0.3, span: 1.0, base: 2200 });
+    gsNoise(A, { type: 'bandpass', f0: 500, f1: 6000, q: 1.2, dur: 0.4, vol: 0.3, atk: 0.1 });
+    [659, 831, 988, 1319].forEach((f, k) => gsBell(A, { f, dur: 1.6, vol: 0.09, delay: 0.25 + k * 0.07 }));
+    gsPad(A, [330, 415, 494], { dur: 1.4, vol: 0.035, delay: 0.25, atk: 0.2 });
+    gsSparkle(A, { n: 14, delay: 0.35, span: 1.0, base: 2200 });
   },
-  // ★5のヒビ: ゴゴゴゴ… とピキピキ
+  // ★5のヒビ: ゴゴゴゴ…(地鳴り)とパキパキ
   rumble(A){
-    for(let k = 0; k < 6; k++) gsNoise(A, { f0: 160, f1: 90, dur: 0.3, vol: 0.55, delay: k * 0.18, atk: 0.06 });
-    gsOsc(A, { type: 'sawtooth', f0: 45, f1: 60, dur: 1.2, vol: 0.18, atk: 0.2, lp: 200 });
-    for(let k = 0; k < 7; k++) gsNoise(A, { type: 'highpass', f0: 3500, dur: 0.04, vol: 0.4, delay: 0.15 + k * 0.14 + Math.random() * 0.05 });
+    for(let k = 0; k < 6; k++) gsNoise(A, { f0: 150, f1: 70, dur: 0.32, vol: 0.55, delay: k * 0.18, atk: 0.08 });
+    gsOsc(A, { type: 'sine', f0: 42, f1: 55, dur: 1.2, vol: 0.35, atk: 0.3 });
+    for(let k = 0; k < 4; k++) gsCrackle(A, { n: 4, delay: 0.1 + k * 0.25 + Math.random() * 0.08, span: 0.1, vol: 0.3 });
   },
-  // ★5のシルエット: ドクン、ドクン と上がっていく音
+  // ★5のシルエット: ドクン、ドクン と、吸い込まれるように高まる風の音
   heartbeat(A){
-    [0, 0.2, 0.62, 0.8].forEach(d => gsOsc(A, { f0: 70, f1: 45, dur: 0.18, vol: 0.9, delay: d, atk: 0.005 }));
-    gsNoise(A, { type: 'bandpass', f0: 200, f1: 5000, q: 1.5, dur: 1.3, vol: 0.28, atk: 1.0 });
-    gsOsc(A, { type: 'sawtooth', f0: 110, f1: 880, dur: 1.3, vol: 0.06, atk: 1.0, lp: 2500 });
+    [0, 0.2, 0.62, 0.8].forEach((d, k) => gsThump(A, { f: 60, dur: 0.22, vol: k % 2 ? 0.55 : 0.8, delay: d }));
+    gsNoise(A, { type: 'bandpass', f0: 180, f1: 4500, q: 1.3, dur: 1.3, vol: 0.3, atk: 1.0 });
   },
   // ★5の登場: ドーン! + ファンファーレ(pickup ならもう一段豪華に)
   legend(A, pickup){
-    gsOsc(A, { f0: 90, f1: 30, dur: 1.0, vol: 1.0, atk: 0.003 });
-    gsNoise(A, { f0: 3000, f1: 60, dur: 1.2, vol: 0.8 });
-    gsNoise(A, { type: 'highpass', f0: 6000, dur: 1.8, vol: 0.18, delay: 0.05, atk: 0.01 });   // シンバル
-    // ファンファーレ: タタタ・ターン
+    gsThump(A, { f: 80, dur: 1.1, vol: 1.0 });
+    gsNoise(A, { f0: 2500, f1: 70, dur: 1.2, vol: 0.6 });
+    gsNoise(A, { type: 'highpass', f0: 5500, dur: 2.0, vol: 0.14, delay: 0.04, atk: 0.01 });   // シンバル
     const C = [523, 659, 784];
-    [0, 0.12, 0.24].forEach((d, k) => gsBrass(A, [C[k] / 2, C[k]], { dur: 0.14, delay: 0.25 + d, vol: 0.06 }));
-    gsBrass(A, [262, 523, 659, 784], { dur: 1.6, delay: 0.62, vol: 0.06 });
-    gsSparkle(A, { n: 24, delay: 0.6, span: 1.4, base: 2000, vol: 0.05 });
+    [0, 0.13, 0.26].forEach((d, k) => { gsBell(A, { f: C[k], dur: 0.6, vol: 0.12, delay: 0.25 + d }); gsPad(A, [C[k] / 2], { dur: 0.16, vol: 0.05, delay: 0.25 + d, atk: 0.01 }); });
+    gsPad(A, [262, 392, 523, 659, 784], { dur: 1.9, vol: 0.045, delay: 0.64, atk: 0.04, lp: 2200 });
+    [1047, 1319, 1568, 2093].forEach((f, k) => gsBell(A, { f, dur: 1.8, vol: 0.08, delay: 0.64 + k * 0.05 }));
+    gsSparkle(A, { n: 22, delay: 0.7, span: 1.5, base: 2000 });
     if(pickup){
-      gsBrass(A, [392, 784, 988, 1175], { dur: 1.5, delay: 1.35, vol: 0.055 });
-      [1568, 1976, 2349, 3136].forEach((f, k) => gsOsc(A, { type: 'triangle', f0: f, dur: 0.9, vol: 0.08, delay: 1.35 + k * 0.08 }));
-      gsNoise(A, { type: 'highpass', f0: 5000, dur: 1.6, vol: 0.14, delay: 1.35 });
+      gsPad(A, [392, 494, 587, 784], { dur: 1.7, vol: 0.045, delay: 1.4, atk: 0.05, lp: 2400 });
+      [1568, 1976, 2349, 3136].forEach((f, k) => gsBell(A, { f, dur: 1.4, vol: 0.08, delay: 1.4 + k * 0.08 }));
+      gsNoise(A, { type: 'highpass', f0: 5000, dur: 1.6, vol: 0.12, delay: 1.4 });
     }
   },
-  // ★を刻む: カン!
+  // ★を刻む: カン!(金属を打つ音)
   stamp(A, k = 0){
-    gsNoise(A, { type: 'bandpass', f0: 2500, q: 2, dur: 0.05, vol: 0.4 });
-    gsOsc(A, { type: 'square', f0: 1400 + k * 90, f1: 1000 + k * 90, dur: 0.08, vol: 0.08 });
-    gsOsc(A, { type: 'sine', f0: 2800 + k * 180, dur: 0.35, vol: 0.07 });
+    gsNoise(A, { type: 'bandpass', f0: 3000, q: 2, dur: 0.03, vol: 0.4 });
+    gsBell(A, { f: 1400 * Math.pow(2, k / 12 * 2), dur: 0.5, vol: 0.1 });
+    gsThump(A, { f: 140, dur: 0.12, vol: 0.25 });
   },
   // 結果画面: ジャン!
   result(A){
-    [523, 659, 784, 1047].forEach((f, k) => gsOsc(A, { type: 'triangle', f0: f, dur: 0.25, vol: 0.12, delay: k * 0.06 }));
-    gsBrass(A, [523, 659, 784, 1047], { dur: 0.7, delay: 0.26, vol: 0.045 });
+    [523, 659, 784, 1047].forEach((f, k) => gsBell(A, { f, dur: 0.8, vol: 0.09, delay: k * 0.06 }));
+    gsPad(A, [262, 523, 659, 784], { dur: 0.9, vol: 0.04, delay: 0.24, atk: 0.02 });
   },
 };
+// 残響(部屋の響き): 作ったノイズを徐々に小さくして響きに使う
+function gsReverb(ctx){
+  if(ctx.__rev) return ctx.__rev;
+  const len = Math.floor(ctx.sampleRate * 1.6);
+  const ir = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = ir.getChannelData(0);
+  for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const conv = ctx.createConvolver(); conv.buffer = ir;
+  const wet = ctx.createGain(); wet.gain.value = 0.28;
+  conv.connect(wet);
+  ctx.__rev = { input: conv, output: wet };
+  return ctx.__rev;
+}
 // 音ごとの音量の揃え(合成した音の大きさがばらつくので、聞こえ方が同じくらいになるよう補正)
-const GACHA_SFX_GAIN = { land: 1, up: 2.4, chestOpen: 2.6, crack: 1.1, rare: 1.8, rumble: 1.4, heartbeat: 1, legend: 1, stamp: 1.3, result: 2.4 };
+const GACHA_SFX_GAIN = { land: 1.3, up: 1.6, chestOpen: 2.2, crack: 1.1, rare: 1.2, rumble: 1.8, heartbeat: 1, legend: 1.1, stamp: 1.2, result: 2.0 };
 function gachaSfxPlay(ctx, out, name, arg, t){
   const g = ctx.createGain(); g.gain.value = GACHA_SFX_GAIN[name] || 1; g.connect(out);
+  const rev = gsReverb(ctx);
+  if(!rev.connectedTo || rev.connectedTo !== out){ rev.output.connect(out); rev.connectedTo = out; }
+  g.connect(rev.input);
   GACHA_SFX[name]({ ctx, out: g, t }, arg);
 }
 // ゲーム内で鳴らす: 効果音OFFなら鳴らさない。うるさくなりすぎないようコンプレッサーを通す
@@ -15771,6 +15805,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 83, version: 'α0.1.042', date: '9/26', title: 'ガチャの効果音を自然な響きに', body: 'ガチャの効果音から電子音っぽさを減らしました。ピコピコした音をやめ、鈴やガラスのような響きと、部屋の残響をつけています。卵や壺が割れる音は、細かいヒビが走る「パキパキ」→殻が割れる「パリッ」になりました。' },
   { id: 82, version: 'α0.1.041', date: '9/26', title: 'ガチャの効果音を派手に', body: 'ガチャの効果音をすべて作り直しました。宝箱が落ちる「ドスン!」、昇格の「キュイーン↑」、フタが開く音、卵や壺が割れる「パリン」(割るたびに音程が上がります)、★4の「キラーン」、★5のヒビの地鳴り、シルエットの心音、登場の「ドーン!」とファンファーレ、★を刻む「カン!」、結果画面の「ジャン!」です。ピックアップの★5はファンファーレがもう一段豪華になります。効果音はOFFにもできます。' },
   { id: 81, version: 'α0.1.040', date: '9/26', title: '遺物ガチャ(壺)も新しい演出に', body: '遺物ガチャも、キャラのガチャと同じ演出になりました。宝箱がドスンと降ってきて色で予告(昇格あり)、壺はタップで1つずつ割れ、★3以下は「まとめて開く」、★4は紫・★5は金の予兆、★5はヒビ→シルエット→登場の3段階です。いまのピックアップキャラの専用遺物が出たときは、宝箱が虹色になり、「PICK UP!」の帯が流れる専用の登場演出になります。また、割った直後に「NEW」が中身より先に見えていたのを直しました。' },
   { id: 80, version: 'α0.1.039', date: '9/26', title: 'ガチャの予告を宝箱の色に', body: '召喚のときの予告を、魔法陣から宝箱の色に変えました。宝箱が上からドスン!と降ってきて、その色が今回いちばん高いレア度の予告です(青: ★3以下、紫: ★4、金: ★5、虹色: ピックアップの★5)。ときどき宝箱が跳ねて「UP!」と色が上がる昇格演出が入り、最後の色になってからフタが開いて卵が飛び出します。' },
