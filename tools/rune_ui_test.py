@@ -23,7 +23,7 @@ async def main():
             pg.on('pageerror', lambda e: errs.append(str(e)))
             await pg.goto(url); await pg.wait_for_timeout(900)
             await start_as_guest(pg)
-            await pg.evaluate("""() => { clearGuideToast(); STATE.announceQueue = []; STATE.gold = 1e7; STATE.runeDust = 5000;
+            await pg.evaluate("""() => { clearGuideToast(); STATE.announceQueue = []; STATE.gold = 1e7; STATE.runeDust = 5000; STATE.guidesSeen = Object.assign(STATE.guidesSeen || {}, { monsterDetail: true });
               STATE.clearedStages = STAGES.filter(s => ['tu','q1'].includes(s.tier)).map(s => s.id);
               const mains = Object.keys(RUNE_STATS);
               for(let i = 0; i < 21; i++) addRune(makeRune(1 + (i % 6), i % 5, mains[i % mains.length]));
@@ -82,6 +82,19 @@ async def main():
             dtabs = await pg.evaluate("() => [...document.querySelectorAll('[data-dungeon-tab]')].map(b => b.dataset.dungeonTab)")
             check('育成クエストは EXP・ゴールド・ルーン採掘', dtabs == ['exp', 'gold', 'rune'], dtabs)
             await pg.evaluate("() => document.querySelector('[data-dungeon-tab=\"rune\"]').click()"); await pg.wait_for_timeout(200)
+            # 初めて開いたらノッカーのチュートリアル(絵つき)
+            gt = await pg.evaluate("() => { const g = document.querySelector('#guide-toast.show'); return g ? [g.querySelector('.guide-name').textContent, g.querySelectorAll('.guide-visual .rune-ic').length] : null; }")
+            check('初めてルーン採掘を開くとノッカーの説明(ルーンの絵つき)', gt is not None and 'ノッカー' in gt[0] and gt[1] >= 3, gt)
+            await pg.screenshot(path=str(OUT / 'rune_guide1.png'))
+            pages = []
+            for k in range(6):
+                pages.append(await pg.evaluate("() => document.querySelectorAll('#guide-toast .guide-visual .rune-ic').length"))
+                if k == 1: await pg.screenshot(path=str(OUT / 'rune_guide2.png'))
+                if k == 4: await pg.screenshot(path=str(OUT / 'rune_guide5.png'))
+                await pg.evaluate("() => document.querySelector('[data-guide-next]').click()"); await pg.wait_for_timeout(120)
+            check('6ページ(効果・レア度・Tier・合成の絵)で、最後まで読むと閉じる', pages[:5] == [3, 7, 5, 5, 4] and await pg.locator('#guide-toast.show').count() == 0, pages)
+            await pg.evaluate("() => { document.querySelector('[data-dungeon-tab=\"exp\"]').click(); document.querySelector('[data-dungeon-tab=\"rune\"]').click(); }"); await pg.wait_for_timeout(200)
+            check('2回目は出ない', await pg.locator('#guide-toast.show').count() == 0)
             check('ルーン採掘は7段階', await pg.locator('#screen .stage-card.dungeon').count() == 7)
             await pg.screenshot(path=str(OUT / 'rune_mine.png'))
             await pg.evaluate("() => { while(STATE.runes.length < RUNE_MAX) STATE.runes.push(makeRune(1, 0)); render(); document.querySelector('[data-stage=\"dg_rune_0\"]').click(); }"); await pg.wait_for_timeout(250)

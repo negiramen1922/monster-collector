@@ -2439,6 +2439,13 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rb-rars{ display:flex; gap:6px; margin:10px 0; }
 .rb-rars .rf-chip{ flex:1; justify-content:center; padding:8px 0; font-size:13px; }
 .rb-sum{ text-align:center; font-size:16px; font-weight:900; margin:6px 0 10px; }
+.guide-visual{ margin:6px 0 4px; }
+.guide-visual .rune-ic{ width:40px; height:40px; }
+.gv-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.gv-fuse b{ color:var(--gold); font-size:16px; }
+.gv-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:4px 6px; }
+.gv-item{ display:flex; flex-direction:column; align-items:center; gap:1px; }
+.gv-item small{ font-size:10px; font-weight:800; color:var(--dim); }
 .rune-gain{ margin-top:10px; }
 .rune-gain .rg-head{ font-size:12px; font-weight:900; margin-bottom:6px; }
 .rune-gain .rg-full{ color:#ff6b6b; font-size:11px; margin-left:8px; }
@@ -4607,7 +4614,7 @@ function normalizeState(){
   if(!STATE.guidesSeen) STATE.guidesSeen = {};
   delete STATE.formation;
   delete STATE.party;
-  ensureRunes();
+  migrateLegacyRunes();
   if(!(STATE.pvpAttackRelicsFrom >= 0 && STATE.pvpAttackRelicsFrom < FORMATION_SETS)) STATE.pvpAttackRelicsFrom = 0;
   if(!(STATE.pvpDefenseRelicsFrom >= 0 && STATE.pvpDefenseRelicsFrom < FORMATION_SETS)) STATE.pvpDefenseRelicsFrom = 0;
   ensureFormations();
@@ -6255,15 +6262,23 @@ function ensureRunes(){
   if(!Array.isArray(STATE.runes)) STATE.runes = [];
   if(!(STATE.runeSeq > 0)) STATE.runeSeq = 0;
   if(!(STATE.runeDust >= 0)) STATE.runeDust = 0;
-  // 強化レベルがあった頃のルーン: レベルを外し、サブ効果はレア度の数まで
-  STATE.runes.forEach(r => {
-    if(r.lv !== undefined || r.spent !== undefined){ delete r.lv; delete r.spent; }
-    if(r.tier > RUNE_TIERS) r.tier = RUNE_TIERS;
-    r.subs = (r.subs || []).slice(0, RUNE_RARITIES[r.rarity].subs);
-    // 以前のサブ効果(値そのものを持っていた)は、当たり具合を真ん中にそろえる
-    r.subs.forEach(x => { if(!(x.q >= 0 && x.q <= 1)){ x.q = 0.5; delete x.val; delete x.rolls; } });
-  });
   return STATE.runes;
+}
+// α0.1.063〜064で一時的に出したルーン(仕様が大きく変わった)は、分解の2倍のルーンの粉に換えて1回だけ知らせる。
+// 装備は編成の読み込み(sanitizeFormationRunes)で自然に外れる
+const RUNE_SPEC_VER = 2;
+function migrateLegacyRunes(){
+  ensureRunes();
+  if(STATE.runeSpecVer === RUNE_SPEC_VER) return;
+  const old = STATE.runes.filter(r => r && RUNE_STATS[r.main]);
+  if(old.length){
+    const dust = old.reduce((a, r) => a + Math.min(RUNE_TIERS, r.tier | 0 || 1) * (2 + (r.rarity | 0) * 2) * 2, 0);
+    STATE.runes = [];
+    STATE.runeDust += dust;
+    queueAnnouncement({ kind: 'notice', key: 'rune_legacy', icon: '💎', title: 'ルーンをルーンの粉に交換しました',
+      body: `ルーンの仕様を見直したため、以前に手に入れたルーン${old.length}個は、分解したときの2倍のルーンの粉(✨${dust.toLocaleString()})に交換しました。装備していた分は外れています。` });
+  }else STATE.runes = [];
+  STATE.runeSpecVer = RUNE_SPEC_VER;
 }
 function runeByUid(uid){ return uid ? ensureRunes().find(r => r.uid === uid) || null : null; }
 function runeFull(){ return ensureRunes().length >= RUNE_MAX; }
@@ -7927,7 +7942,8 @@ function renderTierChests(key, stars){
 /* ---- guide mascots: small friendly monsters that narrate onboarding ---- */
 const MASCOTS = {
   hinoko: { id: 'm129', name: 'ヒノコ' },   // battle tutorial (energetic, tu1-3)
-  hanoko: { id: 'm86',  name: 'ハノコ' },   // monster detail screen (caring)
+  hanoko: { id: 'm86',  name: 'ハノコ' },
+  knocker: { id: 'm48', name: 'ノッカー' }, // ルーン採掘の案内(鉱山の妖精)   // monster detail screen (caring)
   ketsy:  { id: 'm55',  name: 'ケットシー' }, // welcome message, missions (gentlemanly)
   pixie:  { id: 'm133', name: 'ピクシー' }, // relic dex screen (cheerful)
   anubis: { id: 'm149', name: 'アヌビス' }, // 深淵回廊の門番(落ち着いた口調)
@@ -11981,6 +11997,12 @@ function maybeAbyssGuide(){
   if(currentScreen !== 'battle' || stageTab !== 'abyss' || !abyssUnlocked()) return;
   if(STATE.guidesSeen && STATE.guidesSeen.abyss) return;
   openGuideToast('anubis', GUIDE_CONTENT.abyss.steps, { key: 'abyss', doneLabel: 'いざ深淵へ' });
+}
+// ルーン採掘を初めて開いたときだけ、鉱山の妖精ノッカーがルーンの見方を絵つきで説明する
+function maybeRuneGuide(){
+  if(currentScreen !== 'battle' || stageTab !== 'dungeon' || dungeonTab !== 'rune') return;
+  if(STATE.guidesSeen && STATE.guidesSeen.runeMine) return;
+  openGuideToast('knocker', GUIDE_CONTENT.runeMine.steps, { key: 'runeMine', doneLabel: '掘りに行く' });
 }
 // 遊んだステージがどのメニューのものか(戦闘のあとにそのメニューへ戻るため)
 function stageTabOf(stage){
@@ -16230,6 +16252,7 @@ function handlePhoneClick(ev){
     else if(navEl.classList.contains('nav-btn') && navEl.dataset.nav === 'battle') stageTab = 'menu';
     goto(navEl.dataset.nav, { nav: navEl.classList.contains('nav-btn') });
     maybeAbyssGuide();
+    maybeRuneGuide();
     return;
   }
 
@@ -16518,7 +16541,7 @@ function handlePhoneClick(ev){
   const crystalBuyEl = t.closest('[data-crystal-buy]');
   if(crystalBuyEl){ buyCrystalItem(crystalBuyEl.dataset.crystalBuy); return; }
   const dtabEl = t.closest('[data-dungeon-tab]');
-  if(dtabEl){ dungeonTab = dtabEl.dataset.dungeonTab; render(); return; }
+  if(dtabEl){ dungeonTab = dtabEl.dataset.dungeonTab; render(); maybeRuneGuide(); return; }
   if(t.closest('[data-open-bag]')){ bagSelect = null; bagTicket = null; renderBag(); return; }
   if(t.closest('[data-close-bag]')){ bagSelect = null; bagTicket = null; closeModal(); render(); return; }
   const boxEl = t.closest('[data-open-box]');
@@ -16839,7 +16862,7 @@ function handlePhoneClick(ev){
     const tab = tabEl.dataset.stageTab;
     if(tab !== 'main' && tab !== 'menu' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
     if(tab === 'pvp'){ goto('pvp'); return; }   // PVPは別の画面(戻ると探索のメニューへ)
-    stageTab = tab; render(); maybeAbyssGuide(); return;
+    stageTab = tab; render(); maybeAbyssGuide(); maybeRuneGuide(); return;
   }
   const gachaBannerEl = t.closest('[data-gacha-banner]');
   if(gachaBannerEl){ gachaBannerKey = gachaBannerEl.dataset.gachaBanner; render(); return; }
@@ -17221,7 +17244,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'ルーンを見直して戻しました。①Tier(Ⅰ〜Ⅹ)ごとの伸びをゆるやかにし、1つ上がるごとにほぼ同じ幅で強くなるようにしました(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。②合成は「土台のルーン + 同じTier・同じタイプのルーン2個」で、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、サブ効果の値もTierに合わせて伸びます(材料のレア度は問いません)。タイプは攻撃型(STR・SPD・会心率・会心倍率)と防御型(HP・物理防御・魔法防御)の2つです。③ルーン採掘を7段階にし、極上級10クリアで開く段階(推奨Lv200)を追加しました。採掘ではTierⅦまで出て、Ⅷ〜Ⅹは合成で作れます。育成クエストの「素材ダンジョン」は「ルーン採掘」になります。' },
+  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'はじめてルーン採掘を開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。ルーンを見直して戻しました。①Tier(Ⅰ〜Ⅹ)ごとの伸びをゆるやかにし、1つ上がるごとにほぼ同じ幅で強くなるようにしました(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。②合成は「土台のルーン + 同じTier・同じタイプのルーン2個」で、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、サブ効果の値もTierに合わせて伸びます(材料のレア度は問いません)。タイプは攻撃型(STR・SPD・会心率・会心倍率)と防御型(HP・物理防御・魔法防御)の2つです。③ルーン採掘を7段階にし、極上級10クリアで開く段階(推奨Lv200)を追加しました。採掘ではTierⅦまで出て、Ⅷ〜Ⅹは合成で作れます。育成クエストの「素材ダンジョン」は「ルーン採掘」になります。' },
   { id: 106, version: 'α0.1.065', date: '9/26', title: 'ルーンをいったんお休み', body: 'ルーンは仕様を見直すため、いったん取り下げました。育成クエストは「素材ダンジョン」に戻っています。すでに手に入れたルーンは消えずにデータに残っていて、ルーンが戻ったときにまた使えます。' },
   { id: 105, version: 'α0.1.064', date: '9/26', title: 'ルーンは「合成」でTierを上げる形に', body: 'ルーンの強化レベル(+1〜+12)をなくしました。代わりに、同じ効果・同じTierのルーンを3つ合成すると、Tierが1つ上がります(最大Ⅹ)。合成後のレア度は3つの平均(切り捨て)になり、サブ効果はそのレア度の数で付け直しになります。1つ目に選んだルーンが残るので、装備中のルーンもそのまま合成できます(材料の2つは、装備中・ロック中のものは使えません)。ルーン採掘ではⅥまで出て、Ⅶ〜Ⅹは合成で作れます。これまでに強化したルーンは、強化レベルが外れます。' },
   { id: 104, version: 'α0.1.063', date: '9/26', title: 'ルーンが登場', body: 'キャラを強化する「ルーン」を追加しました。1キャラに4つまで付けられ(枠ごとの縛りなし)、編成ごとに装備します(同じ編成の中では1つのルーンを1体にだけ。別の編成なら同じルーンを使えます)。形はレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色は効果(HP・STR・物理防御・魔法防御・SPD・会心率・会心倍率)、中の数字はTier(Ⅰ〜Ⅵ)です。Tierは数値の大きさ、レア度は最初に付いているサブ効果の数(0〜4)で、強化+3ごとにサブ効果が増えるか伸びます。ルーンの粉とゴールドで強化(最大+12)、いらないルーンは分解して粉にできます(所持は200個まで)。育成クエストの「素材ダンジョン」は「ルーン採掘」(6段階)に変わりました。育成素材はメインクエストのドロップ・錬金術・育成素材BOXで集められます。' },
@@ -18406,7 +18429,24 @@ async function startGame(){
 }
 
 /* ---- mascot guides: multi-step tips pinned above the nav bar, can spotlight a screen element ---- */
+// ルーンの説明に使う見本(実物と同じ絵で見せる)
+function runeGuideSample(tier, rarity, main){ return runeIconHtml({ tier, rarity, main, subs: [], lock: false }, { used: false }); }
 const GUIDE_CONTENT = {
+  runeMine: {
+    steps: [
+      { title: 'ルーン採掘へようこそ', visual: () => `<div class="gv-row">${runeGuideSample(1, 0, 'atk')}${runeGuideSample(3, 2, 'hp')}${runeGuideSample(5, 4, 'critDmg')}</div>`,
+        body: 'おいらはノッカー、この鉱山の案内役さ。ここではキャラを強くする<b>ルーン</b>が掘れるよ。1キャラに<b>4つ</b>まで付けられて、編成ごとに付け替えられるんだ。' },
+      { title: '色は「効果」', visual: () => `<div class="gv-grid">${['atk', 'spd', 'critRate', 'critDmg', 'hp', 'pdef', 'mdef'].map(k => `<span class="gv-item">${runeGuideSample(2, 1, k)}<small style="color:${RUNE_STATS[k].color}">${RUNE_STATS[k].label}</small></span>`).join('')}</div>`,
+        body: '宝石の色で効果がわかるよ。<b>攻撃型</b>はSTR・SPD・会心率・会心倍率、<b>防御型</b>はHP・物理防御・魔法防御の2タイプだ。' },
+      { title: '形は「レア度」', visual: () => `<div class="gv-row">${RUNE_RARITIES.map((x, i) => `<span class="gv-item">${runeGuideSample(3, i, 'mdef')}<small>${x.label}</small></span>`).join('')}</div>`,
+        body: '白はひし形、青は四角、紫は五角形、金は六角形、虹は八角形。レア度が高いほど<b>サブ効果</b>がたくさん付く(0〜4つ)。虹が出たら大当たりさ!' },
+      { title: '数字は「Tier」', visual: () => `<div class="gv-row">${[1, 3, 5, 7, 10].map(t => `<span class="gv-item">${runeGuideSample(t, 3, 'atk')}<small>Tier${RUNE_ROMAN[t - 1]}</small></span>`).join('')}</div>`,
+        body: '真ん中のローマ数字がTierで、効果の大きさだよ。この採掘は<b>段階がそのままTier</b>。メインクエストを進めると深い段階が開いて、Ⅶまで掘れるようになる。' },
+      { title: '合成でTierを上げる', visual: () => `<div class="gv-row gv-fuse">${runeGuideSample(3, 4, 'atk')}<b>+</b>${runeGuideSample(3, 0, 'spd')}${runeGuideSample(3, 1, 'critRate')}<b>→</b>${runeGuideSample(4, 4, 'atk')}</div>`,
+        body: 'お気に入りのルーンに、<b>同じTier・同じタイプ</b>のルーンを2つ合成すると、Tierが1つ上がる。レア度とサブ効果はそのまま残って、数値が伸びるんだ。Ⅷ〜Ⅹは合成でしか作れないよ。' },
+      { title: 'さあ掘りに行こう', body: '手に入れたルーンは キャラ → <b>ルーン</b> で見られるし、キャラ詳細の「ルーン」枠から付けられる。いらないルーンは分解すると<b>ルーンの粉</b>になって、合成に使えるよ。持てるのは200個までだから気をつけてな!' },
+    ],
+  },
   welcome: {
     steps: [
       { title: 'ようこそ', body: 'ようこそ、Monstercollectへ旅の方。Monstercollect(モンコレ)では、さまざまなモンスターを収集することをお楽しみいただけますよ。' },
@@ -18471,6 +18511,7 @@ function renderGuideToastStep(){
       <div class="guide-banner-body">
         <div class="guide-name">${mascot.name}${st.steps.length > 1 ? `<span class="guide-page">${st.step + 1} / ${st.steps.length}</span>` : ''}</div>
         ${s.title ? `<div class="guide-title">${s.title}</div>` : ''}
+        ${s.visual ? `<div class="guide-visual">${typeof s.visual === 'function' ? s.visual() : s.visual}</div>` : ''}
         <p>${s.body}</p>
         <div class="guide-nav">
           ${st.step > 0 ? '<button class="btn btn-sm btn-ghost" data-guide-back="1">戻る</button>' : '<span></span>'}

@@ -40,10 +40,16 @@ ok('TierⅩは最大(合成できない)', E.RUNE_TIERS === 10 && !E.fuseRunes(t
 const L = E.addRune(E.makeRune(4, 1, 'mdef')), l1 = E.addRune(E.makeRune(4, 1, 'hp')), l2 = E.addRune(E.makeRune(4, 1, 'pdef'));
 l2.lock = true;
 ok('ロック中は材料にできない', !E.fuseRunes(L.uid, [l1.uid, l2.uid]).ok && E.runeFuseMaterials(L).length === 1);
-// 以前のセーブ(強化レベル・サブの値そのもの)は読み込みで直す
-S().runes = [{ uid: 'rx', tier: 2, rarity: 1, main: 'hp', lv: 9, spent: 40, subs: [{ stat: 'atk', val: 3, rolls: 1 }, { stat: 'spd', val: 1, rolls: 1 }], lock: false }];
-E.ensureRunes();
-ok('以前の強化レベルは外れ、サブ効果はレア度の数まで・当たり具合は真ん中', S().runes[0].lv === undefined && S().runes[0].subs.length === 1 && S().runes[0].subs[0].q === 0.5);
+// α0.1.063〜064のルーン(旧仕様)は、分解の2倍の粉に交換して1回だけ知らせる
+S().runes = [{ uid: 'rx', tier: 2, rarity: 1, main: 'hp', lv: 9, spent: 40, subs: [{ stat: 'atk', val: 3, rolls: 1 }], lock: false },
+             { uid: 'ry', tier: 6, rarity: 4, main: 'atk', subs: [], lock: true }];
+S().formations[0].runes = { m06: ['rx', 'ry', null, null] };
+delete S().runeSpecVer; S().runeDust = 100; S().announceQueue = [];
+E.normalizeState();
+ok('旧仕様のルーンは粉に交換(2×(2×4 + 6×10) = 136)', S().runes.length === 0 && S().runeDust === 100 + 2 * (2 * 4 + 6 * 10), S().runeDust);
+ok('装備は外れ、お知らせが1件', !S().formations[0].runes.m06 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
+S().runes = [E.makeRune(1, 0)]; E.normalizeState();
+ok('交換は1回だけ(新しいルーンは残る)', S().runes.length === 1 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
 
 // 装備: 編成ごと、同じ編成の中では1体だけ
 S().runes = []; S().formations.forEach(f => f.runes = {});
