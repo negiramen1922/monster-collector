@@ -43,6 +43,11 @@ async def main():
             check('Tierで絞り込める', await pg.locator('.alchemy-modal [data-alc-pick]').count() == 9)
             await pg.evaluate("() => document.querySelector('[data-alc-fam2=\"ro\"]').click()"); await pg.wait_for_timeout(150)
             check('種類(欠片・魂・証)を切り替えられる', await pg.locator('.alchemy-modal [data-alc-pick]').count() == 5)
+            tops = []
+            for fam in ['el', 'ro', 'sp']:
+                await pg.evaluate(f"() => document.querySelector('[data-alc-fam2=\"{fam}\"]').click()"); await pg.wait_for_timeout(120)
+                tops.append(await pg.evaluate("() => Math.round(document.querySelector('.alchemy-modal').getBoundingClientRect().top)"))
+            check('種類を切り替えても画面の上の位置が動かない(上揃い)', len(set(tops)) == 1, tops)
             await pg.evaluate("() => document.querySelector('[data-alc-close]').click()"); await pg.wait_for_timeout(150)
             check('戻ると拠点', await pg.evaluate("() => !alchemyUI && currentScreen === 'base'"))
             check('JSエラーなし', not errs, errs[:3])

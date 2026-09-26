@@ -65,14 +65,22 @@ async def main():
             check('EXPポットも入手手段つきで開ける', 'EXPポット' in t2 and 'EXPダンジョン' in t2)
             # --- 使うアイテム: 詳細画面の「使う」で、まとめて使える ---
             await pg.evaluate("() => { itemDetail = null; addItem('box_rnd_1', 5); addItem('box_sel_2', 3); bagTab = 'other'; bagScrollSaved = 0; renderBag(); }"); await pg.wait_for_timeout(200)
+            tops = []
+            for tab in ['grow', 'mat', 'other']:
+                await pg.evaluate(f"() => document.querySelector('[data-bag-tab=\"{tab}\"]').click()"); await pg.wait_for_timeout(120)
+                tops.append(await pg.evaluate("() => Math.round(document.querySelector('.bag-modal').getBoundingClientRect().top)"))
+            check('持ち物のタブを切り替えても上の位置が動かない(上揃い)', len(set(tops)) == 1, tops)
             check('BOXは押すと詳細(使うボタンはマスに無い)', await pg.locator('.bag-cell[data-item-detail="box_rnd_1"]').count() == 1 and await pg.locator('[data-open-box]').count() == 0)
             await pg.evaluate("() => document.querySelector('.bag-cell[data-item-detail=\"box_rnd_1\"]').click()"); await pg.wait_for_timeout(200)
             before = await pg.evaluate("() => Object.entries(STATE.items).filter(([k]) => /^(el|sp|ro)_.*_1$/.test(k)).reduce((a, [, n]) => a + n, 0)")
             await pg.evaluate("() => { document.querySelector('[data-id-qty=\"1\"]').click(); document.querySelector('[data-id-qty=\"1\"]').click(); }"); await pg.wait_for_timeout(100)
+            t0 = await pg.evaluate("() => Math.round(document.querySelector('.item-detail').getBoundingClientRect().top)")
             await pg.evaluate("() => document.querySelector('[data-id-use]').click()"); await pg.wait_for_timeout(200)
+            check('使って中身が増えてもアイテム詳細の上の位置が動かない', t0 == await pg.evaluate("() => Math.round(document.querySelector('.item-detail').getBoundingClientRect().top)"))
             after = await pg.evaluate("() => Object.entries(STATE.items).filter(([k]) => /^(el|sp|ro)_.*_1$/.test(k)).reduce((a, [, n]) => a + n, 0)")
             check('ランダムBOXを3個まとめて使える(TierI×20×3)', await pg.evaluate("() => getItem('box_rnd_1')") == 2 and after - before == 60, [after - before])
-            check('受け取った物が詳細に表示される', '✓' in await pg.locator('.id-got').inner_text())
+            got = await pg.locator('.id-got').inner_text()
+            check('ランダムBOXは中身を並べず合計だけ', '合計60個' in got and got.count('×') == 0, got)
             await pg.screenshot(path=str(OUT / 'item_use.png'))
             await pg.evaluate("() => { document.querySelector('[data-item-detail-close]').click(); }"); await pg.wait_for_timeout(200)
             await pg.evaluate("() => document.querySelector('.bag-cell[data-item-detail=\"box_sel_2\"]').click()"); await pg.wait_for_timeout(200)

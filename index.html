@@ -406,7 +406,11 @@ body{
 .bc-ic{ font-size:22px; line-height:1.1; }
 .bc-ic img.ico{ width:22px !important; height:22px !important; }
 .bc-name{ font-size:8.5px; font-weight:800; margin-top:4px; line-height:1.3; }
-.bc-n{ position:absolute; right:6px; bottom:5px; font-size:9px; font-weight:800; color:var(--gold); }
+/* 所持数はアイコンの右下に重ねて出す */
+.bc-ic{ position:relative; display:inline-block; }
+.bag-cell .bc-name{ margin-top:8px; }
+.bc-n{ position:absolute; right:-12px; bottom:-8px; font-size:10px; font-weight:900; line-height:1; color:#fff; white-space:nowrap;
+  text-shadow:0 0 2px #000, 0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000; font-variant-numeric:tabular-nums; }
 .bc-tiers{ display:flex; justify-content:center; flex-wrap:wrap; gap:3px; margin-top:4px; font-size:8px; color:var(--gold); }
 .bc-tiers .off{ color:var(--dim2); opacity:.6; }
 .bag-note{ font-size:10.5px; color:var(--dim); margin-top:9px; }
@@ -729,6 +733,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   z-index:50;
   padding:24px;
 }
+/* 中身が変わる画面(持ち物・錬金術・アイテム詳細・スキル強化・キャラ詳細・遺物・ステージ詳細など)は上揃いで固定する。
+   真ん中揃えだと中身の高さが変わるたびに上の位置がずれて、押そうとした所が動いてしまうため */
+#modal-layer:has(> .bag-modal, > .item-detail, > .skill-up-modal, > .detail-modal, > .relic-picker-modal, > .relic-upgrade-modal, > .relic-detail-modal, > .stage-sheet, > .sweep-modal, > .unit-modal){ align-items:flex-start; }
+#modal-layer > .bag-modal{ height:100%; }
 #modal-layer.show{ display:flex; }
 .result-modal{
   width:100%;
@@ -2732,7 +2740,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.054';
+const GAME_VERSION = 'α0.1.056';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -8123,7 +8131,13 @@ function openItemDetail(key, back){
 }
 // 持ち物から使えるアイテム(BOX・スタミナの実・時渡りの砂・選択券)
 function itemUsable(key){ return !!(STAMINA_ITEMS[key] || IDLE_ITEMS[key] || /^box_(sel|rnd)_[1-4]$/.test(key) || MON_TICKET_RE.test(key)); }
-function gotText(got){
+function gotText(got, key){
+  // ランダムBOXは中身が多いので、1つずつ並べずTierごとの合計だけ出す(中身は持ち物で確認)
+  if(key && /^box_rnd_/.test(key)){
+    const byTier = {};
+    Object.entries(got).forEach(([k, n]) => { const m = parseMat(k); if(m) byTier[m.tier] = (byTier[m.tier] || 0) + n; });
+    return Object.entries(byTier).map(([t, n]) => `育成素材 Tier${TIER_LABEL[t]} を合計${n}個(ランダム)受け取りました`).join('、');
+  }
   return Object.entries(got).filter(([, n]) => n > 0).map(([k, n]) => k === 'gold' ? `ゴールド${n.toLocaleString()}` : k === 'stamina' ? `スタミナ+${n}` : `${itemName(k)}×${n}`).join('、');
 }
 // n個まとめて使う。選択BOXは (fam, kind) を渡す。受け取った物を {key: 個数} で返す
@@ -8197,7 +8211,7 @@ function itemDetailUse(){
   if(MON_TICKET_RE.test(key)){ itemDetail = null; bagTicket = { key, elem: '' }; bagSelect = null; renderBag(); return; }
   if(/^box_sel_/.test(key)){ d.choose = true; renderItemDetail(); return; }
   const got = useItemN(key, d.qty);
-  const txt = gotText(got);
+  const txt = gotText(got, key);
   d.got = txt || (IDLE_ITEMS[key] ? '受け取れる施設がまだありません' : '');
   d.qty = 1;
   playSfx(STAMINA_ITEMS[key] || IDLE_ITEMS[key] ? 'buff' : 'confirm');
@@ -8252,7 +8266,7 @@ function renderAlchemy(){
   const cells = fam.kinds().flatMap(k => tiers.map(t => {
     const key = matKey(a.fam, k, t), can = craftMax(a.fam, k, t);
     return `<div class="bag-cell tier-t${t} ${a.pick === key ? 'picked' : ''} ${can ? '' : 'dim'}" data-alc-pick="${key}" role="button">
-        <div class="bc-ic">${itemIcon(key)}</div><div class="bc-name">${fam.name(k)}</div><div class="bc-n">×${getItem(key)}</div>
+        <div class="bc-ic">${itemIcon(key)}<span class="bc-n">×${getItem(key)}</span></div><div class="bc-name">${fam.name(k)}</div>
         ${can ? `<span class="alc-can">${can}</span>` : ''}
       </div>`;
   })).join('');
@@ -8332,7 +8346,7 @@ function renderBag(){
 
   const cell = (icon, name, n, title, key) =>
     `<div class="bag-cell ${n ? '' : 'empty'} ${key && EXP_POT_VALUE[key] ? `tier-t${key.slice(3)}` : ''}" title="${title || name}" ${key ? `data-item-detail="${key}" role="button"` : ''}>
-       <div class="bc-ic">${icon}</div><div class="bc-name">${name}</div><div class="bc-n">\u00d7${n}</div>
+       <div class="bc-ic">${icon}<span class="bc-n">\u00d7${n}</span></div><div class="bc-name">${name}</div>
      </div>`;
 
   let chooser = '';
@@ -8394,7 +8408,7 @@ function renderBag(){
       const key = matKey(fam, k, t), n = getItem(key);
       if(bagOwnedOnly && !n) return '';
       return `<div class="bag-cell tier-t${t} ${n ? '' : 'empty'}" title="${itemName(key)}" data-item-detail="${key}" role="button">
-          <div class="bc-ic">${itemIcon(key)}</div><div class="bc-name">${MAT_FAMILIES[fam].name(k)}</div><div class="bc-n">\u00d7${n}</div>
+          <div class="bc-ic">${itemIcon(key)}<span class="bc-n">\u00d7${n}</span></div><div class="bc-name">${MAT_FAMILIES[fam].name(k)}</div>
         </div>`;
     };
     body = `
@@ -8413,7 +8427,7 @@ function renderBag(){
         <div class="bag-grid">${list.map(k => {
           const tier = (/_([1-4])$/.exec(k) || [])[1] || (k === 'idle_1' ? 1 : k === 'idle_3' ? 2 : k === 'idle_12' ? 3 : 0);
           return `<div class="bag-cell ${tier ? `tier-t${tier}` : ''}" title="${itemName(k)}" data-item-detail="${k}" role="button">
-            <div class="bc-ic">${itemIcon(k)}</div><div class="bc-name">${itemName(k)}</div><div class="bc-n">\u00d7${getItem(k)}</div></div>`;
+            <div class="bc-ic">${itemIcon(k)}<span class="bc-n">\u00d7${getItem(k)}</span></div><div class="bc-name">${itemName(k)}</div></div>`;
         }).join('')}</div>` : '').join('') || '<div class="soul-none">\u3042\u308a\u307e\u305b\u3093</div>'}
       <div class="bag-note">押すと詳しい説明と入手方法が見られます。使うときは詳細画面の「使う」から(まとめて使えます)</div>`;
   }
@@ -16370,6 +16384,8 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 97, version: 'α0.1.056', date: '9/26', title: '画面の位置がずれないように', body: '持ち物・錬金術・アイテム詳細・スキル強化・キャラ詳細・遺物・ステージ詳細などの画面を、上揃いで固定しました。これまではタブを切り替えたりアイテムを使ったりして中身の量が変わるたびに、画面の上の位置がずれて押しにくくなっていました。持ち物と錬金術の画面は高さも固定しています。また、ランダムBOXを使ったときは、出た素材を1つずつ並べず「TierIを合計60個」のように合計だけを表示するようにしました。' },
+  { id: 96, version: 'α0.1.055', date: '9/26', title: '持ち物の所持数をアイコンの右下に', body: '持ち物と錬金術の画面で、アイテムの所持数(×N)をアイコンの右下に重ねて表示するようにしました。' },
   { id: 95, version: 'α0.1.054', date: '9/26', title: '持ち物のアイテムを詳細画面から使えるように', body: '育成素材BOX・スタミナの実・時渡りの砂・キャラ選択券などは、押すと詳細画面が開き、そこの「使う」で使うようにしました。個数を選んで(−・＋・最大)まとめて使えます。選択BOXは、まとめて使ったぶんを1種類の素材で受け取れます。受け取った物は詳細画面に表示されます。また、アイテムを使ったり、詳細画面から戻ったり、絞り込みを変えたりしたときに、持ち物や錬金術の画面が一番上までスクロールで戻ってしまう問題を直しました。' },
   { id: 94, version: 'α0.1.053', date: '9/26', title: '錬金術を専用の画面に', body: '拠点の錬金術がごちゃごちゃしていたので、拠点には「錬金術」のボタンだけを置くようにしました。押すと錬金術の画面が開き、作りたい素材(TierII〜IV)を一覧から選ぶと、作るのに何がいくつ必要か(下位Tierの素材とゴールド)が表示されます。個数を選んで「作る」で合成できます。今作れる数は素材の左上に緑の数字で出ます。種類(欠片・魂・証)とTierで絞り込めます。' },
   { id: 93, version: 'α0.1.052', date: '9/26', title: '持ち物の素材をTierごとに表示', body: '持ち物の「素材」タブで、育成素材をTierごとに別のアイテムとして並べるようにしました。縁の色でTierが分かります(Tier I=灰、II=青、III=紫、IV=金)。上のボタンでTierごとに絞り込めて、「所持のみ」で持っている素材だけを表示できます。押すとそのTierのアイテム詳細が開きます。' },
