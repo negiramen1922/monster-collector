@@ -87,7 +87,7 @@ async def main():
             check('全部割れたら「結果を見る」', await pg.locator('[data-gacha-result]').count() == 1)
             check('カットインから戻るとBGMは小さい音に戻る', await pg.evaluate("() => bgm.duck") == 0.15)
             await pg.screenshot(path=str(OUT / 'gacha_7_all.png'))
-            check('全部割れたら「タップして割る」は消える', (await pg.locator('.reveal-call').inner_text()).strip() == '')
+            check('全部割れたら「タップして結果へ」に変わる', 'タップして結果へ' in await pg.locator('.reveal-call').inner_text())
             await pg.evaluate("() => { window.__flashes = 0; const o = gachaFlash; window.gachaFlash = k => { window.__flashes++; o(k); }; document.querySelector('[data-gacha-result]').click(); }")
             await pg.wait_for_timeout(200)
             check('結果へは白いフラッシュではなくフェードアウト', await pg.evaluate("() => window.__flashes === 0 && !!document.querySelector('.gacha-stage.fade-out')"))
@@ -107,6 +107,14 @@ async def main():
             check('単発には「まとめて開く」を出さない', await pg.locator('[data-gacha-openall]').count() == 0 and await pg.locator('[data-egg-open]').count() == 1)
             await pg.evaluate("() => document.querySelector('[data-egg-open]').click()"); await pg.wait_for_timeout(1400)
             check('単発もタップで割れて「結果を見る」', await pg.locator('[data-gacha-result]').count() == 1)
+            await pg.evaluate("() => document.querySelector('.reveal-grid').click()"); await pg.wait_for_timeout(900)
+            check('全部割れたら、結果を見るを押さなくても画面タップで結果へ', await pg.locator('.gacha-result').count() == 1)
+            await pg.evaluate("() => closeModal()"); await pg.wait_for_timeout(200)
+            await pg.mouse.click(30, 300); await pg.wait_for_timeout(120)
+            check('どこをタップしても青いキラキラが出る', await pg.locator('.tap-fx .tap-star').count() >= 5)
+            await pg.screenshot(path=str(OUT / 'gacha_12_tapfx.png'))
+            await pg.wait_for_timeout(1200)
+            check('キラキラはすぐ消える(残り続けない)', await pg.locator('.tap-fx').count() == 0)
             # --- 第2弾: 宝箱の色の予告と昇格 ---
             await pg.evaluate("""() => { closeModal(); const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
               const pu = MON_BY_ID[currentBanner().pickup];
