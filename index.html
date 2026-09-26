@@ -2366,7 +2366,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .explore-tabs .stage-tab{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; font-size:14px; padding:11px 14px; }
 .explore-tabs .et-icon{ font-size:17px; width:22px; text-align:center; flex:none; }
 .explore-tabs .stage-tab{ padding:14px; font-size:15px; color:var(--text); }
-.explore-tabs .et-icon{ font-size:22px; width:30px; }
+.explore-tabs .et-icon{ position:relative; width:52px; height:52px; margin:-6px 0; border-radius:12px; background:var(--panel3); overflow:hidden; }
+.explore-tabs .et-icon img{ width:100%; height:100%; object-fit:cover; object-position:50% 20%; }
+.explore-tabs .locked .et-icon img{ filter:grayscale(1) brightness(.55); }
+.explore-tabs .et-lock{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:18px; }
 .explore-tabs .et-label{ flex:1; min-width:0; }
 .explore-tabs .et-label small{ display:block; font-size:11px; font-weight:600; color:var(--dim); margin-top:3px; }
 .explore-tabs .et-badge{ font-size:12px; flex:none; }
@@ -2746,7 +2749,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.059';
+const GAME_VERSION = 'α0.1.060';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -11234,12 +11237,21 @@ function renderParty(){
 // 探索画面: 'menu' は4つのメニュー(メインクエスト/育成クエスト/深淵回廊/イベント)を並べた入口
 let stageTab = 'menu';
 const EXPLORE_MENU = [
-  { key: 'main', icon: '🗺️', label: 'メインクエスト', sub: 'ストーリーを進めて新しい地域へ' },
-  { key: 'dungeon', icon: '🌱', label: '育成クエスト', sub: 'EXP・ゴールド・スキル素材を集める' },
-  { key: 'abyss', icon: '🌀', label: '深淵回廊', sub: 'スタミナ不要・2週間ごとにリセット' },
-  { key: 'event', icon: '🎪', label: 'イベント', sub: '期間限定のステージ' },
-  { key: 'pvp', icon: '🏆', label: 'PVP', sub: 'ほかのプレイヤーの防衛編成と戦う' },
+  { key: 'main', mon: 'm129', label: 'メインクエスト', sub: 'ストーリーを進めて新しい地域へ' },    // ヒノコ
+  { key: 'dungeon', mon: 'm86', label: '育成クエスト', sub: 'EXP・ゴールド・スキル素材を集める' },  // ハノコ
+  { key: 'abyss', mon: 'm149', label: '深淵回廊', sub: 'スタミナ不要・2週間ごとにリセット' },     // アヌビス(門番)
+  { key: 'event', mon: null, label: 'イベント', sub: '期間限定のステージ' },                     // 開催中イベントのキャラからランダム
+  { key: 'pvp', mon: 'm05', label: 'PVP', sub: 'ほかのプレイヤーの防衛編成と戦う' },             // シルバーナイト
 ];
+// イベントの顔は開催中イベントのキャラから1体を選び、画面を描き直すたびに変わらないよう覚えておく
+let exploreEventMon = null;
+function exploreMenuMon(t){
+  if(t.key !== 'event') return t.mon;
+  const pool = [...new Set(activeEvents().flatMap(ev => [ev.pickup, ...(ev.featured || [])]))].filter(id => id && MON_BY_ID[id]);
+  if(!pool.length) return 'm133'; // 開催中のイベントがないときはピクシー
+  if(!pool.includes(exploreEventMon)) exploreEventMon = pool[Math.floor(Math.random() * pool.length)];
+  return exploreEventMon;
+}
 // 深淵回廊を初めて開いたときだけ、門番のアヌビスが遊び方を説明する
 function maybeAbyssGuide(){
   if(currentScreen !== 'battle' || stageTab !== 'abyss' || !abyssUnlocked()) return;
@@ -11498,7 +11510,7 @@ function renderBattleSelect(){
         const badge = t.key === 'event' && evCount ? `🔥${evCount}` : '';
         const sub = t.key === 'abyss' && !open ? '上級をクリアすると解放' : t.key === 'event' && !evCount ? '開催中のイベントはありません' : t.sub;
         return `<button class="stage-tab ${open ? '' : 'locked'}" data-stage-tab="${t.key}">
-          <span class="et-icon">${open ? t.icon : '🔒'}</span><span class="et-label">${t.label}<small>${sub}</small></span>${badge ? `<span class="et-badge">${badge}</span>` : ''}<span class="et-arrow">›</span></button>`;
+          <span class="et-icon"><img src="${imgSrc(exploreMenuMon(t))}" alt="" draggable="false">${open ? '' : '<span class="et-lock">🔒</span>'}</span><span class="et-label">${t.label}<small>${sub}</small></span>${badge ? `<span class="et-badge">${badge}</span>` : ''}<span class="et-arrow">›</span></button>`;
       }).join('')}
     </div>` : ''}
     ${stageTab === 'event' ? renderEventTab() : ''}
@@ -16423,6 +16435,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 101, version: 'α0.1.060', date: '9/26', title: '探索メニューにキャラの絵', body: '探索のメニュー(メインクエスト・育成クエスト・深淵回廊・イベント・PVP)の絵文字アイコンを、キャラの絵に変えました。深淵回廊は門番のアヌビス、イベントは開催中のイベントのキャラからランダムで1体が出ます。' },
   { id: 100, version: 'α0.1.059', date: '9/26', title: '下のメニューを5つに整理', body: '下のメニューが多すぎたので、「ガチャ・キャラ・ホーム・探索・拠点」の5つにまとめました。「キャラ」の中は画面上のタブで「編成・キャラ一覧・遺物」を切り替えられます(押すと最初は編成)。「拠点」の中は「施設・ショップ」のタブです。PVPは「探索」のメニューの一番下から入れます。' },
   { id: 99, version: 'α0.1.058', date: '9/26', title: '下のメニューに「キャラ」と「ショップ」を追加', body: '下のメニューを見直しました。編成の左に「キャラ」を追加し、これまでの図鑑(持っているキャラの一覧・並び替え・絞り込み・★上げ)をここから開けるようにしました。また、拠点の中にあったショップを分けて、拠点の右に「ショップ」を追加しました。' },
   { id: 98, version: 'α0.1.057', date: '9/26', title: '1つ前の画面に戻るボタン', body: '画面の中のボタンから別の画面に移ったとき(編成から図鑑、拠点からショップ、プロフィールから図鑑、アイテム詳細の「移動」など)に、左上に「‹ 〇〇に戻る」ボタンを出すようにしました。押すと1つ前の画面に戻ります(プロフィールなどから移ったときは、その画面も元に戻ります)。下のメニューや左右スワイプで画面を切り替えたときは出ません。' },
