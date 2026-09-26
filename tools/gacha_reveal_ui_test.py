@@ -20,7 +20,13 @@ SETUP = """() => {
   const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
   const rs = [1, 2, 3, 3, 4, 2, 5, 3, 1, 2].map(r => pullOneForced(pick(r)));
   showGachaEggs(rs, before);
+  gachaSeq.fake = rs.map(() => false);   // 卵の昇格(ランダム)はこのテストでは起こさない
 }"""
+
+async def wait_reveal(pg):
+    for _ in range(60):
+        if await pg.evaluate("() => gachaSeq && gachaSeq.phase") == 'reveal': return
+        await pg.wait_for_timeout(100)
 
 async def main():
     with game_url() as url:
@@ -37,7 +43,7 @@ async def main():
             check('召喚の演出から始まる', await ph() == 'summon')
             chest_cls = await pg.evaluate("() => [...document.querySelectorAll('.fly-egg')].map(e => e.className)")
             check('飛び出す卵はどれも同じ色(レア度がバレない)', all('egg-blue' in c and 'egg-rainbow' not in c and 'egg-gold' not in c for c in chest_cls))
-            await pg.wait_for_timeout(2300)
+            await wait_reveal(pg)
             check('卵が並んだら止まる', await ph() == 'reveal')
             await pg.wait_for_timeout(1500)
             check('放っておいても勝手に割れない', await pg.evaluate("() => gachaSeq.open.every(o => !o)"))
@@ -78,17 +84,48 @@ async def main():
             await pg.evaluate("() => document.querySelector('[data-gacha-result]').click()"); await pg.wait_for_timeout(900)
             check('結果画面へ', await pg.locator('.gacha-result').count() == 1 and await pg.evaluate("() => !gachaSeq"))
             # スキップ: ★5があればそのカットインだけ見せて結果へ
-            await pg.evaluate(SETUP); await pg.wait_for_timeout(2300)
+            await pg.evaluate(SETUP); await wait_reveal(pg)
             await pg.evaluate("() => document.querySelector('[data-gacha-skip]').click()"); await pg.wait_for_timeout(300)
             check('スキップすると★5のカットインだけ見せる', await ph() == 'legend')
             await pg.evaluate("() => document.querySelector('[data-gacha-stage]').click()"); await pg.wait_for_timeout(900)
             check('タップで結果画面へ', await pg.locator('.gacha-result').count() == 1)
             # 単発
             await pg.evaluate("() => { closeModal(); const before = { universal: STATE.universalSouls, points: STATE.summonPoints }; showGachaEggs([pullOneForced(MONSTERS.find(m => m.rarity === 2))], before); }")
-            await pg.wait_for_timeout(2300)
+            await wait_reveal(pg)
             check('単発には「まとめて開く」を出さない', await pg.locator('[data-gacha-openall]').count() == 0 and await pg.locator('[data-egg-open]').count() == 1)
             await pg.evaluate("() => document.querySelector('[data-egg-open]').click()"); await pg.wait_for_timeout(1400)
             check('単発もタップで割れて「結果を見る」', await pg.locator('[data-gacha-result]').count() == 1)
+            # --- 第2弾: 召喚陣の予告と昇格 ---
+            await pg.evaluate("""() => { closeModal(); const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
+              const pu = MON_BY_ID[currentBanner().pickup];
+              const rs = [pullOneForced(pu), ...Array.from({ length: 9 }, () => pullOneForced(MONSTERS.find(m => m.rarity === 2)))];
+              const R = Math.random; Math.random = () => 0; showGachaEggs(rs, before); Math.random = R; }""")
+            steps = await pg.evaluate("() => gachaSeq.steps")
+            check('ピックアップ★5なら召喚陣は最後に虹、低い色から昇格していく', steps[-1] == 'rainbow' and len(steps) >= 2, steps)
+            check('最初は低い色', await pg.evaluate("() => document.querySelector('.chest-wrap').classList.contains('sc-' + gachaSeq.steps[0])"))
+            await pg.wait_for_timeout(950)
+            await pg.screenshot(path=str(OUT / 'gacha_8_up.png'))
+            check('昇格すると色が変わり UP! が出る', await pg.evaluate("() => document.querySelector('.chest-wrap').classList.contains('sc-' + gachaSeq.steps[1]) && document.querySelector('.summon-up.show') !== null"))
+            await wait_reveal(pg)
+            check('ピックアップの★5の卵は(昇格なしなら)金の予兆', 'hint' in await pg.evaluate("() => document.querySelectorAll('.reveal-grid .egg-slot')[0].className"))
+            await pg.evaluate("() => { gachaSeq.fake[0] = false; document.querySelector('[data-egg-open=\"0\"]').click(); }")
+            await pg.wait_for_timeout(2600)
+            check('ピックアップ★5は虹色の専用カットインと流れる帯', await pg.evaluate("() => gachaSeq.phase === 'legend' && !!document.querySelector('.cut-stage.legend.pickup .pickup-band')"))
+            await pg.wait_for_timeout(1400)
+            await pg.screenshot(path=str(OUT / 'gacha_9_pickup.png'))
+            # 卵の昇格: 紫の予兆の★5
+            await pg.evaluate(SETUP); await pg.evaluate("() => { gachaSeq.fake[6] = true; }"); await wait_reveal(pg)
+            c6 = await pg.evaluate("() => document.querySelectorAll('.reveal-grid .egg-slot')[6].className")
+            check('昇格する★5の卵は紫の予兆で並ぶ(★4と見分けがつかない)', 'hint4' in c6 and 'hint5' not in c6, c6)
+            await pg.evaluate("() => document.querySelector('[data-egg-open=\"6\"]').click()"); await pg.wait_for_timeout(300)
+            check('割ると紫→金に昇格するヒビ演出', await pg.locator('.egg-slot.crack5.crack-up').count() == 1)
+            await pg.wait_for_timeout(450)
+            await pg.screenshot(path=str(OUT / 'gacha_10_crackup.png'))
+            # 召喚陣は本当の結果より上の色にならない(★3以下なら必ず青)
+            low = await pg.evaluate("""() => { closeModal(); const out = new Set(); const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
+              const rs = Array.from({ length: 10 }, () => pullOneForced(MONSTERS.find(m => m.rarity === 3)));
+              for(let k = 0; k < 30; k++) summonSteps('mon', rs).forEach(c => out.add(c)); return [...out]; }""")
+            check('★3以下しかなければ召喚陣は必ず青', low == ['blue'], low)
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')

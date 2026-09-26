@@ -825,6 +825,46 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .cut-mon.sil-mon{ width:232px; height:232px; filter:brightness(0) drop-shadow(0 0 3px #fff) drop-shadow(0 0 16px rgba(255,220,120,.9)); animation:sil-in 1.3s ease-out; }
 @keyframes sil-in{ 0%{ opacity:0; transform:scale(.6); } 40%{ opacity:1; } 100%{ transform:scale(1.05); } }
 .sil-text{ font-size:26px; color:#ffe06a; margin-top:8px; animation:flash .5s ease-in-out infinite; }
+/* 召喚陣: 色が最高レア度の予告(青/紫/金/虹)。昇格するとUP!が出て色が変わる */
+.chest-wrap{ --sc:#5aa6e8; --sc2:rgba(90,166,232,.55); }
+.chest-wrap.sc-purple{ --sc:#b36cf0; --sc2:rgba(179,108,240,.6); }
+.chest-wrap.sc-gold{ --sc:#ffd45e; --sc2:rgba(255,212,94,.7); }
+.chest-wrap.sc-rainbow{ --sc:#fff; --sc2:rgba(255,200,240,.75); }
+.chest-wrap .chest-glow{ background:radial-gradient(circle, var(--sc2), rgba(0,0,0,0) 68%); transition:background .3s; }
+.chest-wrap .chest-ring{ border-color:var(--sc); opacity:.6; }
+.summon-circle{ position:absolute; left:50%; bottom:22px; width:300px; height:80px; margin-left:-150px; border-radius:50%;
+  border:3px solid var(--sc); box-shadow:0 0 22px var(--sc2), inset 0 0 22px var(--sc2); transition:border-color .3s, box-shadow .3s;
+  animation:circle-pulse 1s ease-in-out infinite; }
+.summon-circle i{ position:absolute; inset:10px 30px; border-radius:50%; border:2px dashed var(--sc); opacity:.8; animation:spinslow 4s linear infinite; }
+.summon-circle i:nth-child(2){ inset:22px 70px; animation-direction:reverse; animation-duration:3s; }
+.summon-circle i:nth-child(3){ inset:-14px -20px; border-style:dotted; opacity:.5; animation-duration:7s; }
+@keyframes circle-pulse{ 0%,100%{ transform:scale(.97); } 50%{ transform:scale(1.04); } }
+.chest-wrap.sc-rainbow .summon-circle{ border-color:transparent; background:
+  conic-gradient(from 0deg, #ff8fd0, #ffe06a, #7ee07a, #6fb7ff, #c79bff, #ff8fd0) border-box;
+  -webkit-mask:radial-gradient(ellipse, transparent 62%, #000 64%); mask:radial-gradient(ellipse, transparent 62%, #000 64%); animation:circle-pulse .6s ease-in-out infinite; }
+.chest-wrap.sc-rainbow .chest-glow{ background:radial-gradient(circle, rgba(255,255,255,.9), rgba(255,143,208,.5) 35%, rgba(111,183,255,.25) 55%, rgba(0,0,0,0) 70%); }
+.summon-up{ position:absolute; left:0; right:0; top:40px; text-align:center; font-size:30px; color:var(--sc); opacity:0;
+  text-shadow:0 0 14px var(--sc2), 0 2px 0 #000; pointer-events:none; }
+.summon-up.show{ animation:up-pop .9s cubic-bezier(.2,1.6,.4,1) forwards; }
+@keyframes up-pop{ 0%{ opacity:0; transform:scale(2.6); } 25%{ opacity:1; transform:scale(1); } 75%{ opacity:1; transform:translateY(-6px); } 100%{ opacity:0; transform:translateY(-22px); } }
+/* 紫の予兆だった★5: ヒビの途中で紫→金に昇格 */
+.reveal-grid .egg-slot.crack5.crack-up .egg-svg{ animation:egg-violent .12s linear infinite, crack-up-col 1.15s linear forwards !important; }
+@keyframes crack-up-col{ 0%,50%{ filter:drop-shadow(0 0 14px rgba(200,140,255,1)) brightness(1.1); } 55%{ filter:drop-shadow(0 0 30px #fff) brightness(2.2); } 100%{ filter:drop-shadow(0 0 16px rgba(255,220,110,1)) brightness(1.3); } }
+.reveal-grid .egg-slot.crack5.crack-up::after{ animation:crack-rays-up 1.15s ease-in forwards; }
+@keyframes crack-rays-up{ 0%{ opacity:0; transform:scale(.4); filter:hue-rotate(-90deg) saturate(1.6); } 50%{ opacity:.6; filter:hue-rotate(-90deg) saturate(1.6); }
+  56%{ opacity:1; transform:scale(1.3); filter:none; } 100%{ opacity:1; transform:scale(1.5) rotate(90deg); } }
+/* ピックアップの★5: 虹色の背景と流れる帯 */
+.cut-stage.silhouette.pickup .sil-glow{ background:radial-gradient(circle, rgba(255,255,255,.7), rgba(255,143,208,.35) 35%, rgba(111,183,255,.2) 52%, rgba(0,0,0,0) 70%); }
+.cut-stage.legend.pickup{ background:radial-gradient(circle at 50% 46%, #ffffff 0%, #ffe6f6 14%, #ffb3de 28%, #b58cff 46%, #5a8fff 64%, #1a1640 100%); }
+.cut-stage.legend.pickup .cut-rays{ background:repeating-conic-gradient(from 0deg, rgba(255,255,255,.7) 0deg 4deg, rgba(255,255,255,0) 4deg 12deg); opacity:.6; }
+.pickup-band{ position:absolute; left:-10%; right:-10%; height:30px; overflow:hidden; white-space:nowrap; transform:rotate(-6deg); z-index:1;
+  background:linear-gradient(90deg,#ff4f7a,#ffb23f,#ffe06a,#ff4f7a); box-shadow:0 0 16px rgba(255,120,120,.7); }
+.pickup-band.band-top{ top:12%; }
+.pickup-band.band-bottom{ bottom:14%; transform:rotate(-6deg); }
+.pickup-band span{ display:inline-block; font-weight:900; font-size:14px; line-height:30px; color:#fff; letter-spacing:.08em;
+  text-shadow:0 1px 2px rgba(0,0,0,.5); animation:band-scroll 5s linear infinite; }
+.pickup-band.band-bottom span{ animation-direction:reverse; }
+@keyframes band-scroll{ from{ transform:translateX(0); } to{ transform:translateX(-33%); } }
 /* ★4 / ★5 cut-ins */
 .cut-pickup{ display:inline-block; font-size:13px; color:#fff; background:linear-gradient(90deg,#ff4f7a,#ffb23f); padding:4px 14px; border-radius:6px;
   margin-bottom:10px; box-shadow:0 0 16px rgba(255,120,120,.8); animation:pickup-in .5s cubic-bezier(.2,1.6,.4,1) .3s backwards; }
@@ -873,6 +913,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .cut-sub{ font-size:11px; color:rgba(255,255,255,.85); margin-top:6px; }
 .cut-tap{ position:absolute; left:0; right:0; bottom:26px; text-align:center; font-size:10.5px;
   color:rgba(255,255,255,.8); animation:flash 1.2s ease-in-out infinite; }
+.gacha-flash.soft{ background:radial-gradient(circle closest-side at 50% 45%, rgba(255,255,255,.95) 0%, rgba(255,240,200,.6) 45%, rgba(255,220,160,0) 100%); }
+.gacha-flash.soft.rainbow::after{ -webkit-mask:radial-gradient(circle closest-side, #000 30%, transparent 100%); mask:radial-gradient(circle closest-side, #000 30%, transparent 100%); }
 .gacha-flash.white{ background:radial-gradient(circle at 50% 45%, #ffffff 0%, #fff7e4 55%, #ffe9c0 100%); }
 
 .egg-slot{ position:relative; width:100%; max-width:120px; aspect-ratio:10/13; display:flex; align-items:center; justify-content:center; }
@@ -2594,7 +2636,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.037';
+const GAME_VERSION = 'α0.1.038';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9141,14 +9183,40 @@ function pullBannerTitle(kind){
   return MON_BY_ID[currentBanner().pickup].name;
 }
 
+/* ---- 第2弾: 召喚陣の予告・昇格演出・ピックアップ演出 ----
+   召喚陣の色 = 今回いちばん高いレア度の予告(青: ★3以下 / 紫: ★4 / 金: ★5 / 虹: ピックアップの★5)。
+   色は本当の結果より上になることはない(ぬか喜びさせない)が、低い色から始まって途中で「昇格」することがある。
+   卵も同じで、★5の卵がたまに紫の予兆で並び、割るときに金へ昇格する。 */
+const SUMMON_COLORS = ['blue', 'purple', 'gold', 'rainbow'];
+const SUMMON_UPGRADE_CHANCE = { 4: 0.3, 5: 0.45 };   // 召喚陣が1段(以上)低い色から始まる確率
+const SUMMON_UPGRADE_TWO = 0.35;                     // ★5で昇格するとき、青から2段上がる割合
+const EGG_UPGRADE_CHANCE = 0.25;                     // ★5の卵が紫の予兆で並ぶ確率
+const SUMMON_STEP_MS = 750;
+function isPickupResult(kind, r){ return kind !== 'relic' && !!r.mon && isPickupMon(r.mon); }
+function summonTarget(kind, results){
+  const top = Math.max(...results.map(r => pullRarity(kind, r)));
+  if(top >= 5) return results.some(r => pullRarity(kind, r) >= 5 && isPickupResult(kind, r)) ? 3 : 2;
+  return top === 4 ? 1 : 0;
+}
+// 召喚陣の色の段階(例: ['blue', 'purple', 'gold'])
+function summonSteps(kind, results){
+  const target = summonTarget(kind, results);
+  const top = Math.max(...results.map(r => pullRarity(kind, r)));
+  let start = target;
+  if(target >= 1 && Math.random() < (SUMMON_UPGRADE_CHANCE[Math.min(5, top)] || 0)){
+    start = target - 1;
+    if(target >= 2 && Math.random() < SUMMON_UPGRADE_TWO) start = Math.max(0, target - 2);
+  }
+  return SUMMON_COLORS.slice(start, target + 1);
+}
 // 卵(壺)の見た目: 閉じている間はどれも同じ色。レア度は「予兆」(★4は紫の光、★5は金の光と揺れ)でだけ見せる
-function eggHint(rarity){ return rarity >= 5 ? 'hint5' : rarity === 4 ? 'hint4' : ''; }
+function eggHint(rarity, fake){ return rarity >= 5 ? (fake ? 'hint4' : 'hint5') : rarity === 4 ? 'hint4' : ''; }
 function eggFace(r, i, state, kind){
   // state: 'egg' (closed) | 'open'
   const rarity = pullRarity(kind, r);
   const closed = state === 'egg';
   return `
-    <div class="egg-slot egg-blue ${closed ? `closed ${eggHint(rarity)}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目を割る"` : ''}>
+    <div class="egg-slot egg-blue ${closed ? `closed ${eggHint(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目を割る"` : ''}>
       ${closed && rarity >= 4 ? '<span class="egg-aura"></span>' : ''}
       ${kind === 'relic' ? jarSvg(1) : (eggArt(1) || eggSvg(1))}
       ${pullIconHtml(kind, r, 'egg-mon')}
@@ -9157,10 +9225,13 @@ function eggFace(r, i, state, kind){
     </div>`;
 }
 function gachaChestHtml(n){
+  const col = gachaSeq.steps ? gachaSeq.steps[gachaSeq.stepAt || 0] : 'blue';
   return `
-    <div class="chest-wrap">
+    <div class="chest-wrap sc-${col}">
+      <div class="summon-circle"><i></i><i></i><i></i></div>
       <div class="chest-glow"></div>
       <div class="chest-ring"></div>
+      <div class="summon-up pixel">UP!</div>
       <div class="chest">
         <div class="chest-lid"></div>
         <div class="chest-box"><span class="chest-lock"></span></div>
@@ -9181,9 +9252,11 @@ function cutInHtml(r, phaseKind, kind){
   const name = kind === 'relic' ? r.def.name : r.mon.name;
   const extra = kind === 'relic' ? '' : `・${ELEM_LABEL[r.mon.element]}／${ROLE_LABEL[r.mon.role]}`;
   const legend = phaseKind === 'legend';
-  const pickup = kind !== 'relic' && r.pickupBonus;
+  const pickup = isPickupResult(kind, r);
   return `
-    <div class="cut-stage ${phaseKind}">
+    <div class="cut-stage ${phaseKind} ${pickup && legend ? 'pickup' : ''}">
+      ${pickup && legend ? `<div class="pickup-band band-top"><span>PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name}</span></div>
+      <div class="pickup-band band-bottom"><span>PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name} PICK UP! ${currentBanner().name}</span></div>` : ''}
       <div class="cut-rays"></div>
       ${legend ? confettiHtml(46) : ''}
       <div class="cut-body">
@@ -9198,9 +9271,9 @@ function cutInHtml(r, phaseKind, kind){
     </div>`;
 }
 // ★5の2段目: 暗転してシルエットだけ見せる
-function silhouetteHtml(r, kind){
+function silhouetteHtml(r, kind, pickup){
   return `
-    <div class="cut-stage silhouette">
+    <div class="cut-stage silhouette ${pickup ? 'pickup' : ''}">
       <div class="sil-glow"></div>
       <div class="cut-body">${pullIconHtml(kind, r, 'cut-mon sil-mon')}<div class="sil-text pixel">!?</div></div>
     </div>`;
@@ -9233,7 +9306,7 @@ function renderGachaStage(){
   }else if(g.phase === 'rare' || g.phase === 'legend'){
     inner = cutInHtml(g.results[g.cut], g.phase, g.kind);
   }else if(g.phase === 'silhouette'){
-    inner = silhouetteHtml(g.results[g.cut], g.kind);
+    inner = silhouetteHtml(g.results[g.cut], g.kind, isPickupResult(g.kind, g.results[g.cut]));
   }else{
     inner = `
       <div class="reveal-head">${revealHeadHtml(g)}</div>
@@ -9246,7 +9319,7 @@ function renderGachaStage(){
   layer.classList.add('show');
   if(g.phase === 'crack'){
     const slot = layer.querySelectorAll('.egg-slot')[g.cut];
-    if(slot) slot.classList.add('crack5');
+    if(slot) slot.classList.add('crack5', ...(g.fake && g.fake[g.cut] ? ['crack-up'] : []));
   }
 }
 // 画面の中の卵だけを書き換える(割っている途中の卵のアニメを消さないよう、全体は描き直さない)
@@ -9298,14 +9371,37 @@ const GACHA_SCALE = [523, 587, 659, 698, 784, 880, 988, 1047, 1175, 1319];   // 
 
 function showGachaEggs(results, before, kind){
   clearTimeout(gachaTimer);
-  gachaSeq = { results, before, phase: 'summon', open: results.map(() => false), cut: null, kind: kind || 'mon', notes: 0 };
+  const k = kind || 'mon';
+  const steps = summonSteps(k, results);
+  const fake = results.map(r => pullRarity(k, r) >= 5 && Math.random() < EGG_UPGRADE_CHANCE);
+  gachaSeq = { results, before, phase: 'summon', open: results.map(() => false), cut: null, kind: k, notes: 0, steps, stepAt: 0, fake };
   renderGachaStage();
   playSfx('open');
+  const seq = gachaSeq;
+  // 召喚陣の昇格: 途中で色が1段ずつ上がる
+  for(let n = 1; n < steps.length; n++){
+    setTimeout(() => { if(gachaSeq === seq && seq.phase === 'summon') upgradeSummon(n); }, 900 + (n - 1) * SUMMON_STEP_MS);
+  }
   gachaTimer = setTimeout(() => {
     if(!gachaSeq || gachaSeq.phase !== 'summon') return;
     gachaSeq.phase = 'reveal';
     renderGachaStage();
-  }, 1900);
+  }, 1900 + (steps.length - 1) * SUMMON_STEP_MS);
+}
+function upgradeSummon(n){
+  const g = gachaSeq;
+  const wrap = document.querySelector('.chest-wrap');
+  if(!g || !wrap) return;
+  g.stepAt = n;
+  SUMMON_COLORS.forEach(c => wrap.classList.remove(`sc-${c}`));
+  wrap.classList.add(`sc-${g.steps[n]}`);
+  const up = wrap.querySelector('.summon-up');
+  if(up){ up.classList.remove('show'); void up.offsetWidth; up.classList.add('show'); }
+  gachaFlash(g.steps[n] === 'rainbow' ? 'rainbow soft' : 'soft');
+  gachaShake(false);
+  gachaVibrate(n === g.steps.length - 1 && g.steps[n] !== 'purple' ? [120, 60, 160] : 70);
+  playSfx(g.steps[n] === 'purple' ? 'confirm' : 'boss');
+  gachaTone(g.steps[n] === 'purple' ? [587, 740, 880] : [659, 831, 988, 1319], 0.5, 'triangle', 0.09);
 }
 // 1つ割る。★5は3段階(ヒビ→シルエット→カットイン)、★4は割れたあとカットイン(タップで戻る)
 function openEgg(i){
@@ -9322,7 +9418,7 @@ function openEgg(i){
     clearTimeout(gachaTimer);
     gachaTimer = setTimeout(() => {
       if(!gachaSeq || gachaSeq.phase !== 'reveal') return;
-      gachaFlash('');
+      gachaFlash('soft');
       gachaSeq.phase = 'rare'; gachaSeq.cut = i; renderGachaStage();
       gachaTone([659, 831, 988], 0.6, 'triangle', 0.09);
     }, 1050);
@@ -9350,6 +9446,16 @@ function startLegend(i){
   playSfx('boss');
   gachaVibrate([70, 60, 70, 60, 70]);
   gachaTone([196, 247], 1.0, 'sawtooth', 0.05);
+  // 紫の予兆だった★5の卵: 揺れの途中で金に昇格する
+  if(g.fake && g.fake[i]){
+    setTimeout(() => {
+      if(!gachaSeq || gachaSeq.phase !== 'crack') return;
+      gachaFlash('soft');
+      gachaShake(false);
+      gachaVibrate(120);
+      gachaTone([659, 831, 988, 1319], 0.5, 'triangle', 0.1);
+    }, 600);
+  }
   gachaTimer = setTimeout(() => {
     if(!gachaSeq || gachaSeq.phase !== 'crack') return;
     gachaSeq.phase = 'silhouette';
@@ -9370,6 +9476,7 @@ function revealLegend(){
   renderGachaStage();
   playSfx('ult');
   gachaTone([523, 659, 784, 1047], 1.6, 'triangle', 0.1, 80);
+  if(isPickupResult(g.kind, g.results[g.cut])) gachaTone([784, 988, 1175, 1568], 1.8, 'triangle', 0.08, 1100);
   const stars = pullRarity(g.kind, g.results[g.cut]);
   for(let k = 0; k < stars; k++) gachaTone([1047 + k * 110], 0.12, 'square', 0.05, 520 + k * 170);
 }
@@ -15520,6 +15627,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 79, version: 'α0.1.038', date: '9/26', title: 'ガチャ演出 第2弾: 召喚陣の予告と昇格', body: '召喚のときの魔法陣の色が、今回いちばん高いレア度の予告になりました(青: ★3以下、紫: ★4、金: ★5、虹: ピックアップの★5)。ときどき低い色から始まって、途中で「UP!」と色が上がる昇格演出が入ります。色が本当の結果より上になることはありません。また、★5の卵がたまに紫の光で並び、割るときに紫から金へ昇格することがあります。ピックアップのキャラの★5は、虹色の背景と「PICK UP!」の帯が流れる専用の登場演出になりました。' },
   { id: 78, version: 'α0.1.037', date: '9/26', title: 'ガチャ演出をリニューアル', body: '10連ガチャで卵が勝手に次々割れていたのをやめ、自分でタップして割るようにしました。卵は最初どれも同じ見た目で、★4の卵は紫の光、★5の卵は金の光を放ってときどき揺れる「予兆」でだけ分かります。「まとめて開く」で★3以下を一気に割り、光る卵を最後に取っておくこともできます。★5は、卵が激しく揺れてヒビから光が漏れる→暗転してシルエット→閃光とともに登場、の3段階で、★が1つずつ刻まれ紙吹雪が舞います。ピックアップのキャラには「PICK UP!」が出ます。割るたびに音が少しずつ高くなり、★4・★5ではスマホが振動します(効果音OFFのときは振動しません)。「スキップ」を押すと★5の登場だけ見て結果に進みます。' },
   { id: 77, version: 'α0.1.036', date: '9/26', title: 'HATE(狙われやすさ)を見直し', body: 'これまでは戦闘が始まるとすぐ、与えたダメージの量でHATEが数百〜数千まで増え、モンスターごとの初期HATE(タンクは高く、サポートは低い)がほとんど意味を持っていませんでした。行動で増えるHATEを「相手の最大HPの何%を削ったか」「味方の何%を回復したか」で数えるように変え、初期HATEと同じくらいの大きさにしました。これでタンクがしっかり狙われ、後衛やサポートは狙われにくくなります。また、シールドや被ダメージ軽減をかける守りのスキルは、HPが50%以下の味方を優先し、いなければ狙われやすい味方(ふつうはタンク)にかけるように揃えました。' },
   { id: 76, version: 'α0.1.035', date: '9/25', title: 'ガチャ結果を画像つきでSNSに共有', body: 'ガチャ結果の「SNSで共有」で、引いたキャラ(遺物)の一覧を1枚の画像にして一緒に投稿できるようにしました。10連なら10体すべてが★の数・NEWの印つきで並びます。スマホでは共有画面にそのまま画像が添付されます。画像を添付できないPCでは、結果の画像を保存してからXの投稿画面を開くので、保存した画像を添付してください。' },
