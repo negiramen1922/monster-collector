@@ -1119,8 +1119,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .dh-body{ flex:1; min-width:0; }
 .detail-name{ font-size:17px; font-weight:800; margin-top:2px; }
 .detail-sub{ font-size:12px; color:var(--gold); }
-.stars{ color:var(--gold); letter-spacing:-.02em; }
-.stars .promo{ color:#ff8fd0; text-shadow:0 0 6px rgba(255,143,208,.5); }
+.stars{ color:#eeeaf6; letter-spacing:-.02em; }
+.stars i{ font-style:normal; }
+.stars i.gold{ color:var(--gold); text-shadow:0 0 6px rgba(255,200,61,.55); }
 .lv-note{ color:var(--dim); font-size:11px; font-weight:700; margin-left:8px; }
 .promo-box{ border-color:rgba(176,111,224,.45); }
 .soul-bar{ height:7px; border-radius:999px; background:#171225; overflow:hidden; border:1px solid var(--line); margin-bottom:6px; }
@@ -2409,6 +2410,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rf-result .rf-arrow{ font-weight:900; color:var(--gold); }
 .rf-rtext{ font-size:13px; font-weight:900; }
 .rf-rtext small{ display:block; font-size:11px; color:var(--dim); font-weight:700; }
+.rr-list{ display:grid; gap:4px; margin-top:6px; }
+.rr-row{ display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:8px; border:1px solid var(--line); border-left:3px solid var(--c); background:var(--panel3); color:var(--text); font-size:12px; font-weight:800; }
+.rr-row b{ font-size:11px; color:var(--gold); }
+.rr-row:disabled{ opacity:.5; }
+.shop-rune.rune-ic{ width:34px; height:34px; }
+.shop-rune-sub{ display:block; font-size:10px; color:var(--dim); font-weight:700; }
 .rf-diff{ display:grid; gap:3px; margin:0 0 8px; }
 .rf-drow{ display:flex; justify-content:space-between; font-size:12px; padding:3px 8px; border-left:3px solid var(--c); background:var(--panel3); border-radius:6px; }
 .rf-drow span{ color:var(--dim); font-weight:700; }
@@ -2857,7 +2864,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.066';
+const GAME_VERSION = 'α0.1.067';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3098,7 +3105,10 @@ function elementMultiplier(atkElem, defElem){
 /* ---- rarity, promotion (★) and souls: design doc v4 ---- */
 // A monster's "rarity" in data is its INITIAL ★. Duplicates become souls of that
 // monster, and souls promote it up to ★7. Level cap and skill-level cap follow the CURRENT ★.
-const MAX_STAR = 7;
+const MAX_STAR = 10;
+// 敵の★の上限は別(★10解放の前と同じ7のまま。深淵回廊の深い層などで敵が急に強くならないように)
+const ENEMY_STAR_CAP = 7;
+// ★8〜★10は docs/design/今後やりたいこと.json の「★10まで解放」の確定表どおり(★1〜★6は据え置き)
 const STAR_TABLE = {
   1: { lvCap: 50,  soulsToNext: 10,  skillCap: 10 },
   2: { lvCap: 70,  soulsToNext: 50,  skillCap: 10 },
@@ -3106,8 +3116,12 @@ const STAR_TABLE = {
   4: { lvCap: 120, soulsToNext: 200, skillCap: 10 },
   5: { lvCap: 150, soulsToNext: 300, skillCap: 10 },
   6: { lvCap: 170, soulsToNext: 500, skillCap: 11 },
-  7: { lvCap: 200, soulsToNext: null, skillCap: 12 },
+  7: { lvCap: 200, soulsToNext: 500, skillCap: 12 },
+  8: { lvCap: 230, soulsToNext: 500, skillCap: 12 },
+  9: { lvCap: 260, soulsToNext: 1000, skillCap: 12 },
+  10: { lvCap: 300, soulsToNext: null, skillCap: 12 },
 };
+const MAX_LEVEL = STAR_TABLE[MAX_STAR].lvCap;
 const PROMOTION_STAT_BONUS = 0.10; // +10% base HP/STR/DEF per promotion (SPD unaffected)
 const LEVEL_STAT_BONUS = 0.03;     // +3% per level above 1 (also scales enemy toughness by stage-recommended level)
 const SECOND_SKILL_STAR = 4;       // the 2nd skill slot opens at ★4 (current ★)
@@ -3128,15 +3142,16 @@ function skillCapOf(owned){ return STAR_TABLE[owned.star].skillCap; }
 function soulsToNext(owned){ return STAR_TABLE[owned.star].soulsToNext; }
 function skillSlotsFor(star){ return star >= SECOND_SKILL_STAR ? 2 : 1; }
 function newOwned(mon){ return { star: mon.rarity, souls: 0, level: 1, exp: 0, wall: 0, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 }; }
-// initial stars in gold, promoted stars in a second color
+// ★は最大5個まで並べる。★6からは左から1つずつ金色になる(★10は5個すべて金色)
 function starsHtml(initial, current){
-  const cur = current || initial;
-  return `<span class="stars">${'★'.repeat(initial)}${cur > initial ? `<span class="promo">${'★'.repeat(cur - initial)}</span>` : ''}</span>`;
+  const n = current || initial;
+  const gold = Math.max(0, n - 5);
+  return `<span class="stars" title="★${n}">${Array.from({ length: Math.min(n, 5) }, (_, i) => `<i class="${i < gold ? 'gold' : ''}">★</i>`).join('')}</span>`;
 }
 // compact battle-card variant: always shows exactly 5 stars (the normal rarity range).
 // At ★5 or below they're all the default (near-white) color. Past ★5 - only reachable
-// via promotion, since MAX_STAR(7) exceeds the highest gacha rarity(5) - the row stays
-// at 5 stars, but that many are turned gold from the left instead of growing to 6/7 stars.
+// via promotion, since MAX_STAR(10) exceeds the highest gacha rarity(5) - the row stays
+// at 5 stars, but that many are turned gold from the left instead of growing to 6〜10 stars.
 function battleStarsHtml(rarity, star){
   const n = star || rarity;
   const shown = Math.min(n, 5);
@@ -4054,7 +4069,7 @@ function sanitizeSupport(raw){
   return {
     id: raw.id,
     star: clampInt(raw.star, 1, MAX_STAR, 1),
-    level: clampInt(raw.level, 1, 200, 1),
+    level: clampInt(raw.level, 1, MAX_LEVEL, 1),
     skillLv: clampInt(raw.skillLv, 1, 12, 1),
     skill2Lv: clampInt(raw.skill2Lv !== undefined ? raw.skill2Lv : raw.skillLv, 1, 12, 1),
     ultLv: clampInt(raw.ultLv, 1, 12, 1),
@@ -4067,7 +4082,7 @@ function sanitizeRelicSnap(raw){
   if(!raw || !RELICS[raw.defId]) return null;
   return {
     defId: raw.defId,
-    level: clampInt(raw.level, 1, 200, 1),
+    level: clampInt(raw.level, 1, MAX_LEVEL, 1),
     skillLv: clampInt(raw.skillLv, 1, RELIC_SKILL_MAX, 1),
     dupeUsed: clampInt(raw.dupeUsed, 0, RELIC_MAX_DUPE_USE, 0),
   };
@@ -4795,7 +4810,7 @@ function addGold(n){ STATE.gold = Math.max(0, (STATE.gold || 0) + n); }
 
 /* ---- character level: EXP curve (TierI units) and level walls ---- */
 // EXP to go from L to L+1 — geometric interpolation between anchors
-const EXP_ANCHORS = [[1, 2], [10, 10], [30, 22], [50, 34], [65, 75], [80, 170], [100, 260], [120, 350], [150, 520], [170, 680], [199, 950]];
+const EXP_ANCHORS = [[1, 2], [10, 10], [30, 22], [50, 34], [65, 75], [80, 170], [100, 260], [120, 350], [150, 520], [170, 680], [199, 950], [230, 1250], [260, 1600], [299, 2100]];
 function expToNext(L){
   for(let i = 0; i < EXP_ANCHORS.length - 1; i++){
     const [l0, c0] = EXP_ANCHORS[i], [l1, c1] = EXP_ANCHORS[i + 1];
@@ -4804,9 +4819,9 @@ function expToNext(L){
   return EXP_ANCHORS[EXP_ANCHORS.length - 1][1];
 }
 // at these levels the character has to break through with gold
-const LEVEL_WALLS = [30, 50, 100, 120, 150, 180, 200];
+const LEVEL_WALLS = [30, 50, 100, 120, 150, 180, 200, 230, 260];
 function wallCost(L){ return Math.round(1500 * Math.pow(L / 10, 1.3) / 10) * 10; } // 3x: matches the LEVEL_STAT_BONUS bump so gold stays a meaningful gate
-function atWall(owned){ return LEVEL_WALLS.includes(owned.level) && owned.level < 200 && (owned.wall || 0) < owned.level; }
+function atWall(owned){ return LEVEL_WALLS.includes(owned.level) && owned.level < MAX_LEVEL && (owned.wall || 0) < owned.level; }
 // the level we can reach before the next wall / star cap stops us
 function levelStop(owned){
   const cap = levelCapOf(owned);
@@ -4912,7 +4927,7 @@ function breakWall(id){
 }
 
 /* ---- promotion gold ---- */
-const PROMO_GOLD = { 2: 5000, 3: 15000, 4: 40000, 5: 80000, 6: 150000, 7: 300000 };
+const PROMO_GOLD = { 2: 5000, 3: 15000, 4: 40000, 5: 80000, 6: 150000, 7: 300000, 8: 500000, 9: 800000, 10: 1200000 };
 
 /* ---- skill / ult / passive levels ---- */
 // cost to go from lv to lv+1, per material family: [tierI, tierII, tierIII, tierIV]
@@ -6390,7 +6405,7 @@ function runeName(r){ return `${RUNE_STATS[r.main].label}のルーン`; }
 /* ---- 合成・分解 ---- */
 // 土台1つ + 同じTier・同じタイプ(攻撃型/防御型)の材料 → 土台のTierが1つ上がる。
 // 土台のレア度・サブ効果(当たり具合)はそのまま。土台が装備中ならそのまま。材料は装備中・ロック中は使えない
-function runeFuseCost(r){ return { gold: 2000 * r.tier, dust: 10 * r.tier }; }
+function runeFuseCost(r){ return { gold: 2000 * r.tier }; }
 function runeFuseMaterials(base){
   return ensureRunes().filter(r => r.uid !== base.uid && r.tier === base.tier && runeType(r) === runeType(base) && runeCanDismantle(r));
 }
@@ -6403,13 +6418,54 @@ function fuseRunes(baseUid, matUids){
   if(mats.length !== RUNE_FUSE_COUNT - 1) return { ok: false, why: `同じTierの${RUNE_TYPE_LABEL[runeType(base)]}ルーンがあと${RUNE_FUSE_COUNT - 1 - mats.length}個必要です` };
   const c = runeFuseCost(base);
   if((STATE.gold || 0) < c.gold) return { ok: false, why: 'ゴールドが足りません' };
-  if(STATE.runeDust < c.dust) return { ok: false, why: 'ルーンの粉が足りません' };
   STATE.gold -= c.gold;
-  STATE.runeDust -= c.dust;
   base.tier += 1;
   const used = new Set(mats);
   STATE.runes = STATE.runes.filter(r => !used.has(r.uid));
   return { ok: true, rune: base };
+}
+// ルーンの粉の使い道①: サブ効果1つを振り直す(効果の種類と当たり具合を引き直し。メイン・他のサブとはかぶらない)
+function runeRerollCost(r){ return 20 * r.tier; }
+function rerollRuneSub(uid, idx){
+  const r = runeByUid(uid);
+  if(!r || !r.subs[idx]) return { ok: false, why: 'サブ効果がありません' };
+  const cost = runeRerollCost(r);
+  if(ensureRunes() && STATE.runeDust < cost) return { ok: false, why: 'ルーンの粉が足りません' };
+  const used = new Set([r.main, ...r.subs.filter((_, i) => i !== idx).map(x => x.stat)]);
+  const pool = RUNE_STAT_KEYS.filter(k => !used.has(k));
+  const before = { ...r.subs[idx] };
+  r.subs[idx] = { stat: pool[Math.floor(Math.random() * pool.length)], q: Math.round(Math.random() * 100) / 100 };
+  STATE.runeDust -= cost;
+  return { ok: true, before, after: r.subs[idx] };
+}
+// ルーンの粉の使い道②: ショップで交換(分解で得られる量よりかなり割高)。Tierはルーン採掘で開いている一番深い段階
+const RUNE_SHOP = [
+  { sku: 'rune_rand', label: 'ルーン(レア度ランダム)', minRarity: null, per: 25 },
+  { sku: 'rune_gold', label: 'ルーン(金以上が確定)', minRarity: 3, per: 150 },
+  { sku: 'rune_rainbow', label: 'ルーン(虹が確定)', minRarity: 4, per: 600 },
+];
+function runeShopTier(){
+  const d = DUNGEONS.rune;
+  let t = 0;
+  d.unlock.forEach((id, i) => { if(STATE.clearedStages.includes(id)) t = i + 1; });
+  return t;
+}
+function runeShopPrice(item){ return item.per * runeShopTier(); }
+function buyRuneShop(sku){
+  const item = RUNE_SHOP.find(x => x.sku === sku);
+  const tier = runeShopTier();
+  if(!item || !tier) return { ok: false, why: 'ルーン採掘を解放すると交換できます' };
+  if(runeFull()) return { ok: false, why: `ルーンがいっぱいです(${RUNE_MAX}個)` };
+  const price = runeShopPrice(item);
+  if(ensureRunes() && STATE.runeDust < price) return { ok: false, why: 'ルーンの粉が足りません' };
+  let rarity;
+  if(item.minRarity === null){
+    const w = DUNGEONS.rune.rarity[tier - 1], total = w.reduce((a, b) => a + b, 0);
+    let roll = Math.random() * total; rarity = 0;
+    while(rarity < w.length - 1 && roll >= w[rarity]){ roll -= w[rarity]; rarity++; }
+  }else rarity = item.minRarity + (item.minRarity < 4 && Math.random() < 0.15 ? 1 : 0);
+  STATE.runeDust -= price;
+  return { ok: true, rune: addRune(makeRune(tier, rarity)) };
 }
 function runeDustValue(r){ return r.tier * (2 + r.rarity * 2); }
 function runeCanDismantle(r){ return r && !r.lock && runeUsers(r.uid).length === 0; }
@@ -6508,7 +6564,7 @@ function renderRunesScreen(){
       <span class="${all.length >= RUNE_MAX ? 'full' : ''}">所持 <b>${all.length}</b> / ${RUNE_MAX}</span>
       <span>✨ルーンの粉 <b>${STATE.runeDust.toLocaleString()}</b></span>
     </div>
-    <div class="screen-sub" style="margin-bottom:8px;">ルーンは育成クエストの「ルーン採掘」で手に入ります。キャラ詳細の「ルーン」枠に、編成ごとに装備できます(枠はキャラの★1・★4・★6・★9で1つずつ開きます)。形はレア度、色は効果、中の数字はTierです。ルーンは攻撃型(STR・SPD・会心)と防御型(HP・防御)の2タイプで、同じTier・同じタイプのルーン${RUNE_FUSE_COUNT - 1}個を材料にすると、土台のルーンのTierが1つ上がります(最大Ⅹ。レア度とサブ効果はそのまま)。</div>
+    <div class="screen-sub" style="margin-bottom:8px;">ルーンは育成クエストの「ルーン採掘」で手に入ります。キャラ詳細の「ルーン」枠に、編成ごとに装備できます(枠はキャラの★1・★4・★6・★9で1つずつ開きます)。形はレア度、色は効果、中の数字はTierです。ルーンは攻撃型(STR・SPD・会心)と防御型(HP・防御)の2タイプで、同じTier・同じタイプのルーン${RUNE_FUSE_COUNT - 1}個を材料にすると、土台のルーンのTierが1つ上がります(最大Ⅹ。レア度とサブ効果はそのまま)。分解で得たルーンの粉は、サブ効果の振り直しやショップでの交換に使えます。</div>
     ${runeFilterChipsHtml(runeFilter, 'data-rune-filter')}
     <div class="rune-sorts">${RUNE_SORTS.map(([k, l]) => `<button class="stage-tab ${runeSort === k ? 'on' : ''}" data-rune-sort="${k}">${l}</button>`).join('')}</div>
     ${list.length ? `<div class="rune-grid">${list.map(r => `<button class="rune-cell" data-rune-open="${r.uid}" aria-label="${runeName(r)} Tier${RUNE_ROMAN[r.tier - 1]} ${RUNE_RARITIES[r.rarity].label}">${runeIconHtml(r)}</button>`).join('')}</div>`
@@ -6535,7 +6591,7 @@ function runeFusePanelHtml(r){
   const cost = runeFuseCost(r);
   const ready = picked.length === need;
   const next = { ...r, tier: r.tier + 1 };
-  const afford = (STATE.gold || 0) >= cost.gold && STATE.runeDust >= cost.dust;
+  const afford = (STATE.gold || 0) >= cost.gold;
   const type = RUNE_TYPE_LABEL[runeType(r)];
   return `
     <div class="rd-cost">合成でTierを上げる<small>このルーン + 同じTier(${RUNE_ROMAN[r.tier - 1]})の${type}ルーン${need}個で Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}。レア度とサブ効果はこのルーンのまま、値が伸びます。材料のレア度は問いません。</small></div>
@@ -6549,7 +6605,7 @@ function runeFusePanelHtml(r){
         return `<div class="rf-drow ${d.main ? 'main' : ''}" style="--c:${RUNE_STATS[d.stat].color}"><span>${RUNE_STATS[d.stat].label}${d.main ? '(メイン)' : ''}</span><b>${d.a}${u} → ${d.b}${u}</b></div>`;
       }).join('')}
     </div>
-    <div class="rd-cost-line">${goldText(cost.gold)}・✨${cost.dust}<small>(所持 ✨${STATE.runeDust.toLocaleString()})</small></div>
+    <div class="rd-cost-line">${goldText(cost.gold)}</div>
     <button class="btn btn-block" data-rune-fuse-go="1" ${ready && afford ? '' : 'disabled'}>合成する</button>`;
 }
 function renderRuneDetail(){
@@ -6575,6 +6631,11 @@ function renderRuneDetail(){
       ${flash ? `<div class="rd-flash">${flash}</div>` : ''}
       <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
       <div class="rd-enhance">${runeFusePanelHtml(r)}</div>
+      <div class="rd-enhance">
+        <div class="rd-cost">サブ効果の振り直し<small>選んだサブ効果1つの種類と値を引き直します(メインや他のサブとはかぶりません)。1回 ✨${runeRerollCost(r)}(所持 ✨${STATE.runeDust.toLocaleString()})</small></div>
+        ${r.subs.length ? `<div class="rr-list">${r.subs.map((x, i) => `<button class="rr-row" data-rune-reroll="${i}" style="--c:${RUNE_STATS[x.stat].color}" ${STATE.runeDust >= runeRerollCost(r) ? '' : 'disabled'}><span>${runeStatText(x.stat, runeSubValue(x, r.tier))}</span><b>🎲 振り直す</b></button>`).join('')}</div>`
+          : '<div class="fs-note">白のルーンにはサブ効果がありません。</div>'}
+      </div>
       <div class="rd-actions">
         <button class="btn btn-ghost btn-sm" data-rune-lock="${r.uid}">${r.lock ? '🔓 ロック解除' : '🔒 ロックする'}</button>
         <button class="btn btn-ghost btn-sm" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解(✨${runeDustValue(r)})</button>
@@ -7868,13 +7929,13 @@ function buildQuestStages(){
       const sizes = sp.waves ? sp.waves.map(w => w[0])
         : (t.waves === 4 ? [3, 3, 4, 5] : i < 3 && t.key === 'q1' ? [2, 3, 3] : [3, 3, 4]).map(n => Math.max(1, Math.min(5, n + (tune.size || 0))));
       let k = 0;
-      const enemyStar = ref => Math.max(MON_BY_ID[ref].rarity, Math.min(MAX_STAR, star));
+      const enemyStar = ref => Math.max(MON_BY_ID[ref].rarity, Math.min(ENEMY_STAR_CAP, star));
       const waves = sp.fixed ? sp.fixed.map((w, wi) => [
         ...w.f.map(r => ({ r, row: 'front' })), ...w.b.map(r => ({ r, row: 'back' })),
       ].map(({ r, row }) => {
         const ref = r.replace('*', '');
         if(r.startsWith('*')){
-          const bs = Math.max(MON_BY_ID[ref].rarity, Math.min(MAX_STAR, t.bossStar + (tune.bossStar || 0)));
+          const bs = Math.max(MON_BY_ID[ref].rarity, Math.min(ENEMY_STAR_CAP, t.bossStar + (tune.bossStar || 0)));
           return { ref, row, level: Math.max(1, rec + 2 + (tune.bossLv || 0)), boss: true, star: bs };
         }
         return { ref, row, level: lv + wi, star: enemyStar(ref) };
@@ -7882,14 +7943,14 @@ function buildQuestStages(){
         const wave = [];
         for(let j = 0; j < n; j++){
           const ref = pool[(k++ + wi) % pool.length];
-          wave.push({ ref, level: lv + wi, star: Math.max(MON_BY_ID[ref].rarity, Math.min(MAX_STAR, star)) });
+          wave.push({ ref, level: lv + wi, star: Math.max(MON_BY_ID[ref].rarity, Math.min(ENEMY_STAR_CAP, star)) });
         }
         return wave;
       });
       if(isBoss && !sp.fixed){
         const last = waves[waves.length - 1];
         last[0] = { ref: sp.boss, level: rec + (tune.lv || 0) + sizes.length + 2, boss: true,
-          star: Math.max(MON_BY_ID[sp.boss].rarity, Math.min(MAX_STAR, t.bossStar + (tune.star || 0))), gimmick: sp.gimmick };
+          star: Math.max(MON_BY_ID[sp.boss].rarity, Math.min(ENEMY_STAR_CAP, t.bossStar + (tune.star || 0))), gimmick: sp.gimmick };
       }
       const kinds = stageDropKinds(waves);
       const stage = {
@@ -8136,7 +8197,7 @@ function abyssEnemyLevel(floor){
 }
 function abyssEnemyStar(floor){
   if(floor <= 50) return 3 + Math.floor((floor - 1) / 17);
-  return Math.min(MAX_STAR, 5 + Math.ceil((floor - 50) / 10));
+  return Math.min(ENEMY_STAR_CAP, 5 + Math.ceil((floor - 50) / 10));
 }
 function abyssStage(floor, season){
   const idx = season === undefined ? abyssSeasonIndex() : season;
@@ -8155,7 +8216,7 @@ function abyssStage(floor, season){
   if(boss){
     const b5 = themed.filter(m => m.rarity === 5);
     const bossMon = b5.length ? b5[Math.floor(rnd() * b5.length)] : pick();
-    wave[0] = { ref: bossMon.id, level: lv + 2, star: Math.min(MAX_STAR, Math.max(bossMon.rarity, star + 1)), boss: true };
+    wave[0] = { ref: bossMon.id, level: lv + 2, star: Math.min(ENEMY_STAR_CAP, Math.max(bossMon.rarity, star + 1)), boss: true };
   }
   return {
     id: `ab_${floor}`, type: 'abyss', tier: 'abyss', floor, name: `深淵回廊・${floor}階`,
@@ -8763,6 +8824,7 @@ function renderShop(){
       <button class="stage-tab ${shopTab === 'gold' ? 'on' : ''}" data-shop-tab="gold">ゴールドショップ</button>
       <button class="stage-tab ${shopTab === 'pvp' ? 'on' : ''}" data-shop-tab="pvp">PVPポイントショップ</button>
       <button class="stage-tab ${shopTab === 'crystal' ? 'on' : ''}" data-shop-tab="crystal">水晶ショップ</button>
+      <button class="stage-tab ${shopTab === 'rune' ? 'on' : ''}" data-shop-tab="rune">ルーンの粉ショップ</button>
     </div>
     ${shopTab === 'gold' ? `
       <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。特売品は毎日3品(${SHOP_SALE_DISCOUNTS.map(d => `${Math.round(d * 100)}%`).join('・')}引き)。</div>
@@ -8774,10 +8836,25 @@ function renderShop(){
     ` : shopTab === 'pvp' ? `
       <div class="screen-sub">PVPの勝敗で得たPVPポイントと交換できます(1商品1日1回まで)。</div>
       <div class="panel facility">${SHOP_PVP_ITEMS.map(pvpRow).join('')}</div>
-    ` : `
+    ` : shopTab === 'rune' ? renderRuneShop() : `
       <div class="screen-sub">水晶でスタミナ回復・PVP挑戦券と交換できます。回数制限はありません。</div>
       <div class="panel facility">${SHOP_CRYSTAL_ITEMS.map(crystalRow).join('')}</div>
     `}`;
+}
+function renderRuneShop(){
+  const tier = runeShopTier();
+  if(!tier) return '<div class="screen-sub">育成クエストの「ルーン採掘」が開くと交換できます。</div>';
+  return `
+    <div class="screen-sub">ルーンの粉でルーンと交換できます(分解で集めるより割高です)。Tierはルーン採掘で開いている一番深い段階(いまはTier${RUNE_ROMAN[tier - 1]})。所持 ✨${ensureRunes() && STATE.runeDust.toLocaleString()}・ルーン ${STATE.runes.length}/${RUNE_MAX}</div>
+    <div class="panel facility">${RUNE_SHOP.map(item => {
+      const price = runeShopPrice(item);
+      const sample = { tier, rarity: item.minRarity === null ? 1 : item.minRarity, main: 'atk', subs: [], lock: false };
+      return `<div class="shop-row">
+        <span class="shop-item">${runeIconHtml(sample, { used: false, cls: 'shop-rune' })}<span class="shop-item-name">${item.label}<small class="shop-rune-sub">Tier${RUNE_ROMAN[tier - 1]}・効果はランダム${item.minRarity !== null && item.minRarity < 4 ? '・15%で1つ上のレア度' : ''}</small></span></span>
+        <span class="shop-price">✨${price.toLocaleString()}</span>
+        <button class="btn btn-sm ${STATE.runeDust < price || runeFull() ? 'btn-ghost' : ''}" data-rune-shop-buy="${item.sku}">交換</button>
+      </div>`;
+    }).join('')}</div>`;
 }
 
 // inventory modal (with box opening)
@@ -16334,6 +16411,16 @@ function handlePhoneClick(ev){
     if(fpEl){ toggleRuneFusePick(fpEl.dataset.runeFusePick); return; }
     if(t.closest('[data-rune-fuse-auto]')){ autoRuneFusePick(); return; }
     if(t.closest('[data-rune-fuse-go]')){ doFuseRune(); return; }
+    const rrEl = t.closest('[data-rune-reroll]');
+    if(rrEl){
+      const res = rerollRuneSub(runeDetail.uid, Number(rrEl.dataset.runeReroll));
+      if(!res.ok){ toast(res.why); return; }
+      const r = runeByUid(runeDetail.uid);
+      playSfx('buff'); saveState();
+      runeDetail.flash = `${runeStatText(res.before.stat, runeSubValue(res.before, r.tier))} → ${runeStatText(res.after.stat, runeSubValue(res.after, r.tier))}`;
+      renderRuneDetail();
+      return;
+    }
     const lockEl = t.closest('[data-rune-lock]');
     if(lockEl){ const r = runeByUid(lockEl.dataset.runeLock); if(r){ r.lock = !r.lock; saveState(); renderRuneDetail(); } return; }
     const disEl = t.closest('[data-rune-dismantle]');
@@ -16527,6 +16614,14 @@ function handlePhoneClick(ev){
   if(alcEl){ alchemyFam = alcEl.dataset.alcFam; render(); return; }
   const craftEl = t.closest('[data-craft]');
   if(craftEl){ const [f, k, tier] = craftEl.dataset.craft.split(':'); craftMat(f, k, Number(tier), 'max'); return; }
+  const runeShopEl = t.closest('[data-rune-shop-buy]');
+  if(runeShopEl){
+    const res = buyRuneShop(runeShopEl.dataset.runeShopBuy);
+    if(!res.ok){ toast(res.why); return; }
+    playSfx('buff'); saveState(); render();
+    openRuneDetail(res.rune.uid);
+    return;
+  }
   const shopTabEl = t.closest('[data-shop-tab]');
   if(shopTabEl){ shopTab = shopTabEl.dataset.shopTab; render(); return; }
   const openNoticesEl = t.closest('[data-open-notices]');
@@ -17258,7 +17353,8 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'はじめてルーン採掘を開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。ルーンを見直して戻しました。ルーンの枠はキャラの★で開きます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。①Tier(Ⅰ〜Ⅹ)ごとの伸びをゆるやかにし、1つ上がるごとにほぼ同じ幅で強くなるようにしました(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。②合成は「土台のルーン + 同じTier・同じタイプのルーン2個」で、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、サブ効果の値もTierに合わせて伸びます(材料のレア度は問いません)。タイプは攻撃型(STR・SPD・会心率・会心倍率)と防御型(HP・物理防御・魔法防御)の2つです。③ルーン採掘を7段階にし、極上級10クリアで開く段階(推奨Lv200)を追加しました。採掘ではTierⅦまで出て、Ⅷ〜Ⅹは合成で作れます。育成クエストの「素材ダンジョン」は「ルーン採掘」になります。' },
+  { id: 108, version: 'α0.1.067', date: '9/26', title: '★10まで上げられるように', body: '★は5個まで並び、★6からは左から1つずつ金色になります(★10は5個すべて金色)。キャラの★の上限を7から10に上げました。★7→★8に500ソウル、★8→★9に500ソウル、★9→★10に1000ソウルで、レベルの上限は★8でLv230、★9でLv260、★10でLv300です(★1〜★6はこれまでと同じ)。Lv230とLv260にはゴールドで越える壁があります。敵の強さは変わりません。' },
+  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'ルーンを見直して戻しました。<span class="nt-i">・<em>枠</em> キャラの★で開きます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>Tier(Ⅰ〜Ⅹ)</em> 1つ上がるごとにほぼ同じ幅で強くなります(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。</span><span class="nt-i">・<em>合成</em> 土台のルーンに、同じTier・同じタイプ(攻撃型: STR・SPD・会心率・会心倍率 / 防御型: HP・物理防御・魔法防御)のルーン2つを合成すると、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、値がTierに合わせて伸びます。費用はゴールドです。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入り、サブ効果の振り直しと、ショップ(ルーンの粉ショップ)でのルーン交換に使えます。</span><span class="nt-i">・<em>ルーン採掘</em> 育成クエストの「素材ダンジョン」は「ルーン採掘」(7段階・TierⅦまで)になります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。</span>' },
   { id: 106, version: 'α0.1.065', date: '9/26', title: 'ルーンをいったんお休み', body: 'ルーンは仕様を見直すため、いったん取り下げました。育成クエストは「素材ダンジョン」に戻っています。すでに手に入れたルーンは消えずにデータに残っていて、ルーンが戻ったときにまた使えます。' },
   { id: 105, version: 'α0.1.064', date: '9/26', title: 'ルーンは「合成」でTierを上げる形に', body: 'ルーンの強化レベル(+1〜+12)をなくしました。代わりに、同じ効果・同じTierのルーンを3つ合成すると、Tierが1つ上がります(最大Ⅹ)。合成後のレア度は3つの平均(切り捨て)になり、サブ効果はそのレア度の数で付け直しになります。1つ目に選んだルーンが残るので、装備中のルーンもそのまま合成できます(材料の2つは、装備中・ロック中のものは使えません)。ルーン採掘ではⅥまで出て、Ⅶ〜Ⅹは合成で作れます。これまでに強化したルーンは、強化レベルが外れます。' },
   { id: 104, version: 'α0.1.063', date: '9/26', title: 'ルーンが登場', body: 'キャラを強化する「ルーン」を追加しました。1キャラに4つまで付けられ(枠ごとの縛りなし)、編成ごとに装備します(同じ編成の中では1つのルーンを1体にだけ。別の編成なら同じルーンを使えます)。形はレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色は効果(HP・STR・物理防御・魔法防御・SPD・会心率・会心倍率)、中の数字はTier(Ⅰ〜Ⅵ)です。Tierは数値の大きさ、レア度は最初に付いているサブ効果の数(0〜4)で、強化+3ごとにサブ効果が増えるか伸びます。ルーンの粉とゴールドで強化(最大+12)、いらないルーンは分解して粉にできます(所持は200個まで)。育成クエストの「素材ダンジョン」は「ルーン採掘」(6段階)に変わりました。育成素材はメインクエストのドロップ・錬金術・育成素材BOXで集められます。' },
@@ -17424,7 +17520,7 @@ function unlockDefs(){
   });
   DUNGEONS.rune.unlock.forEach((id, i) => {
     defs.push(i === 0
-      ? { key: 'rune_1', icon: '💎', title: 'ルーンが解放', body: '育成クエストの「ルーン採掘」でルーンが手に入るようになりました。キャラ詳細の「ルーン」枠に、編成ごとに装備できます(枠はキャラの★1・★4・★6・★9で1つずつ開きます)。同じTier・同じタイプのルーン2つを材料にした合成(Tierが上がる)や分解は キャラ → ルーン から。', ok: has(id) }
+      ? { key: 'rune_1', icon: '💎', title: 'ルーンが解放', body: '育成クエストの「ルーン採掘」でルーンが手に入るようになりました。キャラ詳細の「ルーン」枠に、編成ごとに装備できます(枠はキャラの★1・★4・★6・★9で1つずつ開きます)。同じTier・同じタイプのルーン2つを材料にした合成(Tierが上がる)・分解・サブ効果の振り直しは キャラ → ルーン から。', ok: has(id) }
       : { key: `rune_${i + 1}`, icon: '⛏️', title: `ルーン採掘Lv${i + 1}が解放`, body: `ルーン採掘でTier${RUNE_ROMAN[i]}のルーンが出るようになりました(推奨Lv${DUNGEONS.rune.baseLv[i]})。`, ok: has(id) });
   });
   QUEST_TIERS_ACTIVE.filter(t => t.key !== 'tu' && !t.hidden).forEach(t => {
@@ -18458,7 +18554,7 @@ const GUIDE_CONTENT = {
         body: '真ん中のローマ数字がTierで、効果の大きさだよ。この採掘は<b>段階がそのままTier</b>。メインクエストを進めると深い段階が開いて、Ⅶまで掘れるようになる。' },
       { title: '合成でTierを上げる', visual: () => `<div class="gv-row gv-fuse">${runeGuideSample(3, 4, 'atk')}<b>+</b>${runeGuideSample(3, 0, 'spd')}${runeGuideSample(3, 1, 'critRate')}<b>→</b>${runeGuideSample(4, 4, 'atk')}</div>`,
         body: 'お気に入りのルーンに、<b>同じTier・同じタイプ</b>のルーンを2つ合成すると、Tierが1つ上がる。レア度とサブ効果はそのまま残って、数値が伸びるんだ。Ⅷ〜Ⅹは合成でしか作れないよ。' },
-      { title: 'さあ掘りに行こう', body: '手に入れたルーンは キャラ → <b>ルーン</b> で見られるし、キャラ詳細の「ルーン」枠から付けられる。いらないルーンは分解すると<b>ルーンの粉</b>になって、合成に使えるよ。持てるのは200個までだから気をつけてな!' },
+      { title: 'さあ掘りに行こう', body: '手に入れたルーンは キャラ → <b>ルーン</b> で見られるし、キャラ詳細の「ルーン」枠から付けられる。いらないルーンは分解すると<b>ルーンの粉</b>になる。粉はサブ効果の<b>振り直し</b>や、ショップでのルーン交換に使えるよ。持てるのは200個までだから気をつけてな!' },
     ],
   },
   welcome: {

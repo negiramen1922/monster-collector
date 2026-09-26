@@ -1,6 +1,6 @@
 /* ルーン: 生成(Tier・レアリティ)・強化・編成ごとの装備・効果・分解・上限・ルーン採掘・PVP の回帰テスト */
 const load = require('./harness.js');
-const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, fuseRunes, runeFuseCost, runeFuseMaterials, runeSlotsOpen, RUNE_SLOT_STARS, RUNE_FUSE_COUNT, RUNE_TIERS, runeSubValue,
+const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, fuseRunes, runeFuseCost, runeFuseMaterials, runeSlotsOpen, RUNE_SLOT_STARS, RUNE_FUSE_COUNT, RUNE_TIERS, runeSubValue, rerollRuneSub, runeRerollCost, buyRuneShop, runeShopTier, runeShopPrice, RUNE_SHOP,
   equipRune, unequipRune, runesOf, runeBonusOf, runeUsers, switchFormationSet, dismantleRunes, runeDustValue, runeFull, RUNE_MAX, RUNE_STATS,
   statsWithRelic, scaledStats, MON_BY_ID, dungeonStage, grantDungeonRewards, DUNGEONS, buildDefenseSnapshot, sanitizeRuneBonus, sanitizeDefense,
   battlePower, findStage, dungeonTierUnlocked, runeIconSvg, ensureRunes };`);
@@ -29,11 +29,12 @@ const ng1 = E.addRune(E.makeRune(2, 4, 'hp')), ng2 = E.addRune(E.makeRune(3, 4, 
 ok('材料は同じTier・同じタイプ(攻撃型)なら効果は問わない', E.runeFuseMaterials(f1).map(r => r.uid).sort().join() === [f2.uid, f3.uid].sort().join());
 ok('材料が足りないと合成できない', !E.fuseRunes(f1.uid, [f2.uid]).ok && f1.tier === 2);
 ok('タイプが違う(防御型)・Tierが違うものは材料にできない', !E.fuseRunes(f1.uid, [ng1.uid, ng2.uid]).ok);
-const subsBefore = JSON.stringify(f1.subs), subVal = E.runeSubValue(f1.subs[0], 2), g0 = S().gold;
+const pctSub = f1.subs.find(x => E.RUNE_STATS[x.stat].pct);
+const subsBefore = JSON.stringify(f1.subs), subVal = E.runeSubValue(pctSub, 2), g0 = S().gold;
 let fr = E.fuseRunes(f1.uid, [f2.uid, f3.uid]);
 ok('合成で土台のTierが1つ上がり、材料は消える', fr.ok && f1.tier === 3 && !S().runes.some(r => r.uid === f2.uid || r.uid === f3.uid) && S().gold === g0 - E.runeFuseCost({ tier: 2 }).gold);
 ok('レア度(虹)とサブ効果の種類・当たり具合はそのまま', f1.rarity === 4 && JSON.stringify(f1.subs) === subsBefore && f1.main === 'atk');
-ok('サブ効果の値はTierに合わせて伸びる', E.runeSubValue(f1.subs[0], 3) > subVal, [subVal, E.runeSubValue(f1.subs[0], 3)]);
+ok('サブ効果の値はTierに合わせて伸びる', E.runeSubValue(pctSub, 3) > subVal, [subVal, E.runeSubValue(pctSub, 3)]);
 ok('強化レベルはない', f1.lv === undefined && !('lv' in E.makeRune(1, 0)));
 const top = E.addRune(E.makeRune(10, 2, 'spd')), m1 = E.addRune(E.makeRune(10, 2, 'atk')), m2 = E.addRune(E.makeRune(10, 2, 'critDmg'));
 ok('TierⅩは最大(合成できない)', E.RUNE_TIERS === 10 && !E.fuseRunes(top.uid, [m1.uid, m2.uid]).ok);
@@ -50,6 +51,26 @@ ok('旧仕様のルーンは粉に交換(2×(2×4 + 6×10) = 136)', S().runes.le
 ok('装備は外れ、お知らせが1件', !S().formations[0].runes.m06 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
 S().runes = [E.makeRune(1, 0)]; E.normalizeState();
 ok('交換は1回だけ(新しいルーンは残る)', S().runes.length === 1 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
+
+// 粉の使い道: サブ効果の振り直し・ショップ交換(合成はゴールドだけ)
+ok('合成の費用はゴールドだけ', E.runeFuseCost({ tier: 3 }).dust === undefined && E.runeFuseCost({ tier: 3 }).gold === 6000);
+S().runes = []; S().runeDust = 10000;
+const rr = E.addRune(E.makeRune(3, 4, 'atk'));
+const d0 = S().runeDust;
+let rres; const seen = new Set();
+for(let i = 0; i < 30; i++){ rres = E.rerollRuneSub(rr.uid, 0); seen.add(rr.subs[0].stat); }
+ok('振り直しは粉を使い、サブの種類が変わる(メイン・他のサブとかぶらない)', S().runeDust === d0 - 30 * E.runeRerollCost(rr) && seen.size >= 2 && rr.subs.every(x => x.stat !== 'atk') && new Set(rr.subs.map(x => x.stat)).size === 4);
+S().runeDust = 0;
+ok('粉が足りないと振り直せない', !E.rerollRuneSub(rr.uid, 0).ok);
+S().clearedStages = ['tu3', 'q1_10', 'q2_10'];
+ok('ショップのTierは開いている一番深い採掘段階(Ⅲ)', E.runeShopTier() === 3);
+S().runeDust = 1e6; S().runes = [];
+const gold = [...Array(40)].map(() => E.buyRuneShop('rune_gold').rune);
+ok('金以上確定はレア度3以上・TierⅢ', gold.every(r => r.rarity >= 3 && r.tier === 3));
+ok('虹確定は虹', E.buyRuneShop('rune_rainbow').rune.rarity === 4);
+ok('交換は分解よりかなり割高(ランダムは分解の平均の約5倍以上)', E.runeShopPrice(E.RUNE_SHOP[0]) >= 3 * (2 + 1 * 2) * 5);
+S().runes = [...Array(200)].map(() => E.makeRune(1, 0));
+ok('所持がいっぱいだと交換できない', !E.buyRuneShop('rune_rand').ok);
 
 // 枠はキャラの★で開く(★1で1つ・★4で2つ・★6で3つ・★9で4つ)
 S().runes = []; S().formations.forEach(f => f.runes = {});
