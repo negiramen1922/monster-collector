@@ -2362,6 +2362,20 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
+.fset-tabs{ display:flex; gap:4px; margin:0 0 8px; }
+.fset-tab{ flex:1; min-width:0; padding:6px 0 5px; border-radius:10px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); font-size:12px; font-weight:800; line-height:1.15; }
+.fset-tab small{ display:block; font-size:10px; font-weight:600; opacity:.8; }
+.fset-tab.on{ background:var(--panel3); border-color:var(--gold); color:var(--gold); box-shadow:inset 0 0 0 1px var(--gold); }
+.fset-tab.empty:not(.on){ opacity:.6; }
+.fset-box{ margin:0 0 10px; padding:9px 10px 8px; border:1px solid var(--line); border-radius:12px; background:var(--panel2); }
+.fset-box .fset-tabs{ margin:6px 0 7px; }
+.fset-members{ display:flex; align-items:center; gap:4px; min-height:38px; }
+.fset-members img{ width:38px; height:38px; border-radius:8px; object-fit:cover; background:var(--panel3); }
+.fset-none{ font-size:12px; color:var(--dim); }
+.fset-members .fset-edit{ margin-left:auto; flex:none; }
+.pvp-relic-src{ display:flex; align-items:center; gap:4px; margin:8px 0 0; font-size:12px; color:var(--dim); }
+.pvp-relic-src .fset-tab{ padding:5px 0; }
+.pvp-relic-src span{ flex:none; }
 .explore-tabs{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
 .explore-tabs .stage-tab{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; font-size:14px; padding:11px 14px; }
 .explore-tabs .et-icon{ font-size:17px; width:22px; text-align:center; flex:none; }
@@ -2749,7 +2763,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.060';
+const GAME_VERSION = 'α0.1.061';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3271,6 +3285,76 @@ function emptySlotIn(slots, f, role){
   return order.find(i => !slots[i]) ?? -1;
 }
 function currentFormation(){ return getFormation(STATE.formationKey); }
+/* ---- 複数編成: 編成1〜5を持ち、切り替えて使う。STATE.slots / formationKey / 遺物のequippedTo は
+   「いま選んでいる編成」(STATE.formationIdx)の写しで、今までのコードはそのまま写しを読み書きする。
+   保存・切り替えのたびに STATE.formations[formationIdx] へ書き戻す。遺物は編成ごとに付け、
+   同じ編成の中でだけ重複できない(別の編成では同じ遺物を別のキャラに付けてよい) ---- */
+const FORMATION_SETS = 5;
+function relicMapFromEquips(){
+  const map = {};
+  ownedRelicIds().forEach(id => { const to = STATE.relics[id].equippedTo; if(to && MON_BY_ID[to] && !map[to]) map[to] = id; });
+  return map;
+}
+function blankFormationSet(relics){ return { slots: Array(PARTY_MAX).fill(null), formationKey: DEFAULT_FORMATION, relics: { ...(relics || {}) } }; }
+function sanitizeFormationSet(f){
+  const out = f && typeof f === 'object' ? f : blankFormationSet();
+  const slots = Array.isArray(out.slots) ? out.slots.slice(0, PARTY_MAX) : [];
+  while(slots.length < PARTY_MAX) slots.push(null);
+  out.slots = slots.map(id => id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
+  if(!FORMATIONS.some(x => x.key === out.formationKey)) out.formationKey = DEFAULT_FORMATION;
+  const used = new Set(), relics = {};
+  Object.entries(out.relics && typeof out.relics === 'object' ? out.relics : {}).forEach(([mon, rid]) => {
+    if(MON_BY_ID[mon] && RELICS[rid] && STATE.relics[rid] && !used.has(rid)){ used.add(rid); relics[mon] = rid; }
+  });
+  out.relics = relics;
+  return out;
+}
+// 写し(STATE.slotsなど)を今の編成へ書き戻す
+function syncActiveFormation(){
+  if(!Array.isArray(STATE.formations) || !STATE.formations[STATE.formationIdx]) return;
+  const f = STATE.formations[STATE.formationIdx];
+  f.slots = [...STATE.slots];
+  f.formationKey = STATE.formationKey;
+  f.relics = relicMapFromEquips();
+}
+function ensureFormations(){
+  if(!Array.isArray(STATE.formations) || !STATE.formations.length){
+    // 以前のセーブ: 今のパーティを編成1に。遺物の装備はどの編成でも同じ状態から始める
+    const relics = relicMapFromEquips();
+    STATE.formations = [...Array(FORMATION_SETS)].map((_, i) =>
+      i === 0 ? { slots: [...STATE.slots], formationKey: STATE.formationKey, relics: { ...relics } } : blankFormationSet(relics));
+    STATE.formationIdx = 0;
+  }
+  STATE.formations = STATE.formations.slice(0, FORMATION_SETS);
+  while(STATE.formations.length < FORMATION_SETS) STATE.formations.push(blankFormationSet());
+  if(!(STATE.formationIdx >= 0 && STATE.formationIdx < FORMATION_SETS)) STATE.formationIdx = 0;
+  STATE.formations = STATE.formations.map(sanitizeFormationSet);
+  syncActiveFormation();
+}
+function switchFormationSet(i){
+  i = Number(i);
+  if(i === STATE.formationIdx || !STATE.formations || !STATE.formations[i]) return false;
+  syncActiveFormation();
+  STATE.formationIdx = i;
+  const f = sanitizeFormationSet(STATE.formations[i]);
+  STATE.slots = [...f.slots];
+  STATE.formationKey = f.formationKey;
+  Object.values(STATE.relics).forEach(st => { st.equippedTo = null; });
+  Object.entries(f.relics).forEach(([mon, rid]) => { STATE.relics[rid].equippedTo = mon; });
+  formationPick = null;
+  slotMenu = null;
+  saveState();
+  return true;
+}
+// 編成idxでそのキャラに付いている遺物(今の編成は写しのequippedToを読む)
+function relicOfIn(idx, monId){
+  if(idx === STATE.formationIdx || !STATE.formations || !STATE.formations[idx]) return equippedRelicOf(monId);
+  const rid = STATE.formations[idx].relics[monId];
+  return rid && RELICS[rid] && STATE.relics[rid] ? rid : null;
+}
+function formationSetCount(i){
+  return (i === STATE.formationIdx ? STATE.slots : STATE.formations[i].slots).filter(Boolean).length;
+}
 function getPartyIds(){ return STATE.slots.filter(Boolean); }
 function penalizedIds(){
   const f = currentFormation();
@@ -3806,7 +3890,7 @@ function buildDefenseSnapshot(){
     if(!id || id === HELP_SLOT_ID) return null;
     const owned = STATE.owned[id];
     if(!owned) return null;
-    const relicId = equippedRelicOf(id);
+    const relicId = relicOfIn(STATE.pvpDefenseRelicsFrom || 0, id);
     const relicSt = relicId ? STATE.relics[relicId] : null;
     return {
       id, star: owned.star, level: owned.level,
@@ -4436,10 +4520,14 @@ function normalizeState(){
   if(!STATE.guidesSeen) STATE.guidesSeen = {};
   delete STATE.formation;
   delete STATE.party;
+  if(!(STATE.pvpAttackRelicsFrom >= 0 && STATE.pvpAttackRelicsFrom < FORMATION_SETS)) STATE.pvpAttackRelicsFrom = 0;
+  if(!(STATE.pvpDefenseRelicsFrom >= 0 && STATE.pvpDefenseRelicsFrom < FORMATION_SETS)) STATE.pvpDefenseRelicsFrom = 0;
+  ensureFormations();
 }
 
 function saveState(){
   if(!STATE) return;
+  syncActiveFormation();
   checkTamerLevelUp();
   checkUnlocks();
   STATE.savedAt = Date.now();   // when the data changed, not when it reached the disk:
@@ -6103,7 +6191,7 @@ function renderRelicPicker(){
       ${ids.length === 0 ? `
         <p class="fs-note">まだ遺物を持っていません。ガチャで手に入れましょう。</p>
         <button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : `
-      <p class="fs-note">条件一致が多い順・レア度順に並んでいます。</p>
+      <p class="fs-note">遺物は編成ごとに装備します(いまは<b>編成${STATE.formationIdx + 1}</b>)。同じ編成の中では1つの遺物を1体にしか付けられませんが、別の編成なら同じ遺物を使えます。条件一致が多い順・レア度順に並んでいます。</p>
       <div class="relic-list">
         ${ids.map(id => {
           const def = RELICS[id];
@@ -7588,6 +7676,7 @@ function renderAbyssTab(){
         <div class="ab-reward">${a.claimed[a.floor] ? '報酬は受け取り済み' : `初回報酬 ${rewardHtml(abyssFloorReward(a.floor))}`}</div>
         ${nextMilestone !== a.floor ? `<div class="ab-reward">${nextMilestone}階 ${rewardHtml(abyssFloorReward(nextMilestone).slice(2))}</div>` : ''}
       </div>
+      ${sortieFormationHtml()}
       <button class="btn btn-block" data-start-stage="ab_${a.floor}">${a.floor}階に挑戦する</button>
       ${abyssCanGiveUp() ? `<button class="btn btn-ghost btn-block btn-sm ab-giveup" data-abyss-giveup="1">🏳️ 諦めて${a.checkpoint + 1}階(チェックポイント)からやり直す</button>` : ''}
     </div>
@@ -7679,9 +7768,9 @@ let pvpSearching = false;
 // お互いとは別枠。お助けキャラ(HELP_SLOT_ID)は他人の育成状況に左右される・自分の物では
 // ないため、どちらにも編成できない(ensurePvpSlotsで弾く)。
 const PVP_FORM_KIND = {
-  defense: { slotsKey: 'pvpDefenseSlots', formKey: 'pvpDefenseFormation', label: '防衛編成', editLabel: '防衛編成の編集',
+  defense: { slotsKey: 'pvpDefenseSlots', formKey: 'pvpDefenseFormation', relicsKey: 'pvpDefenseRelicsFrom', label: '防衛編成', editLabel: '防衛編成の編集',
     hint: 'スロットをタップして入れ替え、所持モンスターをタップして配置します。他のプレイヤーはこの編成と戦います。' },
-  attack: { slotsKey: 'pvpAttackSlots', formKey: 'pvpAttackFormation', label: 'PVP攻撃編成', editLabel: 'PVP攻撃編成の編集',
+  attack: { slotsKey: 'pvpAttackSlots', formKey: 'pvpAttackFormation', relicsKey: 'pvpAttackRelicsFrom', label: 'PVP攻撃編成', editLabel: 'PVP攻撃編成の編集',
     hint: 'スロットをタップして入れ替え、所持モンスターをタップして配置します。PVPで他プレイヤーに挑戦する時はこの編成を使います(クエストのパーティとは別枠。お助けキャラは編成できません)。' },
 };
 let pvpFormEdit = null;       // null | 'defense' | 'attack' - which editor is open within the PVP screen
@@ -7701,7 +7790,7 @@ function openPvpFormEdit(kind){
   const k = PVP_FORM_KIND[kind];
   ensurePvpSlots(kind);
   if(!STATE[k.formKey]) STATE[k.formKey] = STATE.formationKey;
-  pvpFormEditBackup = { slots: [...STATE[k.slotsKey]], formationKey: STATE[k.formKey] };
+  pvpFormEditBackup = { slots: [...STATE[k.slotsKey]], formationKey: STATE[k.formKey], relicsFrom: STATE[k.relicsKey] };
   pvpFormEdit = kind;
   pvpFormPick = null;
   render();
@@ -7711,6 +7800,7 @@ function cancelPvpFormEdit(){
     const k = PVP_FORM_KIND[pvpFormEdit];
     STATE[k.slotsKey] = pvpFormEditBackup.slots;
     STATE[k.formKey] = pvpFormEditBackup.formationKey;
+    STATE[k.relicsKey] = pvpFormEditBackup.relicsFrom;
   }
   pvpFormEdit = null;
   pvpFormPick = null;
@@ -7737,6 +7827,7 @@ function copyPartyIntoPvpForm(kind){
   // お助けキャラはPVPに持ち込めないので、現在の編成をコピーする時点で除外する
   STATE[k.slotsKey] = STATE.slots.map(id => id === HELP_SLOT_ID ? null : id);
   STATE[k.formKey] = STATE.formationKey;
+  STATE[k.relicsKey] = STATE.formationIdx; // 遺物はコピー元の編成のものを使う
   pvpFormPick = null;
   render();
 }
@@ -7933,6 +8024,11 @@ function renderPvpFormEdit(){
     <div class="screen-sub" style="margin-bottom:6px;">${k.hint}</div>
     ${renderPvpFormFormationPicker(kind)}
     ${renderPvpFormEditGrid(kind)}
+    <div class="pvp-relic-src">
+      <span>遺物は</span>
+      ${[...Array(FORMATION_SETS).keys()].map(i => `<button class="fset-tab ${(STATE[k.relicsKey] || 0) === i ? 'on' : ''}" data-pvp-relic-src="${i}">編成${i + 1}</button>`).join('')}
+      <span>の装備を使う</span>
+    </div>
     <div class="row-between" style="gap:8px; margin:10px 0;">
       <button class="btn btn-ghost btn-sm" data-pvp-form-copy="1">現在の編成をコピー</button>
       <button class="btn btn-sm" data-pvp-form-save="1">保存する</button>
@@ -8520,6 +8616,7 @@ function goto(screen, opts){
     const k = PVP_FORM_KIND[pvpFormEdit];
     STATE[k.slotsKey] = pvpFormEditBackup.slots;
     STATE[k.formKey] = pvpFormEditBackup.formationKey;
+    STATE[k.relicsKey] = pvpFormEditBackup.relicsFrom;
   }
   pvpFormEdit = null;
   pvpFormPick = null;
@@ -8975,7 +9072,7 @@ function renderHome(){
 
     <div class="panel">
       <div class="row-between" style="margin-bottom:10px;">
-        <div class="mc-head">パーティ<span class="home-fm">${currentFormation().name}</span></div>
+        <div class="mc-head">パーティ<span class="home-fm">編成${STATE.formationIdx + 1}・${currentFormation().name}</span></div>
         <div class="home-party-btns">
           <button class="btn btn-ghost btn-sm" data-nav="dex">📖 キャラ</button>
           <button class="btn btn-ghost btn-sm" data-nav="party">編成</button>
@@ -10920,6 +11017,30 @@ function renderFormationPicker(){
   `;
 }
 
+// 編成1〜5の切り替えタブ(編成画面・出撃前の画面で共通)
+function formationSetTabsHtml(){
+  if(!Array.isArray(STATE.formations)) ensureFormations();
+  return `<div class="fset-tabs" role="tablist" aria-label="編成を選ぶ">
+    ${STATE.formations.map((f, i) => {
+      const n = formationSetCount(i), on = i === STATE.formationIdx;
+      return `<button class="fset-tab ${on ? 'on' : ''} ${n ? '' : 'empty'}" data-fset="${i}" role="tab" aria-selected="${on}">編成${i + 1}<small>${n}体</small></button>`;
+    }).join('')}
+  </div>`;
+}
+// 出撃前に使う編成を選ぶ欄: タブ + 今の編成のメンバー
+function sortieFormationHtml(){
+  const ids = STATE.slots.filter(Boolean);
+  const bp = ids.reduce((sum, id) => sum + battlePower(id), 0);
+  return `<div class="fset-box">
+    <div class="ss-label">使う編成<span class="ss-sub">${currentFormation().name}・総合BP ${bp.toLocaleString()}</span></div>
+    ${formationSetTabsHtml()}
+    <div class="fset-members">
+      ${ids.length ? ids.map(id => `<img src="${imgSrc(MON_BY_ID[id].id)}" alt="${MON_BY_ID[id].name}">`).join('') : '<span class="fset-none">この編成にはキャラがいません</span>'}
+      <button class="btn btn-ghost btn-sm fset-edit" data-fset-edit="1">編成する ›</button>
+    </div>
+  </div>`;
+}
+
 const SORT_KEYS = [
   { key:'rarity', label:'レアリティ' },
   { key:'level',  label:'レベル' },
@@ -11182,6 +11303,7 @@ function renderParty(){
         <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 相性</button>
       </div>
     </div>
+    ${formationSetTabsHtml()}
     <div class="row-between" style="margin:0 0 4px;">
       <div class="party-count">${partyIds.length} / ${PARTY_MAX}体<span class="bp">総合BP ${totalBp.toLocaleString()}</span></div>
     </div>
@@ -11385,6 +11507,7 @@ function renderStageSheet(){
         ${dropIconsHtml(st)}
         <div class="ss-line">${cleared ? '<span class="cleared-tag">✓ 初回クリア報酬は受け取り済み</span>' : `初回クリア ${CRYSTAL_ICON}${st.firstClear}${st.bossReward || st.reward ? ` ${rewardHtml([...(st.bossReward || []), ...(st.reward || [])])}` : ''}`}</div>
       </div>
+      ${sortieFormationHtml()}
       ${helperSurchargeNote(st) ? `<div class="fs-note" style="margin:-2px 0 8px;">お助けキャラを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
       <div class="ss-actions">
         ${sweepButton(st)}
@@ -11409,6 +11532,7 @@ function renderDungeons(){
     <div class="dungeon-tabs" role="tablist">
       ${Object.entries(DUNGEONS).map(([k, x]) => `<button class="stage-tab ${dungeonTab === k ? 'on' : ''}" data-dungeon-tab="${k}" role="tab" aria-selected="${dungeonTab === k}">${x.icon} ${x.name.replace('ダンジョン', '')}</button>`).join('')}
     </div>
+    ${sortieFormationHtml()}
     <div class="screen-sub" style="margin-bottom:10px;">${d.desc}。何度でも挑戦でき、1回 ⚡${DUNGEON_STAMINA}。段階はメインステージを進めると解放されます。★3でクリアすると周回(スキップ)できます。</div>
     ${dungeonTab === 'mat' ? `
       <div class="panel panel-tight today-mats">
@@ -11893,6 +12017,7 @@ function setPvpDefense(){
   // お助けキャラ(借り物)はPVPに持ち込めないので除外する(copyPartyIntoPvpFormと同じ扱い)
   STATE.pvpDefenseSlots = STATE.slots.map(id => id === HELP_SLOT_ID ? null : id);
   STATE.pvpDefenseFormation = STATE.formationKey;
+  STATE.pvpDefenseRelicsFrom = STATE.formationIdx;
   saveState();
   publishProfile();
   toast('現在の編成を防衛編成に設定しました');
@@ -11925,7 +12050,7 @@ function startPvpBattle(opponent){
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
-    const relicId = equippedRelicOf(id);
+    const relicId = relicOfIn(STATE.pvpAttackRelicsFrom || 0, id);
     if(relicId) applyRelicToUnit(u, m, relicId);
     applyFormationBonus(u, formation);
     party.push(u);
@@ -15877,6 +16002,8 @@ function handlePhoneClick(ev){
   const pvpFormEditEl = t.closest('[data-pvp-form-edit]');
   if(pvpFormEditEl){ openPvpFormEdit(pvpFormEditEl.dataset.pvpFormEdit); return; }
   if(t.closest('[data-pvp-form-cancel]')){ cancelPvpFormEdit(); return; }
+  const pvpRelicSrcEl = t.closest('[data-pvp-relic-src]');
+  if(pvpRelicSrcEl && pvpFormEdit){ STATE[PVP_FORM_KIND[pvpFormEdit].relicsKey] = Number(pvpRelicSrcEl.dataset.pvpRelicSrc); render(); return; }
   if(t.closest('[data-pvp-form-copy]')){ copyPartyIntoPvpForm(pvpFormEdit); return; }
   if(t.closest('[data-pvp-form-save]')){ savePvpFormEdit(); return; }
   const pvpFormFormationEl = t.closest('[data-pvp-form-formation]');
@@ -15970,6 +16097,18 @@ function handlePhoneClick(ev){
     render(); return;
   }
 
+  const fsetEl = t.closest('[data-fset]');
+  if(fsetEl){
+    switchFormationSet(fsetEl.dataset.fset);
+    if(stageSheet && document.querySelector('#modal-layer .stage-sheet')) renderStageSheet();
+    render();
+    return;
+  }
+  if(t.closest('[data-fset-edit]')){
+    stageSheet = null; closeModal();
+    goto('party');
+    return;
+  }
   const fmEl = t.closest('[data-formation]');
   if(fmEl){
     changeFormation(fmEl.dataset.formation);
@@ -16435,6 +16574,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 102, version: 'α0.1.061', date: '9/26', title: '編成を5つまで持てるように', body: '編成を「編成1〜5」の5つまで作れるようになりました。キャラ → 編成の画面の上のタブで切り替えられます。ステージ詳細・育成クエスト・深淵回廊でも、出撃する前に使う編成を選べます。遺物は編成ごとに装備します。同じ編成の中では1つの遺物を1体にしか付けられませんが、別の編成なら同じ遺物を使えます(これまでの装備は、どの編成にもそのまま引き継いでいます)。PVPの攻撃編成・防衛編成は1つずつのままで、編集画面で「どの編成の遺物を使うか」を選べます。' },
   { id: 101, version: 'α0.1.060', date: '9/26', title: '探索メニューにキャラの絵', body: '探索のメニュー(メインクエスト・育成クエスト・深淵回廊・イベント・PVP)の絵文字アイコンを、キャラの絵に変えました。深淵回廊は門番のアヌビス、イベントは開催中のイベントのキャラからランダムで1体が出ます。' },
   { id: 100, version: 'α0.1.059', date: '9/26', title: '下のメニューを5つに整理', body: '下のメニューが多すぎたので、「ガチャ・キャラ・ホーム・探索・拠点」の5つにまとめました。「キャラ」の中は画面上のタブで「編成・キャラ一覧・遺物」を切り替えられます(押すと最初は編成)。「拠点」の中は「施設・ショップ」のタブです。PVPは「探索」のメニューの一番下から入れます。' },
   { id: 99, version: 'α0.1.058', date: '9/26', title: '下のメニューに「キャラ」と「ショップ」を追加', body: '下のメニューを見直しました。編成の左に「キャラ」を追加し、これまでの図鑑(持っているキャラの一覧・並び替え・絞り込み・★上げ)をここから開けるようにしました。また、拠点の中にあったショップを分けて、拠点の右に「ショップ」を追加しました。' },
