@@ -19,9 +19,9 @@ const S = api.STATE;
 S.clearedStages = api.STAGES.map(s => s.id);
 
 // --- デイリー「探索を3回」 ---
-const dg = E.dungeonStage('rune', 0);
+const dg = E.dungeonStage('mat', 0);
 E.grantDungeonRewards(dg);
-ok('育成ダンジョン(ルーン採掘)のクリアで「探索を3回」が進む', entry('d:d_clear').progress === 1, entry('d:d_clear').progress);
+ok('育成ダンジョン(素材)のクリアで「探索を3回」が進む', entry('d:d_clear').progress === 1, entry('d:d_clear').progress);
 E.grantStageRewards(E.findStage('q1_01'), []);
 ok('クエストのクリアでも進む', entry('d:d_clear').progress === 2);
 S.stageStars = { dg_exp_0: 3 }; S.stamina = 999;

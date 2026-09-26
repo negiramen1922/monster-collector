@@ -78,12 +78,13 @@ S.clearedStages=['q1_03','q1_05','q1_10']; E.upgradeFacility('mine');
 ok('施設の強化(Lv3・5万G)', base.mine.lv===3 && S.gold===1e6-50000);
 // dungeons: battle + rewards
 S.clearedStages=api.STAGES.map(x=>x.id);
-for(const kind of ['exp','gold','rune']){
+for(const kind of ['exp','gold','mat']){
   const b=api.run(['m54','m113','m116','m68','m125'], `dg_${kind}_4`, 120);
-  ok(`${kind}ダンジョンLv5: 戦闘が終わり報酬が出る`, b.finished && b.win && b.rewards && (b.rewards.gold>0 || b.rewards.items.length>0 || (b.rewards.runes||[]).length>0), b.rewards && {gold:b.rewards.gold, items:b.rewards.items.length});
+  ok(`${kind}ダンジョンLv5: 戦闘が終わり報酬が出る`, b.finished && b.win && b.rewards && (b.rewards.gold>0 || b.rewards.items.length>0), b.rewards && {gold:b.rewards.gold, items:b.rewards.items.length});
 }
-S.runes=[]; const r=E.grantDungeonRewards(E.dungeonStage('rune',4));
-ok('ルーン採掘Lv5: ルーン3個(TierⅤかⅣ)とルーンの粉(素材ダンジョンの置き換え)', r.runes.length===3 && r.runes.every(x=>x.tier===5||x.tier===4) && r.dust>=30 && r.items.length===0, r.runes.map(x=>x.tier));
+S.items={}; const r=E.grantDungeonRewards(E.dungeonStage('mat',4));
+const open=E.matOpenToday(); const allowed=new Set(Object.entries(open).flatMap(([f,ks])=>ks.map(k=>f+'_'+k)));
+ok('素材ダンジョン: 今日の曜日の素材だけ、I16/II9(IIIは出ない)', r.items.every(x=>allowed.has(x.key.replace(/_[1-4]$/,''))) && r.items.filter(x=>x.key.endsWith('_1')).reduce((a,x)=>a+x.n,0)===16 && !r.items.some(x=>x.key.endsWith('_3')), r.items);
 // main stage: drops, boss soul cap, first clear box
 const bb=api.run(['m54','m113','m116','m68','m125'], 'q1_05', 60);
 const S2=api.STATE; S2.clearedStages=['tu1','tu2','tu3','q1_01','q1_02','q1_03','q1_04']; S2.daily=null; S2.items={};

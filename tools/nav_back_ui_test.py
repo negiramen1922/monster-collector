@@ -48,7 +48,7 @@ async def main():
             check('下のメニューは ガチャ・キャラ・ホーム・探索・拠点 の5つ', navs == ['gacha:🎰ガチャ', 'party:🧩キャラ', 'home:🏠ホーム', 'battle:⚔️探索', 'base:🏯拠点'], navs)
             await pg.evaluate("() => document.querySelector('.nav-btn[data-nav=\"party\"]').click()"); await pg.wait_for_timeout(250)
             tabs = await pg.evaluate("() => [...document.querySelectorAll('.group-tab')].map(b => b.textContent)")
-            check('キャラを押すと編成が最初、上に 編成・キャラ一覧・遺物・ルーン のタブ', await cur() == 'party' and tabs == ['編成', 'キャラ一覧', '遺物', 'ルーン'], tabs)
+            check('キャラを押すと編成が最初、上に 編成・キャラ一覧・遺物 のタブ', await cur() == 'party' and tabs == ['編成', 'キャラ一覧', '遺物'], tabs)
             await pg.screenshot(path=str(OUT / 'nav5_party.png'))
             await pg.evaluate("() => document.querySelector('[data-group-tab=\"relics\"]').click()"); await pg.wait_for_timeout(250)
             check('遺物タブ(下のメニューはキャラのまま光る)', await cur() == 'relics' and await pg.evaluate("() => document.querySelector('.nav-btn.active').dataset.nav") == 'party')
