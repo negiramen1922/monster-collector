@@ -735,7 +735,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 /* 中身が変わる画面(持ち物・錬金術・アイテム詳細・スキル強化・キャラ詳細・遺物・ステージ詳細など)は上揃いで固定する。
    真ん中揃えだと中身の高さが変わるたびに上の位置がずれて、押そうとした所が動いてしまうため */
-#modal-layer:has(> .bag-modal, > .item-detail, > .skill-up-modal, > .detail-modal, > .relic-picker-modal, > .relic-upgrade-modal, > .relic-detail-modal, > .stage-sheet, > .sweep-modal, > .unit-modal){ align-items:flex-start; }
+#modal-layer:has(> .bag-modal, > .item-detail, > .skill-up-modal, > .detail-modal, > .relic-picker-modal, > .relic-upgrade-modal, > .relic-detail-modal, > .rune-picker-modal, > .rune-detail-modal, > .rune-bulk-modal, > .stage-sheet, > .sweep-modal, > .unit-modal){ align-items:flex-start; }
 #modal-layer > .bag-modal{ height:100%; }
 #modal-layer.show{ display:flex; }
 .result-modal{
@@ -2368,6 +2368,74 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sr-state{ display:block; font-size:11px; color:var(--dim2); margin-top:4px; }
 .sr-state.done{ color:#5cab52; }
 .sr-right{ display:flex; align-items:center; gap:6px; flex:none; font-size:13px; color:var(--gold); }
+.rune-ic{ position:relative; display:inline-block; width:48px; height:48px; flex:none; }
+.rune-ic .rune-svg{ width:100%; height:100%; display:block; filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+.rune-ic.big{ width:76px; height:76px; }
+.rune-ic .rune-lv{ position:absolute; right:-3px; bottom:-3px; font-size:10px; font-weight:900; color:#fff; background:rgba(20,14,34,.9); border:1px solid var(--line); border-radius:6px; padding:0 3px; line-height:14px; }
+.rune-ic .rune-lock{ position:absolute; left:-3px; top:-3px; font-size:10px; font-style:normal; }
+.rune-ic .rune-used{ position:absolute; right:-3px; top:-3px; font-size:9px; font-weight:900; font-style:normal; color:#1a1426; background:var(--gold); border-radius:50%; width:14px; height:14px; line-height:14px; text-align:center; }
+.rune-head{ display:flex; justify-content:space-between; font-size:12px; color:var(--dim); margin:0 0 6px; }
+.rune-head b{ color:var(--text); font-size:14px; }
+.rune-head .full b{ color:#ff6b6b; }
+.rune-filter{ display:flex; flex-wrap:wrap; gap:4px; margin:0 0 8px; }
+.rf-chip{ display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); font-size:11px; font-weight:800; }
+.rf-chip i{ width:9px; height:9px; border-radius:50%; background:var(--c, var(--dim)); display:inline-block; }
+.rf-chip.on{ border-color:var(--c, var(--gold)); color:var(--text); background:var(--panel3); box-shadow:inset 0 0 0 1px var(--c, var(--gold)); }
+.rune-sorts{ display:flex; gap:4px; margin:0 0 10px; }
+.rune-sorts .stage-tab{ flex:1; padding:6px 0; font-size:12px; }
+.rune-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(60px, 1fr)); gap:8px; }
+.rune-cell{ display:flex; align-items:center; justify-content:center; aspect-ratio:1; border-radius:12px; border:1px solid var(--line); background:var(--panel2); padding:0; }
+.rune-cell:active{ transform:scale(.96); }
+.rune-box .rune-box-fs{ font-size:10px; color:var(--dim); margin-left:6px; font-weight:700; }
+.rune-slots{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+.rune-slot{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:7px 2px 6px; border-radius:12px; border:1px dashed var(--line); background:var(--panel2); color:var(--dim); }
+.rune-slot.filled{ border-style:solid; color:var(--text); }
+.rune-slot .rs-plus{ width:48px; height:48px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+.rune-slot small{ font-size:10px; font-weight:800; white-space:nowrap; }
+.rune-total{ font-size:11px; color:var(--dim); margin-top:8px; line-height:1.5; }
+.rune-sub{ display:inline-block; font-size:11px; font-weight:800; color:var(--text); background:var(--panel3); border-left:3px solid var(--c); border-radius:6px; padding:2px 6px; margin:0 4px 4px 0; }
+.rune-sub small{ color:var(--gold); margin-left:3px; }
+.rune-sub.none{ border-left-color:var(--line); color:var(--dim); }
+.rune-detail-modal, .rune-picker-modal, .rune-bulk-modal{ text-align:left; }
+.rd-head{ display:flex; gap:14px; align-items:center; margin:4px 0 10px; }
+.rd-name{ font-size:17px; font-weight:900; }
+.rd-lv{ color:var(--gold); }
+.rd-tags{ font-size:12px; color:var(--dim); margin:3px 0; display:flex; gap:6px; align-items:center; }
+.rd-rar{ font-weight:900; color:#1a1426; background:var(--c); border-radius:6px; padding:0 6px; }
+.rd-main{ font-size:18px; font-weight:900; color:var(--c); }
+.rd-main small{ font-size:12px; color:var(--dim); }
+.rd-subs{ margin:0 0 6px; }
+.rd-flash{ font-size:13px; font-weight:900; color:var(--gold); margin:4px 0 8px; animation:rdflash .6s ease; }
+@keyframes rdflash{ from{ transform:scale(1.15); opacity:0; } to{ transform:none; opacity:1; } }
+.rd-users{ font-size:11px; color:var(--dim); margin:4px 0 10px; }
+.rd-enhance{ border:1px solid var(--line); border-radius:12px; padding:10px; background:var(--panel2); margin-bottom:10px; }
+.rd-cost{ font-size:13px; font-weight:900; }
+.rd-cost small{ display:block; font-size:11px; font-weight:700; color:var(--dim); margin-top:2px; }
+.rd-cost-line{ font-size:12px; margin:6px 0 8px; }
+.rd-cost-line small{ color:var(--dim); margin-left:6px; }
+.rd-max{ text-align:center; font-weight:900; color:var(--gold); }
+.rd-actions{ display:flex; gap:8px; }
+.rd-actions .btn{ flex:1; }
+.rp-cur, .rp-row{ display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:8px; border-radius:12px; border:1px solid var(--line); background:var(--panel2); color:var(--text); margin-bottom:6px; }
+.rp-cur{ border-color:var(--gold); margin-bottom:10px; }
+.rp-body{ flex:1; min-width:0; }
+.rp-name{ font-size:13px; font-weight:900; margin-bottom:3px; }
+.rp-name small{ font-size:10px; color:var(--dim); font-weight:700; }
+.rp-subs .rune-sub{ font-size:10px; margin-bottom:2px; }
+.rp-used{ font-size:10px; color:#ffb35a; font-weight:800; margin-top:2px; }
+.rp-btns{ display:flex; flex-direction:column; gap:4px; }
+.rp-list{ max-height:none; }
+.rb-rars{ display:flex; gap:6px; margin:10px 0; }
+.rb-rars .rf-chip{ flex:1; justify-content:center; padding:8px 0; font-size:13px; }
+.rb-sum{ text-align:center; font-size:16px; font-weight:900; margin:6px 0 10px; }
+.rune-gain{ margin-top:10px; }
+.rune-gain .rg-head{ font-size:12px; font-weight:900; margin-bottom:6px; }
+.rune-gain .rg-full{ color:#ff6b6b; font-size:11px; margin-left:8px; }
+.rune-gain .rg-list{ display:flex; flex-wrap:wrap; gap:8px; }
+.rune-gain .rg-item{ display:flex; flex-direction:column; align-items:center; gap:2px; }
+.rune-gain .rg-item small{ font-size:9px; font-weight:900; }
+.rune-gain .rg-dust{ font-size:12px; margin-top:6px; color:var(--dim); }
+.rune-mine-info .rmi-line{ font-size:11px; color:var(--dim); margin-top:6px; }
 .fset-tabs{ display:flex; gap:4px; margin:0 0 8px; }
 .fset-tab{ flex:1; min-width:0; padding:6px 0 5px; border-radius:10px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); font-size:12px; font-weight:800; line-height:1.15; }
 .fset-tab small{ display:block; font-size:10px; font-weight:600; opacity:.8; }
@@ -2769,7 +2837,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.062';
+const GAME_VERSION = 'α0.1.063';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3301,7 +3369,7 @@ function relicMapFromEquips(){
   ownedRelicIds().forEach(id => { const to = STATE.relics[id].equippedTo; if(to && MON_BY_ID[to] && !map[to]) map[to] = id; });
   return map;
 }
-function blankFormationSet(relics){ return { slots: Array(PARTY_MAX).fill(null), formationKey: DEFAULT_FORMATION, relics: { ...(relics || {}) } }; }
+function blankFormationSet(relics){ return { slots: Array(PARTY_MAX).fill(null), formationKey: DEFAULT_FORMATION, relics: { ...(relics || {}) }, runes: {} }; }
 function sanitizeFormationSet(f){
   const out = f && typeof f === 'object' ? f : blankFormationSet();
   const slots = Array.isArray(out.slots) ? out.slots.slice(0, PARTY_MAX) : [];
@@ -3313,6 +3381,7 @@ function sanitizeFormationSet(f){
     if(MON_BY_ID[mon] && RELICS[rid] && STATE.relics[rid] && !used.has(rid)){ used.add(rid); relics[mon] = rid; }
   });
   out.relics = relics;
+  sanitizeFormationRunes(out);
   return out;
 }
 // 写し(STATE.slotsなど)を今の編成へ書き戻す
@@ -3328,7 +3397,7 @@ function ensureFormations(){
     // 以前のセーブ: 今のパーティを編成1に。遺物の装備はどの編成でも同じ状態から始める
     const relics = relicMapFromEquips();
     STATE.formations = [...Array(FORMATION_SETS)].map((_, i) =>
-      i === 0 ? { slots: [...STATE.slots], formationKey: STATE.formationKey, relics: { ...relics } } : blankFormationSet(relics));
+      i === 0 ? { slots: [...STATE.slots], formationKey: STATE.formationKey, relics: { ...relics }, runes: {} } : blankFormationSet(relics));
     STATE.formationIdx = 0;
   }
   STATE.formations = STATE.formations.slice(0, FORMATION_SETS);
@@ -3902,6 +3971,7 @@ function buildDefenseSnapshot(){
       id, star: owned.star, level: owned.level,
       skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
       relic: relicSt ? { defId: relicId, level: relicSt.level, skillLv: relicSt.skillLv, dupeUsed: relicSt.dupeUsed } : null,
+      runes: sanitizeRuneBonus(runeBonusOf(id, STATE.pvpDefenseRelicsFrom || 0)),
     };
   });
   if(!slots.some(Boolean)) return null;
@@ -3985,7 +4055,7 @@ function sanitizeRelicSnap(raw){
 function sanitizeDefenseSlot(raw){
   const base = sanitizeSupport(raw);
   if(!base) return null;
-  return { ...base, relic: sanitizeRelicSnap(raw.relic) };
+  return { ...base, relic: sanitizeRelicSnap(raw.relic), runes: sanitizeRuneBonus(raw.runes) };
 }
 function sanitizeDefense(raw){
   if(!raw || !Array.isArray(raw.slots)) return null;
@@ -4526,6 +4596,7 @@ function normalizeState(){
   if(!STATE.guidesSeen) STATE.guidesSeen = {};
   delete STATE.formation;
   delete STATE.party;
+  ensureRunes();
   if(!(STATE.pvpAttackRelicsFrom >= 0 && STATE.pvpAttackRelicsFrom < FORMATION_SETS)) STATE.pvpAttackRelicsFrom = 0;
   if(!(STATE.pvpDefenseRelicsFrom >= 0 && STATE.pvpDefenseRelicsFrom < FORMATION_SETS)) STATE.pvpDefenseRelicsFrom = 0;
   ensureFormations();
@@ -6109,6 +6180,437 @@ function applyRelicSnapToUnit(u, mon, relicSnap){
   applyRelicCore(u, mon, RELICS[relicSnap.defId], relicSnap);
 }
 
+/* ================= ルーン =================
+   1キャラ4枠(枠ごとの縛りなし)。編成ごとに装備し、同じ編成の中では1つのルーンを1体にしか付けられない
+   (別の編成なら同じルーンを使える)。装備は STATE.formations[i].runes = { monId: [uid|null ×4] }。
+   - Tier(Ⅰ〜Ⅵ): ルーン採掘の段階で決まる「数値の桁」。メイン・サブの数値の大きさが決まる
+   - レアリティ(白・青・紫・金・虹): 最初に付いているサブ効果の数(0〜4)。強化+3ごとにサブが1つ増え、
+     4つ揃ったあとは既存のサブが伸びる → 虹は強化が全部サブの上乗せに回るので、同じTierなら一番強い
+   - 見た目: 形=レアリティ、宝石の色=メインの効果、中心のローマ数字=Tier ---- */
+const RUNE_MAX = 200;          // 所持数の上限
+const RUNE_SLOTS = 4;
+const RUNE_MAX_LV = 12;
+const RUNE_TIERS = 6;
+const RUNE_SUB_MAX = 4;
+const RUNE_ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ'];
+const RUNE_RARITIES = [
+  { label: '白', color: '#e4e1ee', subs: 0, shape: 'diamond' },
+  { label: '青', color: '#4fa3ff', subs: 1, shape: 'square' },
+  { label: '紫', color: '#b56bff', subs: 2, shape: 'pentagon' },
+  { label: '金', color: '#ffc83d', subs: 3, shape: 'hexagon' },
+  { label: '虹', color: '#ffffff', subs: 4, shape: 'octagon' },
+];
+// main: Tierごとの+12の値(+0はその30%から始まり、強化で直線的に伸びる)/ sub: 1回分の幅(Tier倍率がかかる)
+const RUNE_STATS = {
+  hp:       { label: 'HP', short: 'HP',     color: '#4fd06a', pct: true,  main: [10, 14, 19, 24, 30, 36], sub: [2, 4] },
+  atk:      { label: 'STR', short: 'STR',    color: '#ff5a5a', pct: true,  main: [10, 14, 19, 24, 30, 36], sub: [2, 4] },
+  pdef:     { label: '物理防御', short: '物防', color: '#ff9d3c', pct: true,  main: [12, 17, 23, 29, 36, 44], sub: [2, 5] },
+  mdef:     { label: '魔法防御', short: '魔防', color: '#5b82ff', pct: true,  main: [12, 17, 23, 29, 36, 44], sub: [2, 5] },
+  spd:      { label: 'SPD', short: 'SPD',    color: '#39d3cf', pct: false, main: [4, 6, 8, 10, 13, 16],    sub: [1, 2] },
+  critRate: { label: '会心率', short: '会心',  color: '#ffd93f', pct: true,  main: [5, 7, 9, 12, 15, 18],    sub: [1, 2] },
+  critDmg:  { label: '会心倍率', short: '会心倍', color: '#ff6fcf', pct: true,  main: [8, 11, 15, 19, 24, 30],  sub: [2, 4] },
+};
+const RUNE_STAT_KEYS = Object.keys(RUNE_STATS);
+const RUNE_SUB_TIER_MULT = [1, 1.3, 1.65, 2.05, 2.5, 3];
+const RUNE_MAIN_START = 0.3;
+
+const round1 = v => Math.round(v * 10) / 10;
+function runeMainValue(r, lv){
+  const s = RUNE_STATS[r.main], max = s.main[r.tier - 1];
+  const v = max * (RUNE_MAIN_START + (1 - RUNE_MAIN_START) * (lv === undefined ? r.lv : lv) / RUNE_MAX_LV);
+  return s.pct ? round1(v) : Math.round(v);
+}
+function rollRuneSub(stat, tier){
+  const s = RUNE_STATS[stat], [lo, hi] = s.sub;
+  const v = (lo + Math.random() * (hi - lo)) * RUNE_SUB_TIER_MULT[tier - 1];
+  return s.pct ? Math.max(0.5, round1(v)) : Math.max(1, Math.round(v));
+}
+function addRuneSub(r){
+  const used = new Set([r.main, ...r.subs.map(x => x.stat)]);
+  const pool = RUNE_STAT_KEYS.filter(k => !used.has(k));
+  if(!pool.length) return;
+  const stat = pool[Math.floor(Math.random() * pool.length)];
+  r.subs.push({ stat, val: rollRuneSub(stat, r.tier), rolls: 1 });
+}
+function makeRune(tier, rarity, main){
+  tier = Math.max(1, Math.min(RUNE_TIERS, tier | 0));
+  rarity = Math.max(0, Math.min(RUNE_RARITIES.length - 1, rarity | 0));
+  const r = { uid: '', tier, rarity, main: RUNE_STATS[main] ? main : RUNE_STAT_KEYS[Math.floor(Math.random() * RUNE_STAT_KEYS.length)], lv: 0, subs: [], lock: false };
+  for(let i = 0; i < RUNE_RARITIES[rarity].subs; i++) addRuneSub(r);
+  return r;
+}
+function ensureRunes(){
+  if(!Array.isArray(STATE.runes)) STATE.runes = [];
+  if(!(STATE.runeSeq > 0)) STATE.runeSeq = 0;
+  if(!(STATE.runeDust >= 0)) STATE.runeDust = 0;
+  return STATE.runes;
+}
+function runeByUid(uid){ return uid ? ensureRunes().find(r => r.uid === uid) || null : null; }
+function runeFull(){ return ensureRunes().length >= RUNE_MAX; }
+function addRune(r){
+  ensureRunes();
+  STATE.runeSeq += 1;
+  r.uid = `r${STATE.runeSeq}`;
+  r.at = Date.now();
+  STATE.runes.push(r);
+  return r;
+}
+
+/* ---- 装備(編成ごと) ---- */
+function formationRunes(idx){
+  if(!Array.isArray(STATE.formations)) ensureFormations();
+  const f = STATE.formations[idx === undefined ? STATE.formationIdx : idx];
+  if(!f) return {};
+  if(!f.runes || typeof f.runes !== 'object') f.runes = {};
+  return f.runes;
+}
+function runesOf(monId, idx){
+  const list = formationRunes(idx)[monId];
+  return [...Array(RUNE_SLOTS).keys()].map(i => (list && runeByUid(list[i])) ? list[i] : null);
+}
+// そのルーンを装備している {idx, monId, slot} を全編成から
+function runeUsers(uid){
+  const out = [];
+  (STATE.formations || []).forEach((f, idx) => Object.entries(f.runes || {}).forEach(([monId, list]) =>
+    (list || []).forEach((u, slot) => { if(u === uid) out.push({ idx, monId, slot }); })));
+  return out;
+}
+function runeUserIn(uid, idx){ return runeUsers(uid).find(x => x.idx === idx) || null; }
+function equipRune(uid, monId, slot, idx){
+  if(!runeByUid(uid) || !MON_BY_ID[monId] || !(slot >= 0 && slot < RUNE_SLOTS)) return false;
+  const map = formationRunes(idx);
+  Object.keys(map).forEach(m => { map[m] = (map[m] || []).map(u => u === uid ? null : u); }); // 同じ編成の中では1体だけ
+  const list = runesOf(monId, idx);
+  list[slot] = uid;
+  map[monId] = list;
+  return true;
+}
+function unequipRune(monId, slot, idx){
+  const map = formationRunes(idx);
+  if(!map[monId]) return;
+  map[monId] = runesOf(monId, idx);
+  map[monId][slot] = null;
+  if(map[monId].every(x => !x)) delete map[monId];
+}
+function sanitizeFormationRunes(f){
+  const used = new Set(), out = {};
+  Object.entries(f.runes && typeof f.runes === 'object' ? f.runes : {}).forEach(([monId, list]) => {
+    if(!MON_BY_ID[monId] || !Array.isArray(list)) return;
+    const slots = [...Array(RUNE_SLOTS).keys()].map(i => {
+      const uid = list[i];
+      if(!uid || used.has(uid) || !runeByUid(uid)) return null;
+      used.add(uid);
+      return uid;
+    });
+    if(slots.some(Boolean)) out[monId] = slots;
+  });
+  f.runes = out;
+}
+
+/* ---- 効果 ---- */
+// {hp,atk,pdef,mdef,critRate,critDmg: %, spd: 実数}
+function runeBonusFromList(runes){
+  const b = {};
+  runes.filter(Boolean).forEach(r => {
+    b[r.main] = (b[r.main] || 0) + runeMainValue(r);
+    r.subs.forEach(s => { b[s.stat] = (b[s.stat] || 0) + s.val; });
+  });
+  Object.keys(b).forEach(k => { b[k] = RUNE_STATS[k].pct ? round1(b[k]) : Math.round(b[k]); });
+  return b;
+}
+function runeBonusOf(monId, idx){ return runeBonusFromList(runesOf(monId, idx).map(runeByUid)); }
+function applyRuneBonusToUnit(u, b){
+  if(!b) return;
+  if(b.spd) u.spd += b.spd;
+  applyStatBonus(u, {
+    hp: (b.hp || 0) / 100, atk: (b.atk || 0) / 100, pdef: (b.pdef || 0) / 100, mdef: (b.mdef || 0) / 100,
+    critRate: (b.critRate || 0) / 100, critDmg: (b.critDmg || 0) / 100,
+  });
+}
+// 他のプレイヤーから届いたルーン効果(PVPの防衛編成)は信用せず、ありえる範囲に収める
+function sanitizeRuneBonus(raw){
+  if(!raw || typeof raw !== 'object') return null;
+  const out = {};
+  RUNE_STAT_KEYS.forEach(k => {
+    const s = RUNE_STATS[k];
+    const cap = RUNE_SLOTS * (s.main[RUNE_TIERS - 1] + s.sub[1] * RUNE_SUB_TIER_MULT[RUNE_TIERS - 1] * (RUNE_SUB_MAX + RUNE_MAX_LV / 3));
+    const v = Number(raw[k]);
+    if(Number.isFinite(v) && v > 0) out[k] = Math.min(cap, s.pct ? round1(v) : Math.round(v));
+  });
+  return Object.keys(out).length ? out : null;
+}
+function runeStatText(stat, val){ const s = RUNE_STATS[stat]; return `${s.label}+${val}${s.pct ? '%' : ''}`; }
+function runeName(r){ return `${RUNE_STATS[r.main].label}のルーン`; }
+
+/* ---- 強化・分解 ---- */
+function runeEnhanceCost(r){
+  return { gold: 150 * r.tier * (r.lv + 1), dust: r.tier * (r.lv + 1) };
+}
+function enhanceRune(uid){
+  const r = runeByUid(uid);
+  if(!r || r.lv >= RUNE_MAX_LV) return { ok: false, why: '強化は最大です' };
+  const c = runeEnhanceCost(r);
+  if(STATE.gold < c.gold) return { ok: false, why: 'ゴールドが足りません' };
+  if(ensureRunes() && STATE.runeDust < c.dust) return { ok: false, why: 'ルーンの粉が足りません' };
+  STATE.gold -= c.gold;
+  STATE.runeDust -= c.dust;
+  r.lv += 1;
+  r.spent = (r.spent || 0) + c.dust;
+  let event = null;
+  if(r.lv % 3 === 0){
+    if(r.subs.length < RUNE_SUB_MAX){ addRuneSub(r); event = { type: 'new', stat: r.subs[r.subs.length - 1].stat }; }
+    else {
+      const s = r.subs[Math.floor(Math.random() * r.subs.length)];
+      const add = rollRuneSub(s.stat, r.tier);
+      s.val = RUNE_STATS[s.stat].pct ? round1(s.val + add) : s.val + add;
+      s.rolls = (s.rolls || 1) + 1;
+      event = { type: 'up', stat: s.stat, add };
+    }
+  }
+  return { ok: true, event };
+}
+function runeDustValue(r){ return r.tier * (2 + r.rarity * 2) + Math.floor((r.spent || 0) / 2); }
+function runeCanDismantle(r){ return r && !r.lock && runeUsers(r.uid).length === 0; }
+function dismantleRunes(uids){
+  let dust = 0, n = 0;
+  const set = new Set(uids);
+  STATE.runes = ensureRunes().filter(r => {
+    if(!set.has(r.uid) || !runeCanDismantle(r)) return true;
+    dust += runeDustValue(r); n++;
+    return false;
+  });
+  STATE.runeDust += dust;
+  return { n, dust };
+}
+
+/* ---- ルーンの見た目: 形=レアリティ、宝石の色=メインの効果、中心のローマ数字=Tier ---- */
+function runeShapePoints(shape, scale){
+  const k = scale || 1;
+  const poly = (n, rot) => [...Array(n).keys()].map(i => {
+    const a = (rot + i * 360 / n) * Math.PI / 180;
+    return `${(50 + Math.cos(a) * 44 * k).toFixed(1)},${(50 + Math.sin(a) * 44 * k).toFixed(1)}`;
+  });
+  if(shape === 'diamond') return poly(4, -90);
+  if(shape === 'square') return poly(4, -45).map(p => p); // 角ばった四角
+  if(shape === 'pentagon') return poly(5, -90);
+  if(shape === 'hexagon') return poly(6, -90);
+  return poly(8, -67.5);
+}
+function shadeHex(hex, amt){
+  const n = parseInt(hex.slice(1), 16);
+  const f = c => Math.max(0, Math.min(255, Math.round(amt >= 0 ? c + (255 - c) * amt : c * (1 + amt))));
+  return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => f(c).toString(16).padStart(2, '0')).join('');
+}
+const RUNE_SVG_CACHE = {};
+function runeIconSvg(r){
+  const key = `${r.main}|${r.rarity}|${r.tier}`;
+  if(RUNE_SVG_CACHE[key]) return RUNE_SVG_CACHE[key];
+  const rar = RUNE_RARITIES[r.rarity], col = RUNE_STATS[r.main].color;
+  const outer = runeShapePoints(rar.shape, 1), inner = runeShapePoints(rar.shape, 0.58);
+  const gid = `rg-${r.main}`, rid = 'rg-rainbow';
+  const stroke = r.rarity === 4 ? `url(#${rid})` : rar.color;
+  const facets = outer.map((p, i) => `<line x1="${p.split(',')[0]}" y1="${p.split(',')[1]}" x2="${inner[i].split(',')[0]}" y2="${inner[i].split(',')[1]}"/>`).join('');
+  const svg = `<svg class="rune-svg" viewBox="0 0 100 100" aria-hidden="true">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${shadeHex(col, 0.45)}"/><stop offset=".55" stop-color="${col}"/><stop offset="1" stop-color="${shadeHex(col, -0.55)}"/></linearGradient>
+      <linearGradient id="${rid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset=".25" stop-color="#ffd93f"/><stop offset=".5" stop-color="#4fd06a"/><stop offset=".75" stop-color="#4fa3ff"/><stop offset="1" stop-color="#c46bff"/></linearGradient>
+    </defs>
+    <polygon points="${outer.join(' ')}" fill="url(#${gid})" stroke="${stroke}" stroke-width="${r.rarity >= 3 ? 6 : 5}" stroke-linejoin="round"/>
+    <g stroke="rgba(255,255,255,.28)" stroke-width="1.5">${facets}</g>
+    <polygon points="${inner.join(' ')}" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+    <ellipse cx="36" cy="30" rx="11" ry="6" fill="rgba(255,255,255,.45)" transform="rotate(-30 36 30)"/>
+    <text x="50" y="51" text-anchor="middle" dominant-baseline="central" font-size="${r.tier >= 4 ? 25 : 28}" font-weight="900" fill="#fff" stroke="rgba(20,12,30,.85)" stroke-width="5" paint-order="stroke" font-family="serif">${RUNE_ROMAN[r.tier - 1]}</text>
+  </svg>`;
+  return RUNE_SVG_CACHE[key] = svg;
+}
+function runeIconHtml(r, opts){
+  const o = opts || {};
+  const used = o.used !== undefined ? o.used : (r.uid ? runeUsers(r.uid).length > 0 : false);
+  return `<span class="rune-ic ${o.cls || ''}">${runeIconSvg(r)}${r.lv ? `<b class="rune-lv">+${r.lv}</b>` : ''}${r.lock ? '<i class="rune-lock">🔒</i>' : ''}${used ? '<i class="rune-used">E</i>' : ''}</span>`;
+}
+function runeSubsHtml(r){
+  return r.subs.length ? r.subs.map(s => `<span class="rune-sub" style="--c:${RUNE_STATS[s.stat].color}">${runeStatText(s.stat, s.val)}${s.rolls > 1 ? `<small>×${s.rolls}</small>` : ''}</span>`).join('') : '<span class="rune-sub none">サブ効果なし</span>';
+}
+function runeBonusText(b){
+  const keys = RUNE_STAT_KEYS.filter(k => b[k]);
+  return keys.length ? keys.map(k => runeStatText(k, b[k])).join('・') : 'なし';
+}
+
+/* ---- ルーン一覧(キャラ → ルーン タブ) ---- */
+let runeFilter = 'all';     // 'all' | メインの効果キー
+let runeSort = 'tier';      // 'tier' | 'rarity' | 'lv' | 'new'
+const RUNE_SORTS = [['tier', 'Tier'], ['rarity', 'レア'], ['lv', '強化'], ['new', '新しい']];
+function sortRunes(list, sort){
+  const by = {
+    tier: (a, b) => b.tier - a.tier || b.rarity - a.rarity || b.lv - a.lv,
+    rarity: (a, b) => b.rarity - a.rarity || b.tier - a.tier || b.lv - a.lv,
+    lv: (a, b) => b.lv - a.lv || b.tier - a.tier || b.rarity - a.rarity,
+    new: (a, b) => (b.at || 0) - (a.at || 0),
+  }[sort] || (() => 0);
+  return list.slice().sort(by);
+}
+function runeFilterChipsHtml(cur, attr){
+  return `<div class="rune-filter">
+    <button class="rf-chip ${cur === 'all' ? 'on' : ''}" ${attr}="all">すべて</button>
+    ${RUNE_STAT_KEYS.map(k => `<button class="rf-chip ${cur === k ? 'on' : ''}" ${attr}="${k}" style="--c:${RUNE_STATS[k].color}"><i></i>${RUNE_STATS[k].label}</button>`).join('')}
+  </div>`;
+}
+function renderRunesScreen(){
+  const all = ensureRunes();
+  const list = sortRunes(all.filter(r => runeFilter === 'all' || r.main === runeFilter), runeSort);
+  return `
+    <div class="row-between" style="margin:10px 0 6px;">
+      <div class="screen-title" style="margin:0;">ルーン</div>
+      <button class="btn btn-ghost btn-sm" data-rune-bulk="1">まとめて分解</button>
+    </div>
+    <div class="rune-head">
+      <span class="${all.length >= RUNE_MAX ? 'full' : ''}">所持 <b>${all.length}</b> / ${RUNE_MAX}</span>
+      <span>✨ルーンの粉 <b>${STATE.runeDust.toLocaleString()}</b></span>
+    </div>
+    <div class="screen-sub" style="margin-bottom:8px;">ルーンは育成クエストの「ルーン採掘」で手に入ります。キャラ詳細の「ルーン」枠(4つ)に、編成ごとに装備できます。形はレア度、色は効果、中の数字はTierです。</div>
+    ${runeFilterChipsHtml(runeFilter, 'data-rune-filter')}
+    <div class="rune-sorts">${RUNE_SORTS.map(([k, l]) => `<button class="stage-tab ${runeSort === k ? 'on' : ''}" data-rune-sort="${k}">${l}</button>`).join('')}</div>
+    ${list.length ? `<div class="rune-grid">${list.map(r => `<button class="rune-cell" data-rune-open="${r.uid}" aria-label="${runeName(r)} Tier${RUNE_ROMAN[r.tier - 1]} ${RUNE_RARITIES[r.rarity].label}">${runeIconHtml(r)}</button>`).join('')}</div>`
+      : `<div class="roster-empty">${all.length ? '条件に合うルーンがありません。' : 'まだルーンを持っていません。探索 → 育成クエスト → ルーン採掘 で集めましょう。'}</div>`}
+  `;
+}
+
+/* ---- ルーン詳細(強化・ロック・分解) ---- */
+let runeDetail = null;   // { uid, back: 'picker' | null, flash }
+function openRuneDetail(uid, back){ runeDetail = { uid, back: back || null }; renderRuneDetail(); }
+function closeRuneDetail(){
+  const d = runeDetail;
+  runeDetail = null;
+  if(d && d.back === 'picker' && runePicker) return renderRunePicker();
+  closeModal();
+  render();
+}
+function renderRuneDetail(){
+  const r = runeByUid(runeDetail.uid);
+  if(!r){ runeDetail = null; closeModal(); render(); return; }
+  const rar = RUNE_RARITIES[r.rarity];
+  const users = runeUsers(r.uid);
+  const cost = runeEnhanceCost(r);
+  const maxed = r.lv >= RUNE_MAX_LV;
+  const nextSub = maxed ? '' : `+${Math.ceil((r.lv + 1) / 3) * 3}で${r.subs.length < RUNE_SUB_MAX ? 'サブ効果が1つ増える' : 'サブ効果のどれかが伸びる'}`;
+  const flash = runeDetail.flash;
+  runeDetail.flash = null;
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal rune-detail-modal" role="dialog" aria-label="ルーン詳細">
+      <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+      <div class="rd-head">
+        ${runeIconHtml(r, { cls: 'big', used: false })}
+        <div>
+          <div class="rd-name">${runeName(r)} <span class="rd-lv">+${r.lv}</span></div>
+          <div class="rd-tags"><span class="rd-rar" style="--c:${rar.color}">${rar.label}</span>Tier${RUNE_ROMAN[r.tier - 1]}</div>
+          <div class="rd-main" style="--c:${RUNE_STATS[r.main].color}">${runeStatText(r.main, runeMainValue(r))}${maxed ? '' : `<small> → ${runeMainValue(r, r.lv + 1)}${RUNE_STATS[r.main].pct ? '%' : ''}</small>`}</div>
+        </div>
+      </div>
+      <div class="rd-subs">${runeSubsHtml(r)}</div>
+      ${flash ? `<div class="rd-flash">${flash}</div>` : ''}
+      <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
+      <div class="rd-enhance">
+        ${maxed ? '<div class="rd-max">強化は最大(+12)です</div>' : `
+          <div class="rd-cost">強化 +${r.lv} → +${r.lv + 1}<small>${nextSub}</small></div>
+          <div class="rd-cost-line">${goldText(cost.gold)}・✨${cost.dust}<small>(所持 ✨${STATE.runeDust.toLocaleString()})</small></div>
+          <button class="btn btn-block" data-rune-enhance="${r.uid}" ${STATE.gold >= cost.gold && STATE.runeDust >= cost.dust ? '' : 'disabled'}>強化する</button>`}
+      </div>
+      <div class="rd-actions">
+        <button class="btn btn-ghost btn-sm" data-rune-lock="${r.uid}">${r.lock ? '🔓 ロック解除' : '🔒 ロックする'}</button>
+        <button class="btn btn-ghost btn-sm" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解(✨${runeDustValue(r)})</button>
+      </div>
+      ${!runeCanDismantle(r) ? `<div class="fs-note">${r.lock ? 'ロック中' : '装備中'}のルーンは分解できません。</div>` : ''}
+    </div>`;
+  layer.classList.add('show');
+}
+function doEnhanceRune(uid){
+  const res = enhanceRune(uid);
+  if(!res.ok){ toast(res.why); return; }
+  playSfx('buff');
+  if(res.event) runeDetail.flash = res.event.type === 'new'
+    ? `サブ効果「${RUNE_STATS[res.event.stat].label}」が付いた!`
+    : `サブ効果「${RUNE_STATS[res.event.stat].label}」が +${res.event.add}${RUNE_STATS[res.event.stat].pct ? '%' : ''} 伸びた!`;
+  track('upgrade');
+  saveState();
+  renderRuneDetail();
+}
+
+/* ---- ルーンを選ぶ(キャラ詳細の枠から) ---- */
+let runePicker = null;   // { monId, slot, filter }
+function openRunePicker(monId, slot){ runePicker = { monId, slot: Number(slot), filter: 'all' }; renderRunePicker(); }
+function closeRunePicker(){ const p = runePicker; runePicker = null; if(p) showMonsterDetail(p.monId); }
+function renderRunePicker(){
+  const { monId, slot, filter } = runePicker;
+  const mon = MON_BY_ID[monId];
+  const idx = STATE.formationIdx;
+  const curUid = runesOf(monId)[slot];
+  const cur = runeByUid(curUid);
+  const list = sortRunes(ensureRunes().filter(r => r.uid !== curUid && (filter === 'all' || r.main === filter)), 'tier');
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal rune-picker-modal" role="dialog" aria-label="ルーンを選ぶ">
+      <button class="fs-close" data-close-rune-picker="1" aria-label="閉じる">×</button>
+      <h3>${mon.name}のルーン 枠${slot + 1}</h3>
+      <p class="fs-note">ルーンは編成ごとに装備します(いまは<b>編成${idx + 1}</b>)。同じ編成の中では1つのルーンを1体にしか付けられませんが、別の編成なら同じルーンを使えます。</p>
+      ${cur ? `<div class="rp-cur">
+        ${runeIconHtml(cur, { used: false })}
+        <div class="rp-body"><div class="rp-name">${runeStatText(cur.main, runeMainValue(cur))} <small>+${cur.lv}</small></div><div class="rp-subs">${runeSubsHtml(cur)}</div></div>
+        <div class="rp-btns"><button class="btn btn-ghost btn-sm" data-rune-open-picker="${cur.uid}">強化</button><button class="btn btn-ghost btn-sm" data-rune-unequip="1">外す</button></div>
+      </div>` : ''}
+      ${runeFilterChipsHtml(filter, 'data-rune-picker-filter')}
+      ${list.length ? `<div class="rp-list">${list.map(r => {
+        const u = runeUserIn(r.uid, idx);
+        return `<button class="rp-row" data-rune-pick="${r.uid}">
+          ${runeIconHtml(r, { used: false })}
+          <div class="rp-body"><div class="rp-name">${runeStatText(r.main, runeMainValue(r))} <small>+${r.lv}・${RUNE_RARITIES[r.rarity].label}・Tier${RUNE_ROMAN[r.tier - 1]}</small></div>
+          <div class="rp-subs">${runeSubsHtml(r)}</div>
+          ${u ? `<div class="rp-used">この編成で ${MON_BY_ID[u.monId].name} が装備中(付け替えます)</div>` : ''}</div>
+        </button>`;
+      }).join('')}</div>` : `<p class="fs-note">${ensureRunes().length ? '条件に合うルーンがありません。' : 'まだルーンを持っていません。育成クエストの「ルーン採掘」で手に入ります。'}</p>`}
+    </div>`;
+  layer.classList.add('show');
+}
+function pickRune(uid){
+  const p = runePicker;
+  if(!p) return;
+  equipRune(uid, p.monId, p.slot);
+  playSfx('buff');
+  track('upgrade');
+  saveState();
+  closeRunePicker();
+  render();
+}
+
+// 戦闘・周回の結果に出す、手に入れたルーン
+function runeGainHtml(runes, dust){
+  if(!runes.length && !dust) return '';
+  return `<div class="rune-gain">
+    ${runes.length ? `<div class="rg-head">ルーン ×${runes.length}${runeFull() ? `<span class="rg-full">所持がいっぱいです(${RUNE_MAX})</span>` : ''}</div>
+    <div class="rg-list">${sortRunes(runes, 'rarity').map(r => `<span class="rg-item">${runeIconHtml(r, { used: false })}<small style="color:${RUNE_STATS[r.main].color}">${RUNE_STATS[r.main].label}</small></span>`).join('')}</div>` : ''}
+    ${dust ? `<div class="rg-dust">✨ルーンの粉 ×${dust}</div>` : ''}
+  </div>`;
+}
+
+/* ---- まとめて分解 ---- */
+let runeBulk = null;  // { rar: [0,1] }
+function runeBulkTargets(){ return ensureRunes().filter(r => runeBulk.rar.includes(r.rarity) && runeCanDismantle(r)); }
+function renderRuneBulk(){
+  const targets = runeBulkTargets();
+  const dust = targets.reduce((s, r) => s + runeDustValue(r), 0);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal rune-bulk-modal" role="dialog" aria-label="まとめて分解">
+      <button class="fs-close" data-close-rune-bulk="1" aria-label="閉じる">×</button>
+      <h3>まとめて分解</h3>
+      <p class="fs-note">選んだレア度のルーンを分解して、ルーンの粉にします。装備中・ロック中のルーンは分解しません。</p>
+      <div class="rb-rars">${RUNE_RARITIES.map((x, i) => `<button class="rf-chip ${runeBulk.rar.includes(i) ? 'on' : ''}" data-rune-bulk-rar="${i}" style="--c:${x.color}"><i></i>${x.label}</button>`).join('')}</div>
+      <div class="rb-sum">${targets.length}個 → ✨${dust.toLocaleString()}</div>
+      <button class="btn btn-block" data-rune-bulk-go="1" ${targets.length ? '' : 'disabled'}>分解する</button>
+    </div>`;
+  layer.classList.add('show');
+}
+
 /* ---- gacha: separate crystal-consuming banner, same rate curve as the monster gacha.
    The ★5 slot also pickups: whichever monster the character gacha is featuring right
    now, if it has a mon-exclusive ★5 relic (cond type:'mon'), that relic gets the same
@@ -6373,7 +6875,8 @@ function runSweep(stageId, times){
   refreshStamina();
   const n = Math.min(times, Math.floor(STATE.stamina / stage.stamina));
   if(n <= 0){ toast(`スタミナが足りません(必要 ${stage.stamina})`); return null; }
-  const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [] };
+  if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。キャラ → ルーン で分解してください`); return null; }
+  const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [], runes: [], dust: 0 };
   for(let i = 0; i < n; i++){
     spendStamina(stage.stamina);
     track('staminaUsed', stage.stamina);
@@ -6381,6 +6884,8 @@ function runSweep(stageId, times){
     const r = stage.type === 'dungeon' ? grantDungeonRewards(stage) : grantStageRewards(stage, sweepSpawned(stage));
     total.runs++;
     total.gold += r.gold || 0;
+    total.runes.push(...(r.runes || []));
+    total.dust += r.dust || 0;
     (r.items || []).forEach(x => { total.items[x.key] = (total.items[x.key] || 0) + x.n; });
     (r.souls || []).forEach(x => {
       total.souls[x.id] = (total.souls[x.id] || 0) + x.n;
@@ -6431,6 +6936,7 @@ function showSweepResult(stage, t){
       <h3>周回結果:${stage.name} ×${t.runs}</h3>
       ${t.gold ? `<div class="gold-line">${goldText(t.gold)}</div>` : ''}
       <div class="mat-grid">${items.map(([k, n]) => `<div class="mat-chip" title="${itemName(k)}"><div class="ic">${itemIcon(k)}</div><div class="n">${n}</div></div>`).join('')}</div>
+      ${runeGainHtml(t.runes || [], t.dust || 0)}
       ${souls.length ? `<div class="br-rewards-head" style="margin-top:10px;">ソウル</div>
         ${souls.map(([id, n]) => `<div class="soul-row"><img src="${imgSrc(id)}" alt=""><div class="sr-body"><div class="sr-name">${MON_BY_ID[id].name}</div>
           ${t.joined.includes(id) ? '<span class="sr-join">仲間になった!</span>' : STATE.owned[id] ? `<span class="sr-have">ソウル ${STATE.owned[id].souls}</span>` : `<span class="sr-pend">あと${UNLOCK_SOULS[MON_BY_ID[id].rarity] - (STATE.pendingSouls[id] || 0)}個で仲間に</span>`}
@@ -6446,7 +6952,7 @@ function showSweepResult(stage, t){
 function sweepButton(stage){
   if(stage.tier === 'tu') return '';
   const can = sweepAllowed(stage);
-  const unlocked = stage.type === 'dungeon' ? dungeonTierUnlocked(stage.tier) : stageUnlocked(stage);
+  const unlocked = stage.type === 'dungeon' ? dungeonTierUnlocked(stage.tier, stage.dungeon) : stageUnlocked(stage);
   if(!unlocked) return '';
   const vipOnly = stage.type !== 'dungeon' && stageStars(stage.id) >= 3 && !STATE.vip;
   return `<button class="btn btn-sm btn-ghost sweep-btn ${can.ok ? 'ready' : ''}" data-sweep-open="${stage.id}" ${can.ok ? '' : 'disabled'} title="${can.ok ? '' : can.why}">
@@ -6468,11 +6974,17 @@ const DUNGEONS = {
     enemies: [['m21', 'm21'], ['m21', 'm40', 'm21'], ['m21', 'm40', 'm46'], ['m46', 'm21', 'm40', 'm21'], ['m46', 'm40', 'm21', 'm40']],
     rewards: [{ gold: 3000 }, { gold: 8000 }, { gold: 15000 }, { gold: 30000 }, { gold: 50000 }],
   },
-  mat: {
-    name: '素材ダンジョン', icon: '💎', desc: '曜日ごとに違う育成素材が手に入ります',
-    enemies: [['m14', 'm29'], ['m16', 'm70', 'm14'], ['m03', 'm02', 'm16'], ['m13', 'm04', 'm02', 'm14'], ['m27', 'm20', 'm04', 'm02']],
-    // Tierの解放に合わせて、素材ダンジョンからTierIIIは出さない(次の更新でルーン採掘に置き換える予定)
-    rewards: [{ mat: [8, 0, 0] }, { mat: [10, 2, 0] }, { mat: [12, 4, 0] }, { mat: [14, 6, 0] }, { mat: [16, 9, 0] }],
+  // 素材ダンジョンの枠を置き換え。段階ごとにTierが1つずつ上がる(Ⅰ〜Ⅵ)。段階と推奨Lvは他と別
+  rune: {
+    name: 'ルーン採掘', icon: '⛏️', desc: 'ルーンとルーンの粉が手に入ります',
+    unlock: ['tu3', 'q1_10', 'q2_10', 'q3_10', 'q4_10', 'q6_10'],
+    baseLv: [5, 30, 60, 100, 150, 250],
+    enemies: [['m14', 'm29'], ['m16', 'm70', 'm14'], ['m03', 'm02', 'm16'], ['m13', 'm04', 'm02', 'm14'], ['m27', 'm20', 'm04', 'm02'], ['m27', 'm20', 'm13', 'm04', 'm16']],
+    rewards: [{ runes: 1, dust: 5, gold: 500 }, { runes: 2, dust: 10, gold: 1500 }, { runes: 2, dust: 15, gold: 3000 },
+              { runes: 2, dust: 20, gold: 5000 }, { runes: 3, dust: 30, gold: 8000 }, { runes: 3, dust: 40, gold: 12000 }],
+    // レア度(白・青・紫・金・虹)の重み。上の段階ほど良いものが出やすい
+    rarity: [[60, 30, 9, 1, 0], [50, 32, 14, 3.5, 0.5], [40, 33, 19, 6.5, 1.5], [32, 32, 23, 10, 3], [25, 30, 27, 13.5, 4.5], [20, 28, 29, 16, 7]],
+    lowerTierChance: 0.2,  // たまに1つ下のTierが出る
   },
 };
 // material dungeon: what's open on each weekday (0 = Sunday → everything)
@@ -6491,11 +7003,13 @@ function matOpenToday(){
   const s = MAT_SCHEDULE[gameWeekday()];
   return s || Object.fromEntries(Object.entries(MAT_FAMILIES).map(([f, d]) => [f, d.kinds()]));
 }
-function dungeonTierUnlocked(t){ return STATE.clearedStages.includes(DUNGEON_TIER_UNLOCK[t]); }
+function dungeonUnlockIds(kind){ return (DUNGEONS[kind] && DUNGEONS[kind].unlock) || DUNGEON_TIER_UNLOCK; }
+function dungeonBaseLv(kind, t){ return ((DUNGEONS[kind] && DUNGEONS[kind].baseLv) || DUNGEON_BASE_LV)[t]; }
+function dungeonTierUnlocked(t, kind){ return STATE.clearedStages.includes(dungeonUnlockIds(kind || 'exp')[t]); }
 // dungeons run through the normal battle flow as generated stages
 function dungeonStage(kind, t){
   const d = DUNGEONS[kind];
-  const lv = DUNGEON_BASE_LV[t];
+  const lv = dungeonBaseLv(kind, t);
   const list = d.enemies[t];
   const half = Math.ceil(list.length / 2);
   return {
@@ -6512,19 +7026,26 @@ function grantDungeonRewards(stage){
   let gold = 0;
   if(r.gold){ gold = r.gold; addGold(gold); }
   ['exp1', 'exp2', 'exp3'].forEach(k => add(k, r[k] || 0));
-  if(r.mat){
-    const open = matOpenToday();
-    const pool = Object.entries(open).flatMap(([fam, kinds]) => kinds.map(k => [fam, k]));
-    r.mat.forEach((count, i) => {
-      for(let c = 0; c < count; c++){
-        const [fam, k] = pool[Math.floor(Math.random() * pool.length)];
-        add(matKey(fam, k, i + 1), 1);
-      }
-    });
+  const runes = [];
+  let dust = 0;
+  if(r.runes){
+    const d = DUNGEONS[stage.dungeon];
+    for(let c = 0; c < r.runes; c++){
+      const tier = Math.max(1, stage.tier + 1 - (Math.random() < d.lowerTierChance ? 1 : 0));
+      const w = d.rarity[stage.tier], total = w.reduce((a, b) => a + b, 0);
+      let roll = Math.random() * total, rarity = 0;
+      while(rarity < w.length - 1 && roll >= w[rarity]){ roll -= w[rarity]; rarity++; }
+      const rune = makeRune(tier, rarity);
+      if(runeFull()) dust += runeDustValue(rune);   // 上限を超えた分は粉にする
+      else runes.push(addRune(rune));
+    }
+    dust += r.dust || 0;
+    ensureRunes();
+    STATE.runeDust += dust;
   }
   track('dungeonClear');
   track('exploreClear');
-  return { items, gold, souls: [], crystals: 0 };
+  return { items, gold, souls: [], crystals: 0, runes, dust };
 }
 
 /* ---------------- stat scaling ---------------- */
@@ -6544,12 +7065,14 @@ function scaledStats(mon, star, level){
 }
 // scaledStats() plus the equipped relic's bonus, via the same applyRelicCore battle uses
 // (so the character-detail screen and BP always match what actually fights in battle).
-function statsWithRelic(mon, star, level, relicId){
+function statsWithRelic(mon, star, level, relicId, runeB){
   const base = scaledStats(mon, star, level);
-  if(!relicId || !RELICS[relicId] || !STATE.relics[relicId]) return base;
+  const hasRelic = relicId && RELICS[relicId] && STATE.relics[relicId];
+  if(!hasRelic && !runeB) return base;
   const u = { maxHp: base.hp, hp: base.hp, str: base.str, pdef: base.pdef, mdef: base.mdef, spd: base.spd };
-  applyRelicToUnit(u, mon, relicId);
-  return { hp: u.maxHp, str: u.str, pdef: u.pdef, mdef: u.mdef, spd: u.spd };
+  if(runeB) applyRuneBonusToUnit(u, runeB);
+  if(hasRelic) applyRelicToUnit(u, mon, relicId);
+  return { hp: u.maxHp, str: u.str, pdef: u.pdef, mdef: u.mdef, spd: u.spd, critRate: u.bonusCrit || 0, critDmg: u.critDmgBonus || 0 };
 }
 
 /* ---------------- stamina & daily counters ---------------- */
@@ -7016,8 +7539,9 @@ function battlePower(id){
   const m = MON_BY_ID[id];
   const o = slotOwnedLike(id);
   if(!m || !o) return 0;
-  const st = statsWithRelic(m, o.star, o.level, equippedRelicOf(id));
-  const base = st.hp * 0.6 + st.str * 4 + (st.pdef + st.mdef) * 4 + st.spd * 1.5;
+  const st = statsWithRelic(m, o.star, o.level, equippedRelicOf(id), id === HELP_SLOT_ID ? null : runeBonusOf(id));
+  // 会心はSTRの期待値として少しだけ乗せる(基本の会心率・倍率ぶんは全員同じなので入れない)
+  const base = (st.hp * 0.6 + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * 4 + st.spd * 1.5);
   const kit = 1
     + ((o.skillLv || 1) - 1) * 0.04
     + ((o.skill2Lv || 1) - 1) * 0.04
@@ -7756,7 +8280,7 @@ const NAV = [
 ];
 // 下のメニュー1つの中にある画面(画面の上にタブで並ぶ)。先頭がそのメニューを押したときの画面
 const NAV_GROUPS = {
-  party: [['party', '編成'], ['dex', 'キャラ一覧'], ['relics', '遺物']],
+  party: [['party', '編成'], ['dex', 'キャラ一覧'], ['relics', '遺物'], ['runes', 'ルーン']],
   base: [['base', '施設'], ['shop', 'ショップ']],
 };
 function groupTabsHtml(){
@@ -8213,7 +8737,6 @@ function itemSources(key){
       const st = stages[0];
       out.push({ label: `${QUEST_TIERS.find(q => q.key === st.tier).label} ${st.name}`, tag: '未解放', go: null });
     }
-    if(m.tier <= 2) out.push({ label: '育成クエスト「素材ダンジョン」', tag: '曜日', go: { type: 'dungeon', kind: 'mat' } });
     if(m.tier >= 2) out.push({ label: `拠点「錬金術」(Tier${TIER_LABEL[m.tier - 1]}から)`, tag: craftRatio(m.tier) === CRAFT_RATIO ? '合成' : '合成(効率×)', go: { type: 'alchemy', fam: m.fam } });
     out.push({ label: `育成素材BOX(選択) Tier${TIER_LABEL[m.tier]}`, tag: getItem(`box_sel_${m.tier}`) ? `所持${getItem(`box_sel_${m.tier}`)}` : 'BOX', go: getItem(`box_sel_${m.tier}`) ? { type: 'usebox', key: `box_sel_${m.tier}`, fam: m.fam, kind: m.kind } : { type: 'shop', tab: 'gold' } });
     return out;
@@ -8598,14 +9121,14 @@ function canPromoteNow(id){
 function navKeyForScreen(screen){
   if(screen === 'battle-fight' || screen === 'pvp') return 'battle';
   if(screen === 'missions') return 'home';
-  if(screen === 'dex' || screen === 'relics') return 'party';
+  if(screen === 'dex' || screen === 'relics' || screen === 'runes') return 'party';
   if(screen === 'shop') return 'base';
   return screen;
 }
 /* 画面の中のボタンから別の画面へ移ったときは、左上に「‹ 〇〇に戻る」を出して1つ前に戻れるようにする。
    下のメニュー(ナビ)や左右スワイプで切り替えたときは、履歴を消す(戻るは出さない) */
 let navHistory = [];
-const SCREEN_LABEL = { home: 'ホーム', gacha: 'ガチャ', dex: 'キャラ', party: '編成', battle: '探索', pvp: 'PVP', missions: 'ミッション', relics: '遺物', base: '拠点', shop: 'ショップ' };
+const SCREEN_LABEL = { home: 'ホーム', gacha: 'ガチャ', dex: 'キャラ', party: '編成', battle: '探索', pvp: 'PVP', missions: 'ミッション', relics: '遺物', runes: 'ルーン', base: '拠点', shop: 'ショップ' };
 function goto(screen, opts){
   opts = opts || {};
   if(opts.nav) navHistory = [];
@@ -8627,6 +9150,7 @@ function goto(screen, opts){
   pvpFormEdit = null;
   pvpFormPick = null;
   pvpFormEditBackup = null;
+  runePicker = null; runeDetail = null; runeBulk = null;
   if(battleUI) clearTimeout(battleUI.tickTimer);
   battleUI = null;
   clearStageFx();
@@ -8737,6 +9261,7 @@ function renderScreen(screen){
     case 'pvp': return renderPvp();
     case 'missions': return renderMissions();
     case 'relics': return renderRelicsScreen();
+    case 'runes': return renderRunesScreen();
     case 'base': return renderBase();
     case 'shop': return renderShop();
     case 'battle-fight': return battleUI ? renderBattleFight() : renderBattleSelect();
@@ -8866,7 +9391,6 @@ function homeBanners(){
   const pickup = MON_BY_ID[currentBanner().pickup];
   const daily = ensureDaily();
   const left = DAILY_MISSIONS.filter(m => !daily.claimed[m.id]).length;
-  const todayEls = (matOpenToday().el || []).map(k => `${ELEM_ICON[k]}${ELEM_LABEL[k]}`);
   const dungeonMon = MONSTERS.find(m => m.rarity === 4) || pickup;
   const banners = [];
   activeEvents().forEach(ev => {
@@ -8882,8 +9406,8 @@ function homeBanners(){
   banners.push(
     { tag: 'PICK UP', cls: 'b-pick', title: `${pickup.name} ★${pickup.rarity} ピックアップ`,
       sub: `${currentBanner().name}・排出率アップ中`, go: 'ガチャを見る', img: pickup.id, attr: 'data-nav="gacha"' },
-    { tag: 'DUNGEON', cls: 'b-event', title: '本日の育成ダンジョン',
-      sub: todayEls.length ? `本日開放: ${todayEls.join('・')}の欠片ほか` : '素材を集めてスキルを強化',
+    { tag: 'RUNE', cls: 'b-event', title: 'ルーン採掘',
+      sub: 'ルーンを集めてキャラを強化しよう',
       go: '探索へ', img: dungeonMon.id, attr: 'data-nav="battle" data-stage-tab-set="dungeon"' },
     { tag: 'DAILY', cls: 'b-daily', title: left ? `今日の日課 あと${left}件` : '今日の日課は完了',
       sub: `リセットまで ${formatDuration(msToDailyReset())}`, go: 'ミッションへ',
@@ -10700,7 +11224,8 @@ function showMonsterDetail(id){
   const owned = STATE.owned[id];
   if(!m || !owned) return;
   const equippedRelicId = equippedRelicOf(id);
-  const stats = statsWithRelic(m, owned.star, owned.level, equippedRelicId);
+  const runeB = runeBonusOf(id);
+  const stats = statsWithRelic(m, owned.star, owned.level, equippedRelicId, runeB);
   const need = soulsToNext(owned);
   const canPromote = need !== null && owned.souls >= need;
   const shortSouls = need === null ? 0 : Math.max(0, need - owned.souls);
@@ -10721,7 +11246,7 @@ function showMonsterDetail(id){
   const before = showMonsterDetail._prev && showMonsterDetail._prev.id === id ? showMonsterDetail._prev.stats : null;
   const up = k => (before && stats[k] > before[k]) ? ' up' : '';
   showMonsterDetail._prev = { id, stats };
-  const nextStats = statsWithRelic(m, owned.star, Math.min(lvCap, owned.level + 1), equippedRelicId);
+  const nextStats = statsWithRelic(m, owned.star, Math.min(lvCap, owned.level + 1), equippedRelicId, runeB);
   const statRow = (label, key) => {
     const grow = nextStats[key] - stats[key];
     return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}</b>${grow > 0 ? `<i class="stat-grow">+${grow}/Lv</i>` : ''}</div>`;
@@ -10850,6 +11375,23 @@ function showMonsterDetail(id){
           </div>
           <span class="relic-slot-arrow">›</span>
         </button>
+      </div>
+
+      <div class="detail-level-box rune-box">
+        <div class="row-between" style="margin-bottom:8px;">
+          <div class="mc-head">ルーン<small class="rune-box-fs">編成${STATE.formationIdx + 1}</small></div>
+          <button class="btn btn-ghost btn-sm" data-rune-go-list="1">ルーン一覧 ›</button>
+        </div>
+        <div class="rune-slots">
+          ${runesOf(id).map((uid, i) => {
+            const r = runeByUid(uid);
+            return `<button class="rune-slot ${r ? 'filled' : ''}" data-rune-slot="${id}:${i}" aria-label="ルーン枠${i + 1}">
+              ${r ? runeIconHtml(r, { used: false }) : '<span class="rs-plus">＋</span>'}
+              <small ${r ? `style="color:${RUNE_STATS[r.main].color}"` : ''}>${r ? `${RUNE_STATS[r.main].short}+${runeMainValue(r)}${RUNE_STATS[r.main].pct ? '%' : ''}` : `枠${i + 1}`}</small>
+            </button>`;
+          }).join('')}
+        </div>
+        <div class="rune-total">合計: ${runeBonusText(runeB)}</div>
       </div>
     </div>
   `;
@@ -11532,13 +12074,13 @@ function renderStageSheet(){
 }
 
 function renderDungeons(){
+  if(!DUNGEONS[dungeonTab]) dungeonTab = 'exp';
   const d = DUNGEONS[dungeonTab];
-  const open = matOpenToday();
-  const wd = gameWeekday();
-  const rewardText = r => [
+  const rewardText = (r, t) => [
+    r.runes ? `ルーン(Tier${RUNE_ROMAN[t]})×${r.runes}` : '',
+    r.dust ? `✨×${r.dust}` : '',
     r.gold ? goldText(r.gold) : '',
     ...['exp1', 'exp2', 'exp3'].filter(k => r[k]).map(k => `${itemIcon(k)}×${r[k]}`),
-    ...(r.mat || []).map((n, i) => n ? `${tierBadge(i + 1)}×${n}` : ''),
   ].filter(Boolean).join(' ');
   return `
     <div class="dungeon-tabs" role="tablist">
@@ -11546,25 +12088,25 @@ function renderDungeons(){
     </div>
     ${sortieFormationHtml()}
     <div class="screen-sub" style="margin-bottom:10px;">${d.desc}。何度でも挑戦でき、1回 ⚡${DUNGEON_STAMINA}。段階はメインステージを進めると解放されます。★3でクリアすると周回(スキップ)できます。</div>
-    ${dungeonTab === 'mat' ? `
-      <div class="panel panel-tight today-mats">
-        <div class="row-between"><b>今日(${WEEKDAY_LABEL[wd]}曜)の素材</b><small>${wd === 0 ? '日曜はすべて' : '曜日ごとに入れ替わり'}</small></div>
-        ${Object.entries(open).map(([fam, kinds]) => `<div class="tm-row"><span>${MAT_FAMILIES[fam].label}</span>${kinds.map(k => `<span title="${MAT_FAMILIES[fam].name(k)}">${MAT_FAMILIES[fam].icon(k)}</span>`).join('')}</div>`).join('')}
+    ${dungeonTab === 'rune' ? `
+      <div class="panel panel-tight today-mats rune-mine-info">
+        <div class="row-between"><b>ルーン所持 ${ensureRunes().length} / ${RUNE_MAX}</b><button class="btn btn-ghost btn-sm" data-nav="runes">ルーン一覧 ›</button></div>
+        <div class="rmi-line">段階が上がるほどTierが上がり、レア度の高いルーンが出やすくなります。所持がいっぱいだと挑戦できません。</div>
       </div>` : ''}
     ${d.rewards.map((r, t) => {
-      const unlocked = dungeonTierUnlocked(t);
-      const req = STAGE_BY_ID[DUNGEON_TIER_UNLOCK[t]];
+      const unlocked = dungeonTierUnlocked(t, dungeonTab);
+      const req = STAGE_BY_ID[dungeonUnlockIds(dungeonTab)[t]];
       const cost = stageStaminaCost({ stamina: DUNGEON_STAMINA });
       const disabled = !unlocked || STATE.stamina < cost;
       return `
         <div class="stage-card dungeon ${unlocked ? '' : 'locked'}">
           <div class="row-between">
             <h3>${unlocked ? '' : '🔒 '}${d.name} Lv${t + 1}</h3>
-            <div class="stage-lv">${starsText(stageStars(`dg_${dungeonTab}_${t}`))}<br>推奨Lv${DUNGEON_BASE_LV[t]}</div>
+            <div class="stage-lv">${starsText(stageStars(`dg_${dungeonTab}_${t}`))}<br>推奨Lv${dungeonBaseLv(dungeonTab, t)}</div>
           </div>
           <div class="stage-enemy-row">${[...new Set(d.enemies[t])].map(id => `<img src="${imgSrc(id)}" alt="" title="${MON_BY_ID[id].name}">`).join('')}</div>
           <div class="stage-foot">
-            <div class="stage-info"><div>${rewardText(r)}</div></div>
+            <div class="stage-info"><div>${rewardText(r, t)}</div></div>
             <div class="stage-btns">
               ${sweepButton(dungeonStage(dungeonTab, t))}
               <button class="btn btn-sm ${disabled ? 'btn-ghost' : ''}" data-stage="dg_${dungeonTab}_${t}" ${disabled ? 'disabled' : ''}>
@@ -11984,6 +12526,7 @@ function buildPvpEnemyParty(defense){
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
+    if(slot.runes) applyRuneBonusToUnit(u, slot.runes);
     if(slot.relic) applyRelicSnapToUnit(u, mon, slot.relic);
     applyFormationBonus(u, formation);
     units.push(u);
@@ -11995,7 +12538,7 @@ function buildPvpEnemyParty(defense){
 function speedFactor(){ return STATE.battleSpeed || 1; }
 
 function findStage(id){
-  const d = /^dg_(exp|gold|mat)_(\d)$/.exec(id || '');
+  const d = /^dg_(exp|gold|rune)_(\d)$/.exec(id || '');
   if(d) return dungeonStage(d[1], Number(d[2]));
   const ab = /^ab_(\d+)$/.exec(id || '');
   if(ab) return abyssStage(Number(ab[1]));
@@ -12062,6 +12605,7 @@ function startPvpBattle(opponent){
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
+    applyRuneBonusToUnit(u, runeBonusOf(id, STATE.pvpAttackRelicsFrom || 0));
     const relicId = relicOfIn(STATE.pvpAttackRelicsFrom || 0, id);
     if(relicId) applyRelicToUnit(u, m, relicId);
     applyFormationBonus(u, formation);
@@ -12174,7 +12718,8 @@ function startBattle(stageId, opts){
   // finished, even if some other check (requires-chain, dungeon tier unlock, a stray button)
   // would otherwise let the request through.
   if(stage.tier !== 'tu' && !tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
-  if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
+  if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier, stage.dungeon) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
+  if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。キャラ → ルーン で分解してください`); return; }
   if(stage.type === 'abyss'){
     if(!abyssUnlocked()){ toast('上級をクリアすると挑戦できます'); return; }
     if(stage.floor !== ensureAbyss().floor){ toast(`${ensureAbyss().floor}階から挑戦できます`); return; }
@@ -12203,6 +12748,7 @@ function startBattle(stageId, opts){
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
+    if(id !== HELP_SLOT_ID) applyRuneBonusToUnit(u, runeBonusOf(id));
     const relicId = equippedRelicOf(id);
     if(relicId) applyRelicToUnit(u, m, relicId);
     applyFormationBonus(u, formation);
@@ -15109,6 +15655,7 @@ function showBattleResult(tab){
     const gainChips = [
       r.gold ? `<span class="gain-chip">${goldText(r.gold)}</span>` : '',
       ...r.items.map(m => `<span class="gain-chip" title="${itemName(m.key)}">${itemIcon(m.key)} ×${m.n}</span>`),
+      r.dust ? `<span class="gain-chip">✨ルーンの粉 ×${r.dust}</span>` : '',
       r.crystals ? `<span class="gain-chip first">初回クリア ${CRYSTAL_ICON}${r.crystals}</span>` : '',
       ...(r.firstItems || []).map(x => `<span class="gain-chip first">${rewardHtml([x])}</span>`),
     ].filter(Boolean).join('');
@@ -15139,6 +15686,7 @@ function showBattleResult(tab){
       <div class="panel panel-tight gain-card">
         <div class="mc-head">獲得</div>
         <div class="gain-row">${gainChips || '<span class="rf-none">なし</span>'}</div>
+        ${runeGainHtml(r.runes || [], 0)}
       </div>
       <div class="panel panel-tight dmg-card">
         <div class="mc-head">与ダメージ</div>
@@ -15685,6 +16233,53 @@ function handlePhoneClick(ev){
   if(t.closest('[data-guide-back]')){ guideToastBack(); return; }
   if(t.closest('[data-guide-close]')){ finishGuideToast(); return; }
 
+  // ---- ルーン ----
+  const runeSlotEl = t.closest('[data-rune-slot]');
+  if(runeSlotEl){ const [mid, sl] = runeSlotEl.dataset.runeSlot.split(':'); openRunePicker(mid, sl); return; }
+  if(t.closest('[data-rune-go-list]')){ closeModal(); goto('runes'); return; }
+  const runeFilterEl = t.closest('[data-rune-filter]');
+  if(runeFilterEl){ runeFilter = runeFilterEl.dataset.runeFilter; render(); return; }
+  const runeSortEl = t.closest('[data-rune-sort]');
+  if(runeSortEl){ runeSort = runeSortEl.dataset.runeSort; render(); return; }
+  const runeOpenEl = t.closest('[data-rune-open]');
+  if(runeOpenEl){ openRuneDetail(runeOpenEl.dataset.runeOpen); return; }
+  if(runeDetail){
+    if(t.closest('[data-close-rune-detail]')){ closeRuneDetail(); return; }
+    const enhEl = t.closest('[data-rune-enhance]');
+    if(enhEl){ doEnhanceRune(enhEl.dataset.runeEnhance); return; }
+    const lockEl = t.closest('[data-rune-lock]');
+    if(lockEl){ const r = runeByUid(lockEl.dataset.runeLock); if(r){ r.lock = !r.lock; saveState(); renderRuneDetail(); } return; }
+    const disEl = t.closest('[data-rune-dismantle]');
+    if(disEl){
+      const res = dismantleRunes([disEl.dataset.runeDismantle]);
+      if(res.n){ toast(`分解して ✨ルーンの粉を${res.dust}個 手に入れました`); saveState(); }
+      closeRuneDetail();
+      return;
+    }
+  }
+  if(runePicker){
+    if(t.closest('[data-close-rune-picker]')){ closeRunePicker(); return; }
+    const rpfEl = t.closest('[data-rune-picker-filter]');
+    if(rpfEl){ runePicker.filter = rpfEl.dataset.runePickerFilter; renderRunePicker(); return; }
+    const pickEl = t.closest('[data-rune-pick]');
+    if(pickEl){ pickRune(pickEl.dataset.runePick); return; }
+    if(t.closest('[data-rune-unequip]')){ unequipRune(runePicker.monId, runePicker.slot); saveState(); closeRunePicker(); render(); return; }
+    const rpoEl = t.closest('[data-rune-open-picker]');
+    if(rpoEl){ openRuneDetail(rpoEl.dataset.runeOpenPicker, 'picker'); return; }
+  }
+  if(t.closest('[data-rune-bulk]')){ runeBulk = { rar: [0, 1] }; renderRuneBulk(); return; }
+  if(runeBulk){
+    const rarEl = t.closest('[data-rune-bulk-rar]');
+    if(rarEl){ const k = Number(rarEl.dataset.runeBulkRar); runeBulk.rar = runeBulk.rar.includes(k) ? runeBulk.rar.filter(x => x !== k) : [...runeBulk.rar, k]; renderRuneBulk(); return; }
+    if(t.closest('[data-rune-bulk-go]')){
+      const res = dismantleRunes(runeBulkTargets().map(r => r.uid));
+      runeBulk = null; closeModal();
+      toast(`${res.n}個を分解して ✨ルーンの粉を${res.dust}個 手に入れました`);
+      saveState(); render();
+      return;
+    }
+    if(t.closest('[data-close-rune-bulk]')){ runeBulk = null; closeModal(); return; }
+  }
   const relicSlotEl = t.closest('[data-relic-slot]');
   if(relicSlotEl){ openRelicPicker(relicSlotEl.dataset.relicSlot); return; }
   const relicDexRowEl = t.closest('[data-relic-dex-row]');
@@ -15834,16 +16429,6 @@ function handlePhoneClick(ev){
       stageTab = 'main'; questTier = qt && qt.hard ? qt.hard : st.tier; hardMode = !!(qt && qt.hard);
       goto('battle');
       stageSheet = st.id; renderStageSheet();
-      return;
-    }
-    if(t.closest('[data-goto-mat-quest]')){
-      if(!tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
-      skillUpgradeModal = null;
-      skillUpgradeShort = null;
-      stageTab = 'dungeon';
-      dungeonTab = 'mat';
-      closeModal();
-      goto('battle');
       return;
     }
   }
@@ -16586,6 +17171,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 104, version: 'α0.1.063', date: '9/26', title: 'ルーンが登場', body: 'キャラを強化する「ルーン」を追加しました。1キャラに4つまで付けられ(枠ごとの縛りなし)、編成ごとに装備します(同じ編成の中では1つのルーンを1体にだけ。別の編成なら同じルーンを使えます)。形はレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色は効果(HP・STR・物理防御・魔法防御・SPD・会心率・会心倍率)、中の数字はTier(Ⅰ〜Ⅵ)です。Tierは数値の大きさ、レア度は最初に付いているサブ効果の数(0〜4)で、強化+3ごとにサブ効果が増えるか伸びます。ルーンの粉とゴールドで強化(最大+12)、いらないルーンは分解して粉にできます(所持は200個まで)。育成クエストの「素材ダンジョン」は「ルーン採掘」(6段階)に変わりました。育成素材はメインクエストのドロップ・錬金術・育成素材BOXで集められます。' },
   { id: 103, version: 'α0.1.062', date: '9/26', title: '編成画面を見やすく', body: '編成画面の総合BPを大きくして、人数(n / 5体)の左に並べました。上の「陣形を選び…」の説明文はなくしました。お助けキャラは所持モンスターのリストの一番上に出るようにし、絞り込み(属性・ロール・種族)をするとほかのキャラと一緒に絞り込まれます。' },
   { id: 102, version: 'α0.1.061', date: '9/26', title: '編成を5つまで持てるように', body: '編成を「編成1〜5」の5つまで作れるようになりました。キャラ → 編成の画面の上のタブで切り替えられます。ステージ詳細・育成クエスト・深淵回廊でも、出撃する前に使う編成を選べます。遺物は編成ごとに装備します。同じ編成の中では1つの遺物を1体にしか付けられませんが、別の編成なら同じ遺物を使えます(これまでの装備は、どの編成にもそのまま引き継いでいます)。PVPの攻撃編成・防衛編成は1つずつのままで、編集画面で「どの編成の遺物を使うか」を選べます。' },
   { id: 101, version: 'α0.1.060', date: '9/26', title: '探索メニューにキャラの絵', body: '探索のメニュー(メインクエスト・育成クエスト・深淵回廊・イベント・PVP)の絵文字アイコンを、キャラの絵に変えました。深淵回廊は門番のアヌビス、イベントは開催中のイベントのキャラからランダムで1体が出ます。' },
@@ -16744,7 +17330,12 @@ function unlockDefs(){
   });
   DUNGEON_TIER_UNLOCK.forEach((id, i) => {
     if(i > 0) defs.push({ key: `dg_${i + 1}`, icon: '🌱', title: `育成クエストの段階${i + 1}が解放`,
-      body: 'EXP・ゴールド・素材のダンジョンに、報酬の多い上の段階が追加されました。', ok: has(id) });
+      body: 'EXP・ゴールドのダンジョンに、報酬の多い上の段階が追加されました。', ok: has(id) });
+  });
+  DUNGEONS.rune.unlock.forEach((id, i) => {
+    defs.push(i === 0
+      ? { key: 'rune_1', icon: '💎', title: 'ルーンが解放', body: '育成クエストの「ルーン採掘」でルーンが手に入るようになりました。キャラ詳細の「ルーン」枠(4つ)に、編成ごとに装備できます。強化や分解は キャラ → ルーン から。', ok: has(id) }
+      : { key: `rune_${i + 1}`, icon: '⛏️', title: `ルーン採掘Lv${i + 1}が解放`, body: `TierのルーンがTier${RUNE_ROMAN[i]}まで出るようになりました。`, ok: has(id) });
   });
   QUEST_TIERS_ACTIVE.filter(t => t.key !== 'tu' && !t.hidden).forEach(t => {
     defs.push({ key: `tier_${t.key}`, icon: t.hard ? '💀' : '🗺️', title: t.hard ? `ハードモード「${t.label}」が解放` : `メインクエスト「${t.label}」が解放`,
