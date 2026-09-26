@@ -1107,6 +1107,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 
 /* ---------- monster detail modal ---------- */
 .detail-modal{ position:relative; padding-top:36px; }
+.guide-help{ width:28px; height:28px; flex:none; border-radius:50%; border:1px solid var(--gold); background:var(--panel2); color:var(--gold); font-size:15px; font-weight:900; line-height:1; cursor:pointer; padding:0; }
+.guide-help.detail-help{ position:absolute; top:10px; right:44px; z-index:1; }
+.head-right{ display:flex; align-items:center; gap:8px; }
 .detail-close{
   position:absolute; top:10px; right:10px;
   width:28px; height:28px; border-radius:50%;
@@ -2867,7 +2870,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.069';
+const GAME_VERSION = 'α0.1.070';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5941,7 +5944,7 @@ function renderRelicsScreen(){
   return `
     <div class="screen-head">
       <div class="screen-title">遺物図鑑</div>
-      <div class="base-wallet">${ownedCount} / ${ids.length}</div>
+      <div class="head-right"><div class="base-wallet">${ownedCount} / ${ids.length}</div>${guideHelpBtn('relics')}</div>
     </div>
     <div class="screen-sub" style="margin-bottom:8px;">これまでに入手した遺物と、まだ持っていない遺物を確認できます。タップすると詳細を見られます。</div>
     ${renderRelicFilterControls()}
@@ -11512,6 +11515,7 @@ function showMonsterDetail(id){
   layer.innerHTML = `
     <div class="result-modal detail-modal" data-mon="${id}">
       <button class="detail-close" data-close-detail="1">×</button>
+      ${guideHelpBtn('monsterDetail', 'detail-help')}
       <div class="detail-head elem-${m.element}">
         <img src="${imgSrc(m.id)}" alt="${m.name}">
         <div class="dh-body">
@@ -12391,7 +12395,10 @@ function renderBattleSelect(){
         <button class="btn btn-ghost btn-sm explore-back" data-stage-tab="menu" aria-label="探索メニューに戻る">‹ 戻る</button>
         <div class="screen-title" style="margin:0;">${(EXPLORE_MENU.find(m => m.key === stageTab) || EXPLORE_MENU[0]).label}</div>
       </div>` : `<div class="screen-title" style="margin:0;">探索</div>`}
-      <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
+      <div class="head-right">
+        ${stageTab === 'abyss' && abyssUnlocked() ? guideHelpBtn('abyss') : stageTab === 'dungeon' && dungeonTab === 'rune' ? guideHelpBtn('runeMine') : ''}
+        <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
+      </div>
     </div>
     ${stageTab === 'menu' ? `<div class="explore-tabs">
       ${EXPLORE_MENU.map(t => {
@@ -16441,6 +16448,8 @@ function handlePhoneClick(ev){
     else clearGuideToast();
     return;
   }
+  const guideHelpEl = t.closest('[data-guide-help]');
+  if(guideHelpEl){ replayGuide(guideHelpEl.dataset.guideHelp); return; }
   if(t.closest('[data-guide-next]')){ guideToastNext(); return; }
   if(t.closest('[data-guide-back]')){ guideToastBack(); return; }
   if(t.closest('[data-guide-close]')){ finishGuideToast(); return; }
@@ -17422,6 +17431,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 110, version: 'α0.1.070', date: '9/26', title: '「?」で説明をいつでも見返せるように', body: 'チュートリアルがある画面(キャラ詳細・遺物図鑑・深淵回廊・ルーン採掘)の右上に「?」ボタンを付けました。押すと、その画面の説明を何度でも見返せます。' },
   { id: 109, version: 'α0.1.069', date: '9/26', title: 'ニュースを掲載', body: 'ニュースに「新要素「ルーン」登場・★10解放・深淵回廊がさらに深く」を掲載しました。' },
   { id: 108, version: 'α0.1.068', date: '9/26', title: '新しいニュースはゲームに入ったときに表示', body: 'まだ読んでいないニュースがあるときは、ゲームに入ったときにお知らせのニュースを開いて表示するようにしました。一度開けば既読になり、同じニュースが2回出ることはありません(アップデート内容は対象外です)。' },
   { id: 107, version: 'α0.1.067', date: '9/26', title: 'ルーン登場・★10解放', body: '<span class="nt-h">ルーンが登場</span><span class="nt-i">・キャラを強くする装備<em>「ルーン」</em>が登場しました。育成クエストの「素材ダンジョン」は<em>「ルーン採掘」</em>(全7段階)に変わります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を説明します。</span><span class="nt-i">・<em>見方</em> 形がレア度(白・青・紫・金・虹)、色が効果(STR・HP・会心率など)、真ん中の数字がTier(Ⅰ〜Ⅹ)です。レア度が高いほどサブ効果がたくさん付きます。</span><span class="nt-i">・<em>枠</em> キャラの★で増えます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>合成</em> 育てたいルーンに、同じTier・同じタイプ(攻撃型/防御型)のルーン2つを合成すると、Tierが1つ上がります(最大Ⅹ)。レア度とサブ効果はそのままで、数値が伸びます。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入ります。サブ効果の振り直しや、ショップの「ルーンの粉ショップ」で<em>未鑑定のルーン</em>(レア度と効果は開封してのお楽しみ)との交換に使えます。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは仕様が変わったため、分解したときの2倍のルーンの粉に交換しました。</span><span class="nt-h">★10まで解放</span><span class="nt-i">・キャラの★の上限を7から<em>10</em>に上げました。★7→★8と★8→★9はソウル500、★9→★10はソウル1000です。</span><span class="nt-i">・レベルの上限は<em>★8でLv230・★9でLv260・★10でLv300</em>です。Lv230とLv260にはゴールドで越える壁があります。</span><span class="nt-i">・★の表示を変えました。★は5つまで並び、★6からは左から1つずつ金色になります(★10は5つすべて金色)。</span><span class="nt-h">深淵回廊</span><span class="nt-i">・深い層では敵の★も上がります。81〜100階は★8、101〜130階は★9、131階からは★10です(80階までは今までと同じ)。メインクエストやイベントの敵は変わりません。</span><span class="nt-h">ガチャ</span><span class="nt-i">・ピックアップの残り期間と開催期間を表示するようにしました。</span>' },
@@ -18628,6 +18638,22 @@ function openNewNewsOnEntry(){
 }
 
 /* ---- mascot guides: multi-step tips pinned above the nav bar, can spotlight a screen element ---- */
+// 右上の「?」から、機能ごとのチュートリアルを何度でも見返せる
+const GUIDE_REPLAY = {
+  monsterDetail: { mascot: 'hanoko' },
+  relics: { mascot: 'pixie' },
+  abyss: { mascot: 'anubis', doneLabel: 'いざ深淵へ' },
+  runeMine: { mascot: 'knocker', doneLabel: '掘りに行く' },
+};
+function guideHelpBtn(key, cls){
+  return `<button class="guide-help ${cls || ''}" data-guide-help="${key}" aria-label="説明をもう一度見る" title="説明をもう一度見る">?</button>`;
+}
+function replayGuide(key){
+  const g = GUIDE_REPLAY[key];
+  if(!g || !GUIDE_CONTENT[key]) return;
+  clearGuideToast();
+  openGuideToast(g.mascot, GUIDE_CONTENT[key].steps, { key, doneLabel: g.doneLabel });
+}
 // ルーンの説明に使う見本(実物と同じ絵で見せる)
 function runeGuideSample(tier, rarity, main){ return runeIconHtml({ tier, rarity, main, subs: [], lock: false }, { used: false }); }
 const GUIDE_CONTENT = {
