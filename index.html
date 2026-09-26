@@ -2456,6 +2456,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gv-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:4px 6px; }
 .gv-item{ display:flex; flex-direction:column; align-items:center; gap:1px; }
 .gv-item small{ font-size:10px; font-weight:800; color:var(--dim); }
+.gc-remain{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; margin:3px 0 4px; }
+.gc-remain .ev-period{ margin:0; font-size:10.5px; }
 .rune-gain{ margin-top:10px; }
 .rune-gain .rg-head{ font-size:12px; font-weight:900; margin-bottom:6px; }
 .rune-gain .rg-full{ color:#ff6b6b; font-size:11px; margin-left:8px; }
@@ -3252,7 +3254,7 @@ function eventActive(){ return activeEvents().length > 0; }
 // evergreen default when no event is running. Always at least one entry.
 function activeBanners(){
   const evs = activeEvents();
-  return evs.length ? evs.map(ev => ({ key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured })) : [DEFAULT_BANNER];
+  return evs.length ? evs.map(ev => ({ key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured, startAt: ev.startAt, endAt: ev.endAt })) : [DEFAULT_BANNER];
 }
 let gachaBannerKey = null; // player's tab pick among activeBanners(); null = auto (most recent)
 // when several events overlap, default to the most recently started one (ties go to
@@ -3266,7 +3268,12 @@ function currentBanner(){
   const evs = activeEvents();
   if(!evs.length) return DEFAULT_BANNER;
   const ev = evs.reduce((a, b) => new Date(b.startAt) >= new Date(a.startAt) ? b : a);
-  return { key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured };
+  return { key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured, startAt: ev.startAt, endAt: ev.endAt };
+}
+// ガチャのピックアップの残り期間(イベントと同じ表示)。期限のない常設の召喚には出さない
+function bannerRemainHtml(b){
+  if(!b || !b.endAt) return '';
+  return `<div class="gc-remain"><span class="mc-reset">残り ${formatDaysHours(new Date(b.endAt).getTime() - Date.now())}</span><span class="ev-period">${eventPeriodText(b)}</span></div>`;
 }
 
 
@@ -9892,6 +9899,7 @@ function renderRelicGacha(){
         <div class="relic-detail-ic r${pickupRelic.star}">${pickupRelic.icon}</div>
         <div class="gc-hero-body">
           <div class="gc-name">${pickupRelic.name}</div>
+          ${bannerRemainHtml(banner)}
           <div class="gc-sub">★${pickupRelic.star}「${pickupMon.name}」専用遺物<br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RELIC_RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
           <button class="btn btn-ghost btn-sm" data-preview-relic="${pickupRelic.id}" style="margin-top:6px;">遺物の性能を見る</button>
@@ -10095,6 +10103,7 @@ function renderMonGacha(){
       <div class="gc-hero-row">
         <div class="gc-hero-body">
           <div class="gc-name">${banner.name}</div>
+          ${bannerRemainHtml(banner)}
           <div class="gc-sub">★${pickup.rarity}「${pickup.name}」${ELEM_LABEL[pickup.element]}・${ROLE_LABEL[pickup.role]}
             <br>排出率アップ中(★5のうち${Math.round(PICKUP_SHARE * 100)}%)</div>
           <div class="gc-period">ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%</div>
@@ -17412,8 +17421,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 108, version: 'α0.1.067', date: '9/26', title: '★10まで上げられるように', body: '★は5個まで並び、★6からは左から1つずつ金色になります(★10は5個すべて金色)。キャラの★の上限を7から10に上げました。深淵回廊の深い層では、敵も81〜100階で★8、101〜130階で★9、131階からは★10になります(80階までは今までと同じ)。★7→★8に500ソウル、★8→★9に500ソウル、★9→★10に1000ソウルで、レベルの上限は★8でLv230、★9でLv260、★10でLv300です(★1〜★6はこれまでと同じ)。Lv230とLv260にはゴールドで越える壁があります。メインクエストやイベントの敵の強さは変わりません。' },
-  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'ルーンを見直して戻しました。<span class="nt-i">・<em>枠</em> キャラの★で開きます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>Tier(Ⅰ〜Ⅹ)</em> 1つ上がるごとにほぼ同じ幅で強くなります(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。</span><span class="nt-i">・<em>合成</em> 土台のルーンに、同じTier・同じタイプ(攻撃型: STR・SPD・会心率・会心倍率 / 防御型: HP・物理防御・魔法防御)のルーン2つを合成すると、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、値がTierに合わせて伸びます。費用はゴールドです。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入り、サブ効果の振り直し(1回 100×Tier)と、ショップ(ルーンの粉ショップ)での「未鑑定のルーン」との交換に使えます。未鑑定のルーンは決まっているのがTierだけで、レア度と効果は開封するまでのお楽しみです。</span><span class="nt-i">・<em>ルーン採掘</em> 育成クエストの「素材ダンジョン」は「ルーン採掘」(7段階・TierⅦまで)になります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。</span>' },
+  { id: 107, version: 'α0.1.067', date: '9/26', title: 'ルーン登場・★10解放', body: '<span class="nt-h">ルーンが登場</span><span class="nt-i">・キャラを強くする装備<em>「ルーン」</em>が登場しました。育成クエストの「素材ダンジョン」は<em>「ルーン採掘」</em>(全7段階)に変わります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を説明します。</span><span class="nt-i">・<em>見方</em> 形がレア度(白・青・紫・金・虹)、色が効果(STR・HP・会心率など)、真ん中の数字がTier(Ⅰ〜Ⅹ)です。レア度が高いほどサブ効果がたくさん付きます。</span><span class="nt-i">・<em>枠</em> キャラの★で増えます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>合成</em> 育てたいルーンに、同じTier・同じタイプ(攻撃型/防御型)のルーン2つを合成すると、Tierが1つ上がります(最大Ⅹ)。レア度とサブ効果はそのままで、数値が伸びます。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入ります。サブ効果の振り直しや、ショップの「ルーンの粉ショップ」で<em>未鑑定のルーン</em>(レア度と効果は開封してのお楽しみ)との交換に使えます。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは仕様が変わったため、分解したときの2倍のルーンの粉に交換しました。</span><span class="nt-h">★10まで解放</span><span class="nt-i">・キャラの★の上限を7から<em>10</em>に上げました。★7→★8と★8→★9はソウル500、★9→★10はソウル1000です。</span><span class="nt-i">・レベルの上限は<em>★8でLv230・★9でLv260・★10でLv300</em>です。Lv230とLv260にはゴールドで越える壁があります。</span><span class="nt-i">・★の表示を変えました。★は5つまで並び、★6からは左から1つずつ金色になります(★10は5つすべて金色)。</span><span class="nt-h">深淵回廊</span><span class="nt-i">・深い層では敵の★も上がります。81〜100階は★8、101〜130階は★9、131階からは★10です(80階までは今までと同じ)。メインクエストやイベントの敵は変わりません。</span><span class="nt-h">ガチャ</span><span class="nt-i">・ピックアップの残り期間と開催期間を表示するようにしました。</span>' },
   { id: 106, version: 'α0.1.065', date: '9/26', title: 'ルーンをいったんお休み', body: 'ルーンは仕様を見直すため、いったん取り下げました。育成クエストは「素材ダンジョン」に戻っています。すでに手に入れたルーンは消えずにデータに残っていて、ルーンが戻ったときにまた使えます。' },
   { id: 105, version: 'α0.1.064', date: '9/26', title: 'ルーンは「合成」でTierを上げる形に', body: 'ルーンの強化レベル(+1〜+12)をなくしました。代わりに、同じ効果・同じTierのルーンを3つ合成すると、Tierが1つ上がります(最大Ⅹ)。合成後のレア度は3つの平均(切り捨て)になり、サブ効果はそのレア度の数で付け直しになります。1つ目に選んだルーンが残るので、装備中のルーンもそのまま合成できます(材料の2つは、装備中・ロック中のものは使えません)。ルーン採掘ではⅥまで出て、Ⅶ〜Ⅹは合成で作れます。これまでに強化したルーンは、強化レベルが外れます。' },
   { id: 104, version: 'α0.1.063', date: '9/26', title: 'ルーンが登場', body: 'キャラを強化する「ルーン」を追加しました。1キャラに4つまで付けられ(枠ごとの縛りなし)、編成ごとに装備します(同じ編成の中では1つのルーンを1体にだけ。別の編成なら同じルーンを使えます)。形はレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色は効果(HP・STR・物理防御・魔法防御・SPD・会心率・会心倍率)、中の数字はTier(Ⅰ〜Ⅵ)です。Tierは数値の大きさ、レア度は最初に付いているサブ効果の数(0〜4)で、強化+3ごとにサブ効果が増えるか伸びます。ルーンの粉とゴールドで強化(最大+12)、いらないルーンは分解して粉にできます(所持は200個まで)。育成クエストの「素材ダンジョン」は「ルーン採掘」(6段階)に変わりました。育成素材はメインクエストのドロップ・錬金術・育成素材BOXで集められます。' },
