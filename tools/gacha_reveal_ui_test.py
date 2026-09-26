@@ -115,6 +115,19 @@ async def main():
             await pg.screenshot(path=str(OUT / 'gacha_12_tapfx.png'))
             await pg.wait_for_timeout(1200)
             check('キラキラはすぐ消える(残り続けない)', await pg.locator('.tap-fx').count() == 0)
+            # 長押し・なぞり: キラキラがついてくる
+            await pg.evaluate("() => { window.__fx = 0; new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.classList && n.classList.contains('tap-fx')) window.__fx++; }))).observe(document.getElementById('phone'), { childList: true }); }")
+            await pg.mouse.move(40, 300); await pg.mouse.down(); await pg.wait_for_timeout(700)
+            held = await pg.evaluate("() => window.__fx")
+            check('長押ししている間はキラキラが出続ける', held >= 4, held)
+            for k in range(10): await pg.mouse.move(40 + k * 25, 300 + k * 10); await pg.wait_for_timeout(20)
+            moved = await pg.evaluate("() => window.__fx") - held
+            check('押したまま動かすとキラキラが指についてくる', moved >= 5, moved)
+            pos = await pg.evaluate("() => { const l = [...document.querySelectorAll('.tap-fx.small')].pop(); return l ? [parseFloat(l.style.left), parseFloat(l.style.top)] : null; }")
+            check('キラキラは指の位置に出る', pos and pos[0] > 200, pos)
+            await pg.mouse.up(); await pg.wait_for_timeout(50)
+            after = await pg.evaluate("() => window.__fx"); await pg.wait_for_timeout(500)
+            check('指を離すと止まる', await pg.evaluate("() => window.__fx") == after)
             # --- 第2弾: 宝箱の色の予告と昇格 ---
             await pg.evaluate("""() => { closeModal(); const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
               const pu = MON_BY_ID[currentBanner().pickup];
