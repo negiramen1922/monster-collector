@@ -2389,6 +2389,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rune-slots{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
 .rune-slot{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:7px 2px 6px; border-radius:12px; border:1px dashed var(--line); background:var(--panel2); color:var(--dim); }
 .rune-slot.filled{ border-style:solid; color:var(--text); }
+.rune-slot.locked{ opacity:.55; background:transparent; }
+.rune-slot.locked .rs-plus{ font-size:18px; }
 .rune-slot .rs-plus{ width:48px; height:48px; display:flex; align-items:center; justify-content:center; font-size:22px; }
 .rune-slot small{ font-size:10px; font-weight:800; white-space:nowrap; }
 .rune-total{ font-size:11px; color:var(--dim); margin-top:8px; line-height:1.5; }
@@ -6199,7 +6201,7 @@ function applyRelicSnapToUnit(u, mon, relicSnap){
 }
 
 /* ================= ルーン =================
-   1キャラ4枠(枠ごとの縛りなし)。編成ごとに装備し、同じ編成の中では1つのルーンを1体にしか付けられない
+   1キャラ最大4枠(枠ごとの縛りなし。キャラの★1・4・6・9で1つずつ開く)。編成ごとに装備し、同じ編成の中では1つのルーンを1体にしか付けられない
    (別の編成なら同じルーンを使える)。装備は STATE.formations[i].runes = { monId: [uid|null ×4] }。
    - 効果は攻撃型(STR・SPD・会心率・会心倍率)と防御型(HP・物理防御・魔法防御)の2タイプ
    - Tier(Ⅰ〜Ⅹ): 数値の大きさ。1つ上がるごとにほぼ同じ幅で伸びる。ルーン採掘でⅦまで出て、それより上は合成で上げる
@@ -6210,6 +6212,11 @@ function applyRelicSnapToUnit(u, mon, relicSnap){
    - 見た目: 形=レアリティ、宝石の色=メインの効果、中心のローマ数字=Tier ---- */
 const RUNE_MAX = 200;          // 所持数の上限
 const RUNE_SLOTS = 4;
+const RUNE_SLOT_STARS = [1, 4, 6, 9];   // 枠1〜4が開くキャラの★(★9は★の上限を上げたら届く)
+function runeSlotsOpen(monId){
+  const o = STATE.owned && STATE.owned[monId];
+  return o ? RUNE_SLOT_STARS.filter(st => (o.star || 1) >= st).length : 0;
+}
 const RUNE_TIERS = 10;
 const RUNE_FUSE_COUNT = 3;     // 合成に使う個数(3か5で検討中)
 const RUNE_SUB_MAX = 4;
@@ -6299,9 +6306,11 @@ function formationRunes(idx){
   if(!f.runes || typeof f.runes !== 'object') f.runes = {};
   return f.runes;
 }
+// まだ開いていない枠(★が足りない)は常に空として扱う
 function runesOf(monId, idx){
   const list = formationRunes(idx)[monId];
-  return [...Array(RUNE_SLOTS).keys()].map(i => (list && runeByUid(list[i])) ? list[i] : null);
+  const open = runeSlotsOpen(monId);
+  return [...Array(RUNE_SLOTS).keys()].map(i => (i < open && list && runeByUid(list[i])) ? list[i] : null);
 }
 // そのルーンを装備している {idx, monId, slot} を全編成から
 function runeUsers(uid){
@@ -6312,7 +6321,7 @@ function runeUsers(uid){
 }
 function runeUserIn(uid, idx){ return runeUsers(uid).find(x => x.idx === idx) || null; }
 function equipRune(uid, monId, slot, idx){
-  if(!runeByUid(uid) || !MON_BY_ID[monId] || !(slot >= 0 && slot < RUNE_SLOTS)) return false;
+  if(!runeByUid(uid) || !MON_BY_ID[monId] || !(slot >= 0 && slot < runeSlotsOpen(monId))) return false;
   const map = formationRunes(idx);
   Object.keys(map).forEach(m => { map[m] = (map[m] || []).map(u => u === uid ? null : u); }); // 同じ編成の中では1体だけ
   const list = runesOf(monId, idx);
@@ -6331,9 +6340,10 @@ function sanitizeFormationRunes(f){
   const used = new Set(), out = {};
   Object.entries(f.runes && typeof f.runes === 'object' ? f.runes : {}).forEach(([monId, list]) => {
     if(!MON_BY_ID[monId] || !Array.isArray(list)) return;
+    const open = runeSlotsOpen(monId);
     const slots = [...Array(RUNE_SLOTS).keys()].map(i => {
       const uid = list[i];
-      if(!uid || used.has(uid) || !runeByUid(uid)) return null;
+      if(!uid || i >= open || used.has(uid) || !runeByUid(uid)) return null;
       used.add(uid);
       return uid;
     });
@@ -6498,7 +6508,7 @@ function renderRunesScreen(){
       <span class="${all.length >= RUNE_MAX ? 'full' : ''}">所持 <b>${all.length}</b> / ${RUNE_MAX}</span>
       <span>✨ルーンの粉 <b>${STATE.runeDust.toLocaleString()}</b></span>
     </div>
-    <div class="screen-sub" style="margin-bottom:8px;">ルーンは育成クエストの「ルーン採掘」で手に入ります。キャラ詳細の「ルーン」枠(4つ)に、編成ごとに装備できます。形はレア度、色は効果、中の数字はTierです。ルーンは攻撃型(STR・SPD・会心)と防御型(HP・防御)の2タイプで、同じTier・同じタイプのルーン${RUNE_FUSE_COUNT - 1}個を材料にすると、土台のルーンのTierが1つ上がります(最大Ⅹ。レア度とサブ効果はそのまま)。</div>
+    <div class="screen-sub" style="margin-bottom:8px;">ルーンは育成クエストの「ルーン採掘」で手に入ります。キャラ詳細の「ルーン」枠に、編成ごとに装備できます(枠はキャラの★1・★4・★6・★9で1つずつ開きます)。形はレア度、色は効果、中の数字はTierです。ルーンは攻撃型(STR・SPD・会心)と防御型(HP・防御)の2タイプで、同じTier・同じタイプのルーン${RUNE_FUSE_COUNT - 1}個を材料にすると、土台のルーンのTierが1つ上がります(最大Ⅹ。レア度とサブ効果はそのまま)。</div>
     ${runeFilterChipsHtml(runeFilter, 'data-rune-filter')}
     <div class="rune-sorts">${RUNE_SORTS.map(([k, l]) => `<button class="stage-tab ${runeSort === k ? 'on' : ''}" data-rune-sort="${k}">${l}</button>`).join('')}</div>
     ${list.length ? `<div class="rune-grid">${list.map(r => `<button class="rune-cell" data-rune-open="${r.uid}" aria-label="${runeName(r)} Tier${RUNE_ROMAN[r.tier - 1]} ${RUNE_RARITIES[r.rarity].label}">${runeIconHtml(r)}</button>`).join('')}</div>`
@@ -6601,7 +6611,10 @@ function doFuseRune(){
 
 /* ---- ルーンを選ぶ(キャラ詳細の枠から) ---- */
 let runePicker = null;   // { monId, slot, filter }
-function openRunePicker(monId, slot){ runePicker = { monId, slot: Number(slot), filter: 'all' }; renderRunePicker(); }
+function openRunePicker(monId, slot){
+  if(Number(slot) >= runeSlotsOpen(monId)){ toast(`この枠はキャラを★${RUNE_SLOT_STARS[Number(slot)]}にすると使えます`); return; }
+  runePicker = { monId, slot: Number(slot), filter: 'all' }; renderRunePicker();
+}
 function closeRunePicker(){ const p = runePicker; runePicker = null; if(p) showMonsterDetail(p.monId); }
 function renderRunePicker(){
   const { monId, slot, filter } = runePicker;
@@ -11449,6 +11462,7 @@ function showMonsterDetail(id){
         <div class="rune-slots">
           ${runesOf(id).map((uid, i) => {
             const r = runeByUid(uid);
+            if(i >= runeSlotsOpen(id)) return `<div class="rune-slot locked" aria-label="ルーン枠${i + 1}(★${RUNE_SLOT_STARS[i]}で解放)"><span class="rs-plus">🔒</span><small>★${RUNE_SLOT_STARS[i]}で解放</small></div>`;
             return `<button class="rune-slot ${r ? 'filled' : ''}" data-rune-slot="${id}:${i}" aria-label="ルーン枠${i + 1}">
               ${r ? runeIconHtml(r, { used: false }) : '<span class="rs-plus">＋</span>'}
               <small ${r ? `style="color:${RUNE_STATS[r.main].color}"` : ''}>${r ? `${RUNE_STATS[r.main].short}+${runeMainValue(r)}${RUNE_STATS[r.main].pct ? '%' : ''}` : `枠${i + 1}`}</small>
@@ -17244,7 +17258,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'はじめてルーン採掘を開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。ルーンを見直して戻しました。①Tier(Ⅰ〜Ⅹ)ごとの伸びをゆるやかにし、1つ上がるごとにほぼ同じ幅で強くなるようにしました(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。②合成は「土台のルーン + 同じTier・同じタイプのルーン2個」で、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、サブ効果の値もTierに合わせて伸びます(材料のレア度は問いません)。タイプは攻撃型(STR・SPD・会心率・会心倍率)と防御型(HP・物理防御・魔法防御)の2つです。③ルーン採掘を7段階にし、極上級10クリアで開く段階(推奨Lv200)を追加しました。採掘ではTierⅦまで出て、Ⅷ〜Ⅹは合成で作れます。育成クエストの「素材ダンジョン」は「ルーン採掘」になります。' },
+  { id: 107, version: 'α0.1.066', date: '9/26', title: 'ルーンが戻ってきました(仕様を見直し)', body: 'はじめてルーン採掘を開くと、鉱山の妖精ノッカーがルーンの見方を絵つきで説明します。以前(α0.1.063〜064)に手に入れたルーンは、分解したときの2倍のルーンの粉に交換しました。ルーンを見直して戻しました。ルーンの枠はキャラの★で開きます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。①Tier(Ⅰ〜Ⅹ)ごとの伸びをゆるやかにし、1つ上がるごとにほぼ同じ幅で強くなるようにしました(例: STRのメイン効果はⅠで+5%、Ⅹで+18.5%)。②合成は「土台のルーン + 同じTier・同じタイプのルーン2個」で、土台のTierが1つ上がります。レア度とサブ効果は土台のまま残り、サブ効果の値もTierに合わせて伸びます(材料のレア度は問いません)。タイプは攻撃型(STR・SPD・会心率・会心倍率)と防御型(HP・物理防御・魔法防御)の2つです。③ルーン採掘を7段階にし、極上級10クリアで開く段階(推奨Lv200)を追加しました。採掘ではTierⅦまで出て、Ⅷ〜Ⅹは合成で作れます。育成クエストの「素材ダンジョン」は「ルーン採掘」になります。' },
   { id: 106, version: 'α0.1.065', date: '9/26', title: 'ルーンをいったんお休み', body: 'ルーンは仕様を見直すため、いったん取り下げました。育成クエストは「素材ダンジョン」に戻っています。すでに手に入れたルーンは消えずにデータに残っていて、ルーンが戻ったときにまた使えます。' },
   { id: 105, version: 'α0.1.064', date: '9/26', title: 'ルーンは「合成」でTierを上げる形に', body: 'ルーンの強化レベル(+1〜+12)をなくしました。代わりに、同じ効果・同じTierのルーンを3つ合成すると、Tierが1つ上がります(最大Ⅹ)。合成後のレア度は3つの平均(切り捨て)になり、サブ効果はそのレア度の数で付け直しになります。1つ目に選んだルーンが残るので、装備中のルーンもそのまま合成できます(材料の2つは、装備中・ロック中のものは使えません)。ルーン採掘ではⅥまで出て、Ⅶ〜Ⅹは合成で作れます。これまでに強化したルーンは、強化レベルが外れます。' },
   { id: 104, version: 'α0.1.063', date: '9/26', title: 'ルーンが登場', body: 'キャラを強化する「ルーン」を追加しました。1キャラに4つまで付けられ(枠ごとの縛りなし)、編成ごとに装備します(同じ編成の中では1つのルーンを1体にだけ。別の編成なら同じルーンを使えます)。形はレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色は効果(HP・STR・物理防御・魔法防御・SPD・会心率・会心倍率)、中の数字はTier(Ⅰ〜Ⅵ)です。Tierは数値の大きさ、レア度は最初に付いているサブ効果の数(0〜4)で、強化+3ごとにサブ効果が増えるか伸びます。ルーンの粉とゴールドで強化(最大+12)、いらないルーンは分解して粉にできます(所持は200個まで)。育成クエストの「素材ダンジョン」は「ルーン採掘」(6段階)に変わりました。育成素材はメインクエストのドロップ・錬金術・育成素材BOXで集められます。' },
@@ -17410,7 +17424,7 @@ function unlockDefs(){
   });
   DUNGEONS.rune.unlock.forEach((id, i) => {
     defs.push(i === 0
-      ? { key: 'rune_1', icon: '💎', title: 'ルーンが解放', body: '育成クエストの「ルーン採掘」でルーンが手に入るようになりました。キャラ詳細の「ルーン」枠(4つ)に、編成ごとに装備できます。同じTier・同じタイプのルーン2つを材料にした合成(Tierが上がる)や分解は キャラ → ルーン から。', ok: has(id) }
+      ? { key: 'rune_1', icon: '💎', title: 'ルーンが解放', body: '育成クエストの「ルーン採掘」でルーンが手に入るようになりました。キャラ詳細の「ルーン」枠に、編成ごとに装備できます(枠はキャラの★1・★4・★6・★9で1つずつ開きます)。同じTier・同じタイプのルーン2つを材料にした合成(Tierが上がる)や分解は キャラ → ルーン から。', ok: has(id) }
       : { key: `rune_${i + 1}`, icon: '⛏️', title: `ルーン採掘Lv${i + 1}が解放`, body: `ルーン採掘でTier${RUNE_ROMAN[i]}のルーンが出るようになりました(推奨Lv${DUNGEONS.rune.baseLv[i]})。`, ok: has(id) });
   });
   QUEST_TIERS_ACTIVE.filter(t => t.key !== 'tu' && !t.hidden).forEach(t => {
@@ -18435,7 +18449,7 @@ const GUIDE_CONTENT = {
   runeMine: {
     steps: [
       { title: 'ルーン採掘へようこそ', visual: () => `<div class="gv-row">${runeGuideSample(1, 0, 'atk')}${runeGuideSample(3, 2, 'hp')}${runeGuideSample(5, 4, 'critDmg')}</div>`,
-        body: 'おいらはノッカー、この鉱山の案内役さ。ここではキャラを強くする<b>ルーン</b>が掘れるよ。1キャラに<b>4つ</b>まで付けられて、編成ごとに付け替えられるんだ。' },
+        body: 'おいらはノッカー、この鉱山の案内役さ。ここではキャラを強くする<b>ルーン</b>が掘れるよ。付けられる数はキャラの★で増えて、<b>★1で1つ・★4で2つ・★6で3つ・★9で4つ</b>。編成ごとに付け替えられるんだ。' },
       { title: '色は「効果」', visual: () => `<div class="gv-grid">${['atk', 'spd', 'critRate', 'critDmg', 'hp', 'pdef', 'mdef'].map(k => `<span class="gv-item">${runeGuideSample(2, 1, k)}<small style="color:${RUNE_STATS[k].color}">${RUNE_STATS[k].label}</small></span>`).join('')}</div>`,
         body: '宝石の色で効果がわかるよ。<b>攻撃型</b>はSTR・SPD・会心率・会心倍率、<b>防御型</b>はHP・物理防御・魔法防御の2タイプだ。' },
       { title: '形は「レア度」', visual: () => `<div class="gv-row">${RUNE_RARITIES.map((x, i) => `<span class="gv-item">${runeGuideSample(3, i, 'mdef')}<small>${x.label}</small></span>`).join('')}</div>`,

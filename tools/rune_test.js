@@ -1,6 +1,6 @@
 /* ルーン: 生成(Tier・レアリティ)・強化・編成ごとの装備・効果・分解・上限・ルーン採掘・PVP の回帰テスト */
 const load = require('./harness.js');
-const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, fuseRunes, runeFuseCost, runeFuseMaterials, RUNE_FUSE_COUNT, RUNE_TIERS, runeSubValue,
+const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, normalizeState, makeRune, addRune, runeMainValue, fuseRunes, runeFuseCost, runeFuseMaterials, runeSlotsOpen, RUNE_SLOT_STARS, RUNE_FUSE_COUNT, RUNE_TIERS, runeSubValue,
   equipRune, unequipRune, runesOf, runeBonusOf, runeUsers, switchFormationSet, dismantleRunes, runeDustValue, runeFull, RUNE_MAX, RUNE_STATS,
   statsWithRelic, scaledStats, MON_BY_ID, dungeonStage, grantDungeonRewards, DUNGEONS, buildDefenseSnapshot, sanitizeRuneBonus, sanitizeDefense,
   battlePower, findStage, dungeonTierUnlocked, runeIconSvg, ensureRunes };`);
@@ -50,6 +50,19 @@ ok('旧仕様のルーンは粉に交換(2×(2×4 + 6×10) = 136)', S().runes.le
 ok('装備は外れ、お知らせが1件', !S().formations[0].runes.m06 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
 S().runes = [E.makeRune(1, 0)]; E.normalizeState();
 ok('交換は1回だけ(新しいルーンは残る)', S().runes.length === 1 && S().announceQueue.filter(a => a.key === 'rune_legacy').length === 1);
+
+// 枠はキャラの★で開く(★1で1つ・★4で2つ・★6で3つ・★9で4つ)
+S().runes = []; S().formations.forEach(f => f.runes = {});
+const opens = [1, 3, 4, 5, 6, 8, 9].map(st => { S().owned.m03.star = st; return E.runeSlotsOpen('m03'); });
+ok('★1→1枠 ★4→2枠 ★6→3枠 ★9→4枠', opens.join() === '1,1,2,2,3,3,4', opens);
+S().owned.m03.star = 4;
+const g1 = E.addRune(E.makeRune(2, 0, 'hp')), g2 = E.addRune(E.makeRune(2, 0, 'atk'));
+ok('開いていない枠には付けられない', E.equipRune(g1.uid, 'm03', 1) && !E.equipRune(g2.uid, 'm03', 2) && E.runesOf('m03')[2] === null);
+S().owned.m03.star = 1;
+ok('開いていない枠のルーンは効果に入らない', E.runesOf('m03')[1] === null && !E.runeBonusOf('m03').hp);
+S().owned.m03.star = 1;
+// 以下のテストは全部の枠を使うので★を上げておく
+['m06', 'm21'].forEach(id => { S().owned[id].star = 9; });
 
 // 装備: 編成ごと、同じ編成の中では1体だけ
 S().runes = []; S().formations.forEach(f => f.runes = {});
