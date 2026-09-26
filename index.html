@@ -229,6 +229,8 @@ body{
 .home-items .btn{ margin-left:auto; }
 .gold-line{ font-size:14px; font-weight:800; color:var(--gold); margin-bottom:6px; }
 .drop-row{ display:flex; align-items:center; flex-wrap:wrap; gap:3px; margin-top:6px; font-size:13px; }
+.drop-mat{ display:inline-flex; align-items:center; gap:2px; margin-right:6px; }
+.drop-mat small{ margin-left:1px !important; font-size:10px; color:var(--text) !important; }
 .drop-row small{ font-size:10px; color:var(--dim); margin-left:4px; }
 .tier-card{ display:flex; width:100%; align-items:center; gap:10px; text-align:left; font-family:inherit; cursor:pointer;
   background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px; color:var(--fg); }
@@ -2674,7 +2676,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.049';
+const GAME_VERSION = 'α0.1.050';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4405,6 +4407,86 @@ const MAT_FAMILIES = {
 const BOX_CONTENT = { sel: { 1: 10, 2: 5, 3: 3, 4: 1 }, rnd: { 1: 20, 2: 10, 3: 5, 4: 3 } };
 
 function matKey(fam, kind, tier){ return `${fam}_${kind}_${tier}`; }
+/* 素材のTierは難易度で解放: 初級=I / 中級・上級=II まで / 超上級・極上級=III まで / 伝説級・神話級=IV まで。
+   ステージの落とす素材は固定で、出てくる敵(ボスは2体分と数える)にいちばん多い属性・種族・ロールを1つずつ。 */
+function stageKindCounts(waves){
+  const count = { el: {}, sp: {}, ro: {} };
+  waves.flat().forEach(e => {
+    const m = MON_BY_ID[e.ref];
+    if(!m) return;
+    const w = e.boss ? 2 : 1;
+    [['el', m.element], ['sp', speciesOf(m)], ['ro', m.role]].forEach(([f, k]) => { if(k) count[f][k] = (count[f][k] || 0) + w; });
+  });
+  return count;
+}
+// 同じTier帯(初級 / 中級・上級 / 超上級・極上級 / 伝説級・神話級)のどこかで、すべての素材が手に入るように割り振り直す。
+// 少ない素材から順に「その敵がいちばん多く出るステージ」に割り当て、残りのステージはいちばん多い敵の素材にする
+const DROP_BANDS = [['q1'], ['q2', 'q3'], ['q4', 'q5'], ['q6', 'q7']];
+function rebalanceDropKinds(){
+  DROP_BANDS.forEach(band => {
+    const list = STAGES.filter(st => st.type === 'main' && st.drops && band.includes(st.tier));
+    if(!list.length) return;
+    const counts = list.map(st => stageKindCounts(st.waves));
+    ['el', 'sp', 'ro'].forEach((f, fi) => {
+      const kinds = MAT_FAMILIES[f].kinds();
+      const total = k => counts.reduce((a, c) => a + (c[f][k] || 0), 0);
+      const order = kinds.slice().sort((a, b) => (total(a) === 0) - (total(b) === 0) || total(a) - total(b));
+      const pick = new Array(list.length).fill(null);
+      order.forEach(k => {
+        let best = -1;
+        list.forEach((st, i) => { if(pick[i] === null && (best < 0 || (counts[i][f][k] || 0) > (counts[best][f][k] || 0))) best = i; });
+        if(best >= 0) pick[best] = k;
+      });
+      list.forEach((st, i) => {
+        const k = pick[i] || (Object.entries(counts[i][f]).sort((a, b) => b[1] - a[1])[0] || [])[0];
+        if(!k) return;
+        const at = st.drops.kinds.findIndex(([ff]) => ff === f);
+        if(at >= 0) st.drops.kinds[at] = [f, k]; else st.drops.kinds.splice(fi, 0, [f, k]);
+      });
+    });
+  });
+}
+function stageDropKinds(waves){
+  const count = { el: {}, sp: {}, ro: {} };
+  waves.flat().forEach(e => {
+    const m = MON_BY_ID[e.ref];
+    if(!m) return;
+    const w = e.boss ? 2 : 1;
+    [['el', m.element], ['sp', speciesOf(m)], ['ro', m.role]].forEach(([f, k]) => { if(k) count[f][k] = (count[f][k] || 0) + w; });
+  });
+  return ['el', 'sp', 'ro'].map(f => {
+    const top = Object.entries(count[f]).sort((a, b) => b[1] - a[1])[0];
+    return top ? [f, top[0]] : null;
+  }).filter(Boolean);
+}
+function hardDropTiers(tiers){
+  const top = tiers.reduce((a, n, i) => n > 0 ? i : a, 0);
+  return tiers.map((n, i) => n <= 0 ? 0 : i === top ? n + 2 : n + 1);
+}
+const MAT_TIER_FROM = { 1: '初級', 2: '中級', 3: '超上級', 4: '伝説級' };
+// その素材(Tier込み)がいちばん多く落ちる、いま挑戦できるメインクエストのステージ
+function bestStageForMat(info, anyLocked){
+  let best = null, bestN = 0;
+  STAGES.forEach(st => {
+    if(!st.drops || st.disabled || (!anyLocked && !stageUnlocked(st))) return;
+    if(anyLocked && best) return;   // まだ挑戦できない場合は、いちばん早く行けるステージを案内する
+    if(!st.drops.kinds.some(([f, k]) => f === info.fam && k === info.kind)) return;
+    const n = st.drops.tiers[info.tier - 1] || 0;
+    if(n >= bestN && n > 0){ best = st; bestN = n; }
+  });
+  return best;
+}
+// いまメインクエスト(ハード含む)で手に入るいちばん上のTier = 錬金術で「正規の効率」で作れる上限
+function matTierUnlocked(){
+  let top = 1;
+  STAGES.forEach(st => {
+    if(!st.drops || !STATE.clearedStages.includes(st.id)) return;
+    st.drops.tiers.forEach((n, i) => { if(n > 0) top = Math.max(top, i + 1); });
+  });
+  return top;
+}
+// 錬金術: 解放済みのTierへは 5個→1個。まだ落ちないTierへの先回りは 15個→1個(できるが効率が悪い)
+function craftRatio(toTier){ return toTier <= matTierUnlocked() ? CRAFT_RATIO : CRAFT_RATIO_AHEAD; }
 function parseMat(key){
   const m = /^(el|sp|ro)_([a-z]+)_([1-4])$/.exec(key);
   return m ? { fam: m[1], kind: m[2], tier: Number(m[3]) } : null;
@@ -4707,7 +4789,10 @@ function renderSkillUpgradeModal(){
                   <button class="btn btn-sm ${hasBox ? '' : 'btn-ghost'}" data-use-box="${boxKey}:${info.fam}:${info.kind}" ${hasBox ? '' : 'disabled'}>
                     選択BOXを消費 ${itemName(boxKey)}(所持${getItem(boxKey)})
                   </button>
-                  <button class="btn btn-ghost btn-sm" data-goto-mat-quest="1">素材クエストに行く</button>
+                  ${(() => { const st = info && bestStageForMat(info);
+                    return st ? `<button class="btn btn-sm" data-goto-mat-stage="${st.id}">「${st.name}」${st.id.endsWith('h') ? '(ハード)' : ''}で集める</button>`
+                      : (() => { const later = info && bestStageForMat(info, true);
+                          return `<div class="screen-sub" style="margin:4px 0 0;">${later ? `メインクエスト「${later.name}」(${QUEST_TIERS.find(q => q.key === later.tier).label})まで進むと集められます` : `まだ集められるステージがありません(Tier${TIER_LABEL[info ? info.tier : 1]}は${MAT_TIER_FROM[info ? info.tier : 1]}から)`}</div>`; })(); })()}
                 </div>` : ''}
             </div>`;
         }).join('')}
@@ -4787,13 +4872,15 @@ function openSelectBox(tier, fam, kind){
 
 /* ---- alchemy: 5 lower → 1 higher (tier IV can't be crafted) ---- */
 const CRAFT_RATIO = 5;
-const CRAFT_GOLD = { 2: 200, 3: 1000 };
+const CRAFT_RATIO_AHEAD = 15;
+const CRAFT_GOLD = { 2: 200, 3: 1000, 4: 5000 };
 function craftMat(fam, kind, toTier, times){
   const from = matKey(fam, kind, toTier - 1);
-  const can = Math.min(Math.floor(getItem(from) / CRAFT_RATIO), Math.floor((STATE.gold || 0) / CRAFT_GOLD[toTier]));
+  const ratio = craftRatio(toTier);
+  const can = Math.min(Math.floor(getItem(from) / ratio), Math.floor((STATE.gold || 0) / CRAFT_GOLD[toTier]));
   const n = Math.min(can, times === 'max' ? can : Number(times || 1));
-  if(n <= 0){ toast(getItem(from) < CRAFT_RATIO ? `${itemName(from)}が足りません` : 'ゴールドが足りません'); return; }
-  addItem(from, -n * CRAFT_RATIO);
+  if(n <= 0){ toast(getItem(from) < ratio ? `${itemName(from)}が足りません` : 'ゴールドが足りません'); return; }
+  addItem(from, -n * ratio);
   addGold(-n * CRAFT_GOLD[toTier]);
   addItem(matKey(fam, kind, toTier), n);
   track('craft', n);
@@ -6217,7 +6304,8 @@ const DUNGEONS = {
   mat: {
     name: '素材ダンジョン', icon: '💎', desc: '曜日ごとに違う育成素材が手に入ります',
     enemies: [['m14', 'm29'], ['m16', 'm70', 'm14'], ['m03', 'm02', 'm16'], ['m13', 'm04', 'm02', 'm14'], ['m27', 'm20', 'm04', 'm02']],
-    rewards: [{ mat: [8, 0, 0] }, { mat: [10, 2, 0] }, { mat: [12, 4, 0] }, { mat: [12, 6, 1] }, { mat: [15, 8, 2] }],
+    // Tierの解放に合わせて、素材ダンジョンからTierIIIは出さない(次の更新でルーン採掘に置き換える予定)
+    rewards: [{ mat: [8, 0, 0] }, { mat: [10, 2, 0] }, { mat: [12, 4, 0] }, { mat: [14, 6, 0] }, { mat: [16, 9, 0] }],
   },
 };
 // material dungeon: what's open on each weekday (0 = Sunday → everything)
@@ -6806,24 +6894,24 @@ const DEBUG_TOOLS = false;               // test buttons (stamina refill) on the
    goes below its own rarity. Bosses use `bossStar`. No hidden multipliers. */
 const QUEST_TIERS = [
   { key: 'tu', label: 'チュートリアル', short: '入門', lv: [1, 1],   star: [1, 1], bossStar: 1, skill: 1,  waves: 3 },
-  { key: 'q1', label: '初級',   lv: [1, 28],    star: [1, 1], bossStar: 4, skill: 1,  waves: 3, drops: [3, 0, 0], pots: { exp1: 5 } },
+  { key: 'q1', label: '初級',   lv: [1, 28],    star: [1, 1], bossStar: 4, skill: 1,  waves: 3, drops: [3, 0, 0, 0], pots: { exp1: 5 } },
   { key: 'q1h', label: '初級ハード', short: '💀初級', lv: [1, 28],  star: [4, 4], bossStar: 5, skill: 1, waves: 3, hard: 'q1' },
-  { key: 'q2', label: '中級',   lv: [30, 58],   star: [2, 2], bossStar: 4, skill: 3,  waves: 3, drops: [4, 2, 0], pots: { exp1: 8, exp2: 2 } },
+  { key: 'q2', label: '中級',   lv: [30, 58],   star: [2, 2], bossStar: 4, skill: 3,  waves: 3, drops: [4, 2, 0, 0], pots: { exp1: 8, exp2: 2 } },
   { key: 'q2h', label: '中級ハード', short: '💀中級', lv: [30, 58], star: [4, 4], bossStar: 5, skill: 3, waves: 3, hard: 'q2' },
-  { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [4, 3, 1], pots: { exp2: 4 } },
+  { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [4, 3, 0, 0], pots: { exp2: 4 } },
   { key: 'q3h', label: '上級ハード', short: '💀上級', lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
   // 通常クエストは雑魚★1-4・ボス★5が上限。★6以上はハードモード専用(HARD_STAR_MAPで
   // ノーマルの★を変換)。超上級以降はレベル/スキルLvだけで難度を積み増す。
   // レベル帯は昇格の上限Lvに合わせている: 極上級 150(★5上限)〜200(★7上限)、
   // 伝説級 210〜250(★8上限230が真ん中)、神話級 260(★9上限)〜300(★10上限)。
   // 上位3ティアの境目は10レベルずつ空けてある。神話級は★8〜★10の解放が前提。
-  { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [5, 3, 2], pots: { exp2: 6, exp3: 1 } },
+  { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [5, 3, 1, 0], pots: { exp2: 6, exp3: 1 } },
   { key: 'q4h', label: '超上級ハード', short: '💀超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
-  { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 3], pots: { exp3: 3 } },
+  { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 2, 0], pots: { exp3: 3 } },
   { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 200], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
-  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6, 4, 3], pots: { exp3: 5 } },
+  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [0, 5, 3, 1], pots: { exp3: 5 } },
   { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [210, 250], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
-  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [6, 5, 4], pots: { exp3: 8 } },
+  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [0, 6, 4, 2], pots: { exp3: 8 } },
   { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [260, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
@@ -7036,15 +7124,7 @@ function buildQuestStages(){
         last[0] = { ref: sp.boss, level: rec + (tune.lv || 0) + sizes.length + 2, boss: true,
           star: Math.max(MON_BY_ID[sp.boss].rarity, Math.min(MAX_STAR, t.bossStar + (tune.star || 0))), gimmick: sp.gimmick };
       }
-      const kinds = [];
-      const seen = new Set();
-      [...pool, bossRef].filter(Boolean).forEach(ref => {
-        const m = MON_BY_ID[ref];
-        [['el', m.element], ['sp', speciesOf(m)], ['ro', m.role]].forEach(([f, kk]) => {
-          const key = `${f}:${kk}`;
-          if(!seen.has(key)){ seen.add(key); kinds.push([f, kk]); }
-        });
-      });
+      const kinds = stageDropKinds(waves);
       const stage = {
         id, type: 'main', tier: t.key, no: i + 1, name: sp.name, terrain: sp.terrain, element: sp.element,
         rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 3200][i] : isBoss ? 300 : 50 + i * 5,
@@ -7057,7 +7137,8 @@ function buildQuestStages(){
         enemySkill: t.skill,
         gold: Math.round(300 + rec * 40 + (isBoss ? rec * 40 : 0)),
         pots: t.pots || { exp1: 3 },
-        drops: t.drops ? { kinds, tiers: isBoss ? t.drops.map(n => n + 1) : t.drops } : null,
+        // ボスは量だけ増える(上のTierは出さない)
+        drops: t.drops ? { kinds, tiers: isBoss ? t.drops.map(n => n > 0 ? n + 1 : 0) : t.drops } : null,
         bossReward: isBoss ? [{ type: 'item', key: i === 9 ? 'box_sel_4' : (t.key === 'q1' ? 'box_sel_2' : 'box_sel_3'), n: 1 }] : null,
       };
       if(t.key === 'tu') stage.reward = [[{ type: 'item', key: 'exp1', n: 40 }], [{ type: 'gold', n: 20000 }], [{ type: 'item', key: 'box_sel_1', n: 2 }]][i];
@@ -7162,7 +7243,8 @@ function buildHardStages(){
         id, tier: t.key, waves, requires: prev,
         gold: Math.round(src.gold * 1.5),
         firstClear: src.firstClear ? src.firstClear * 2 : 0,
-        drops: src.drops ? { kinds: src.drops.kinds, tiers: [0, ...src.drops.tiers.slice(0, -1)] } : null,
+        // ハードも出るTierの上限はノーマルと同じ。量が増え、いちばん上のTierが特に多い
+        drops: src.drops ? { kinds: src.drops.kinds, tiers: hardDropTiers(src.drops.tiers) } : null,
         bossReward: src.bossReward ? src.bossReward.map(r => r.type === 'item' ? { ...r, key: bumpBoxTier(r.key) } : r) : null,
         desc: `${src.desc}(ハードモード:敵の★上昇)`,
       });
@@ -7171,6 +7253,7 @@ function buildHardStages(){
   });
   return out;
 }
+rebalanceDropKinds();
 buildHardStages().forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
 
 // event stages: hand-built rather than run through buildQuestStages() since they
@@ -7839,7 +7922,7 @@ function renderBase(){
         <div class="fc-head"><span class="fc-ic">🔮</span>
           <div class="fc-body"><div class="fc-name">錬金術</div></div>
         </div>
-        <div class="fc-sub">同じ素材の下位Tier ${CRAFT_RATIO}個 → 上位Tier 1個(TierIIは${goldText(CRAFT_GOLD[2])}、TierIIIは${goldText(CRAFT_GOLD[3])})。TierIVは合成できません。</div>
+        <div class="fc-sub">同じ素材の下位Tier ${CRAFT_RATIO}個 → 上位Tier 1個(TierIIは${goldText(CRAFT_GOLD[2])}、TierIIIは${goldText(CRAFT_GOLD[3])}、TierIVは${goldText(CRAFT_GOLD[4])})。<br>まだメインクエストで落ちないTier(いまはTier${TIER_LABEL[matTierUnlocked()]}より上)は、${CRAFT_RATIO_AHEAD}個 → 1個になります。</div>
         <div class="alc-tabs">
           ${Object.entries(MAT_FAMILIES).map(([k, x]) => `<button class="stage-tab ${alchemyFam === k ? 'on' : ''}" data-alc-fam="${k}">${x.label}</button>`).join('')}
         </div>
@@ -7849,9 +7932,9 @@ function renderBase(){
               <span class="alc-name">${fam.icon(kind)}${fam.name(kind)}</span>
               <span class="alc-have">${[1, 2, 3, 4].map(t => `${tierBadge(t)}${getItem(matKey(alchemyFam, kind, t))}`).join(' ')}</span>
               <span class="alc-btns">
-                ${[2, 3].map(t => {
-                  const n = Math.min(Math.floor(getItem(matKey(alchemyFam, kind, t - 1)) / CRAFT_RATIO), Math.floor((STATE.gold || 0) / CRAFT_GOLD[t]));
-                  return `<button class="btn btn-sm ${n ? '' : 'btn-ghost'}" data-craft="${alchemyFam}:${kind}:${t}" ${n ? '' : 'disabled'} title="まとめて合成">→${TIER_LABEL[t]}${n ? `×${n}` : ''}</button>`;
+                ${[2, 3, 4].map(t => {
+                  const n = Math.min(Math.floor(getItem(matKey(alchemyFam, kind, t - 1)) / craftRatio(t)), Math.floor((STATE.gold || 0) / CRAFT_GOLD[t]));
+                  return `<button class="btn btn-sm ${n ? '' : 'btn-ghost'}" data-craft="${alchemyFam}:${kind}:${t}" ${n ? '' : 'disabled'} title="まとめて合成(${craftRatio(t)}個→1個)">→${TIER_LABEL[t]}${n ? `×${n}` : ''}</button>`;
                 }).join('')}
               </span>
             </div>`).join('')}
@@ -10829,7 +10912,7 @@ let eventKey = null;   // which event's stage list is shown when 2+ events are r
 function dropIconsHtml(st){
   if(!st.drops) return '';
   const tiers = st.drops.tiers.map((n, i) => n > 0 ? `Tier${TIER_LABEL[i + 1]}×${n}` : '').filter(Boolean).join('・');
-  return `<div class="drop-row"><span class="rare-label">ドロップ</span>${st.drops.kinds.map(([f, k]) => `<span title="${MAT_FAMILIES[f].name(k)}">${MAT_FAMILIES[f].icon(k)}</span>`).join('')}<small>${tiers}</small></div>`;
+  return `<div class="drop-row"><span class="rare-label">ドロップ</span>${st.drops.kinds.map(([f, k]) => `<span class="drop-mat" title="${MAT_FAMILIES[f].name(k)}">${MAT_FAMILIES[f].icon(k)}<small>${MAT_FAMILIES[f].name(k)}</small></span>`).join('')}<small>${tiers}(3種からランダム)</small></div>`;
 }
 
 // difficulty list (クエスト → 難易度)
@@ -15219,6 +15302,17 @@ function handlePhoneClick(ev){
       renderSkillUpgradeModal();
       return;
     }
+    const matStageEl = t.closest('[data-goto-mat-stage]');
+    if(matStageEl){
+      skillUpgradeModal = null; skillUpgradeShort = null;
+      closeModal();
+      const st = STAGE_BY_ID[matStageEl.dataset.gotoMatStage];
+      const qt = QUEST_TIERS.find(q => q.key === st.tier);
+      stageTab = 'main'; questTier = qt && qt.hard ? qt.hard : st.tier; hardMode = !!(qt && qt.hard);
+      goto('battle');
+      stageSheet = st.id; renderStageSheet();
+      return;
+    }
     if(t.closest('[data-goto-mat-quest]')){
       if(!tutorialCleared()){ toast('チュートリアルをクリアしてください'); return; }
       skillUpgradeModal = null;
@@ -15950,6 +16044,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 91, version: 'α0.1.050', date: '9/26', title: '育成素材のTierの出方を整理・TierIVをメインクエストに追加', body: 'メインクエストで手に入る育成素材のTierを、難易度に合わせて整理しました。初級はTierI、中級・上級はTierIIまで、超上級・極上級はTierIIIまで、伝説級・神話級はTierIVまで手に入ります(TierIVがメインクエストで落ちるようになりました)。ボスは数が多く、ハードモードは上のTierが多めに出ます。これまで初級のボスや初級ハードで上のTierが出てスキルレベルだけ先に上がりすぎていたのを防ぎます。\n\nステージごとに落ちる素材は、出てくる敵の属性・種族・ロールをもとに3種類に固定し、ステージ詳細に名前つきで表示するようにしました。どの素材も、それぞれの難易度帯のどこかのステージで手に入ります。スキル強化で素材が足りないときは、素材を押すと「〇〇で集める」から、その素材が落ちるステージにすぐ行けます。\n\n錬金術はTierIVまで合成できるようになりました。まだメインクエストで落ちないTierへの合成は、15個→1個と効率が悪くなります。すでに持っている素材や、上げたスキルレベルはそのままです。' },
   { id: 90, version: 'α0.1.049', date: '9/26', title: '設定画面のお知らせをコンパクトに', body: '設定画面のお知らせが長すぎたので、見出しだけの表示にしました(ニュース2件と最新のアップデート1件)。見出しを押すとその記事が開き、「ニュースを見る」「アップデート内容を見る」から一覧を読めます。あわせて、設定画面の「既定の速度」の表示が詰まって見づらかったのを直しました。' },
   { id: 89, version: 'α0.1.048', date: '9/26', title: 'フレンドのプロフィールが最新にならない不具合を修正', body: 'フレンドのプロフィールで、自己紹介や深淵回廊の到達階、フォロー・フォロワー数が、フレンドに追加したときのまま更新されていなかった不具合を直しました。プロフィールを開くたびに最新の内容を読み込みます。また、深淵回廊で今期の最高記録が伸びたときに、自分の公開プロフィールの到達階もすぐ更新されるようにしました。' },
   { id: 88, version: 'α0.1.047', date: '9/26', title: '長押し・なぞるとキラキラがついてくる', body: '画面を長押ししている間や、押したまま指を動かしている間は、青いキラキラが指についてくるようにしました。指を離すと止まります。' },
