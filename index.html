@@ -2470,6 +2470,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .pf-title.on{ background:#3a2a1a; border-color:var(--gold); color:var(--gold); }
 
 /* notices + settings rows */
+.notice-card.compact{ min-width:0; overflow:hidden; }
+.notice-card.compact .nt-mini{ min-width:0; max-width:100%; display:flex; align-items:center; gap:7px; width:100%; padding:7px 2px; border:0; border-bottom:1px solid var(--line);
+  background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.nt-mini .nt-dot{ flex:none; }
+.nt-mini-tag{ flex:none; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:6px; background:rgba(111,183,255,.18); color:#9fd0ff; }
+.nt-mini-tag.upd{ background:rgba(232,180,85,.18); color:var(--gold); }
+.nt-mini-title{ flex:1; min-width:0; font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nt-mini .nt-date{ flex:none; }
+.nt-mini-links{ display:flex; justify-content:space-between; gap:8px; margin-top:6px; min-width:0; }
+.nt-mini-links .ov-more{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .notice-card{ border-color:var(--gold); box-shadow:0 0 16px -8px rgba(232,180,85,.6); }
 .nt-list{ display:flex; flex-direction:column; gap:8px; }
 .nt-row{ display:flex; gap:9px; align-items:flex-start; }
@@ -2505,7 +2515,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .set-k.wide{ flex:1; width:auto; color:var(--text); }
 .set-row input[type=range]{ flex:1; accent-color:var(--gold); min-width:0; }
 .set-v{ width:30px; text-align:right; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
-.set-speeds{ display:flex; gap:4px; }
+.set-speeds{ display:flex; gap:4px; flex:none; }
+.set-row.wrap{ flex-wrap:wrap; }
+.set-row .set-hint{ flex-basis:100%; margin-top:2px; }
 .spd{ font-family:inherit; font-size:11px; font-weight:800; padding:7px 11px; border-radius:9px; cursor:pointer;
   border:1px solid var(--line); background:var(--panel2); color:var(--dim); }
 .spd.on{ background:var(--gold); border-color:var(--gold); color:var(--bg); }
@@ -2662,7 +2674,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.048';
+const GAME_VERSION = 'α0.1.049';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -15228,6 +15240,12 @@ function handlePhoneClick(ev){
   if(craftEl){ const [f, k, tier] = craftEl.dataset.craft.split(':'); craftMat(f, k, Number(tier), 'max'); return; }
   const shopTabEl = t.closest('[data-shop-tab]');
   if(shopTabEl){ shopTab = shopTabEl.dataset.shopTab; render(); return; }
+  const openNoticesEl = t.closest('[data-open-notices]');
+  if(openNoticesEl){
+    const [tab, id] = openNoticesEl.dataset.openNotices.split(':');
+    noticesTab = tab; noticesOpenInit = !!id; noticesOpen = new Set(id ? [`${tab}:${id}`] : []);
+    openOverlay('notices'); playSfx('open'); return;
+  }
   const noticesTabEl = t.closest('[data-notices-tab]');
   if(noticesTabEl){ noticesTab = noticesTabEl.dataset.noticesTab; noticesOpenInit = false; render(); return; }
   const noticeEl = t.closest('[data-notice]');
@@ -15932,6 +15950,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 90, version: 'α0.1.049', date: '9/26', title: '設定画面のお知らせをコンパクトに', body: '設定画面のお知らせが長すぎたので、見出しだけの表示にしました(ニュース2件と最新のアップデート1件)。見出しを押すとその記事が開き、「ニュースを見る」「アップデート内容を見る」から一覧を読めます。あわせて、設定画面の「既定の速度」の表示が詰まって見づらかったのを直しました。' },
   { id: 89, version: 'α0.1.048', date: '9/26', title: 'フレンドのプロフィールが最新にならない不具合を修正', body: 'フレンドのプロフィールで、自己紹介や深淵回廊の到達階、フォロー・フォロワー数が、フレンドに追加したときのまま更新されていなかった不具合を直しました。プロフィールを開くたびに最新の内容を読み込みます。また、深淵回廊で今期の最高記録が伸びたときに、自分の公開プロフィールの到達階もすぐ更新されるようにしました。' },
   { id: 88, version: 'α0.1.047', date: '9/26', title: '長押し・なぞるとキラキラがついてくる', body: '画面を長押ししている間や、押したまま指を動かしている間は、青いキラキラが指についてくるようにしました。指を離すと止まります。' },
   { id: 87, version: 'α0.1.046', date: '9/26', title: 'タップした場所にキラキラ・ガチャはタップで結果へ', body: '画面をタップした場所に青いキラキラが出るようにしました。どこを押したかが分かりやすくなります。また、ガチャで卵(壺)を全部割ったあとは、「結果を見る」を押さなくても画面のどこかをタップすれば結果に進めます。' },
@@ -16272,24 +16291,35 @@ function renderProfileOverlay(){
 
 function renderSettingsOverlay(){
   const st = sfxSettings(), bg = bgmSettings();
-  const unread = liveNotices().slice(0, 3);
+  // 設定画面のお知らせは見出しだけのコンパクト表示(ニュース2件・アップデート1件)。本文はお知らせ画面で読む
+  const news = liveNotices().slice(0, 2);
+  const upd = UPDATE_LOG[0];
   const speed = STATE.battleSpeed || 1;
   const toggle = (key, on) => `<button class="sw ${on ? 'on' : ''}" data-setting="${key}" role="switch" aria-checked="${on}"><span></span></button>`;
   return `
     <div class="ov-screen">
       ${overlayHead('設定')}
       <div class="ov-body">
-        <div class="panel notice-card">
-          <div class="mc-head" style="margin-bottom:10px;">お知らせ</div>
-          <div class="nt-list">
-            ${unread.map(n => `
-              <div class="nt-row">
-                <span class="nt-dot ${n.id > (STATE.noticeSeen || 0) ? 'new' : ''}"></span>
-                <div class="nt-body"><div class="nt-title">${n.title}</div><div class="nt-sub">${n.body}</div></div>
-                <div class="nt-date">${n.date}</div>
-              </div>`).join('')}
+        <div class="panel notice-card compact">
+          <div class="mc-head" style="margin-bottom:8px;">お知らせ</div>
+          ${news.map(n => `
+            <button class="nt-mini" data-open-notices="news:${n.id}">
+              <span class="nt-dot ${n.id > (STATE.noticeSeen || 0) ? 'new' : ''}"></span>
+              <span class="nt-mini-tag">ニュース</span>
+              <span class="nt-mini-title">${n.title}</span>
+              <span class="nt-date">${n.date}</span>
+            </button>`).join('')}
+          ${upd ? `
+            <button class="nt-mini" data-open-notices="update:${upd.id}">
+              <span class="nt-dot"></span>
+              <span class="nt-mini-tag upd">${upd.version}</span>
+              <span class="nt-mini-title">${upd.title}</span>
+              <span class="nt-date">${upd.date}</span>
+            </button>` : ''}
+          <div class="nt-mini-links">
+            <button class="ov-more" data-open-notices="news">ニュースを見る ›</button>
+            <button class="ov-more" data-open-notices="update">アップデート内容を見る ›</button>
           </div>
-          <button class="ov-more" data-overlay="notices">すべてのお知らせ ›</button>
         </div>
 
         <div class="panel">
@@ -16310,10 +16340,10 @@ function renderSettingsOverlay(){
 
         <div class="panel">
           <div class="mc-head" style="margin-bottom:11px;">戦闘</div>
-          <div class="set-row">
+          <div class="set-row wrap">
             <div class="set-k wide">既定の速度</div>
             <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''} ${n > 1 && !speedUnlocked() ? 'btn-ghost' : ''}" data-set-speed="${n}" ${n > 1 && !speedUnlocked() ? 'disabled' : ''}>${n}倍</button>`).join('')}</div>
-            ${speedUnlocked() ? '' : '<div class="screen-sub" style="margin-top:6px;">「初級5」クリアで倍速が解放されます</div>'}
+            ${speedUnlocked() ? '' : '<div class="screen-sub set-hint">「初級5」クリアで倍速が解放されます</div>'}
           </div>
           <div class="set-row"><div class="set-k wide">必殺技オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
