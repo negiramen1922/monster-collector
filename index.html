@@ -2867,7 +2867,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.067';
+const GAME_VERSION = 'α0.1.068';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -17421,6 +17421,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 108, version: 'α0.1.068', date: '9/26', title: '新しいニュースはゲームに入ったときに表示', body: 'まだ読んでいないニュースがあるときは、ゲームに入ったときにお知らせのニュースを開いて表示するようにしました。一度開けば既読になり、同じニュースが2回出ることはありません(アップデート内容は対象外です)。' },
   { id: 107, version: 'α0.1.067', date: '9/26', title: 'ルーン登場・★10解放', body: '<span class="nt-h">ルーンが登場</span><span class="nt-i">・キャラを強くする装備<em>「ルーン」</em>が登場しました。育成クエストの「素材ダンジョン」は<em>「ルーン採掘」</em>(全7段階)に変わります。はじめて開くと、鉱山の妖精ノッカーがルーンの見方を説明します。</span><span class="nt-i">・<em>見方</em> 形がレア度(白・青・紫・金・虹)、色が効果(STR・HP・会心率など)、真ん中の数字がTier(Ⅰ〜Ⅹ)です。レア度が高いほどサブ効果がたくさん付きます。</span><span class="nt-i">・<em>枠</em> キャラの★で増えます(★1で1つ・★4で2つ・★6で3つ・★9で4つ)。編成ごとに付け替えられます。</span><span class="nt-i">・<em>合成</em> 育てたいルーンに、同じTier・同じタイプ(攻撃型/防御型)のルーン2つを合成すると、Tierが1つ上がります(最大Ⅹ)。レア度とサブ効果はそのままで、数値が伸びます。</span><span class="nt-i">・<em>ルーンの粉</em> 分解や採掘で手に入ります。サブ効果の振り直しや、ショップの「ルーンの粉ショップ」で<em>未鑑定のルーン</em>(レア度と効果は開封してのお楽しみ)との交換に使えます。</span><span class="nt-i">・以前(α0.1.063〜064)に手に入れたルーンは仕様が変わったため、分解したときの2倍のルーンの粉に交換しました。</span><span class="nt-h">★10まで解放</span><span class="nt-i">・キャラの★の上限を7から<em>10</em>に上げました。★7→★8と★8→★9はソウル500、★9→★10はソウル1000です。</span><span class="nt-i">・レベルの上限は<em>★8でLv230・★9でLv260・★10でLv300</em>です。Lv230とLv260にはゴールドで越える壁があります。</span><span class="nt-i">・★の表示を変えました。★は5つまで並び、★6からは左から1つずつ金色になります(★10は5つすべて金色)。</span><span class="nt-h">深淵回廊</span><span class="nt-i">・深い層では敵の★も上がります。81〜100階は★8、101〜130階は★9、131階からは★10です(80階までは今までと同じ)。メインクエストやイベントの敵は変わりません。</span><span class="nt-h">ガチャ</span><span class="nt-i">・ピックアップの残り期間と開催期間を表示するようにしました。</span>' },
   { id: 106, version: 'α0.1.065', date: '9/26', title: 'ルーンをいったんお休み', body: 'ルーンは仕様を見直すため、いったん取り下げました。育成クエストは「素材ダンジョン」に戻っています。すでに手に入れたルーンは消えずにデータに残っていて、ルーンが戻ったときにまた使えます。' },
   { id: 105, version: 'α0.1.064', date: '9/26', title: 'ルーンは「合成」でTierを上げる形に', body: 'ルーンの強化レベル(+1〜+12)をなくしました。代わりに、同じ効果・同じTierのルーンを3つ合成すると、Tierが1つ上がります(最大Ⅹ)。合成後のレア度は3つの平均(切り捨て)になり、サブ効果はそのレア度の数で付け直しになります。1つ目に選んだルーンが残るので、装備中のルーンもそのまま合成できます(材料の2つは、装備中・ロック中のものは使えません)。ルーン採掘ではⅥまで出て、Ⅶ〜Ⅹは合成で作れます。これまでに強化したルーンは、強化レベルが外れます。' },
@@ -18602,7 +18603,26 @@ async function startGame(){
   if(!STATE.guidesSeen || !STATE.guidesSeen.welcome){
     const steps = GUIDE_CONTENT.welcome.steps.filter(s => !s.installOnly || canInstall());
     openGuideToast('ketsy', steps, { key: 'welcome', doneLabel: 'はじめる' });
-  }
+    // はじめたばかりの人には、今あるニュースは読んだことにする(新しく出たものだけを次から知らせる)
+    const ln = liveNotices();
+    if(ln[0]) STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, ln[0].id);
+  }else openNewNewsOnEntry();
+}
+// ゲームに入ったとき、まだ読んでいないニュース(アップデート内容は対象外)があれば、お知らせを開いて見せる。
+// 開いた時点で既読にするので、2回目は出ない
+function openNewNewsOnEntry(){
+  const ln = liveNotices();
+  const seen = STATE.noticeSeen || 0;
+  const fresh = ln.filter(n => n.id > seen);
+  if(!fresh.length) return false;
+  noticesTab = 'news';
+  noticesOpenInit = true;
+  noticesOpen = new Set(fresh.slice(0, 2).map(n => `news:${n.id}`)); // 新しい2件まで開いておく
+  overlayView = 'notices';
+  STATE.noticeSeen = ln[0].id;
+  saveState();
+  render();
+  return true;
 }
 
 /* ---- mascot guides: multi-step tips pinned above the nav bar, can spotlight a screen element ---- */
