@@ -1,4 +1,4 @@
-/* ガチャ演出(第2弾)の召喚陣の予告: 本当の結果より上の色にならない・最後は必ず本当の色・昇格の起こる割合 */
+/* ガチャ演出(第2弾)の宝箱の色の予告: 本当の結果より上の色にならない・最後は必ず本当の色・昇格の起こる割合 */
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, MONSTERS, summonSteps, summonTarget, pullOneForced, currentBanner, MON_BY_ID, SUMMON_COLORS };`);
 const E = global.__e;

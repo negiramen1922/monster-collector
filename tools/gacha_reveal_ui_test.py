@@ -95,16 +95,22 @@ async def main():
             check('単発には「まとめて開く」を出さない', await pg.locator('[data-gacha-openall]').count() == 0 and await pg.locator('[data-egg-open]').count() == 1)
             await pg.evaluate("() => document.querySelector('[data-egg-open]').click()"); await pg.wait_for_timeout(1400)
             check('単発もタップで割れて「結果を見る」', await pg.locator('[data-gacha-result]').count() == 1)
-            # --- 第2弾: 召喚陣の予告と昇格 ---
+            # --- 第2弾: 宝箱の色の予告と昇格 ---
             await pg.evaluate("""() => { closeModal(); const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
               const pu = MON_BY_ID[currentBanner().pickup];
               const rs = [pullOneForced(pu), ...Array.from({ length: 9 }, () => pullOneForced(MONSTERS.find(m => m.rarity === 2)))];
               const R = Math.random; Math.random = () => 0; showGachaEggs(rs, before); Math.random = R; }""")
             steps = await pg.evaluate("() => gachaSeq.steps")
-            check('ピックアップ★5なら召喚陣は最後に虹、低い色から昇格していく', steps[-1] == 'rainbow' and len(steps) >= 2, steps)
+            check('ピックアップ★5なら宝箱は最後に虹色、低い色から昇格していく', steps[-1] == 'rainbow' and len(steps) >= 2, steps)
             check('最初は低い色', await pg.evaluate("() => document.querySelector('.chest-wrap').classList.contains('sc-' + gachaSeq.steps[0])"))
-            await pg.wait_for_timeout(950)
+            await pg.wait_for_timeout(200)
+            check('宝箱は上から落ちてくる', await pg.evaluate("() => getComputedStyle(document.querySelector('.chest')).animationName.includes('chest-drop')"))
+            await pg.screenshot(path=str(OUT / 'gacha_8a_drop.png'))
+            await pg.wait_for_timeout(400)
+            await pg.screenshot(path=str(OUT / 'gacha_8b_land.png'))
+            await pg.wait_for_timeout(350)
             await pg.screenshot(path=str(OUT / 'gacha_8_up.png'))
+            check('昇格が終わるまで宝箱のフタは開かない', await pg.evaluate("() => getComputedStyle(document.querySelector('.chest-lid')).transform === 'none' || getComputedStyle(document.querySelector('.chest-lid')).transform === 'matrix(1, 0, 0, 1, 0, 0)'"))
             check('昇格すると色が変わり UP! が出る', await pg.evaluate("() => document.querySelector('.chest-wrap').classList.contains('sc-' + gachaSeq.steps[1]) && document.querySelector('.summon-up.show') !== null"))
             await wait_reveal(pg)
             check('ピックアップの★5の卵は(昇格なしなら)金の予兆', 'hint' in await pg.evaluate("() => document.querySelectorAll('.reveal-grid .egg-slot')[0].className"))
@@ -121,11 +127,11 @@ async def main():
             check('割ると紫→金に昇格するヒビ演出', await pg.locator('.egg-slot.crack5.crack-up').count() == 1)
             await pg.wait_for_timeout(450)
             await pg.screenshot(path=str(OUT / 'gacha_10_crackup.png'))
-            # 召喚陣は本当の結果より上の色にならない(★3以下なら必ず青)
+            # 宝箱は本当の結果より上の色にならない(★3以下なら必ず青)
             low = await pg.evaluate("""() => { closeModal(); const out = new Set(); const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
               const rs = Array.from({ length: 10 }, () => pullOneForced(MONSTERS.find(m => m.rarity === 3)));
               for(let k = 0; k < 30; k++) summonSteps('mon', rs).forEach(c => out.add(c)); return [...out]; }""")
-            check('★3以下しかなければ召喚陣は必ず青', low == ['blue'], low)
+            check('★3以下しかなければ宝箱は必ず青', low == ['blue'], low)
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')

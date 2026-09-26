@@ -825,24 +825,28 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .cut-mon.sil-mon{ width:232px; height:232px; filter:brightness(0) drop-shadow(0 0 3px #fff) drop-shadow(0 0 16px rgba(255,220,120,.9)); animation:sil-in 1.3s ease-out; }
 @keyframes sil-in{ 0%{ opacity:0; transform:scale(.6); } 40%{ opacity:1; } 100%{ transform:scale(1.05); } }
 .sil-text{ font-size:26px; color:#ffe06a; margin-top:8px; animation:flash .5s ease-in-out infinite; }
-/* 召喚陣: 色が最高レア度の予告(青/紫/金/虹)。昇格するとUP!が出て色が変わる */
-.chest-wrap{ --sc:#5aa6e8; --sc2:rgba(90,166,232,.55); }
-.chest-wrap.sc-purple{ --sc:#b36cf0; --sc2:rgba(179,108,240,.6); }
-.chest-wrap.sc-gold{ --sc:#ffd45e; --sc2:rgba(255,212,94,.7); }
-.chest-wrap.sc-rainbow{ --sc:#fff; --sc2:rgba(255,200,240,.75); }
-.chest-wrap .chest-glow{ background:radial-gradient(circle, var(--sc2), rgba(0,0,0,0) 68%); transition:background .3s; }
-.chest-wrap .chest-ring{ border-color:var(--sc); opacity:.6; }
-.summon-circle{ position:absolute; left:50%; bottom:22px; width:300px; height:80px; margin-left:-150px; border-radius:50%;
-  border:3px solid var(--sc); box-shadow:0 0 22px var(--sc2), inset 0 0 22px var(--sc2); transition:border-color .3s, box-shadow .3s;
-  animation:circle-pulse 1s ease-in-out infinite; }
-.summon-circle i{ position:absolute; inset:10px 30px; border-radius:50%; border:2px dashed var(--sc); opacity:.8; animation:spinslow 4s linear infinite; }
-.summon-circle i:nth-child(2){ inset:22px 70px; animation-direction:reverse; animation-duration:3s; }
-.summon-circle i:nth-child(3){ inset:-14px -20px; border-style:dotted; opacity:.5; animation-duration:7s; }
-@keyframes circle-pulse{ 0%,100%{ transform:scale(.97); } 50%{ transform:scale(1.04); } }
-.chest-wrap.sc-rainbow .summon-circle{ border-color:transparent; background:
-  conic-gradient(from 0deg, #ff8fd0, #ffe06a, #7ee07a, #6fb7ff, #c79bff, #ff8fd0) border-box;
-  -webkit-mask:radial-gradient(ellipse, transparent 62%, #000 64%); mask:radial-gradient(ellipse, transparent 62%, #000 64%); animation:circle-pulse .6s ease-in-out infinite; }
+/* 宝箱: 上からドスンと降ってきて、その色が最高レア度の予告(青/紫/金/虹)。昇格すると跳ねてUP!と色が変わる */
+.chest-wrap{ --sc:#5aa6e8; --sc2:rgba(90,166,232,.55); --c1:#6fb3ec; --c2:#2c5e9c; }
+.chest-wrap.sc-purple{ --sc:#c58cff; --sc2:rgba(179,108,240,.65); --c1:#b97ef0; --c2:#5b2c94; }
+.chest-wrap.sc-gold{ --sc:#ffd45e; --sc2:rgba(255,212,94,.75); --c1:#ffd36a; --c2:#a6700f; }
+.chest-wrap.sc-rainbow{ --sc:#fff; --sc2:rgba(255,200,240,.8); --c1:#ffffff; --c2:#b58cff; }
+.chest-wrap .chest{ animation:chest-drop .45s cubic-bezier(.55,0,1,.45) backwards, chest-land .35s ease-out .45s; }
+@keyframes chest-drop{ from{ transform:translateY(-560px); } to{ transform:translateY(0); } }
+@keyframes chest-land{ 0%{ transform:scale(1.18,.78); } 55%{ transform:scale(.94,1.08) translateY(-6px); } 100%{ transform:scale(1,1); } }
+.chest-wrap .chest.chest-hop{ animation:chest-hop .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes chest-hop{ 0%{ transform:translateY(0); } 35%{ transform:translateY(-34px) rotate(-6deg) scale(1.08); } 65%{ transform:translateY(0) rotate(4deg) scale(1.12,.9); } 100%{ transform:none; } }
+.chest-wrap .chest-box, .chest-wrap .chest-lid{ background:linear-gradient(180deg, var(--c1), var(--c2)); border-color:var(--sc);
+  box-shadow:0 0 18px var(--sc2); transition:background .25s, border-color .25s, box-shadow .25s; }
+.chest-wrap .chest-lock{ background:var(--sc); box-shadow:0 0 12px var(--sc2); }
+.chest-wrap.sc-rainbow .chest-box, .chest-wrap.sc-rainbow .chest-lid{ background:linear-gradient(120deg,#ff8fd0,#ffe06a,#7ee07a,#6fb7ff,#c79bff,#ff8fd0);
+  background-size:300% 100%; animation-name:rainbow-shift; animation-duration:1.4s; animation-iteration-count:infinite; animation-timing-function:linear; }
+.chest-wrap.sc-rainbow .chest-lid{ animation:rainbow-shift 1.4s linear infinite, lidopen .4s cubic-bezier(.3,1.4,.5,1) var(--open) forwards; }
+@keyframes rainbow-shift{ to{ background-position:300% 0; } }
+.chest-wrap .chest-lid{ animation-delay:var(--open); }
+.chest-wrap .fly-egg{ animation-delay:calc(var(--open) + 120ms + var(--k) * 70ms) !important; }
+.chest-wrap .chest-glow{ background:radial-gradient(circle, var(--sc2), rgba(0,0,0,0) 68%); opacity:0; animation:boxglow 1.2s ease-in-out var(--open) infinite; }
 .chest-wrap.sc-rainbow .chest-glow{ background:radial-gradient(circle, rgba(255,255,255,.9), rgba(255,143,208,.5) 35%, rgba(111,183,255,.25) 55%, rgba(0,0,0,0) 70%); }
+.chest-wrap .chest-ring{ border-color:var(--sc); opacity:0; animation:spinslow 9s linear infinite, fade-in .4s ease-out var(--open) forwards; }
 .summon-up{ position:absolute; left:0; right:0; top:40px; text-align:center; font-size:30px; color:var(--sc); opacity:0;
   text-shadow:0 0 14px var(--sc2), 0 2px 0 #000; pointer-events:none; }
 .summon-up.show{ animation:up-pop .9s cubic-bezier(.2,1.6,.4,1) forwards; }
@@ -2636,7 +2640,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.038';
+const GAME_VERSION = 'α0.1.039';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9183,12 +9187,12 @@ function pullBannerTitle(kind){
   return MON_BY_ID[currentBanner().pickup].name;
 }
 
-/* ---- 第2弾: 召喚陣の予告・昇格演出・ピックアップ演出 ----
-   召喚陣の色 = 今回いちばん高いレア度の予告(青: ★3以下 / 紫: ★4 / 金: ★5 / 虹: ピックアップの★5)。
+/* ---- 第2弾: 宝箱の色の予告・昇格演出・ピックアップ演出 ----
+   上からドスンと降ってくる宝箱の色 = 今回いちばん高いレア度の予告(青: ★3以下 / 紫: ★4 / 金: ★5 / 虹: ピックアップの★5)。
    色は本当の結果より上になることはない(ぬか喜びさせない)が、低い色から始まって途中で「昇格」することがある。
    卵も同じで、★5の卵がたまに紫の予兆で並び、割るときに金へ昇格する。 */
 const SUMMON_COLORS = ['blue', 'purple', 'gold', 'rainbow'];
-const SUMMON_UPGRADE_CHANCE = { 4: 0.3, 5: 0.45 };   // 召喚陣が1段(以上)低い色から始まる確率
+const SUMMON_UPGRADE_CHANCE = { 4: 0.3, 5: 0.45 };   // 宝箱が1段(以上)低い色で降ってくる確率
 const SUMMON_UPGRADE_TWO = 0.35;                     // ★5で昇格するとき、青から2段上がる割合
 const EGG_UPGRADE_CHANCE = 0.25;                     // ★5の卵が紫の予兆で並ぶ確率
 const SUMMON_STEP_MS = 750;
@@ -9198,7 +9202,7 @@ function summonTarget(kind, results){
   if(top >= 5) return results.some(r => pullRarity(kind, r) >= 5 && isPickupResult(kind, r)) ? 3 : 2;
   return top === 4 ? 1 : 0;
 }
-// 召喚陣の色の段階(例: ['blue', 'purple', 'gold'])
+// 宝箱の色の段階(例: ['blue', 'purple', 'gold'])
 function summonSteps(kind, results){
   const target = summonTarget(kind, results);
   const top = Math.max(...results.map(r => pullRarity(kind, r)));
@@ -9227,8 +9231,7 @@ function eggFace(r, i, state, kind){
 function gachaChestHtml(n){
   const col = gachaSeq.steps ? gachaSeq.steps[gachaSeq.stepAt || 0] : 'blue';
   return `
-    <div class="chest-wrap sc-${col}">
-      <div class="summon-circle"><i></i><i></i><i></i></div>
+    <div class="chest-wrap sc-${col}" style="--open:${gachaSeq.openAt || 700}ms">
       <div class="chest-glow"></div>
       <div class="chest-ring"></div>
       <div class="summon-up pixel">UP!</div>
@@ -9238,7 +9241,7 @@ function gachaChestHtml(n){
       </div>
       ${Array.from({ length: n }, (_, i) => {
         const col = i % 5, row = Math.floor(i / 5);
-        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} egg-blue" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; animation-delay:${300 + i * 70}ms"></div>`;
+        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} egg-blue" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; --k:${i}"></div>`;
       }).join('')}
     </div>`;
 }
@@ -9374,20 +9377,29 @@ function showGachaEggs(results, before, kind){
   const k = kind || 'mon';
   const steps = summonSteps(k, results);
   const fake = results.map(r => pullRarity(k, r) >= 5 && Math.random() < EGG_UPGRADE_CHANCE);
-  gachaSeq = { results, before, phase: 'summon', open: results.map(() => false), cut: null, kind: k, notes: 0, steps, stepAt: 0, fake };
+  // 宝箱: 0.45秒で着地(ドスン) → 昇格があれば0.75秒ごとに色が上がる → 最後の色でフタが開いて卵が飛び出す
+  const openAt = CHEST_LAND_MS + 350 + (steps.length - 1) * SUMMON_STEP_MS;
+  gachaSeq = { results, before, phase: 'summon', open: results.map(() => false), cut: null, kind: k, notes: 0, steps, stepAt: 0, fake, openAt };
   renderGachaStage();
-  playSfx('open');
   const seq = gachaSeq;
-  // 召喚陣の昇格: 途中で色が1段ずつ上がる
+  setTimeout(() => {
+    if(gachaSeq !== seq || seq.phase !== 'summon') return;
+    gachaShake(false);
+    gachaVibrate(60);
+    playSfx('strike');
+    gachaTone([98, 73], 0.35, 'sine', 0.2);
+  }, CHEST_LAND_MS);
   for(let n = 1; n < steps.length; n++){
-    setTimeout(() => { if(gachaSeq === seq && seq.phase === 'summon') upgradeSummon(n); }, 900 + (n - 1) * SUMMON_STEP_MS);
+    setTimeout(() => { if(gachaSeq === seq && seq.phase === 'summon') upgradeSummon(n); }, CHEST_LAND_MS + 350 + (n - 1) * SUMMON_STEP_MS);
   }
+  setTimeout(() => { if(gachaSeq === seq && seq.phase === 'summon') playSfx('open'); }, openAt);
   gachaTimer = setTimeout(() => {
     if(!gachaSeq || gachaSeq.phase !== 'summon') return;
     gachaSeq.phase = 'reveal';
     renderGachaStage();
-  }, 1900 + (steps.length - 1) * SUMMON_STEP_MS);
+  }, openAt + 1500);
 }
+const CHEST_LAND_MS = 450;
 function upgradeSummon(n){
   const g = gachaSeq;
   const wrap = document.querySelector('.chest-wrap');
@@ -9397,6 +9409,8 @@ function upgradeSummon(n){
   wrap.classList.add(`sc-${g.steps[n]}`);
   const up = wrap.querySelector('.summon-up');
   if(up){ up.classList.remove('show'); void up.offsetWidth; up.classList.add('show'); }
+  const chest = wrap.querySelector('.chest');
+  if(chest){ chest.classList.remove('chest-hop'); void chest.offsetWidth; chest.classList.add('chest-hop'); }
   gachaFlash(g.steps[n] === 'rainbow' ? 'rainbow soft' : 'soft');
   gachaShake(false);
   gachaVibrate(n === g.steps.length - 1 && g.steps[n] !== 'purple' ? [120, 60, 160] : 70);
@@ -15627,6 +15641,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 80, version: 'α0.1.039', date: '9/26', title: 'ガチャの予告を宝箱の色に', body: '召喚のときの予告を、魔法陣から宝箱の色に変えました。宝箱が上からドスン!と降ってきて、その色が今回いちばん高いレア度の予告です(青: ★3以下、紫: ★4、金: ★5、虹色: ピックアップの★5)。ときどき宝箱が跳ねて「UP!」と色が上がる昇格演出が入り、最後の色になってからフタが開いて卵が飛び出します。' },
   { id: 79, version: 'α0.1.038', date: '9/26', title: 'ガチャ演出 第2弾: 召喚陣の予告と昇格', body: '召喚のときの魔法陣の色が、今回いちばん高いレア度の予告になりました(青: ★3以下、紫: ★4、金: ★5、虹: ピックアップの★5)。ときどき低い色から始まって、途中で「UP!」と色が上がる昇格演出が入ります。色が本当の結果より上になることはありません。また、★5の卵がたまに紫の光で並び、割るときに紫から金へ昇格することがあります。ピックアップのキャラの★5は、虹色の背景と「PICK UP!」の帯が流れる専用の登場演出になりました。' },
   { id: 78, version: 'α0.1.037', date: '9/26', title: 'ガチャ演出をリニューアル', body: '10連ガチャで卵が勝手に次々割れていたのをやめ、自分でタップして割るようにしました。卵は最初どれも同じ見た目で、★4の卵は紫の光、★5の卵は金の光を放ってときどき揺れる「予兆」でだけ分かります。「まとめて開く」で★3以下を一気に割り、光る卵を最後に取っておくこともできます。★5は、卵が激しく揺れてヒビから光が漏れる→暗転してシルエット→閃光とともに登場、の3段階で、★が1つずつ刻まれ紙吹雪が舞います。ピックアップのキャラには「PICK UP!」が出ます。割るたびに音が少しずつ高くなり、★4・★5ではスマホが振動します(効果音OFFのときは振動しません)。「スキップ」を押すと★5の登場だけ見て結果に進みます。' },
   { id: 77, version: 'α0.1.036', date: '9/26', title: 'HATE(狙われやすさ)を見直し', body: 'これまでは戦闘が始まるとすぐ、与えたダメージの量でHATEが数百〜数千まで増え、モンスターごとの初期HATE(タンクは高く、サポートは低い)がほとんど意味を持っていませんでした。行動で増えるHATEを「相手の最大HPの何%を削ったか」「味方の何%を回復したか」で数えるように変え、初期HATEと同じくらいの大きさにしました。これでタンクがしっかり狙われ、後衛やサポートは狙われにくくなります。また、シールドや被ダメージ軽減をかける守りのスキルは、HPが50%以下の味方を優先し、いなければ狙われやすい味方(ふつうはタンク)にかけるように揃えました。' },
