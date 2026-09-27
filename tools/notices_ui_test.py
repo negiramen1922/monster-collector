@@ -63,7 +63,8 @@ async def main():
             check('下書きのお知らせが残っていない', n_draft == 0, f'下書き{n_draft}件')
             check('ニュースも最新1件だけ開く', await pg.locator('.nt-row.on').count() == 1)
             t = await pg.locator('.nt-row').first.inner_text()
-            check('先頭は最新のニュース(ルーン・★10・深淵回廊)', 'ルーン' in t and '★10' in t, t.split('\n')[0])
+            newest = await pg.evaluate("() => NOTICES.filter(n => !n.draft)[0].title")
+            check('先頭は最新のニュース', newest in t, t.split('\n')[0])
             check('小見出しが出ている', await pg.locator('.nt-row.on .nt-h').count() >= 3,
                   await pg.locator('.nt-row.on .nt-h').count())
             # α0.1アップデート内容(1) を開くと、キャラ30体ぶんの行
