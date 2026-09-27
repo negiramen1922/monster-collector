@@ -3252,6 +3252,68 @@ const EVENTS = [
       { lv: 400, star: 5, bossStar: 7, rate: 0.01     }, // 1% - ★7の最終形態
     ],
   },
+  {
+    key: 'ev_fenrir',
+    name: '嵐呼ぶ神狼',
+    icon: '🐺',
+    startAt: '2026-09-29T00:00:00+09:00',
+    endAt: '2026-10-12T23:59:59+09:00',
+    pickup: 'm68',
+    featured: ['m68'],
+    stageName: '風の神殿',
+    terrain: 'tempest',
+    element: 'wind',
+    waveSizes: [3, 3, 4, 4, 5],
+    escorts: ['m108', 'm146', 'm08', 'm163', 'm109', 'm157', 'm118', 'm105'],
+    escortPools: [
+      { from: 1, list: ['m130', 'm122', 'm135', 'm02', 'm100'] },                        // ★1〜2
+      { from: 5, list: ['m135', 'm105', 'm100', 'm163', 'm157', 'm118', 'm109'] },       // ★2〜3
+      { from: 8, list: ['m108', 'm157', 'm146', 'm163', 'm08', 'm109', 'm118', 'm105'] }, // ★3〜4
+    ],
+    tiers: [
+      { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+      { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+      { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+      { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+      { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+      { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1%
+      { lv: 300, star: 5, bossStar: 5, rate: 0.002    }, // 0.2%
+      { lv: 350, star: 5, bossStar: 6, rate: 0.005    }, // 0.5%
+      { lv: 400, star: 5, bossStar: 7, rate: 0.01     }, // 1%
+    ],
+  },
+  {
+    key: 'ev_abaddon',
+    name: '奈落の王',
+    icon: '🦂',
+    startAt: '2026-09-29T00:00:00+09:00',
+    endAt: '2026-10-12T23:59:59+09:00',
+    pickup: 'm139',
+    featured: ['m139'],
+    stageName: '底なしの淵',
+    terrain: 'abyss',
+    element: 'dark',
+    waveSizes: [3, 3, 4, 4, 5],
+    escorts: ['m149', 'm101', 'm142', 'm24', 'm159', 'm147', 'm164', 'm44'],
+    escortPools: [
+      { from: 1, list: ['m30', 'm04', 'm115', 'm95', 'm35'] },                           // ★1〜2
+      { from: 5, list: ['m97', 'm44', 'm40', 'm159', 'm120', 'm23', 'm164'] },           // ★2〜3
+      { from: 8, list: ['m149', 'm101', 'm159', 'm142', 'm24', 'm161', 'm147', 'm164'] }, // ★3〜4
+    ],
+    tiers: [
+      { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+      { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+      { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+      { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+      { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+      { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1%
+      { lv: 300, star: 5, bossStar: 5, rate: 0.002    }, // 0.2%
+      { lv: 350, star: 5, bossStar: 6, rate: 0.005    }, // 0.5%
+      { lv: 400, star: 5, bossStar: 7, rate: 0.01     }, // 1%
+    ],
+  },
 ];
 function activeEvents(){
   const now = Date.now();
@@ -8182,14 +8244,30 @@ function buildEventStages(ev){
     const n = i + 1;
     const rec = t.lv;
     const escort = (ref, wave) => ({ ref, level: rec, star: t.bossStar });
-    const waves = [0, 1, 2, 3].map(w => [
-      escort(ev.escorts[w % ev.escorts.length], w),
-      escort(ev.escorts[(w + 1) % ev.escorts.length], w),
-    ]);
-    waves.push([
-      { ref: ev.pickup, level: rec + 2, star: t.bossStar, boss: true },
-      escort(ev.escorts[0], 4), escort(ev.escorts[1], 4),
-    ]);
+    let waves;
+    if(ev.waveSizes){
+      // 新形式(α0.1.074〜): ウェーブごとの敵の数を決める(最後のウェーブはボス+護衛)。
+      // 護衛はリストを順に回すので、同じ顔ぶれが続かない
+      // escortPools: [{ from: 層, list: [...] }] で、浅い層は低レア・深い層は高レアの護衛にする
+      const pool = ev.escortPools ? ev.escortPools.filter(p => n >= p.from).slice(-1)[0].list : ev.escorts;
+      let k = 0;
+      // 敵の数が多いぶん、護衛の★はボスより1段低い層の★(t.star)にする
+      const next = w => ({ ref: pool[k++ % pool.length], level: rec, star: t.star });
+      waves = ev.waveSizes.map((size, w) => {
+        const last = w === ev.waveSizes.length - 1;
+        const list = Array.from({ length: last ? size - 1 : size }, () => next(w));
+        return last ? [{ ref: ev.pickup, level: rec + 2, star: t.bossStar, boss: true }, ...list] : list;
+      });
+    }else{
+      waves = [0, 1, 2, 3].map(w => [
+        escort(ev.escorts[w % ev.escorts.length], w),
+        escort(ev.escorts[(w + 1) % ev.escorts.length], w),
+      ]);
+      waves.push([
+        { ref: ev.pickup, level: rec + 2, star: t.bossStar, boss: true },
+        escort(ev.escorts[0], 4), escort(ev.escorts[1], 4),
+      ]);
+    }
     return {
       id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, name: `${ev.stageName}・${n}層`,
       terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(12, 2 + n),

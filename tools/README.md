@@ -25,6 +25,8 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | impact_one.js | 指定したステージ×パーティだけ勝率を測る(`N=100 node impact_one.js game.js q2_10:気絶`) |
 | skill_chance_test.js | 付与率はスキルLvで変わらない・必殺技は確定・やけど毒は基本50%・持続時間がLv5/Lv10で伸びる(357項目) |
 | skill_chance_ui_test.py | スキル強化の画面に持続時間が伸びる行が出る |
+| event_sim.js | イベント各層の勝率を3パーティで測る(`N=40 node event_sim.js ev_kyubi ev_fenrir`) |
+| slot_sim.js | 同じ4体に1体ずつ入れ替えて高難度ハードでの勝率・与ダメを比べる(`N=30 node slot_sim.js アバドン フェンリル`) |
 | recruit_sim.js | クリアでモンスターが仲間になるまでの周回数を測る(`N=200 node recruit_sim.js q1_01`) |
 | smoke.py | 起動スモークテスト(主要7画面のJSエラー・横スクロールと、BGMの読み込みを確認) |
 | auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(30項目) |
