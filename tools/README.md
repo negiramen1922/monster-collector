@@ -21,6 +21,10 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | base54.js | 調整なしの勝率測定(`POWER=1.15 node base54.js`) |
 | tune54.js | 調整値の自動探索(`ONLY=q1_01 node tune54.js q1`) |
 | dump33.js | 全ステージ構成のMarkdown出力 |
+| impact_sim.js | スキル見直しなどの影響測定。全メインクエスト(通常・ハード)×5パーティの勝率とラウンド数をJSONで出す(`N=20 node impact_sim.js game.js`) |
+| impact_one.js | 指定したステージ×パーティだけ勝率を測る(`N=100 node impact_one.js game.js q2_10:気絶`) |
+| skill_chance_test.js | 付与率はスキルLvで変わらない・必殺技は確定・やけど毒は基本50%・持続時間がLv5/Lv10で伸びる(357項目) |
+| skill_chance_ui_test.py | スキル強化の画面に持続時間が伸びる行が出る |
 | recruit_sim.js | クリアでモンスターが仲間になるまでの周回数を測る(`N=200 node recruit_sim.js q1_01`) |
 | smoke.py | 起動スモークテスト(主要7画面のJSエラー・横スクロールと、BGMの読み込みを確認) |
 | auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(30項目) |
