@@ -2704,6 +2704,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .nt-sub .nt-h:first-child{ margin-top:0; }
 .nt-sub .nt-i{ display:block; padding-left:1em; text-indent:-1em; margin-bottom:3px; }
 .nt-sub em{ font-style:normal; color:var(--text); font-weight:700; }
+/* お知らせの立ち絵(告知用): art:['m68', ...] のキャラを横に並べる */
+.nt-art{ display:grid; grid-template-columns:repeat(auto-fit, minmax(0, 1fr)); gap:8px; margin:0 0 12px; }
+.nt-art-card{ position:relative; border-radius:12px; overflow:hidden; padding:8px 6px 7px; text-align:center;
+  background:radial-gradient(circle at 50% 38%, var(--ac) 0%, transparent 70%), #16122a; border:1px solid var(--line); }
+.nt-art-card img{ display:block; width:100%; max-width:150px; aspect-ratio:1; object-fit:contain; margin:0 auto;
+  image-rendering:pixelated; filter:drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+.nt-art-name{ font-size:12.5px; font-weight:800; color:var(--text); text-indent:0; }
+.nt-art-sub{ font-size:9.5px; color:var(--dim); text-indent:0; }
 @media (prefers-reduced-motion: reduce){ .nt-arrow{ transition:none; } }
 .set-row{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
 .set-row:last-child{ margin-bottom:0; }
@@ -2869,7 +2877,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.072';
+const GAME_VERSION = 'α0.1.073';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -17700,6 +17708,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 14, date: '9/27', title: '次回イベント予告 フェンリル&アバドン 同時開催', art: ['m68', 'm139'], body: '<span class="nt-h">9/29(火) 0:00 から2週間、2つのイベントを同時開催</span>★5の<em>フェンリル</em>と<em>アバドン</em>が主役のイベントを、2つ同時に開催します。<span class="nt-i">・<em>開催期間</em> 9/29(火) 0:00 〜 10/12(月) 23:59</span><span class="nt-i">・それぞれのピックアップガチャで、フェンリル・アバドンと専用遺物の排出率がアップします。</span><span class="nt-h">フェンリル(★5・風・アタッカー)</span>神々をも喰らうという巨狼。敵を倒すと<em>すぐにもう一度行動</em>でき、群れた敵を次々に噛み砕きます。専用遺物は「グレイプニルの残鎖」。<span class="nt-h">アバドン(★5・闇・アタッカー)</span>底なしの淵(アビス)を統べる破滅の王。<em>弱った敵ほど深く斬る</em>連撃と、敵を倒すたびに縮むスキルの待ち時間で、戦場をのみ込みます。専用遺物は「ティルヴィングの呪刃」。<span class="nt-h">期間限定クエストは手ごわく</span><span class="nt-i">・今回も全10層。<em>敵の数が増え</em>、ウェーブごとに3・3・4・4・5体が現れます。前回のイベントより手ごわくなるので、しっかり育ててから挑んでください。</span><span class="nt-i">・10層の先には、特別なルールで戦う<em>EXステージ</em>も登場予定です。</span><span class="nt-i">・くわしい内容は開催時にお知らせします。</span>' },
   { id: 13, date: '9/27', title: 'スキルの付与率と持続時間を見直しました', body: 'スキルの状態異常や弱体化を、運に左右されにくく、育てた手ごたえがわかりやすい形に見直しました。<span class="nt-h">必殺技はすべて「必ず」かかる</span>必殺技の気絶・石化・やけど・毒・弱体化・追撃は、<em>すべて必ずかかる</em>ようになりました。SPをためて撃つ一撃は、狙いどおりに決まります。<span class="nt-i">・ミノタウロス・ジャッカロープ・キョンシー・キラービーの必殺技に<em>気絶</em>を追加しました(キョンシーはHPが一番高い敵1体、キラービーは最後に当たった敵)。</span><span class="nt-h">スキルの付与率はわかりやすい値に</span>スキルの付与率は、スキルLvでは変わらない固定の値になりました。効果ごとにそろえています。<span class="nt-i">・<em>やけど・毒</em>は基本<em>50%</em>(一度に何回も当たる技はヒットごとの確率のまま)</span><span class="nt-i">・<em>STRダウンなどの弱体化</em>は50%、<em>追撃</em>は40%</span><span class="nt-i">・<em>気絶・石化</em>は20〜30%(全体技は20%)</span><span class="nt-i">・パッシブの発動率もLvでは変わりません。</span><span class="nt-h">スキルLvで伸びるもの</span>スキルLvを上げると、今までどおり<em>威力と効果量</em>(バフ・弱体化・回復・シールドの量)が伸びます。さらに<em>持続時間</em>も伸びるようになりました。<span class="nt-i">・味方へのバフ … スキルLv5とLv10で1ターンずつ長く</span><span class="nt-i">・敵への弱体化・やけど … スキルLv10で1ターン長く</span><span class="nt-i">・どれも最大5ターンです。気絶などの行動封じ・挑発・免疫は伸びません。</span><span class="nt-i">・スキル強化の画面で、持続が伸びるLvのときは「持続 2ターン → 3ターン」のように表示されます。</span>' },
   { id: 12, date: '9/26', title: '新要素「ルーン」登場・★10解放・深淵回廊がさらに深く', body: '<span class="nt-h">キャラを強くする「ルーン」が登場</span>キャラに装備して能力を伸ばす宝石<em>「ルーン」</em>が登場しました。育成クエストの<em>「ルーン採掘」</em>で掘り出せます。はじめて採掘に行くと、鉱山の妖精ノッカーが見方を教えてくれます。<span class="nt-i">・<em>形・色・数字</em> 形がレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色が効果、真ん中のローマ数字がTier(Ⅰ〜Ⅹ)。虹はサブ効果が4つ付く大当たりです。</span><span class="nt-i">・<em>攻撃型と防御型</em> STR・SPD・会心率・会心倍率の攻撃型と、HP・物理防御・魔法防御の防御型があります。</span><span class="nt-i">・<em>★で枠が増える</em> ★1で1つ、★4で2つ、★6で3つ、★9で4つ付けられます。編成ごとに付け替えられるので、クエスト用とボス用で分けるのもおすすめです。</span><span class="nt-i">・<em>合成でTierを上げる</em> お気に入りのルーンに、同じTier・同じタイプのルーン2つを合成するとTierが上がります。レア度とサブ効果はそのまま、数値だけが伸びるので、当たりのルーンを長く育てられます。採掘で出るのはⅦまで。Ⅷ〜Ⅹは合成でしか作れません。</span><span class="nt-i">・<em>ルーンの粉</em> いらないルーンは分解して粉に。粉はサブ効果の振り直しや、ショップの「ルーンの粉ショップ」で<em>未鑑定のルーン</em>との交換に使えます。何が出るかは開封してのお楽しみです。</span><span class="nt-h">★10まで解放</span>キャラの★が<em>最大10</em>まで上がるようになりました。レベルの上限も★8でLv230、★9でLv260、★10でLv300まで伸びます。★は5つまで並び、★6からは左から金色に変わっていき、★10で5つすべてが金色に輝きます。★9まで上げるとルーンの4つ目の枠も開きます。<span class="nt-h">深淵回廊がさらに深く</span>深淵回廊の深い層では、敵も★を上げてきます。81階から★8、101階から★9、131階からはついに★10の敵が待ち受けます(80階までは今まで通り)。★10とルーンで鍛えたパーティで、最深部を目指してください。' },
   { id: 11, date: '9/25', title: 'α0.1アップデート内容(1) 新キャラクター30体', body: '新しい仲間を30体追加しました。神話・伝承をモチーフにした顔ぶれで、★5が6体、★4が11体、★3が13体です。<span class="nt-h">★5 (6体)</span><span class="nt-i">・<em>バハムート</em> (炎/アタッカー) 全体を焼き払い必ずやけどを与える竜王。瀕死になると一度だけ立て直す。</span><span class="nt-i">・<em>リヴァイアサン</em> (水/タンク) 挑発で前を張り、必殺技で3ターンのあいだ味方の被ダメージを肩代わりする海竜。</span><span class="nt-i">・<em>グリーンマン</em> (地/タンク) 毎ターン自動で回復し続ける森の化身。敵全体を根で縛って動きを止める。</span><span class="nt-i">・<em>アバドン</em> (闇/アタッカー) 7連撃と単体380%を持つ深淵の王。HPが30%以下の相手にさらに威力が伸びる。</span><span class="nt-i">・<em>タロース</em> (地/タンク) 毎ターンシールドを重ねる青銅の巨人。物理攻撃にとりわけ強い。</span><span class="nt-i">・<em>死神</em> (闇/アタッカー) HP30%以下の敵を刈り取る処刑者。与えたダメージを吸い、敵を倒すたびに強くなる。</span><span class="nt-h">★4 (11体)</span><span class="nt-i">・<em>フェニクス</em> (炎/トリックスター) やけどで倒れても灰から蘇る不死鳥。自分を燃やして火力を上げる。</span><span class="nt-i">・<em>メデューサ</em> (闇/シューター) 敵全体を石化させる魔眼の蛇女。</span><span class="nt-i">・<em>セルキー</em> (水/サポート) 味方全体を回復し、状態異常を1つずつ解く海豹の乙女。</span><span class="nt-i">・<em>ブロック</em> (地/タンク) 大きなシールドを張る鍛冶の妖精。神槌の一撃で敵の守りを砕く。</span><span class="nt-i">・<em>ヘパイストス</em> (炎/シューター) 必ずやけどを与える鍛冶の神。燃えている敵ほど深く削る。</span><span class="nt-i">・<em>アイオロス</em> (風/サポート) 味方の素早さを操る風の管理者。風袋を解けば敵全体が鈍る。</span><span class="nt-i">・<em>ドラウグル</em> (闇/アタッカー) 与えたダメージを吸って立ち続ける墓守の亡者。</span><span class="nt-i">・<em>ペルセウス</em> (光/アタッカー) 必ず石化を決める英雄。単体340%の高火力。</span><span class="nt-i">・<em>アヌビス</em> (闇/タンク) 挑発しながら反撃する冥府の審判者。敵の防御を削る。</span><span class="nt-i">・<em>ロキ</em> (炎/トリックスター) 敵全体を焼き、場をかき乱す詐術の神。</span><span class="nt-i">・<em>オルペウス</em> (光/サポート) 全体回復と攻撃バフに加え、倒れた味方を1体だけ呼び戻す詩人。</span><span class="nt-h">★3 (13体)</span><span class="nt-i">・<em>アグニ</em> (炎/シューター) 必ずやけどを与える炎の神。</span><span class="nt-i">・<em>メリュジーヌ</em> (水/サポート) 全体回復と被ダメージ軽減を兼ねる水の妖精。</span><span class="nt-i">・<em>ドリュアス</em> (地/サポート) 全体回復に継続回復を重ねる樹の精。</span><span class="nt-i">・<em>シームルグ</em> (風/シューター) 相手のバフを剥がす霊鳥。</span><span class="nt-i">・<em>アルヴィス</em> (地/トリックスター) 敵を2ターン拘束する知恵のドワーフ。</span><span class="nt-i">・<em>土蜘蛛</em> (地/タンク) 敵全体を巣で縛って前に立つ妖怪。</span><span class="nt-i">・<em>雷獣</em> (雷/アタッカー) 必ず麻痺を与える手数型の雷獣。</span><span class="nt-i">・<em>ゼピュロス</em> (風/アタッカー) 攻撃のあと自分の素早さが上がる西風。</span><span class="nt-i">・<em>エオス</em> (光/サポート) 味方全体の攻撃力と素早さを同時に上げる暁の女神。</span><span class="nt-i">・<em>サキュバス</em> (闇/トリックスター) 魅了しながらHPを吸う夢魔。</span><span class="nt-i">・<em>バンシー</em> (闇/シューター) 敵全体に呪いを撒く泣き女。魔法に強い。</span><span class="nt-i">・<em>のっぺらぼう</em> (闇/トリックスター) 敵全体を恐慌に陥れる妖怪。</span><span class="nt-i">・<em>コカトリス</em> (草/タンク) 触れた相手を石に変える毒の鶏蛇。</span>' },
@@ -17716,6 +17725,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 113, version: 'α0.1.073', date: '9/27', title: 'ニュースを掲載', body: 'ニュースに「次回イベント予告 フェンリル&アバドン 同時開催」を掲載しました。ニュースにキャラの立ち絵を載せられるようにしました。' },
   { id: 112, version: 'α0.1.072', date: '9/27', title: 'スキルの付与率と持続時間を見直し', body: '<span class="nt-h">付与率</span><span class="nt-i">・状態異常や弱体化の付与率は、スキルLvで変わらなくなりました。代わりに、効果ごとにわかりやすい値にそろえています(<em>やけど・毒は基本50%</em>、弱体化は50%など)。スキルLvを上げると、威力と効果量が今までどおり伸びます。</span><span class="nt-i">・<em>必殺技</em>の状態異常・弱体化・追撃は、すべて<em>必ず</em>かかるようになりました。</span><span class="nt-i">・ミノタウロス・ジャッカロープ・キョンシー・キラービーの必殺技に、気絶を追加しました。</span><span class="nt-i">・パッシブの発動率もLvでは変わらず、効果量だけが伸びます。</span><span class="nt-h">持続時間</span><span class="nt-i">・味方へのバフはスキルLv5とLv10で1ターンずつ、敵への弱体化・やけどはLv10で1ターン長くなります(最大5ターン)。気絶などの行動封じ・挑発・免疫は伸びません。スキル強化の画面で、持続が伸びるLvがわかります。</span>' },
   { id: 111, version: 'α0.1.071', date: '9/26', title: '効果音を一新', body: '効果音をすべて作り直しました。ガチャ演出と同じ響きのやわらかい音にそろえ、場面ごとに鳴らし分けます。<span class="nt-i">・<em>操作</em> タップ・開く・閉じる・タブ切り替え・決定・購入(チャリン)に加え、できない操作では「ブッブッ」と知らせます。</span><span class="nt-i">・<em>育成</em> レベルアップ・★上げ・スキル強化・装備・合成・分解・未鑑定ルーンの開封(レア度で音が変わる)にそれぞれの音を付けました。</span><span class="nt-i">・<em>報酬</em> 受け取り・お知らせ・仲間になったときの音を追加しました。</span><span class="nt-i">・<em>戦闘</em> 開始・ボス登場・必殺技・ウェーブ突破・勝利に加え、敗北の音を追加しました。スキルや魔法の当たりは属性(炎・水・雷・土・風・光・闇)ごとの音になり、会心・弱点・戦闘不能・弱体化・状態異常にも音が付きます。</span>' },
   { id: 110, version: 'α0.1.070', date: '9/26', title: '「?」で説明をいつでも見返せるように', body: 'チュートリアルがある画面(キャラ詳細・遺物図鑑・深淵回廊・ルーン採掘)の右上に「?」ボタンを付けました。押すと、その画面の説明を何度でも見返せます。' },
@@ -18168,7 +18178,7 @@ let noticesOpen = new Set();
 // 最新の1件だけは最初から開いておく。開いた瞬間に何が変わったのか分かるように。
 let noticesOpenInit = false;
 
-function noticeRow(key, title, sub, date, body){
+function noticeRow(key, title, sub, date, body, art){
   const on = noticesOpen.has(key);
   return `
     <button class="panel nt-full nt-row${on ? ' on' : ''}" data-notice="${key}" aria-expanded="${on}">
@@ -18179,8 +18189,14 @@ function noticeRow(key, title, sub, date, body){
         </div>
         <div class="nt-right"><div class="nt-date">${date}</div><div class="nt-arrow">›</div></div>
       </div>
-      ${on ? `<div class="nt-sub">${body}</div>` : ''}
+      ${on ? `<div class="nt-sub">${noticeArtHtml(art)}${body}</div>` : ''}
     </button>`;
+}
+function noticeArtHtml(ids){
+  if(!ids || !ids.length) return '';
+  return `<div class="nt-art">${ids.filter(id => MON_BY_ID[id]).map(id => { const m = MON_BY_ID[id];
+    return `<div class="nt-art-card" style="--ac:${ELEM_COLOR[m.element]}66"><img src="${imgSrc(id)}" alt="${m.name}">
+      <div class="nt-art-name">${m.name}</div><div class="nt-art-sub">★${m.rarity}・${ELEM_LABEL[m.element]}属性・${ROLE_LABEL[m.role]}</div></div>`; }).join('')}</div>`;
 }
 
 function renderNoticesOverlay(){
@@ -18198,7 +18214,7 @@ function renderNoticesOverlay(){
           <button class="stage-tab ${noticesTab === 'news' ? 'on' : ''}" data-notices-tab="news">ニュース</button>
         </div>
         ${list.map(n => noticeRow(`${noticesTab}:${n.id}`, n.title,
-          noticesTab === 'update' ? n.version : '', n.date, n.body)).join('')}
+          noticesTab === 'update' ? n.version : '', n.date, n.body, n.art)).join('')}
       </div>
     </div>`;
 }
