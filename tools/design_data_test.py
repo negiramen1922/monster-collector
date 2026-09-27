@@ -7,7 +7,11 @@ json を正として md が追従しているかを機械で確かめる。
 
 使い方: python3 tools/design_data_test.py
 """
-import json, io, sys, importlib.util
+import json, io, sys, os, importlib.util
+
+# tools/ の中から動かしても、リポジトリの根から動かしても同じように動くようにする。
+# (他のテストは tools/ の中で動かす決まりなので、ここだけ場所を選ぶと落ちて見える)
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 bad = 0
 def check(name, cond, info=''):
