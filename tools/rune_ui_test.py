@@ -30,7 +30,7 @@ async def main():
               saveState(); }""")
             await pg.evaluate("() => document.querySelector('.nav-btn[data-nav=\"party\"]').click()"); await pg.wait_for_timeout(200)
             tabs = await pg.evaluate("() => [...document.querySelectorAll('.group-tab')].map(b => b.textContent)")
-            check('キャラのタブに「ルーン」', tabs == ['編成', 'キャラ一覧', '遺物', 'ルーン'], tabs)
+            check('育成のタブに「ルーン」', tabs == ['編成', 'モンスター図鑑', '遺物', 'ルーン'], tabs)
             await pg.evaluate("() => document.querySelector('[data-group-tab=\"runes\"]').click()"); await pg.wait_for_timeout(250)
             n = await pg.locator('#screen .rune-cell').count()
             check('ルーン一覧に全部並ぶ', await pg.evaluate("() => currentScreen") == 'runes' and n == 21, n)
