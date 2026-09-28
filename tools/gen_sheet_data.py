@@ -33,5 +33,8 @@ dump('relics.js', 'RELIC2', load('配布遺物_風と闇.json'), 'docs/design/�
 # ---- 10 タイタンの必殺技 ----
 dump('titan.js', 'TITAN', load('タイタンの必殺技_粗調整.json'), 'docs/design/タイタンの必殺技_粗調整.json から。tools/gen_sheet_data.py が生成。')
 
+# ---- 11 EXステージのウェーブ ----
+dump('exwaves.js', 'EXW', load('次回イベントのEXステージ_ウェーブ.json'), 'docs/design/次回イベントのEXステージ_ウェーブ.json から。tools/gen_sheet_data.py が生成。')
+
 # ---- 09 やけどの重ねがけ ----
 dump('burn.js', 'BURN', load('やけどの重ねがけ.json'), 'docs/design/やけどの重ねがけ.json から。tools/gen_sheet_data.py が生成。')
