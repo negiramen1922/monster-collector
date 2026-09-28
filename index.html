@@ -2244,6 +2244,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .enemy-chip.have small{ color:#9fdcff; }
 
 /* ---------- sweep panel ---------- */
+.shop-row.sold{ opacity:.45; }
+.ev-left{ display:block; font-size:9.5px; color:var(--dim2); font-weight:400; }
+.ev-days{ float:right; color:var(--gold); }
+.ev-days.soon{ color:var(--warn); }
 .sw-stamina{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:12px; }
 .sw-stamina .soul-bar{ margin:6px 0 4px; }
 .sw-reward{ font-size:11px; color:var(--dim); background:var(--panel2); border:1px solid var(--line);
@@ -2989,6 +2993,9 @@ const GOLD_ICON = CURRENCY_ICON.gold, CRYSTAL_ICON = CURRENCY_ICON.crystal, UNIV
 
 // generic item icons (rewards/inventory): same pixel-art-ready fallback as currency above.
 const ITEM_SVG_BODY = {
+  // イベントメダル(イベントごとに色を変える)
+  medal_wind: '<circle cx="50" cy="50" r="33" fill="#9fe8f0" stroke="#2f7a8a" stroke-width="6"/><path d="M30 52c9-10 18 8 28-2s14-6 14-6" fill="none" stroke="#123b47" stroke-width="6" stroke-linecap="round"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
+  medal_dark: '<circle cx="50" cy="50" r="33" fill="#6b4fa0" stroke="#2a1b47" stroke-width="6"/><circle cx="50" cy="50" r="13" fill="#1a1230"/><circle cx="50" cy="50" r="33" fill="none" stroke="#e8b455" stroke-width="3" opacity=".8"/>',
   scrap: '<path d="M22 60 L34 30 L52 38 L60 22 L78 34 L70 58 L54 52 L46 74 L30 68 Z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="50" r="7" fill="#5a5a68"/>',
   core: '<circle cx="50" cy="50" r="32" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="40" cy="40" r="9" fill="#ffffff" opacity=".65"/>',
   pot: '<rect x="40" y="10" width="20" height="10" rx="3" fill="#4a4560"/><path d="M42 20h16v16l14 32c3 7-2 14-10 14H38c-8 0-13-7-10-14l14-32z" fill="#e8e3f5" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><path d="M34 64h32l5 12c2 5-1 10-7 10H36c-6 0-9-5-7-10z" fill="#7ecbe8"/>',
@@ -2999,7 +3006,7 @@ const ITEM_SVG_BODY = {
   ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { stamina:'スタミナの実', sand:'時渡りの砂', resonance:'共鳴石', scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'キャラ選択券' };
+const ITEM_ICON_LABEL = { medal_wind:'神狼の牙', medal_dark:'奈落の刻印', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'共鳴石', scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'キャラ選択券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const RESONANCE_ICON = `<span class="item-ic">${ITEM_ICON.resonance}</span>`;
@@ -8397,6 +8404,142 @@ function buildEventStages(ev){
    報酬はイベントミッションで受け取る(何度でも挑めるが、もらえるのは初回だけ)。
    ステージ効果(rules)は applyStageRules / stageDmgMod が見る。
    中身の正は docs/design/次回イベントのEXステージ.json と 次回イベントのEXステージ_ウェーブ.json */
+/* ---- イベントメダルとショップ ----
+   メダルはイベントごとの専用アイテム(2つ同時開催でも混ざらない)。イベントが終わると消える。
+   入り: 各層の周回 10+4×層(イベントボーナスが乗るのはここだけ) / 初回クリア 50×層 /
+         ★実績 300・600・900 / ミッション。EXステージでは出ない。
+   中身の正は docs/design/イベントショップとガチャ券.json */
+const EVENT_MEDAL = {
+  ev_fenrir:  { key:'medal_ev_fenrir',  name:'神狼の牙',   icon:'medal_wind' },
+  ev_abaddon: { key:'medal_ev_abaddon', name:'奈落の刻印', icon:'medal_dark' },
+};
+function medalOf(ev){ return EVENT_MEDAL[typeof ev === 'string' ? ev : ev && ev.key] || null; }
+function medalRunGain(tier){ return 10 + 4 * tier; }          // 1層14 … 10層50
+function medalFirstClear(tier){ return 50 * tier; }           // 10層ぜんぶで2,750
+const EVENT_STAR_MEDAL = [300, 600, 900];
+
+/* ショップの品。qty は1口の中身、limit は購入上限(イベントごとにリセット)。
+   give(ev) が実際に渡す処理。値段は「同じスタミナを神話級に使うより1.5倍得」になるよう決めてある。 */
+function eventShopItems(ev){
+  const pick = ev.pickup;
+  const subs = (ev.featured || []).filter(id => id !== pick);   // 同時ピックアップの★4
+  const relic = EVENT_ELEMENT_RELIC[ev.element];
+  const mats = eventSkillMats(ev);
+  return [
+    { sku:'soul_pick',  name:`${MON_BY_ID[pick].name}のソウル`, qty:'20個', price:150, limit:15,
+      give: () => giveSouls(pick, 20) },
+    { sku:'soul_sub',   name:'同時ピックアップ★4のソウル', qty:'各20個(2体ぶん40個)', price:80, limit:10,
+      hide: !subs.length, give: () => subs.forEach(id => giveSouls(id, 20)) },
+    { sku:'relic_dupe', name:`${RELICS[relic] ? RELICS[relic].name : '配布遺物'}(重複)`, qty:'1個', price:200, limit:2,
+      hide: !relic, give: () => grantRelic(RELICS[relic]) },
+    { sku:'gacha_char', name:'キャラ召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_char', 1) },
+    { sku:'gacha_relic',name:'遺物召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_relic', 1) },
+    { sku:'mat1', name:'ピックアップのスキル素材 TierI',  qty:'欠片・魂 各12個 / 証20個', price:73, limit:6,
+      give: () => giveEventMats(mats, 1, 12, 20) },
+    { sku:'mat2', name:'ピックアップのスキル素材 TierII', qty:'欠片・魂 各5個 / 証8個',  price:50, limit:6,
+      give: () => giveEventMats(mats, 2, 5, 8) },
+    { sku:'mat3', name:'ピックアップのスキル素材 TierIII',qty:'欠片・魂 各3個 / 証5個',  price:45, limit:2,
+      give: () => giveEventMats(mats, 3, 3, 5) },
+    { sku:'mat4', name:'ピックアップのスキル素材 TierIV', qty:'欠片・魂 各1個 / 証2個',  price:33, limit:1,
+      give: () => giveEventMats(mats, 4, 1, 2) },
+    { sku:'box1', name:'育成素材BOX(選択) TierI',   qty:'1個', price:40, limit:15, give: () => addItem('box_sel_1', 1) },
+    { sku:'box2', name:'育成素材BOX(選択) TierII',  qty:'1個', price:14, limit:5,  give: () => addItem('box_sel_2', 1) },
+    { sku:'box3', name:'育成素材BOX(選択) TierIII', qty:'1個', price:12, limit:3,  give: () => addItem('box_sel_3', 1) },
+    { sku:'pot1', name:'EXPポット TierI',   qty:'300個', price:6,  limit:5, give: () => addItem('exp1', 300) },
+    { sku:'pot2', name:'EXPポット TierII',  qty:'100個', price:20, limit:5, give: () => addItem('exp2', 100) },
+    { sku:'pot3', name:'EXPポット TierIII', qty:'30個',  price:60, limit:5, give: () => addItem('exp3', 30) },
+    { sku:'scrap', name:'遺物のスクラップ', qty:'100個', price:60, limit:20, give: () => addItem('relic_scrap', 100) },
+    { sku:'core1', name:'遺物のコア TierI',   qty:'5個', price:40,  limit:4, give: () => addItem('relic_core_1', 5) },
+    { sku:'core2', name:'遺物のコア TierII',  qty:'2個', price:70,  limit:5, give: () => addItem('relic_core_2', 2) },
+    { sku:'core3', name:'遺物のコア TierIII', qty:'1個', price:180, limit:2, give: () => addItem('relic_core_3', 1) },
+    { sku:'stam',  name:'スタミナの実', qty:'1個(+60)', price:150, limit:5, give: () => addItem('stamina_60', 1) },
+    { sku:'gold',  name:'ゴールド', qty:'50,000', price:35, limit:20, give: () => addGold(50000) },
+    { sku:'gold_over', name:'ゴールド(上限のあと)', qty:'50,000', price:40, limit:null, give: () => addGold(50000) },
+  ].filter(x => !x.hide);
+}
+// ピックアップが使うスキル素材の3種類(属性の欠片・種族の魂・ロールの証)
+function eventSkillMats(ev){
+  const m = MON_BY_ID[ev.pickup];
+  return { el:['el', m.element], sp:['sp', speciesOf(m)], ro:['ro', m.role] };
+}
+function giveEventMats(mats, tier, nEach, nRole){
+  addItem(matKey(mats.el[0], mats.el[1], tier), nEach);
+  addItem(matKey(mats.sp[0], mats.sp[1], tier), nEach);
+  addItem(matKey(mats.ro[0], mats.ro[1], tier), nRole);
+}
+/* イベントメダルを渡す。周回ぶんにはイベントボーナス(編成でメダルが増える)が乗る。
+   EXステージは腕試しなのでメダルを落とさない。 */
+function grantEventMedal(stage, firstTime){
+  if(stage.type !== 'event' || stage.ex) return null;
+  const ev = EVENTS.find(e => e.key === stage.eventKey);
+  const medal = medalOf(ev);
+  if(!medal) return null;
+  const tier = Number(String(stage.id).split('_').pop()) || 1;
+  const bonus = eventBonusRate(ev);
+  const run = Math.round(medalRunGain(tier) * (1 + bonus));
+  const first = firstTime ? medalFirstClear(tier) : 0;
+  const n = run + first;
+  if(n <= 0) return null;
+  addItem(medal.key, n);
+  return { key: medal.key, name: medal.name, icon: medal.icon, n, run, first, bonus };
+}
+/* イベントボーナス: クリアした編成に入っているキャラで、もらえるメダルが増える。
+   主役★5 +40% / 同時ピックアップ★4 各+20% / そのイベントの属性 各+10%。上限+100% */
+const EVENT_BONUS = { pickup: 0.40, featured: 0.20, element: 0.10, cap: 1.00 };
+function eventBonusRate(ev, party){
+  if(!ev) return 0;
+  const units = party || (battleUI && battleUI.party) || [];
+  const subs = new Set((ev.featured || []).filter(id => id !== ev.pickup));
+  let n = 0;
+  units.forEach(u => {
+    if(!u) return;
+    if(u.ref === ev.pickup) n += EVENT_BONUS.pickup;
+    else if(subs.has(u.ref)) n += EVENT_BONUS.featured;
+    else if(u.element === ev.element) n += EVENT_BONUS.element;
+  });
+  return Math.min(EVENT_BONUS.cap, n);
+}
+/* 買った数はイベントごとに覚える。イベントが終わったら消す(次の同じイベントでまた買える) */
+function evShopState(evKey){
+  if(!STATE.evShop) STATE.evShop = {};
+  if(!STATE.evShop[evKey]) STATE.evShop[evKey] = {};
+  return STATE.evShop[evKey];
+}
+function evShopBought(evKey, sku){ return evShopState(evKey)[sku] || 0; }
+function evShopLeft(ev, item){
+  if(item.limit === null) return Infinity;
+  return Math.max(0, item.limit - evShopBought(ev.key, item.sku));
+}
+function medalHave(ev){ const m = medalOf(ev); return m ? getItem(m.key) : 0; }
+function buyEventShop(evKey, sku, times){
+  const ev = EVENTS.find(e => e.key === evKey);
+  if(!ev) return;
+  const item = eventShopItems(ev).find(x => x.sku === sku);
+  const medal = medalOf(ev);
+  if(!item || !medal) return;
+  const left = evShopLeft(ev, item);
+  const afford = Math.floor(getItem(medal.key) / item.price);
+  const n = Math.min(times === 'max' ? Math.min(left, afford) : Number(times || 1), left, afford);
+  if(n <= 0){ toast(afford <= 0 ? `${medal.name}が足りません` : '売り切れです'); return; }
+  addItem(medal.key, -item.price * n);
+  for(let i = 0; i < n; i++) item.give(ev);
+  if(item.limit !== null) evShopState(evKey)[sku] = evShopBought(evKey, sku) + n;
+  track('shopBuy');
+  playSfx('buy');
+  toast(`${item.name}(${item.qty})を${n}つ交換しました`);
+  saveState();
+  render();
+}
+// イベントが終わったら、そのイベントのメダルと買った数を消す
+function clearEndedEventMedals(){
+  EVENTS.forEach(ev => {
+    const now = Date.now();
+    if(now >= new Date(ev.startAt).getTime() && now <= new Date(ev.endAt).getTime()) return;
+    const m = medalOf(ev);
+    if(m && getItem(m.key) > 0) addItem(m.key, -getItem(m.key));
+    if(STATE.evShop && STATE.evShop[ev.key]) delete STATE.evShop[ev.key];
+  });
+}
 const EX_UNLOCK_TIER = 5;            // 何層をクリアすると開くか
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
 const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}]};
@@ -9147,6 +9290,7 @@ function renderShop(){
       <button class="stage-tab ${shopTab === 'pvp' ? 'on' : ''}" data-shop-tab="pvp">PVPポイントショップ</button>
       <button class="stage-tab ${shopTab === 'crystal' ? 'on' : ''}" data-shop-tab="crystal">水晶ショップ</button>
       <button class="stage-tab ${shopTab === 'rune' ? 'on' : ''}" data-shop-tab="rune">ルーンの粉ショップ</button>
+      ${activeEvents().filter(ev => medalOf(ev)).map(ev => `<button class="stage-tab ${shopTab === 'ev:' + ev.key ? 'on' : ''}" data-shop-tab="ev:${ev.key}">${ev.icon}${medalOf(ev).name}</button>`).join('')}
     </div>
     ${shopTab === 'gold' ? `
       <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。特売品は毎日3品(${SHOP_SALE_DISCOUNTS.map(d => `${Math.round(d * 100)}%`).join('・')}引き)。</div>
@@ -9158,10 +9302,41 @@ function renderShop(){
     ` : shopTab === 'pvp' ? `
       <div class="screen-sub">PVPの勝敗で得たPVPポイントと交換できます(1商品1日1回まで)。</div>
       <div class="panel facility">${SHOP_PVP_ITEMS.map(pvpRow).join('')}</div>
-    ` : shopTab === 'rune' ? renderRuneShop() : `
+    ` : shopTab === 'rune' ? renderRuneShop()
+      : String(shopTab).startsWith('ev:') ? renderEventShop(String(shopTab).slice(3)) : `
       <div class="screen-sub">水晶でスタミナ回復・PVP挑戦券と交換できます。回数制限はありません。</div>
       <div class="panel facility">${SHOP_CRYSTAL_ITEMS.map(crystalRow).join('')}</div>
     `}`;
+}
+/* イベントショップ(交換所)。メダルで交換する。購入上限はイベントごとにリセット。
+   品と値段の正は docs/design/イベントショップとガチャ券.json */
+function renderEventShop(evKey){
+  const ev = EVENTS.find(e => e.key === evKey);
+  const medal = medalOf(ev);
+  if(!ev || !medal) return '<div class="screen-sub">このイベントは終了しました。</div>';
+  const have = getItem(medal.key);
+  const items = eventShopItems(ev);
+  const left = Math.max(0, new Date(ev.endAt).getTime() - Date.now());
+  const days = Math.ceil(left / 86400000);
+  const row = it => {
+    const rest = evShopLeft(ev, it);
+    const sold = rest === 0;
+    const can = !sold && have >= it.price;
+    return `
+      <div class="shop-row ${sold ? 'sold' : ''}">
+        <span class="shop-item"><span class="item-ic">${ITEM_ICON[medal.icon]}</span><span class="shop-item-name">${it.name}<small>${it.qty}</small></span></span>
+        <span class="shop-price">${it.price}<small class="ev-left">${it.limit === null ? '無制限' : `残り${rest}/${it.limit}`}</small></span>
+        <button class="btn btn-sm ${can ? '' : 'btn-ghost'}" data-ev-buy="${ev.key}:${it.sku}" ${can ? '' : 'disabled'}>${sold ? '売り切れ' : '交換'}</button>
+      </div>`;
+  };
+  return `
+    <div class="screen-sub">
+      ${ev.stageName}を回って集めた<b>${medal.name}</b>と交換できます。購入上限はイベントごとです。
+      <b class="ev-days ${days <= 3 ? 'soon' : ''}">残り${days}日</b>
+    </div>
+    <div class="sw-stamina"><span class="item-ic">${ITEM_ICON[medal.icon]}</span> ${medal.name} <b>${have.toLocaleString()}</b></div>
+    <div class="panel facility">${items.map(row).join('')}</div>
+    <div class="screen-sub" style="margin-top:8px;">メダルはイベントが終わると無くなります。交換し忘れに気をつけてください。</div>`;
 }
 function renderRuneShop(){
   const max = runeShopTier();
@@ -16975,12 +17150,15 @@ function grantStageRewards(stage, spawned){
   // first clear
   let crystals = 0;
   const firstItems = [];
-  if(!STATE.clearedStages.includes(stage.id)){
+  const firstTime = !STATE.clearedStages.includes(stage.id);
+  if(firstTime){
     crystals = stage.firstClear || 0;
     STATE.crystals += crystals;
     STATE.clearedStages.push(stage.id);
     [...(stage.bossReward || []), ...(stage.reward || [])].forEach(r => { grantRewards([r]); firstItems.push(r); });
   }
+  // イベントメダル。周回でもらえるぶんにはイベントボーナスが乗る。EXステージでは出ない
+  const medalGot = grantEventMedal(stage, firstTime);
   track('stageClear');
   track('exploreClear');   // デイリー「探索を3回」: 周回・育成ダンジョンも同じく数える
   if(stage.boss) track('bossClear');
@@ -17611,6 +17789,8 @@ function handlePhoneClick(ev){
   }
   const shopTabEl = t.closest('[data-shop-tab]');
   if(shopTabEl){ shopTab = shopTabEl.dataset.shopTab; render(); return; }
+  const evBuyEl = t.closest('[data-ev-buy]');
+  if(evBuyEl){ const [k, sku] = evBuyEl.dataset.evBuy.split(':'); buyEventShop(k, sku, 1); return; }
   const openNoticesEl = t.closest('[data-open-notices]');
   if(openNoticesEl){
     const [tab, id] = openNoticesEl.dataset.openNotices.split(':');
