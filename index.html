@@ -1196,6 +1196,13 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .slot-tag.t-skill{ background:#2b3f5c; color:#bcd8f2; }
 .slot-tag.t-passive{ background:#2b4030; color:#bfe4b6; }
 .slot-tag.t-ult{ background:#3a2a1a; color:var(--gold); }
+.slot-tag.t-perk{ background:linear-gradient(180deg,#e8b455,#b8873a); color:#2a1f10; }
+.skill-card.k-perk{ border-color:rgba(232,180,85,.45); }
+.perk-row{ display:flex; gap:8px; align-items:flex-start; padding:5px 0; border-top:1px solid rgba(255,255,255,.07); font-size:12px; color:var(--dim2); }
+.perk-row.on{ color:var(--text); }
+.perk-star{ flex:0 0 auto; font-weight:800; color:var(--dim2); }
+.perk-row.on .perk-star{ color:var(--gold); }
+.perk-desc{ flex:1 1 auto; line-height:1.5; }
 .su-left{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .su-lv{ font-size:10.5px; font-weight:800; color:var(--dim); white-space:nowrap; }
 .su-bar{ flex:1; min-width:36px; height:5px; border-radius:999px; background:#120f22; overflow:hidden; }
@@ -11785,7 +11792,29 @@ function kitLinesHtml(m, star, owned, after){
       : card('スキル2', 'skill', skill2, `CT ${skill2.ct}`, null, null, true),
     card('パッシブ', 'passive', kit.passive, '常時', a.passive),
     card('必殺技', 'ult', kit.ult, `SP ${kit.ult.sp}`, a.ult, o.ultLv),
+    perkCardHtml(m, star),
   ].join('');
+}
+/* 凸ボーナス(★6〜★10)。手に入れたぶんは白、まだのぶんは灰色で先も見せる(★を上げる理由になる)。
+   中身は MONSTER_PERKS、正は docs/design/凸ボーナス_ピックアップ4体.json */
+function perkCardHtml(m, star){
+  const t = MONSTER_PERKS[m.id];
+  if(!t) return '';
+  const cur = star || m.rarity;
+  const rows = [];
+  let have = 0;
+  for(let n = PERK_FIRST_STAR; n <= MAX_STAR; n++){
+    if(!t[n]) continue;
+    const got = cur >= n;
+    if(got) have++;
+    rows.push(`<div class="perk-row ${got ? 'on' : ''}"><span class="perk-star">★${n}</span><span class="perk-desc">${t[n].desc}</span></div>`);
+  }
+  if(!rows.length) return '';
+  return `<div class="skill-card k-perk">
+      <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-perk">凸</span>凸ボーナス</span><span class="skill-ct">${have} / ${rows.length}</span></div>
+      <div class="skill-desc">★を上げると、このキャラだけの効果が増えます。</div>
+      ${rows.join('')}
+    </div>`;
 }
 
 function promoteMonster(id){
@@ -13033,6 +13062,8 @@ function present(u){ return u.alive && !u.vanished; }
 /* ---- unit construction ---- */
 
 function kitOf(mon){ return MONSTER_KITS[mon.id] || roleKit(mon); }
+// 狐火を増やす(上限はユニットの値。凸で6→8→10に伸びる)
+function addFox(u, n){ u.stacks.fox = Math.min(u.foxMax || 6, (u.stacks.fox || 0) + n); }
 function skillSlotsOf(mon, star){
   const kit = kitOf(mon);
   return skillSlotsFor(star || mon.rarity) >= 2 ? [kit.skill1, kit.skill2 || kit.skill1] : [kit.skill1];
@@ -13041,6 +13072,40 @@ function skillCt(unit, slot){ return Math.max(1, unit.skills[slot].ct - (unit.ct
 // slot 1 opens halfway through its first cooldown; slot 2 one turn later than its CT
 function initialSkillCds(unit){
   return unit.skills.map((_, i) => i === 0 ? Math.ceil(skillCt(unit, 0) / 2) : skillCt(unit, i) + 1);
+}
+
+/* ---- 凸ボーナス(★6〜★10) ----
+   ★を上げたキャラだけに付く固有の効果。MONSTER_PERKS[モンスターid][★] = { desc, apply(u) }。
+   kit の中身(normal / skills / ult / passive)は全ユニットで共有しているので、
+   perk が触る前に必ずそのユニット専用のコピーに差し替えること(下の own* を使う)。
+   中身の正は docs/design/凸ボーナス_ピックアップ4体.json */
+const PERK_FIRST_STAR = 6;
+// そのユニット専用のコピーにしてから返す(2回目以降はそのまま)
+function ownPassive(u){ if(!u.ownedPassive){ u.passive = { ...u.passive }; u.ownedPassive = true; } return u.passive; }
+function ownUlt(u){ if(!u.ownedUlt){ u.ult = { ...u.ult }; u.ownedUlt = true; } return u.ult; }
+function ownSkill(u, i){
+  if(!u.ownedSkills){ u.skills = u.skills.slice(); u.ownedSkills = []; }
+  if(!u.ownedSkills[i]){ u.skills[i] = { ...u.skills[i] }; u.ownedSkills[i] = true; }
+  return u.skills[i];
+}
+function ownNormal(u){ if(!u.ownedNormal){ u.normal = { ...u.normal }; u.ownedNormal = true; } return u.normal; }
+// 元のフックを残したまま、あとから足す(パッシブのフックを重ねるため)
+function addHook(o, hook, fn){
+  const before = o[hook];
+  o[hook] = (...a) => { const r = before ? before(...a) : undefined; const r2 = fn(...a); return (r || 0) + (r2 || 0) || r2 || r; };
+}
+function perksOf(ref, star){
+  const t = MONSTER_PERKS[ref];
+  if(!t) return [];
+  const out = [];
+  for(let n = PERK_FIRST_STAR; n <= star; n++) if(t[n]) out.push({ star: n, ...t[n] });
+  return out;
+}
+function applyPerks(u){
+  const list = perksOf(u.ref, u.star);
+  if(!list.length) return;
+  u.perks = list.map(p => ({ star: p.star, desc: p.desc }));
+  list.forEach(p => { if(p.apply) p.apply(u); });
 }
 
 function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
@@ -13075,6 +13140,7 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     motion: motionOf(mon),
     tie: 0,
   };
+  applyPerks(unit);                      // 凸ボーナス。CTを変えるものがあるので初期CTの前に
   unit.skillCd = initialSkillCds(unit);
   unit.skillCdMax = unit.skillCd.slice();
   return unit;
@@ -14163,16 +14229,16 @@ const MONSTER_KITS = {
   m116: { // 九尾の狐
     normal: N('狐火', 1.0, 'mag', 'any', '威力100%(後衛も狙える)'),
     passive: { name:'九尾の狐火', desc:'戦闘開始時に狐火を2つ持つ(最大6)。自分のターン終了時、狐火1つにつき威力25%の攻撃(ランダムな敵)',
-      onBattleStart: u => { u.stacks.fox = 2; },
+      onBattleStart: u => { u.stacks.fox = u.foxStart || 2; },
       onTurnEnd: u => {
         const times = (u.stacks.fox || 0) * (hasBuff(u, 'foxDouble') ? 2 : 1);
         const ctx = { actor: u, act: { atk: 'mag' }, kind: 'passive', hits: [], dealt: 0 };
-        for(let i = 0; i < times; i++){ const t = pickRandomFoe(u); if(t) strike(ctx, t, { pow: pv(u, 0.25), atk: 'mag', fx: 'fire', noOnHit: true }); }
+        for(let i = 0; i < times; i++){ const t = pickRandomFoe(u); if(!t) continue; strike(ctx, t, { pow: pv(u, 0.25), atk: 'mag', fx: 'fire', noOnHit: true }); if(u.foxBurn && t.alive) applyStatus(t, 'burn', u); }
         if(times) logLine(`${nm(u)} の狐火が${times}回舞った`, 'skill');
       },
       stackIcon: u => `🦊${u.stacks.fox || 0}` },
     skill1: { name:'狐火生成', ct:3, atk:'mag', tgt:'single', pow:1.8, desc:'威力180%。狐火+1',
-      run: ctx => { dealHits(ctx); ctx.actor.stacks.fox = Math.min(6, (ctx.actor.stacks.fox || 0) + 1); } },
+      run: ctx => { dealHits(ctx); addFox(ctx.actor, 1); } },
     skill2: { name:'幻炎の舞', ct:4, atk:'mag', tgt:'backAll', pow:1.2, onHit:[{ st:'burn', chance:0.5 }], desc:'敵後衛全体に威力120%。50%でやけど' },
     ult: { name:'天狐焔舞', sp:120, atk:'mag', tgt:'all', pow:2.5, effects:[{ to:'self', buff:'foxDouble', v:1, flat:true, turns:3 }], desc:'敵全体に威力250%。3ターン、狐火の攻撃が1つにつき2回になる' },
   },
@@ -14186,9 +14252,12 @@ const MONSTER_KITS = {
       desc:'3ターン、味方が受けるダメージの40%を肩代わり。自分の物理防御・魔法防御+40%。自分に最大HPの40%のシールド(切れるとき残りはHPに戻る)',
       run: ctx => {
         const u = ctx.actor;
-        sideOf(u).filter(a => present(a) && a !== u).forEach(a => addBuff(a, 'redirect', 0.3, 3, u));
-        addBuff(u, 'pdefUp', capRatio(sv(u, 0.3, 'ult')), 3, u);
-        addBuff(u, 'mdefUp', capRatio(sv(u, 0.3, 'ult')), 3, u);
+        const turns = u.wallTurns || 3, share = u.wallShare || 0.4;
+        sideOf(u).filter(a => present(a) && a !== u).forEach(a => addBuff(a, 'redirect', share, turns, u));
+        addBuff(u, 'pdefUp', capRatio(sv(u, 0.4, 'ult')), turns, u);
+        addBuff(u, 'mdefUp', capRatio(sv(u, 0.4, 'ult')), turns, u);
+        addShield(u, Math.round(u.maxHp * capRatio(sv(u, 0.4, 'ult'))), turns, u);
+        if(u.wallBank) u.flags.wallOn = turns;
         pushFx(u, null, 'buff', { fx: 'buff' });
       } },
   },
@@ -14915,6 +14984,95 @@ const MONSTER_KITS = {
   },
 };
 
+/* ---- 凸ボーナス(★6〜★10) ----
+   中身の正は docs/design/凸ボーナス_ピックアップ4体.json。ユーザーが1段ずつ指定したもの。
+   kit は共有なので、触る前に ownPassive/ownUlt/ownSkill/ownNormal でユニット専用のコピーにする。 */
+const MONSTER_PERKS = {
+  m116: { // 九尾の狐
+    6: { desc:'やけど状態の敵への与ダメージ+10%',
+      apply: u => addHook(ownPassive(u), 'dmgBonus', (x, t) => t && hasStatus(t, 'burn') ? 0.10 : 0) },
+    7: { desc:'幻炎の舞でも狐火+1',
+      apply: u => { const a = ownSkill(u, 1); const before = a.run;
+        a.run = ctx => { before ? before(ctx) : dealHits(ctx); addFox(ctx.actor, 1); }; } },
+    8: { desc:'狐火の上限 6→8、戦闘開始時の数 2→3',
+      apply: u => { u.foxMax = 8; u.foxStart = 3; } },
+    9: { desc:'幻炎の舞: 対象が敵後衛全体→敵全体',
+      apply: u => { ownSkill(u, 1).tgt = 'all'; } },
+    10: { desc:'狐火の上限 8→10・初期数 3→4。狐火が必ずやけどを付ける。味方全体のやけど特効+20%',
+      apply: u => { u.foxMax = 10; u.foxStart = 4; u.foxBurn = true;
+        addHook(ownPassive(u), 'allyDmgBonus', (x, ally, t) => t && hasStatus(t, 'burn') ? 0.20 : 0);
+        addHook(u.passive, 'dmgBonus', (x, t) => t && hasStatus(t, 'burn') ? 0.20 : 0); } },
+  },
+  m54: { // タイタン
+    6: { desc:'挑発中、受けるダメージ-10%',
+      apply: u => addHook(ownPassive(u), 'cutBonus', x => hasBuff(x, 'taunt') ? 0.10 : 0) },
+    7: { desc:'巨神の体躯: HPが80%以上のとき受けるダメージ-30%(50%以上の-15%とは重ならない)',
+      apply: u => { const pa = ownPassive(u);
+        pa.cutBonus = x => x.hp / x.maxHp >= 0.8 ? pv(x, 0.30) : (x.hp / x.maxHp >= 0.5 ? pv(x, 0.15) : 0);
+        pa.desc = 'HPが80%以上のとき受けるダメージ-30%、50%以上のとき-15%'; } },
+    8: { desc:'攻撃を受けるたびSTR+3%(最大+15%、戦闘中ずっと)',
+      apply: u => { const pa = ownPassive(u);
+        addHook(pa, 'onHitBy', x => { x.stacks.rock = Math.min(5, (x.stacks.rock || 0) + 1); });
+        addHook(pa, 'strBonus', x => (x.stacks.rock || 0) * 0.03); } },
+    9: { desc:'岩盤砕き: 気絶の確率+30%。気絶中の敵への与ダメージ+30%',
+      apply: u => { const a = ownSkill(u, 1);
+        a.onHit = (a.onHit || []).map(e => e.st === 'stun' ? { ...e, chance: Math.min(1, (e.chance || 0) + 0.30) } : e);
+        a.desc = '敵全体に威力130%。50%で気絶';
+        addHook(ownPassive(u), 'dmgBonus', (x, t) => t && hasStatus(t, 'stun') ? 0.30 : 0); } },
+    10: { desc:'ティターンの城壁: 3→4ターン、肩代わり40%→60%。肩代わりで受けたダメージの30%をSTRに変えて蓄える(1ターン+15%まで、最大+60%)',
+      apply: u => { u.wallTurns = 4; u.wallShare = 0.6;
+        u.wallBank = { cap: 0.60, perTurn: 0.15, rate: 0.30 };
+        const ul = ownUlt(u);
+        ul.desc = '4ターン、味方が受けるダメージの60%を肩代わり。自分の物理防御・魔法防御+40%と最大HPの40%のシールド。肩代わりで受けたダメージの30%をSTRに変えて蓄える(最大+60%)';
+        addHook(ownPassive(u), 'strBonus', x => x.stacks.wall || 0); } },
+  },
+  m68: { // フェンリル
+    6: { desc:'自分のSPD+10。自分より素早さが低い敵への与ダメージ+10%(すべての攻撃)',
+      apply: u => { const pa = ownPassive(u);
+        addHook(pa, 'spdBonus', () => 10);
+        addHook(pa, 'dmgBonus', (x, t) => t && effSpd(x) > effSpd(t) ? 0.10 : 0); } },
+    7: { desc:'暴風の遠吠え: 効果 3→4ターン',
+      apply: u => { const a = ownSkill(u, 1); a.effects = a.effects.map(e => ({ ...e, turns: 4 })); a.desc = '4ターン、STR+30%・SPD+10'; } },
+    8: { desc:'HPが50%以下の敵への与ダメージ+20%',
+      apply: u => addHook(ownPassive(u), 'dmgBonus', (x, t) => t && t.hp / t.maxHp <= 0.5 ? 0.20 : 0) },
+    9: { desc:'敵を倒したとき、2つのスキルの残りCTが1短くなる',
+      apply: u => addHook(ownPassive(u), 'onKill', x => { x.skillCd = x.skillCd.map(c => Math.max(0, c - 1)); }) },
+    10: { desc:'疾風の狩人: 再行動の攻撃は必ず会心・与ダメージ+20%。再行動で敵を倒すと、そのラウンドでもう一度だけ再行動できる(1ラウンド2回まで)',
+      apply: u => { const pa = ownPassive(u);
+        pa.desc = '敵を倒すと、すぐにもう一度行動できる(1ラウンドに2回まで)。再行動の攻撃は必ず会心になり、与ダメージ+20%';
+        pa.onKill = x => {
+          const max = x.flags.extraOn ? 2 : 1;
+          if((x.flags.extraUsed || 0) >= max) return;
+          x.flags.extraUsed = (x.flags.extraUsed || 0) + 1;
+          x.flags.extraPending = true;
+          x.flags.extraOn = true;
+          logLine(`${nm(x)} は勢いのまま再び動く!`, 'skill');
+        };
+        addHook(pa, 'critBonus', x => x.flags.extraOn ? 1 : 0);
+        addHook(pa, 'dmgBonus', x => x.flags.extraOn ? 0.20 : 0); } },
+  },
+  m139: { // アバドン
+    6: { desc:'HPが50%以下の敵への会心率+10%',
+      apply: u => addHook(ownPassive(u), 'critBonus', (x, t) => t && t.hp / t.maxHp <= 0.5 ? 0.10 : 0) },
+    7: { desc:'底なしの飢え: 敵を倒したときのCT短縮 1→2',
+      apply: u => { const pa = ownPassive(u); const before = pa.onKill;
+        pa.onKill = x => { if(before) before(x); x.skillCd = x.skillCd.map(c => Math.max(0, c - 1)); }; } },
+    8: { desc:'会心率+20%。会心倍率+30%',
+      apply: u => { const pa = ownPassive(u);
+        addHook(pa, 'critBonus', () => 0.20);
+        addHook(pa, 'critDmgBonus', () => 0.30); } },
+    9: { desc:'奈落の乱撃: ヒット数 7→9。回復阻害を付与',
+      apply: u => { const a = ownSkill(u, 1); a.hits = 9;
+        a.onHit = [...(a.onHit || []), { debuff:'healCut', v:0.5, turns:2, chance:1 }];
+        a.desc = 'ランダムな敵に威力60%×9。この攻撃の会心ダメージ+30%。回復阻害'; } },
+    10: { desc:'無底坑: 威力アップの条件が HP30%以下→50%以下。これで敵を倒すと使ったSPの半分が戻る',
+      apply: u => { const ul = ownUlt(u);
+        ul.bonusIf = [{ cond:'halfHp', add:1.0 }];
+        ul.desc = '敵全体に威力220%。HPが50%以下の相手には威力+100%。これで敵を倒すと使ったSPの半分が戻る';
+        u.ultRefund = 0.5; } },
+  },
+};
+
 /* ---- full-screen stage banners ---- */
 
 let stageFxToken = 0;
@@ -15227,6 +15385,18 @@ function lowestHpRatio(pool){
   return pool.slice().sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp) || (a.row === 'front' ? -1 : 1))[0] || null;
 }
 // HPの割合が一番高い敵(ハティ用)。一番元気な相手から削る
+// タイタン★10: 肩代わりで受けたダメージの一部をSTRに変えて蓄える。
+// 1ターンに増える量と合計に上限を付ける(大技を1回受けただけで上限まで埋まらないように)
+function bankWallStr(u, dmg){
+  const cap = u.wallBank.cap, perTurn = u.wallBank.perTurn;
+  if(u.flags.wallRound !== battleUI.round){ u.flags.wallRound = battleUI.round; u.flags.wallGain = 0; }
+  const room = Math.min(cap - (u.stacks.wall || 0), perTurn - u.flags.wallGain);
+  if(room <= 0) return;
+  const add = Math.min(room, dmg / Math.max(1, u.maxHp) * u.wallBank.rate);
+  if(add <= 0) return;
+  u.stacks.wall = +((u.stacks.wall || 0) + add).toFixed(4);
+  u.flags.wallGain += add;
+}
 function highestHpRatio(pool){
   return pool.slice().sort((a, b) => (b.hp / b.maxHp) - (a.hp / a.maxHp) || (a.row === 'front' ? -1 : 1))[0] || null;
 }
@@ -15484,6 +15654,7 @@ function strike(ctx, target, o){
     const pd = Math.max(1, Math.round(Math.max(protShare * DAMAGE_MIN_RATIO, protShare - effDef(p, atk)) * (1 - cutOf(p, atk))));
     hitHp(p, pd, actor, {});
     pushFx(p, pd, 'hit', { fx: 'strike' });
+    if(p.wallBank) bankWallStr(p, pd);
   }
   // reactions of the one who was hit
   if(target.alive && actor.alive && !o.noOnHit){
@@ -15884,7 +16055,7 @@ function startRound(b){
     return false;
   }
   const units = aliveUnits();
-  units.forEach(u => { u.spHitRound = 0; u.tie = Math.random(); u.flags.extraThisRound = false; });
+  units.forEach(u => { u.spHitRound = 0; u.tie = Math.random(); u.flags.extraThisRound = false; u.flags.extraUsed = 0; u.flags.extraOn = false; });
   const first = b.firstStrike;
   b.firstStrike = null;
   b.queue = units.sort((a, c) => {
@@ -16002,7 +16173,14 @@ function takeTurn(u){
   if(spReady(u) && (u.isEnemy || STATE.autoUlt || u.ultReserved) && (hasFoe || !u.ult.needsFoe)){
     u.ultReserved = false;
     u.sp -= u.spCost;
+    const koBefore = foesOf(u).filter(x => !x.alive).length;
     performAction(u, 'ult', u.ult);
+    // アバドン★10: 必殺技で敵を倒したら、使ったSPの半分が戻る
+    if(u.ultRefund && foesOf(u).filter(x => !x.alive).length > koBefore){
+      const back = Math.round(u.spCost * u.ultRefund);
+      u.sp = Math.min(u.spCost, u.sp + back);
+      logLine(`${nm(u)} に SP+${back} が戻った`, 'skill');
+    }
   }else{
     let slot = -1;
     for(let i = 0; i < u.skills.length; i++){ if(u.skillCd[i] <= 0){ slot = i; break; } }
