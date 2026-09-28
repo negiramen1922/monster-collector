@@ -1,4 +1,4 @@
-/* regression test: お助けキャラ(借りたフレンドの支援キャラ)を編成に入れると、ステージの
+/* regression test: お助けモンスター(借りたフレンドの支援キャラ)を編成に入れると、ステージの
    スタミナ消費に+5のサーチャージがかかる(stageStaminaCost)。ところが一部の画面が生の
    stage.staminaをそのまま表示・判定に使っていたため、ホーム画面の「次のステージ」カードや
    バトル結果画面の「次のステージへ/再挑戦」ボタンのガード処理だけサーチャージ抜きの値に
@@ -16,13 +16,13 @@ const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name
 api.STATE = E.DEFAULT_STATE();
 const stage = E.STAGES.find(st => st.type === 'main' && st.stamina);
 
-// --- お助けキャラなし: サーチャージは付かない ---
+// --- お助けモンスターなし: サーチャージは付かない ---
 api.STATE.slots = api.STATE.slots.map(() => null);
-ok('お助けキャラがいない時はstageStaminaCostは元の値のまま', E.stageStaminaCost(stage) === stage.stamina, [E.stageStaminaCost(stage), stage.stamina]);
+ok('お助けモンスターがいない時はstageStaminaCostは元の値のまま', E.stageStaminaCost(stage) === stage.stamina, [E.stageStaminaCost(stage), stage.stamina]);
 
-// --- お助けキャラを編成に入れる: +5される ---
+// --- お助けモンスターを編成に入れる: +5される ---
 api.STATE.slots[0] = E.HELP_SLOT_ID;
-ok('お助けキャラを編成に入れるとサーチャージがかかる', E.stageStaminaCost(stage) === stage.stamina + E.HELP_STAMINA_SURCHARGE, E.stageStaminaCost(stage));
+ok('お助けモンスターを編成に入れるとサーチャージがかかる', E.stageStaminaCost(stage) === stage.stamina + E.HELP_STAMINA_SURCHARGE, E.stageStaminaCost(stage));
 
 // --- ホーム画面の「次のステージ」カード: stageStaminaCost基準で統一されているか ---
 // (受け取り待ちのミッションがあると別のカードが返るので、先に全部受け取っておく。
@@ -32,7 +32,7 @@ api.STATE.clearedStages = E.STAGES.filter(st => st.id !== stage.id).map(st => st
 E.claimMissions(() => true); // クリア扱いにしたことで新たに受け取り待ちが出ることがあるので後でも呼ぶ
 const action = E.nextAction();
 ok('「次のステージ」に選ばれたのは検証対象のサーチャージ対象ステージ', action.main.stage === stage.id, action.main.stage);
-const expectedCost = E.stageStaminaCost(stage); // お助けキャラ込みで stage.stamina + 5 のはず
+const expectedCost = E.stageStaminaCost(stage); // お助けモンスター込みで stage.stamina + 5 のはず
 ok('サーチャージが実際に乗っている(0ではない)', expectedCost === stage.stamina + E.HELP_STAMINA_SURCHARGE, expectedCost);
 ok('ホーム画面の必要スタミナ表示がサーチャージ込みの値と一致する(以前は生のstage.staminaを表示していた)', new RegExp(`⚡${expectedCost}(?!\\d)`).test(action.sub), [action.sub, expectedCost, stage.stamina]);
 api.STATE.stamina = expectedCost - 1; // サーチャージ込みでは足りないが、生の値(stage.stamina)なら足りてしまう量
@@ -40,21 +40,21 @@ const actionShort = E.nextAction();
 ok('サーチャージ込みで足りない時は出撃ボタンがdisabledになる(以前は生の値で判定し、押せてしまっていた)', actionShort.main.disabled === true, actionShort.main);
 
 // --- なぜ増えているか見えるように: helperSurchargeNote()とその表示箇所 ---
-ok('お助けキャラがいない時は注記が出ない', (() => { api.STATE.slots = api.STATE.slots.map(() => null); return E.helperSurchargeNote() === ''; })());
+ok('お助けモンスターがいない時は注記が出ない', (() => { api.STATE.slots = api.STATE.slots.map(() => null); return E.helperSurchargeNote() === ''; })());
 api.STATE.slots[0] = E.HELP_SLOT_ID;
-ok('お助けキャラがいる時は理由の注記が出る', E.helperSurchargeNote().includes(`+${E.HELP_STAMINA_SURCHARGE}`));
-ok('ホーム画面のサブテキストにもお助けキャラの注記が出る', E.nextAction().sub.includes('お助けキャラ'));
+ok('お助けモンスターがいる時は理由の注記が出る', E.helperSurchargeNote().includes(`+${E.HELP_STAMINA_SURCHARGE}`));
+ok('ホーム画面のサブテキストにもお助けモンスターの注記が出る', E.nextAction().sub.includes('お助けモンスター'));
 const rowHtml = E.renderStageRow(stage);
-ok('ステージ一覧の行にもお助けキャラの注記が出る', rowHtml.includes('お助けキャラ') && rowHtml.includes(`⚡${expectedCost}`));
+ok('ステージ一覧の行にもお助けモンスターの注記が出る', rowHtml.includes('お助けモンスター') && rowHtml.includes(`⚡${expectedCost}`));
 
-// --- 初回無料チュートリアルはお助けキャラがいてもサーチャージが乗らない(0のまま)ので、
-//     誤って「(お助けキャラ+5)」という注記を出してはいけない ---
+// --- 初回無料チュートリアルはお助けモンスターがいてもサーチャージが乗らない(0のまま)ので、
+//     誤って「(お助けモンスター+5)」という注記を出してはいけない ---
 const tu1 = E.findStage('tu1');
 api.STATE.clearedStages = []; // tu1が未クリア = 初回無料の状態
-ok('未クリアのチュートリアルはお助けキャラがいてもコストが0のまま', E.stageStaminaCost(tu1) === 0, E.stageStaminaCost(tu1));
-ok('未クリアのチュートリアルでは誤った注記(お助けキャラ+5)を出さない', E.helperSurchargeNote(tu1) === '', E.helperSurchargeNote(tu1));
+ok('未クリアのチュートリアルはお助けモンスターがいてもコストが0のまま', E.stageStaminaCost(tu1) === 0, E.stageStaminaCost(tu1));
+ok('未クリアのチュートリアルでは誤った注記(お助けモンスター+5)を出さない', E.helperSurchargeNote(tu1) === '', E.helperSurchargeNote(tu1));
 // クリア済み(2回目以降は定額10)でも、チュートリアルはそもそもサーチャージの対象外
-// (stageStaminaCostがtier:'tu'を専用ルールで扱い、お助けキャラの有無を見ない)
+// (stageStaminaCostがtier:'tu'を専用ルールで扱い、お助けモンスターの有無を見ない)
 api.STATE.clearedStages = [tu1.id];
 ok('クリア済みチュートリアルは定額10になる(サーチャージは乗らない)', E.stageStaminaCost(tu1) === 10, E.stageStaminaCost(tu1));
 ok('クリア済みチュートリアルでも誤った注記は出さない', E.helperSurchargeNote(tu1) === '', E.helperSurchargeNote(tu1));

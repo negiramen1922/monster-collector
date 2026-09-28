@@ -21,13 +21,13 @@ const skill2 = kit.skill2 || kit.skill1;
 const htmlLocked = E.kitLinesHtml(lowStarMon, 3, null, null);
 ok('スキル2の名前が表示される', htmlLocked.includes(skill2.name), skill2.name);
 ok('スキル2の説明文が表示される(以前は出ていなかった)', skill2.desc ? htmlLocked.includes(skill2.desc) : true, skill2.desc);
-ok(`★${E.SECOND_SKILL_STAR}で解放されるロックメッセージが出る`, htmlLocked.includes(`★${E.SECOND_SKILL_STAR}に昇格すると使えるようになります`));
+ok(`★${E.SECOND_SKILL_STAR}で解放されるロックメッセージが出る`, htmlLocked.includes(`★${E.SECOND_SKILL_STAR}に星刻すると使えるようになります`));
 ok('未解放スキル2にレベル上げボタン(data-skill-up)は出ない', !htmlLocked.includes('data-skill-up'));
 ok('ロック中のカードにlockedクラスが付く', /class="skill-card k-skill locked"/.test(htmlLocked), htmlLocked.match(/class="skill-card[^"]*"/g));
 
 // --- ★4(解放済み)の状態: 通常のスキル2カードになる ---
 const htmlUnlocked = E.kitLinesHtml(lowStarMon, 4, null, null);
-ok('★4になるとロックメッセージは出ない', !htmlUnlocked.includes('に昇格すると使えるようになります'));
+ok('★4になるとロックメッセージは出ない', !htmlUnlocked.includes('に星刻すると使えるようになります'));
 ok('★4になるとスキル2の説明文がそのまま表示される', skill2.desc ? htmlUnlocked.includes(skill2.desc) : true);
 
 // --- 所持済み(showMonsterDetail相当)でも同じ振る舞い: 強化ボタンはo.skill2Lvに関わらず出ない ---
