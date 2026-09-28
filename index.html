@@ -2366,6 +2366,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   background:var(--panel2); border:1px solid var(--line); opacity:.55; }
 .stam-ladder span.used{ opacity:.3; text-decoration:line-through; }
 .stam-ladder span.next{ opacity:1; border-color:var(--gold); color:var(--gold); }
+.stam-ladder span small{ display:block; font-size:8.5px; font-weight:700; }
 .ui-warn{ font-size:11px; font-weight:700; color:#ffcf6a; background:#3a2f1a; border:1px solid #7a5f2a; border-radius:10px; padding:8px 10px; margin-bottom:10px; }
 .ui-effects{ display:flex; flex-direction:column; gap:5px; }
 .ui-effect{ display:flex; align-items:center; gap:8px; padding:6px 9px; border-radius:9px;
@@ -3058,7 +3059,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.2.005';
+const GAME_VERSION = 'α0.2.006';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5637,7 +5638,9 @@ const SHOP_CRYSTAL_ITEMS = [
 // 周回券はショップでは売らない(配布だけ)。仕組みは SWEEP_TICKETS / runSweep にある
 /* ---- スタミナ回復: 1日8回まで。回すたびに値上がりする(1回目は無料)。
    1日ぶんの合計は 150×8 = 1,200スタミナ / 星結晶1,700 ---- */
-const STAMINA_REFILL_PRICES = [0, 50, 100, 150, 200, 300, 400, 500];
+// 1回目は無料、そのあとは同じ値段を3回ずつ(50×3 → 100×3 → … → 500×3)。1日22回まで
+const STAMINA_REFILL_STEPS = [[0, 1], [50, 3], [100, 3], [150, 3], [200, 3], [300, 3], [400, 3], [500, 3]];
+const STAMINA_REFILL_PRICES = STAMINA_REFILL_STEPS.flatMap(([p, n]) => Array(n).fill(p));
 const STAMINA_REFILL_QTY = 150;
 function staminaRefillUsed(){ return ensureDaily().counts.staminaBuy || 0; }
 function staminaRefillLeft(){ return Math.max(0, STAMINA_REFILL_PRICES.length - staminaRefillUsed()); }
@@ -9799,7 +9802,11 @@ function renderShop(){
         <span class="shop-price">${stamPrice === null ? '本日終了' : stamPrice === 0 ? '<b class="stam-free">無料</b>' : `${CRYSTAL_ICON}${stamPrice}`}<small class="ev-left">本日あと${staminaRefillLeft()}回</small></span>
         <button class="btn btn-sm ${stamPrice !== null && (STATE.crystals || 0) >= stamPrice ? '' : 'btn-ghost'}" data-stamina-refill="1" ${stamPrice === null ? 'disabled' : ''}>${stamPrice === 0 ? '受け取る' : '購入'}</button>
       </div>
-      <div class="stam-ladder">${STAMINA_REFILL_PRICES.map((p, i) => `<span class="${i < staminaRefillUsed() ? 'used' : i === staminaRefillUsed() ? 'next' : ''}">${p === 0 ? '無料' : p}</span>`).join('')}</div>`;
+      <div class="stam-ladder">${(() => { let at = 0; const used = staminaRefillUsed();
+        return STAMINA_REFILL_STEPS.map(([p, n]) => { const from = at; at += n;
+          const cls = used >= at ? 'used' : used >= from ? 'next' : '';
+          const left = cls === 'next' && n > 1 ? `<small>あと${at - used}</small>` : '';
+          return `<span class="${cls}">${p === 0 ? '無料' : `${p}${n > 1 ? `×${n}` : ''}`}${left}</span>`; }).join(''); })()}</div>`;
   const crystalRow = def => `
       <div class="shop-row">
         <span class="shop-item">${def.icon}<span class="shop-item-name">${def.label}<small>${def.item ? `${def.qty}枚` : `+${def.qty}`}</small></span></span>
@@ -19360,6 +19367,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 122, version: 'α0.2.006', date: '9/28', title: 'スタミナ回復の値上がりをゆるやかに', body: '星結晶でのスタミナ回復(+150)は、1回目が無料で、そのあとは<em>同じ値段で3回ずつ</em>買えるようになりました(50×3 → 100×3 → 150×3 → 200×3 → 300×3 → 400×3 → 500×3)。1日に回復できる回数は8回から<em>22回</em>に増えます。' },
   { id: 121, version: 'α0.2.005', date: '9/28', title: '周回は「結果だけ」から', body: '<span class="nt-i">・周回を開くと、最初から<em>「結果だけ」</em>が選ばれるようにしました。スタミナを使って、戦闘をせずに報酬だけをまとめて受け取れます。×1〜×4の速さを選ぶと、次からはその速さを覚えています。</span><span class="nt-i">・イベントのステージを「結果だけ」で回したとき、結果に<em>イベントメダル</em>(イベントボーナスこみ)を出すようにしました。ボーナスは今の編成で数えます。</span>' },
   { id: 120, version: 'α0.2.004', date: '9/28', title: 'ガチャとイベントショップを使いやすく', body: '<span class="nt-i">・ガチャのピックアップの切り替えを、イベント一覧と同じ横スクロールにしました。</span><span class="nt-i">・ガチャやイベントの切り替えボタンを押しても、横スクロールの位置が最初に戻らないようにしました。</span><span class="nt-i">・イベントショップの品の左にアイコンを付け、値段はメダルのアイコンと数字で表示するようにしました。</span><span class="nt-i">・モンスター召喚券・遺物召喚券(1回券)で<em>10連</em>を引けるようになりました。券が10枚に足りないときは、足りない回数ぶんを星結晶で払えます(10連と同じ単価で、1回135)。</span>' },
   { id: 119, version: 'α0.2.003', date: '9/28', title: 'お詫びの召喚券は既存プレイヤーだけに', body: 'イベント開始時間変更のお詫び(モンスター召喚券3枚)は、すでに遊んでいる方だけにお届けするようにしました。これからはじめる方には届きません。' },
