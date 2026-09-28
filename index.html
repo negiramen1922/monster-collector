@@ -283,6 +283,10 @@ body{
 .ss-block{ margin-bottom:10px; }
 .ss-label{ font-size:11px; font-weight:800; color:var(--gold); margin-bottom:4px; }
 .ss-line{ font-size:12px; margin-top:4px; }
+.sr-block{ border:1px solid rgba(232,180,85,.35); border-radius:12px; padding:9px 11px; background:rgba(232,180,85,.06); }
+.sr-lead{ font-size:11.5px; color:var(--dim); line-height:1.5; margin-bottom:5px; }
+.sr-row{ font-size:12px; margin-top:4px; display:flex; gap:7px; align-items:flex-start; line-height:1.5; }
+.sr-dot{ flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--gold); margin-top:6px; }
 .ss-actions{ display:flex; gap:8px; margin-top:12px; }
 .ss-actions .btn{ flex:1; }
 .ss-actions .sweep-btn{ flex:0 0 96px; }
@@ -3580,6 +3584,60 @@ function penalizedIds(){
 }
 
 // apply a formation bonus to a battle unit (allies and enemies alike)
+/* ---- ステージ効果(EXステージ・総力戦の「特殊ルール」) ----
+   stage.rules = [{ who, side, stat, dmgDealt, dmgTaken, when, label }]
+     who      … 当てはまるユニット。{ species, element, role, family, ref } のどれか(省略で全員)
+     side     … 'ally' | 'enemy' | 'both'(省略で both)
+     stat     … { hp, str, pdef, mdef, spd } を割合で(+0.25 なら+25%)。戦闘に入るときに1回だけ掛かる
+     dmgDealt … 与ダメージの増減(割合)
+     dmgTaken … 受けるダメージの増減(割合)
+     when     … 戦闘中の条件(STAGE_RULE_WHEN のキー。省略で常時)
+     label    … 画面に出す文
+   総力戦の「タンク編成のみ」「魔法系のみ」も、who と stat/dmg で同じように書ける。 */
+const STAGE_RULE_WHEN = {
+  lowHp30: u => u.hp / u.maxHp <= 0.3,
+  lowHp50: u => u.hp / u.maxHp <= 0.5,
+  fullHp:  u => u.hp >= u.maxHp,
+};
+function ruleHits(r, u, isEnemy){
+  const side = r.side || 'both';
+  if(side !== 'both' && (side === 'enemy') !== !!isEnemy) return false;
+  const w = r.who;
+  if(!w) return true;
+  if(w.species && u.species !== w.species) return false;
+  if(w.element && u.element !== w.element) return false;
+  if(w.role && u.role !== w.role) return false;
+  if(w.family && u.family !== w.family) return false;
+  if(w.ref && u.ref !== w.ref) return false;
+  return true;
+}
+function stageRulesOf(stage){ return (stage && stage.rules) || []; }
+// ユニットを作ったあとに1回だけ掛ける(HPは最大値も動かす)
+function applyStageRules(u, stage, isEnemy){
+  const rules = stageRulesOf(stage).filter(r => r.stat && ruleHits(r, u, isEnemy));
+  if(!rules.length) return;
+  const add = { hp: 0, str: 0, pdef: 0, mdef: 0, spd: 0 };
+  rules.forEach(r => Object.keys(add).forEach(k => { if(r.stat[k]) add[k] += r.stat[k]; }));
+  const mul = k => Math.max(0.1, 1 + add[k]);
+  u.maxHp = Math.max(1, Math.round(u.maxHp * mul('hp')));
+  u.hp = u.maxHp;
+  u.str = Math.max(1, Math.round(u.str * mul('str')));
+  u.pdef = Math.max(0, Math.round(u.pdef * mul('pdef')));
+  u.mdef = Math.max(0, Math.round(u.mdef * mul('mdef')));
+  u.spd = Math.max(1, Math.round(u.spd * mul('spd')));
+}
+// ダメージを出すときに見る。kind は dmgDealt(殴るほう) か dmgTaken(殴られるほう)
+function stageDmgMod(u, kind){
+  const rules = stageRulesOf(battleUI && battleUI.stage);
+  if(!rules.length) return 0;
+  let n = 0;
+  rules.forEach(r => {
+    if(!r[kind] || !ruleHits(r, u, u.isEnemy)) return;
+    if(r.when && !(STAGE_RULE_WHEN[r.when] || (() => true))(u)) return;
+    n += r[kind];
+  });
+  return n;
+}
 function applyFormationBonus(u, f){
   applyStatBonus(u, u.row === 'front' ? f.frontBonus : f.backBonus);
 }
@@ -8334,9 +8392,70 @@ function buildEventStages(ev){
     };
   });
 }
+/* ---- EXステージ ----
+   イベントの5層をクリアすると挑める腕試し。スタミナを使わず、イベントメダルも落とさない。
+   報酬はイベントミッションで受け取る(何度でも挑めるが、もらえるのは初回だけ)。
+   ステージ効果(rules)は applyStageRules / stageDmgMod が見る。
+   中身の正は docs/design/次回イベントのEXステージ.json と 次回イベントのEXステージ_ウェーブ.json */
+const EX_UNLOCK_TIER = 5;            // 何層をクリアすると開くか
+const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
+const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}]};
+const EVENT_EX_RULES = {
+  ex_fenrir: {
+    name: '神々の黄昏',
+    lead: '神を喰らう狼の伝承をそのままルールにした。種族で編成が変わる。',
+    rules: [
+      { who:{ species:'beast' },     side:'ally', stat:{ str:0.25, hp:0.25 },  label:'ビーストの味方 STR・HP +25%' },
+      { who:{ species:'celestia' },  side:'ally', stat:{ str:-0.25, hp:-0.25 }, label:'セレスティアの味方 STR・HP -25%' },
+    ],
+  },
+  ex_abaddon: {
+    name: '底なしの淵',
+    lead: '硬い敵を削って仕留める形に、いつもの光属性の有利が使えない縛りが乗る。',
+    rules: [
+      { side:'both',  dmgTaken:0.50, when:'lowHp30',  label:'敵も味方も HPが30%以下のとき 受けるダメージ+50%' },
+      { side:'enemy', stat:{ hp:0.50 },               label:'敵 最大HP+50%' },
+      { side:'enemy', stat:{ mdef:0.40 },             label:'敵 魔法防御+40%' },
+      { who:{ element:'light' }, side:'ally', dmgDealt:-0.30, label:'光属性の味方 与ダメージ-30%' },
+      { who:{ element:'dark' },  side:'ally', dmgTaken:-0.20, label:'闇属性の味方 受けるダメージ-20%' },
+    ],
+  },
+};
+function exKeyOf(ev){ return ev.key === 'ev_fenrir' ? 'ex_fenrir' : ev.key === 'ev_abaddon' ? 'ex_abaddon' : null; }
+function buildEventExStages(ev){
+  const key = exKeyOf(ev);
+  const def = key && EVENT_EX[key];
+  if(!def) return [];
+  const meta = EVENT_EX_RULES[key];
+  return def.map(t => {
+    const waves = t.waves.map((list, wi) => {
+      const last = wi === t.waves.length - 1;
+      return list.map((ref, i) => {
+        const boss = last && i === 0;
+        const star = Math.min(EX_STAR_CAP, Math.max(MON_BY_ID[ref].rarity, boss ? t.boss : t.mob));
+        return { ref, level: t.lv, star, boss: boss || undefined };
+      });
+    });
+    return {
+      id: `${ev.key}_ex${t.ex}`, type: 'event', tier: 'event', eventKey: ev.key, ex: t.ex,
+      name: `${meta.name}・EX${t.ex}`,
+      terrain: ev.terrain, element: ev.element, rec: t.lv,
+      stamina: 0,                       // EXはスタミナを使わない
+      power: 1, enemySkill: t.sk, boss: true, firstClear: 0, gold: 0,
+      requires: `${ev.key}_${EX_UNLOCK_TIER}`,
+      rules: meta.rules,
+      rulesLead: meta.lead,
+      desc: `期間限定・EX${t.ex}(推奨Lv${t.lv})。特別なルールで戦う腕試し。スタミナを使わず、報酬はミッションで受け取る。`,
+      waves,
+    };
+  });
+}
+
 EVENTS.forEach(ev => {
   ev.stages = buildEventStages(ev);
+  ev.exStages = buildEventExStages(ev);
   ev.stages.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
+  ev.exStages.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
   // イベント全層の獲得★数(最大 層数×3)に応じて石を配布する実績。イベント終了後も
   // clearedStages/stageStarsは残るので、期限が切れても未回収分は引き続き受け取れる。
   const maxStars = ev.tiers.length * 3;
@@ -12640,6 +12759,18 @@ function dropIconsHtml(st){
   return `<div class="drop-row"><span class="rare-label">ドロップ</span>${st.drops.kinds.map(([f, k]) => `<span class="drop-mat" title="${MAT_FAMILIES[f].name(k)}">${MAT_FAMILIES[f].icon(k)}<small>${MAT_FAMILIES[f].name(k)}</small></span>`).join('')}<small>${tiers}(3種からランダム)</small></div>`;
 }
 
+/* ステージ効果(EXステージ・総力戦)。出撃前に何が起きるか分かるように並べる */
+function stageRulesHtml(st){
+  const rules = stageRulesOf(st).filter(r => r.label);
+  if(!rules.length) return '';
+  return `
+    <div class="ss-block sr-block">
+      <div class="ss-label">ステージ効果</div>
+      ${st.rulesLead ? `<div class="sr-lead">${st.rulesLead}</div>` : ''}
+      ${rules.map(r => `<div class="sr-row"><span class="sr-dot"></span>${r.label}</div>`).join('')}
+    </div>`;
+}
+
 // difficulty list (クエスト → 難易度)
 function renderTierList(){
   return `
@@ -12741,6 +12872,7 @@ function renderStageSheet(){
             ${st.rares.map(id => `<span class="rare-mon" title="${MON_BY_ID[id].name}"><img src="${imgSrc(id)}" alt="">${'★'.repeat(MON_BY_ID[id].rarity)}<small>${pctText(recruitChanceOf(MON_BY_ID[id], true, st))}</small></span>`).join('')}
           </div>
         </div>` : ''}
+      ${stageRulesHtml(st)}
       <div class="ss-block">
         <div class="ss-label">報酬</div>
         <div class="ss-line">${goldText(st.gold || 0)}　${Object.entries(st.pots || {}).map(([k, n]) => `${itemIcon(k)}×${n}`).join('　')}</div>
@@ -13233,6 +13365,7 @@ function spawnWave(stage, waveIndex){
     u.x = slotX(f, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
     ['hp', 'maxHp', 'str', 'pdef', 'mdef'].forEach(k => { u[k] = Math.round(u[k] * (stage.power || 1)); });
+    applyStageRules(u, stage, true);
     applyFormationBonus(u, f);
     units.push(u);
   });
@@ -13484,6 +13617,7 @@ function startBattle(stageId, opts){
     if(id !== HELP_SLOT_ID) applyRuneBonusToUnit(u, runeBonusOf(id));
     const relicId = equippedRelicOf(id);
     if(relicId) applyRelicToUnit(u, m, relicId);
+    applyStageRules(u, stage, false);
     applyFormationBonus(u, formation);
     party.push(u);
   });
@@ -15657,7 +15791,8 @@ function strike(ctx, target, o){
     return { miss: true, dmg: 0 };
   }
   const crit = o.raw === undefined && !o.noCrit && (stone || chance(BASE_CRIT_RATE + passiveMod(actor, 'critBonus', target) + buffV(actor, 'critUp') + (actor.bonusCrit || 0) + (act.critBonus || 0) - passiveMod(target, 'critTakenCut')));
-  let bonus = passiveMod(actor, 'dmgBonus', target, act, kind) + allyMod(actor, 'allyDmgBonus', target, act, kind) + (actor.flags.fireBoost || 0) + (kind === 'normal' ? (actor.normalDmgBonus || 0) : 0)
+  let bonus = passiveMod(actor, 'dmgBonus', target, act, kind) + allyMod(actor, 'allyDmgBonus', target, act, kind)
+    + stageDmgMod(actor, 'dmgDealt') + stageDmgMod(target, 'dmgTaken') + (actor.flags.fireBoost || 0) + (kind === 'normal' ? (actor.normalDmgBonus || 0) : 0)
     + (actor.gimmick === 'scorch' && hasStatus(target, 'burn') ? 0.2 : 0)
     + (kind === 'skill' ? (actor.skillDmgBonus || 0) : 0) + (kind === 'ult' ? (actor.ultDmgBonus || 0) : 0);
   (act.bonusIf || []).forEach(b => { if(conditionMet(b.cond, actor, target)) bonus += b.add; });
