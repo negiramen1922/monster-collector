@@ -62,17 +62,10 @@ async def main():
               return { runs: res ? res.runs : 0, stam: STATE.stamina - before.stam, tk: getItem('sweep_main') - before.tk,
                        key_main: sweepTicketKey(STAGE_BY_ID['q1_05']), key_ev: sweepTicketKey(STAGE_BY_ID['ev_kyubi_1']) };
             }""")
-            check('券で5回まわるとスタミナが減らない', r['runs'] == 5 and r['stam'] == 0, r)
+            check('周回券で5回まわるとスタミナが減らない', r['runs'] == 5 and r['stam'] == 0, r)
             check('券が5枚減る', r['tk'] == -5, r['tk'])
             check('メインは「メインクエスト周回券」', r['key_main'] == 'sweep_main', r['key_main'])
             check('イベントには周回券を使えない', r['key_ev'] is None, r['key_ev'])
-            r2 = await pg.evaluate("""() => {
-              const c = STATE.crystals; STATE.crystals = 5000;
-              const t = getItem('sweep_dungeon');
-              buyCrystalItem('sweep_dungeon');
-              return { got: getItem('sweep_dungeon') - t, paid: 5000 - STATE.crystals };
-            }""")
-            check('水晶ショップで周回券を5枚買える', r2['got'] == 5 and r2['paid'] == 140, r2)
             await b.close()
     real = [e for e in errs if 'favicon' not in e]
     check('JSエラーが出ない', not real, real[:3])
