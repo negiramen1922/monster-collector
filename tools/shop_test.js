@@ -6,7 +6,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
   buyShopItem, shopBought, shopDailyState, todaysSaleSku, shopGoldPrice, shopSaleMap, refreshShop, shopRefreshCost, SHOP_REFRESH_COSTS,
-  SHOP_GOLD_ITEMS, SHOP_PVP_ITEMS, SHOP_CRYSTAL_ITEMS, buyCrystalItem,
+  SHOP_GOLD_ITEMS, SHOP_PVP_ITEMS, SHOP_CRYSTAL_ITEMS, buyCrystalItem, buyStaminaRefill,
   pvpDailyMax, pvpChallengesLeft, ensurePvpDaily, PVP_DAILY_MAX,
   getItem, addGold, addItem, currentDayKey,
 };`);
@@ -101,17 +101,17 @@ const before3 = E.getItem('relic_core_3');
 E.buyShopItem('pvp', 'pvp_core3');
 ok('PVPポイント不足だと購入できない', E.getItem('relic_core_3') === before3);
 
-// --- crystal shop: stamina refill (100石 -> スタミナ+150) ---
+// --- スタミナ回復は1日8回、回すたびに値上がり(α0.1.09〜。専用のテストは stamina_refill_test.js) ---
 S.crystals = 1000;
 S.stamina = 100;
-E.buyCrystalItem('stamina');
-ok('水晶でスタミナを回復できる(100石で+150)', S.stamina === 250 && S.crystals === 900, [S.stamina, S.crystals]);
+E.buyStaminaRefill();
+ok('1回目のスタミナ回復は無料で+150', S.stamina === 250 && S.crystals === 1000, [S.stamina, S.crystals]);
 
-// --- crystal shop: repeatable, not capped to 1/day like the gold/PVP shops ---
-E.buyCrystalItem('stamina');
-ok('水晶ショップは1日1回に制限されない(連続購入できる)', S.stamina === 400 && S.crystals === 800, [S.stamina, S.crystals]);
+E.buyStaminaRefill();
+ok('2回目は50石で+150(連続して回復できる)', S.stamina === 400 && S.crystals === 950, [S.stamina, S.crystals]);
 
 // --- crystal shop: PVP挑戦券 (180石 -> 本日の挑戦回数+3) ---
+S.crystals = 800;
 S.pvpDaily = null; // force a fresh day so bonus starts at 0
 const maxBefore = E.pvpDailyMax();
 const leftBefore = E.pvpChallengesLeft();

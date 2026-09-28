@@ -5,7 +5,8 @@ const E = global.__e;
 let fails = 0;
 const ok = (n, c, i) => { if(!c) fails++; console.log((c ? '✅' : '❌') + ' ' + n + (i !== undefined ? '  ' + JSON.stringify(i) : '')); };
 const CAP = { q1: 1, q2: 2, q3: 2, q4: 3, q5: 3, q6: 4, q7: 4 };
-const MIN = { q6: 2, q7: 2 };
+// α0.1.075でq6/q7にもTierIを落とすようにした(案A)ので、下限は全ティアでTierI
+const MIN = {};
 Object.entries(CAP).forEach(([t, cap]) => {
   [t, t + 'h'].forEach(tk => {
     const list = E.STAGES.filter(s => s.tier === tk && s.drops);

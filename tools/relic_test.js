@@ -77,8 +77,8 @@ ok('スキルLv10まで上げられる', st.skillLv === 10, st.skillLv);
 ok('上限を超えては上げられない', E.upgradeRelicSkill('rel_flame_ember') === false);
 ok('コアのティア: Lv1-3はTier1・4-6はTier2・7-9はTier3', E.relicSkillCoreTier(1) === 1 && E.relicSkillCoreTier(4) === 2 && E.relicSkillCoreTier(7) === 3);
 
-// --- アーティファクト工房(旧鍛冶場): scrap and core come only from idle production, no crafting ---
-ok('アーティファクト工房に改名', E.FACILITIES.smithy.name === 'アーティファクト工房');
+// --- 霊素工房(旧アーティファクト工房): 霊素鉱と霊素核は放置生産だけ、合成はしない ---
+ok('霊素工房に改名', E.FACILITIES.smithy.name === '霊素工房', E.FACILITIES.smithy.name);
 S.clearedStages.push('q1_10'); // unlocks the workshop facility (初級全クリ)
 const bs = E.baseState().smithy;
 bs.at = Date.now() - 3 * 3600 * 1000; // 3 hours ago, at facility Lv1
@@ -88,9 +88,9 @@ const coreIdle = E.idleCoreAmount();
 ok('Lv1で3時間経過するとコアTierIが約1個貯まる', Math.abs(coreIdle - 1) < 0.05, coreIdle);
 const before2 = { scrap: E.getItem('relic_scrap'), core: E.getItem('relic_core_1') };
 E.collectFacility('smithy', true);
-ok('工房を回収するとスクラップとコアが両方増える', E.getItem('relic_scrap') > before2.scrap && E.getItem('relic_core_1') > before2.core,
+ok('工房を回収すると霊素鉱と霊素核が両方増える', E.getItem('relic_scrap') > before2.scrap && E.getItem('relic_core_1') > before2.core,
   [before2, { scrap: E.getItem('relic_scrap'), core: E.getItem('relic_core_1') }]);
-ok('コアTier3の名称表示', E.itemName('relic_core_3') === '遺物のコア TierIII');
+ok('霊素核IIIの名称表示', E.itemName('relic_core_3') === '霊素核III', E.itemName('relic_core_3'));
 
 // --- condition matching ---
 const elfMon = { element: 'grass', role: 'support' };
@@ -156,8 +156,8 @@ Object.values(E.RELICS).forEach(r => r.effects.forEach((e, i) => {
     : e.cond && e.cond.type === 'mon' ? 33 : CAP_BY_STAR[r.star]);
   if(slotCap(e) !== want) off.push([r.id, e.stat, slotCap(e), want]);
 }));
-ok('全56種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
-ok('遺物は56種', Object.keys(E.RELICS).length === 56);
+ok('全58種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
+ok('遺物は58種(★4の霜嵐の牙飾り・奈落を覗く眼を追加)', Object.keys(E.RELICS).length === 58, Object.keys(E.RELICS).length);
 ok('全遺物にアイコンがある', Object.values(E.RELICS).every(r => typeof r.icon === 'string' && r.icon.includes('data:image')), Object.values(E.RELICS).filter(r => !r.icon).map(r => r.id));
 const gachaMin = Math.min(...Object.values(E.RELICS).filter(r => r.channel !== 'distributed').flatMap(r => r.effects.filter(e => e.stat !== 'cut').map(slotCap)));
 const distMax = Math.max(...Object.values(E.RELICS).filter(r => r.channel === 'distributed').flatMap(r => r.effects.map(slotCap)));

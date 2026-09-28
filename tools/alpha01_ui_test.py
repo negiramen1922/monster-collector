@@ -42,7 +42,7 @@ async def main():
             await pg.evaluate("() => { currentScreen = 'dex'; render(); }")
             await pg.wait_for_timeout(400)
             total = await pg.evaluate('() => MONSTERS.length')
-            check('図鑑のモンスターは135体', total == 135, total)
+            check('図鑑のモンスターは139体', total == 139, total)
             await pg.screenshot(path=str(OUT / 'a01_dex.png'))
             # 名前の長いキャラが増えても、図鑑のグリッドが画面の右からはみ出さない(スマホ幅)
             for w in (360, 390):
@@ -63,7 +63,7 @@ async def main():
             await pg.wait_for_timeout(400)
             n_rel = await pg.evaluate('() => Object.keys(RELICS).length')
             no_icon = await pg.evaluate('() => Object.values(RELICS).filter(r => !r.icon || !r.icon.includes("data:image")).map(r => r.id)')
-            check('遺物は56種', n_rel == 56, n_rel)
+            check('遺物は58種', n_rel == 58, n_rel)
             check('全遺物にアイコンがある', not no_icon, no_icon)
             await pg.screenshot(path=str(OUT / 'a01_relics.png'), full_page=True)
             await pg.evaluate("() => showRelicDetail('rel_hellfire_sword')")

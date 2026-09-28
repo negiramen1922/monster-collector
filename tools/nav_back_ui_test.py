@@ -45,10 +45,10 @@ async def main():
             check('ホーム → キャラでも「ホームに戻る」', await cur() == 'dex' and 'ホームに戻る' in await pg.locator('[data-screen-back]').inner_text())
             # 下のメニューは5つ。キャラ(編成・キャラ一覧・遺物)と拠点(施設・ショップ)は上のタブで切り替え、PVPは探索のメニューに
             navs = await pg.evaluate("() => [...document.querySelectorAll('.nav-btn')].map(b => b.dataset.nav + ':' + b.textContent.replace(/[0-9+]/g, '').trim())")
-            check('下のメニューは ガチャ・キャラ・ホーム・探索・拠点 の5つ', navs == ['gacha:🎰ガチャ', 'party:🧩キャラ', 'home:🏠ホーム', 'battle:⚔️探索', 'base:🏯拠点'], navs)
+            check('下のメニューは ガチャ・育成・ホーム・探索・拠点 の5つ', navs == ['gacha:🎰ガチャ', 'party:🧩育成', 'home:🏠ホーム', 'battle:⚔️探索', 'base:🏯拠点'], navs)
             await pg.evaluate("() => document.querySelector('.nav-btn[data-nav=\"party\"]').click()"); await pg.wait_for_timeout(250)
             tabs = await pg.evaluate("() => [...document.querySelectorAll('.group-tab')].map(b => b.textContent)")
-            check('キャラを押すと編成が最初、上に 編成・キャラ一覧・遺物・ルーン のタブ', await cur() == 'party' and tabs == ['編成', 'キャラ一覧', '遺物', 'ルーン'], tabs)
+            check('育成を押すと編成が最初、上に 編成・モンスター図鑑・遺物・ルーン のタブ', await cur() == 'party' and tabs == ['編成', 'モンスター図鑑', '遺物', 'ルーン'], tabs)
             await pg.screenshot(path=str(OUT / 'nav5_party.png'))
             await pg.evaluate("() => document.querySelector('[data-group-tab=\"relics\"]').click()"); await pg.wait_for_timeout(250)
             check('遺物タブ(下のメニューはキャラのまま光る)', await cur() == 'relics' and await pg.evaluate("() => document.querySelector('.nav-btn.active').dataset.nav") == 'party')

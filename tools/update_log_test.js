@@ -5,7 +5,7 @@
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
-  NOTICES, UPDATE_LOG, unreadNotices, openOverlay, GAME_VERSION,
+  NOTICES, UPDATE_LOG, liveNotices, unreadNotices, openOverlay, GAME_VERSION,
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -25,7 +25,8 @@ ok('versionの重複がない', new Set(versions).size === versions.length, vers
 // --- unreadNotices(): counts unseen items from NOTICES + UPDATE_LOG combined ---
 S.noticeSeen = 0;
 S.updateLogSeen = 0;
-ok('未読件数はNOTICES+UPDATE_LOGの合計', E.unreadNotices() === E.NOTICES.length + E.UPDATE_LOG.length, E.unreadNotices());
+// at つきのニュース(掲載時刻より前)は未読に数えない。イベント開始と同時にバッジが出る
+ok('未読件数は掲載中のニュース+UPDATE_LOGの合計', E.unreadNotices() === E.liveNotices().length + E.UPDATE_LOG.length, E.unreadNotices());
 
 S.noticeSeen = E.NOTICES[0].id; // all news read
 ok('ニュースだけ既読にするとUPDATE_LOG分だけ残る', E.unreadNotices() === E.UPDATE_LOG.length, E.unreadNotices());
@@ -40,7 +41,7 @@ S.updateLogSeen = 0;
 S.friends = []; // openOverlay('friends') branch not taken here; keep friends-unrelated state sane
 window.__authBackend = { kind: 'local' };
 E.openOverlay('notices');
-ok('お知らせを開くとニュース側が既読になる', S.noticeSeen === E.NOTICES[0].id, S.noticeSeen);
+ok('お知らせを開くとニュース側が既読になる', S.noticeSeen === E.liveNotices()[0].id, S.noticeSeen);
 ok('お知らせを開くとアップデート内容側も既読になる', S.updateLogSeen === E.UPDATE_LOG[0].id, S.updateLogSeen);
 ok('開いた直後は未読0になる', E.unreadNotices() === 0, E.unreadNotices());
 

@@ -1,10 +1,10 @@
 /* ad-hoc check for event-quest relic distribution: each event's 7 tiers pay out its
    element's relic on a 1/3/5/6/7 schedule (reaching full 凸4/4 for free) plus enhancement
-   material on 2/4, and a star-count achievement pays crystals across the whole event. */
+   material on 2/4, and the ★ count is tracked by the event missions (eventMissions). */
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   STATE_ref: () => STATE, DEFAULT_STATE, EVENTS, STAGE_BY_ID, ACHIEVEMENTS, EVENT_ELEMENT_RELIC,
-  grantStageRewards, stageStars, getItem, setAccount: a => { ACCOUNT = a; },
+  grantStageRewards, stageStars, getItem, eventMissions, setAccount: a => { ACCOUNT = a; },
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -37,16 +37,18 @@ for(let n = 1; n <= 10; n++){
 }
 ok('10層クリアで凸4/4(完凸)まで届く', (S.relics[relicId] || {}).dupeUsed === 0 && (S.relics[relicId] || {}).dupe === 4, S.relics[relicId]);
 
-// --- star-count achievement: value() sums stageStars across all 7 of this event's stages ---
-const a = E.ACHIEVEMENTS.find(x => x.id === `a_event_stars_${ev.key}`);
-ok('イベント★数実績が登録されている', !!a);
-ok('未クリアなら★0', a.value() === 0, a.value());
+// --- ★の集めぐあいは実績ではなくイベントミッションで数える(α0.1.09〜) ---
+ok('イベント★数の実績は残っていない', !E.ACHIEVEMENTS.some(x => x.id === `a_event_stars_${ev.key}`));
 S.stageStars = {};
+const starsOf = () => E.eventMissions(ev).find(x => x.id === 'stars30');
+ok('★のミッションが登録されている', !!starsOf());
+ok('未クリアなら★0', starsOf().value === 0, starsOf().value);
 [1, 2, 3].forEach(n => { S.stageStars[`${ev.key}_${n}`] = 3; }); // 3層 x ★3 = 9
-ok('★の合計が正しく計算される(3層 x ★3 = 9)', a.value() === 9, a.value());
+ok('★の合計が正しく計算される(3層 x ★3 = 9)', starsOf().value === 9, starsOf().value);
 const maxStars = ev.tiers.length * 3;
-ok('最終ティアの目標は最大★数と一致', a.tiers[a.tiers.length - 1].goal === maxStars, [a.tiers[a.tiers.length - 1].goal, maxStars]);
-ok('ティアはgoalの昇順', a.tiers.every((t, i) => i === 0 || t.goal > a.tiers[i - 1].goal), a.tiers.map(t => t.goal));
+const starGoals = E.eventMissions(ev).filter(x => x.kind === 'star').map(x => x.goal);
+ok('最後の段の目標は最大★数と一致', starGoals[starGoals.length - 1] === maxStars, [starGoals, maxStars]);
+ok('段はgoalの昇順', starGoals.every((g, i) => i === 0 || g > starGoals[i - 1]), starGoals);
 
 // --- 8〜10層(深層) ---
 ok('イベントは10層ある', ev.tiers.length === 10, ev.tiers.length);

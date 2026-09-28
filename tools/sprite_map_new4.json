@@ -1,0 +1,10 @@
+{
+ "note": "2026-09-28 に追加した新★4 4体の立ち絵の対応。tools/add_sprites.py tools/sprite_map_new4.json で取り込みずみ。",
+ "map": {
+  "ハティ":       { "file": "dreamina-2026-09-28-4301_transparent.png", "sprite": "166" },
+  "スコル":       { "file": "dreamina-2026-09-28-9970_transparent.png", "sprite": "167" },
+  "黙示のアルベ": { "file": "dreamina-2026-09-28-7657_transparent.png", "sprite": "168" },
+  "ゲヘナの騎士": { "file": "dreamina-2026-09-28-6718_transparent.png", "sprite": "169" }
+ },
+ "missing": []
+}
