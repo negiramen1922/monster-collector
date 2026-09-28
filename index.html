@@ -1197,6 +1197,22 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .slot-tag.t-passive{ background:#2b4030; color:#bfe4b6; }
 .slot-tag.t-ult{ background:#3a2a1a; color:var(--gold); }
 .slot-tag.t-perk{ background:linear-gradient(180deg,#e8b455,#b8873a); color:#2a1f10; }
+.su-box{ margin-top:9px; border-top:1px solid rgba(255,255,255,.08); padding-top:8px; }
+.su-sum{ cursor:pointer; font-size:12px; font-weight:800; color:var(--gold); list-style:none; display:flex; justify-content:space-between; align-items:center; }
+.su-sum::-webkit-details-marker{ display:none; }
+.su-sum::after{ content:'▾'; color:var(--dim2); font-weight:400; }
+.su-box[open] .su-sum::after{ content:'▴'; }
+.su-hint{ color:var(--dim2); font-weight:400; font-size:11px; margin-left:auto; margin-right:8px; }
+.su-list{ margin-top:7px; }
+.su-row{ display:flex; gap:7px; align-items:flex-start; padding:5px 0; border-top:1px solid rgba(255,255,255,.06); font-size:11.5px; color:var(--dim2); }
+.su-row.on{ color:var(--text); }
+.su-row.now{ background:rgba(232,180,85,.09); border-radius:6px; padding-left:5px; padding-right:5px; }
+.su-star{ flex:0 0 46px; font-weight:800; color:var(--dim2); }
+.su-row.on .su-star{ color:var(--gold); }
+.su-star small{ display:block; font-size:9.5px; font-weight:400; color:var(--gold); }
+.su-body{ flex:1 1 auto; line-height:1.5; }
+.su-need{ flex:0 0 auto; color:var(--dim2); font-size:10.5px; white-space:nowrap; }
+.perk-open{ color:var(--gold); }
 .skill-card.k-perk{ border-color:rgba(232,180,85,.45); }
 .perk-row{ display:flex; gap:8px; align-items:flex-start; padding:5px 0; border-top:1px solid rgba(255,255,255,.07); font-size:12px; color:var(--dim2); }
 .perk-row.on{ color:var(--text); }
@@ -11795,7 +11811,37 @@ function kitLinesHtml(m, star, owned, after){
     perkCardHtml(m, star),
   ].join('');
 }
-/* 凸ボーナス(★6〜★10)。手に入れたぶんは白、まだのぶんは灰色で先も見せる(★を上げる理由になる)。
+/* ★1〜★10で何が開くかの一覧。10段ぶんあって長いので、押したときだけ開く。
+   レベル上限・必要ソウル・スキル枠・スキルLvの上限・ルーン枠・星刻をまとめて出す。 */
+function starUnlockHtml(m, owned){
+  const cur = owned.star;
+  const perks = MONSTER_PERKS[m.id] || {};
+  const rows = [];
+  for(let n = 1; n <= MAX_STAR; n++){
+    const st = STAR_TABLE[n];
+    if(!st) continue;
+    const opens = [];
+    if(n > m.rarity) opens.push(`基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%`);
+    opens.push(`レベル上限 ${st.lvCap}`);
+    const prev = STAR_TABLE[n - 1];
+    if(prev && st.skillCap > prev.skillCap) opens.push(`スキル系Lv上限 ${st.skillCap}`);
+    if(n === SECOND_SKILL_STAR) opens.push('スキル枠+1(スキル2が使えるようになる)');
+    const rs = RUNE_SLOT_STARS.indexOf(n);
+    if(rs >= 0) opens.push(`ルーンの枠 ${rs + 1}つ目`);
+    if(perks[n]) opens.push(`<b class="perk-open">${PERK_LABEL}</b> ${perks[n].desc}`);
+    const need = st.soulsToNext;
+    rows.push(`<div class="su-row ${cur >= n ? 'on' : ''} ${cur === n ? 'now' : ''}">
+        <span class="su-star">★${n}${cur === n ? '<small>いま</small>' : ''}</span>
+        <span class="su-body">${opens.join(' / ')}</span>
+        <span class="su-need">${n < MAX_STAR && need ? `次に ◆${need}` : ''}</span>
+      </div>`);
+  }
+  return `<details class="su-box">
+      <summary class="su-sum">★で開くものを見る<span class="su-hint">★1〜★${MAX_STAR}</span></summary>
+      <div class="su-list">${rows.join('')}</div>
+    </details>`;
+}
+/* 星刻(★6〜★10)。手に入れたぶんは白、まだのぶんは灰色で先も見せる(★を上げる理由になる)。
    中身は MONSTER_PERKS、正は docs/design/凸ボーナス_ピックアップ4体.json */
 function perkCardHtml(m, star){
   const t = MONSTER_PERKS[m.id];
@@ -11811,8 +11857,8 @@ function perkCardHtml(m, star){
   }
   if(!rows.length) return '';
   return `<div class="skill-card k-perk">
-      <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-perk">凸</span>凸ボーナス</span><span class="skill-ct">${have} / ${rows.length}</span></div>
-      <div class="skill-desc">★を上げると、このキャラだけの効果が増えます。</div>
+      <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-perk">${PERK_TAG}</span>${PERK_LABEL}</span><span class="skill-ct">${have} / ${rows.length}</span></div>
+      <div class="skill-desc">★を上げると刻まれる、このキャラだけの効果です。</div>
       ${rows.join('')}
     </div>`;
 }
@@ -11995,6 +12041,7 @@ function showMonsterDetail(id){
               </button>
             </div>
           </div>`}
+        ${starUnlockHtml(m, owned)}
       </div>
 
       <div class="detail-level-box relic-box">
@@ -13080,6 +13127,8 @@ function initialSkillCds(unit){
    perk が触る前に必ずそのユニット専用のコピーに差し替えること(下の own* を使う)。
    中身の正は docs/design/凸ボーナス_ピックアップ4体.json */
 const PERK_FIRST_STAR = 6;
+const PERK_LABEL = '星刻';       // ★6〜★10で開く、そのキャラだけの効果の呼び名
+const PERK_TAG = '刻';           // カードの小さいタグに出す1文字
 // そのユニット専用のコピーにしてから返す(2回目以降はそのまま)
 function ownPassive(u){ if(!u.ownedPassive){ u.passive = { ...u.passive }; u.ownedPassive = true; } return u.passive; }
 function ownUlt(u){ if(!u.ownedUlt){ u.ult = { ...u.ult }; u.ownedUlt = true; } return u.ult; }
