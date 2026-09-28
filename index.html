@@ -2877,7 +2877,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.073';
+const GAME_VERSION = 'α0.1.074';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -14481,11 +14481,14 @@ const MONSTER_KITS = {
         const t = f.unit;
         dealHits(ctx, { targets: [f], pow: 0.95 * (1 + 0.5 * (1 - t.hp / t.maxHp)) });
       } },
-    skill2: { name:'奈落の乱撃', ct:4, atk:'phys', tgt:'single', pow:0.55, hits:7, critDmgBonus:0.3, desc:'威力55%×7。この攻撃の会心ダメージ+30%' },
-    passive: { name:'底なしの飢え', desc:'会心率+30%。敵を倒したとき、スキルの残りCTが1短くなる',
+    skill2: { name:'奈落の乱撃', ct:4, atk:'phys', tgt:'random', pow:0.6, hits:7, critDmgBonus:0.3, desc:'ランダムな敵に威力60%×7。この攻撃の会心ダメージ+30%' },
+    passive: { name:'底なしの飢え', desc:'会心率+30%。敵を倒したとき、スキルの残りCTが1短くなり、SP+20',
       critBonus: u => pv(u, 0.3),
-      onKill: u => { u.skillCd = u.skillCd.map(c => Math.max(0, c - 1)); } },
-    ult: { name:'無底坑', sp:120, atk:'phys', tgt:'single', pow:3.8, bonusIf:[{ cond:'low30', add:1.0 }], desc:'威力380%。HPが30%以下の相手には威力+100%' },
+      onKill: u => {
+        u.skillCd = u.skillCd.map(c => Math.max(0, c - 1));
+        gainSp(u, Math.round(pv(u, 20)), 'passive');
+      } },
+    ult: { name:'無底坑', sp:110, atk:'phys', tgt:'all', pow:2.2, bonusIf:[{ cond:'low30', add:1.0 }], desc:'敵全体に威力220%。HPが30%以下の相手には威力+100%' },
   },
   m140: { // タロース
     normal: N('青銅の拳', 0.85),
@@ -17803,6 +17806,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 114, version: 'α0.1.074', date: '9/28', title: 'アバドンを強化', body: 'アバドンの必殺技「無底坑」を敵全体攻撃に変更し、必要SPを120から110に下げました。スキル2「奈落の乱撃」はランダムな敵を狙う7連撃になり、パッシブ「底なしの飢え」には敵を倒したときのSP+20が加わります。他の★5アタッカーに比べて与えるダメージが6割ほどしかなかったための調整です。弱くなる点はありません。' },
   { id: 113, version: 'α0.1.073', date: '9/27', title: 'ニュースを掲載', body: 'ニュースに「次回イベント予告 フェンリル&アバドン 同時開催」を掲載しました。ニュースにキャラの立ち絵を載せられるようにしました。' },
   { id: 112, version: 'α0.1.072', date: '9/27', title: 'スキルの付与率と持続時間を見直し', body: '<span class="nt-h">付与率</span><span class="nt-i">・状態異常や弱体化の付与率は、スキルLvで変わらなくなりました。代わりに、効果ごとにわかりやすい値にそろえています(<em>やけど・毒は基本50%</em>、弱体化は50%など)。スキルLvを上げると、威力と効果量が今までどおり伸びます。</span><span class="nt-i">・<em>必殺技</em>の状態異常・弱体化・追撃は、すべて<em>必ず</em>かかるようになりました。</span><span class="nt-i">・ミノタウロス・ジャッカロープ・キョンシー・キラービーの必殺技に、気絶を追加しました。</span><span class="nt-i">・パッシブの発動率もLvでは変わらず、効果量だけが伸びます。</span><span class="nt-h">持続時間</span><span class="nt-i">・味方へのバフはスキルLv5とLv10で1ターンずつ、敵への弱体化・やけどはLv10で1ターン長くなります(最大5ターン)。気絶などの行動封じ・挑発・免疫は伸びません。スキル強化の画面で、持続が伸びるLvがわかります。</span>' },
   { id: 111, version: 'α0.1.071', date: '9/26', title: '効果音を一新', body: '効果音をすべて作り直しました。ガチャ演出と同じ響きのやわらかい音にそろえ、場面ごとに鳴らし分けます。<span class="nt-i">・<em>操作</em> タップ・開く・閉じる・タブ切り替え・決定・購入(チャリン)に加え、できない操作では「ブッブッ」と知らせます。</span><span class="nt-i">・<em>育成</em> レベルアップ・★上げ・スキル強化・装備・合成・分解・未鑑定ルーンの開封(レア度で音が変わる)にそれぞれの音を付けました。</span><span class="nt-i">・<em>報酬</em> 受け取り・お知らせ・仲間になったときの音を追加しました。</span><span class="nt-i">・<em>戦闘</em> 開始・ボス登場・必殺技・ウェーブ突破・勝利に加え、敗北の音を追加しました。スキルや魔法の当たりは属性(炎・水・雷・土・風・光・闇)ごとの音になり、会心・弱点・戦闘不能・弱体化・状態異常にも音が付きます。</span>' },
