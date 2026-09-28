@@ -2260,6 +2260,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* ---------- sweep panel ---------- */
 .shop-row.sold{ opacity:.45; }
 .ev-left{ display:block; font-size:9.5px; color:var(--dim2); font-weight:400; }
+.shop-ic{ flex:none; width:34px; height:34px; display:flex; align-items:center; justify-content:center; }
+.shop-ic .item-ic{ font-size:20px; }
+.shop-ic .shop-mon{ width:34px; height:34px; object-fit:contain; image-rendering:pixelated; }
+.shop-ic-pair .shop-mon{ width:24px; height:24px; }
+.shop-ic-pair .shop-mon + .shop-mon{ margin-left:-8px; margin-top:10px; }
+.shop-relic img{ width:30px; height:30px; object-fit:contain; image-rendering:pixelated; }
+.ev-cost{ display:inline-flex; align-items:center; gap:3px; }
+.ev-cost .item-ic{ font-size:14px; }
 .ev-days{ float:right; color:var(--gold); }
 .ev-days.soon{ color:var(--warn); }
 .sw-stamina{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:12px; }
@@ -2601,8 +2609,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .explore-tabs .et-arrow{ font-size:20px; color:var(--dim); flex:none; }
 .explore-head{ display:flex; align-items:center; gap:8px; min-width:0; }
 .explore-back{ flex:none; }
-.gacha-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
-.gacha-tabs .stage-tab{ flex:1; min-width:100px; }
+.gacha-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; margin-bottom:10px; scrollbar-width:none; touch-action:pan-x; }
+.gacha-tabs::-webkit-scrollbar{ display:none; }
+.gacha-tabs .stage-tab{ flex:none; min-width:112px; white-space:nowrap; }
 .affinity-sheet{ text-align:left; max-height:86vh; }
 .af-cycle{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--panel2); border:1px dashed var(--line);
   border-radius:12px; padding:9px 10px; margin-bottom:7px; }
@@ -2823,7 +2832,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ev-mi-bar span{ display:block; height:100%; background:var(--gold); }
 .ev-mi-sub{ font-size:10.5px; opacity:.8; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .ev-mi-done, .ev-mi-wait{ flex:none; font-size:11px; font-weight:800; opacity:.6; }
-.gc-tickets{ display:flex; gap:8px; margin-top:8px; }
+.gc-tickets{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.gc-tickets .gc-ticket{ min-width:130px; }
 .gc-ticket{ flex:1; display:flex; align-items:center; justify-content:center; gap:5px; }
 .gc-ticket small{ opacity:.75; font-weight:700; }
 .pf-titles{ display:flex; flex-wrap:wrap; gap:6px; }
@@ -3046,7 +3056,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.2.003';
+const GAME_VERSION = 'α0.2.004';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7235,14 +7245,8 @@ function pullRelicOne(){
   STATE.resonance = (STATE.resonance || 0) + resonance;
   return { ...grantRelic(def), resonance };
 }
-function doRelicPull(times, cost, ticket){
-  if(ticket){
-    if(getItem(ticket) < 1){ toast('召喚券が足りません'); return null; }
-    addItem(ticket, -1);
-  }else{
-    if((STATE.crystals || 0) < cost){ toast('星結晶が足りません'); return null; }
-    STATE.crystals -= cost;
-  }
+function doRelicPull(times, cost, ticket, ticketN){
+  if(!payPull(cost, ticket, ticketN)) return null;
   const results = [];
   for(let i = 0; i < times; i++) results.push(pullRelicOne());
   track('relicGachaPull', times);
@@ -9834,6 +9838,21 @@ const EV_SHOP_GROUPS = [
   { label:'遺物の強化',      match: k => /^(scrap|core\d)$/.test(k) },
   { label:'そのほか',        match: k => /^(stam|gold)/.test(k) },
 ];
+// イベントショップの品のアイコン(左に置く)。モンスターのソウルは立ち絵、ほかは持ち物と同じアイコン
+function evShopIconHtml(ev, it){
+  const subs = (ev.featured || []).filter(id => id !== ev.pickup);
+  const mon = id => `<img class="shop-mon" src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">`;
+  if(it.sku === 'soul_pick') return `<span class="shop-ic">${mon(ev.pickup)}</span>`;
+  if(it.sku === 'soul_sub') return `<span class="shop-ic shop-ic-pair">${subs.slice(0, 2).map(mon).join('')}</span>`;
+  if(it.sku === 'relic_dupe'){ const r = RELICS[EVENT_ELEMENT_RELIC[ev.element]]; return `<span class="shop-ic shop-relic">${r ? r.icon : ''}</span>`; }
+  const mt = /^mat([1-4])$/.exec(it.sku);
+  if(mt){ const m = eventSkillMats(ev); return `<span class="shop-ic">${itemIcon(matKey(m.el[0], m.el[1], Number(mt[1])))}</span>`; }
+  const key = { gacha_char:'gacha_char', gacha_relic:'gacha_relic', box1:'box_sel_1', box2:'box_sel_2', box3:'box_sel_3',
+    pot1:'exp1', pot2:'exp2', pot3:'exp3', scrap:'relic_scrap', core1:'relic_core_1', core2:'relic_core_2', core3:'relic_core_3', stam:'stamina_60' }[it.sku];
+  if(key) return `<span class="shop-ic">${itemIcon(key)}</span>`;
+  if(/^gold/.test(it.sku)) return `<span class="shop-ic"><span class="item-ic">${GOLD_ICON}</span></span>`;
+  return '<span class="shop-ic"></span>';
+}
 function renderEventShop(evKey){
   const ev = EVENTS.find(e => e.key === evKey);
   const medal = medalOf(ev);
@@ -9848,8 +9867,8 @@ function renderEventShop(evKey){
     const can = !sold && have >= it.price;
     return `
       <div class="shop-row ${sold ? 'sold' : ''}">
-        <span class="shop-item"><span class="item-ic">${ITEM_ICON[medal.icon]}</span><span class="shop-item-name">${it.name}<small>${it.qty}</small></span></span>
-        <span class="shop-price">${it.price}<small class="ev-left">${it.limit === null ? '無制限' : `残り${rest}/${it.limit}`}</small></span>
+        <span class="shop-item">${evShopIconHtml(ev, it)}<span class="shop-item-name">${it.name}<small>${it.qty}</small></span></span>
+        <span class="shop-price"><span class="ev-cost"><span class="item-ic">${ITEM_ICON[medal.icon]}</span>${it.price}</span><small class="ev-left">${it.limit === null ? '無制限' : `残り${rest}/${it.limit}`}</small></span>
         <button class="btn btn-sm ${can ? '' : 'btn-ghost'}" data-ev-buy="${ev.key}:${it.sku}" ${can ? '' : 'disabled'}>${sold ? '売り切れ' : '交換'}</button>
       </div>`;
   };
@@ -10479,7 +10498,10 @@ function render(){
   app.querySelector('#statusbar').innerHTML = renderTopBar();
 
   const screenEl = document.getElementById('screen');
+  // 横スクロールする並び(ガチャ・イベントの切り替えなど)は、ボタンを押して描き直しても位置を保つ
+  const keepX = hScrollPositions(screenEl);
   screenEl.innerHTML = screenBackBarHtml() + groupTabsHtml() + renderScreen(currentScreen);
+  restoreHScroll(screenEl, keepX);
   renderOverlay();
 
   app.classList.toggle('in-battle', currentScreen === 'battle-fight');
@@ -10491,6 +10513,16 @@ function render(){
   tickBanner();
 }
 
+const H_SCROLL_SEL = '.tier-tabs, .gacha-tabs, .dex-elems, .filter-row';
+let hScrollScreen = null;
+function hScrollPositions(root){
+  if(hScrollScreen !== currentScreen){ hScrollScreen = currentScreen; return null; }
+  return [...root.querySelectorAll(H_SCROLL_SEL)].map(el => el.scrollLeft);
+}
+function restoreHScroll(root, xs){
+  if(!xs) return;
+  root.querySelectorAll(H_SCROLL_SEL).forEach((el, i) => { if(xs[i]) el.scrollLeft = xs[i]; });
+}
 function renderScreen(screen){
   switch(screen){
     case 'home': return renderHome();
@@ -10866,14 +10898,24 @@ function renderHome(){
 
 let gachaKind = 'mon'; // 'mon' | 'relic' | 'friend'
 // 持っている召喚券の「券で引く」ボタン。1枚も持っていなければ何も出さない
+// 1回券で10連: 手持ちの1回券(最大10枚)＋足りない回数ぶんの星結晶で10連を引く。
+// 星結晶は10連の単価(PULL10_COST/10 = 1回135)で数えるので、券を混ぜても10連の割引はそのまま
+function ticketTenPlan(kind){
+  const key = kind === 'mon' ? 'gacha_char' : 'gacha_relic';
+  const n = Math.min(10, getItem(key));
+  return { key, n, cost: Math.round(PULL10_COST * (10 - n) / 10) };
+}
 function ticketBtnsHtml(kind){
   const keys = Object.keys(GACHA_TICKETS).filter(k => GACHA_TICKETS[k].kind === kind && getItem(k) > 0);
   if(!keys.length) return '';
+  const plan = ticketTenPlan(kind);
+  const ten = plan.n > 0 ? `<button class="btn btn-sm gc-ticket" data-ticket-pull10="${kind}" ${(STATE.crystals || 0) < plan.cost ? 'disabled' : ''}>${itemIcon(plan.key)}券で10連<small>${plan.cost ? `券${plan.n}枚＋${CRYSTAL_ICON}${plan.cost.toLocaleString()}` : '券10枚'}</small></button>` : '';
   return `<div class="gc-tickets">
     ${keys.map(k => {
       const tk = GACHA_TICKETS[k];
       return `<button class="btn btn-sm gc-ticket" data-ticket-pull="${k}">${itemIcon(k)}券で${tk.times === 10 ? '10連' : '1回'}<small>所持 ${getItem(k)}</small></button>`;
     }).join('')}
+    ${ten}
   </div>`;
 }
 function renderGacha(){
@@ -11118,8 +11160,8 @@ function showRelicGachaFinalResult(results){
   `;
   layer.classList.add('show');
 }
-function doRelicPullAndShow(times, cost, ticket){
-  const results = doRelicPull(times, cost, ticket);
+function doRelicPullAndShow(times, cost, ticket, ticketN){
+  const results = doRelicPull(times, cost, ticket, ticketN);
   if(!results) return;
   showGachaEggs(results, null, 'relic');
   render();
@@ -11361,14 +11403,17 @@ function isPickupMon(mon){
 
 // 直前のガチャが初心者ガチャだったか(結果画面の「もう一度」を初心者ガチャの次の回にするため)
 let lastPullBeginner = false;
-function doPull(times, cost, ticket){
-  if(ticket){
-    if(getItem(ticket) < 1){ toast('召喚券が足りません'); return; }
-    addItem(ticket, -1);
-  }else{
-    if(STATE.crystals < cost){ toast('星結晶が足りません'); return; }
-    STATE.crystals -= cost;
-  }
+// 引く前の支払い。券(ticketN枚、ふつうは1枚)と星結晶(cost)を両方使えるので、1回券＋星結晶の10連もこれで払う
+function payPull(cost, ticket, ticketN){
+  const n = ticket ? (ticketN || 1) : 0;
+  if(n && getItem(ticket) < n){ toast('召喚券が足りません'); return false; }
+  if((STATE.crystals || 0) < (cost || 0)){ toast('星結晶が足りません'); return false; }
+  if(n) addItem(ticket, -n);
+  STATE.crystals = (STATE.crystals || 0) - (cost || 0);
+  return true;
+}
+function doPull(times, cost, ticket, ticketN){
+  if(!payPull(cost, ticket, ticketN)) return;
   lastPullBeginner = false;
   const before = { universal: STATE.universalSouls, points: STATE.summonPoints };
   const results = [];
@@ -18247,6 +18292,13 @@ function handlePhoneClick(ev){
     doPull(n, n === 10 ? PULL10_COST : PULL_COST);
     return;
   }
+  const tk10El = t.closest('[data-ticket-pull10]');
+  if(tk10El){
+    const kind = tk10El.dataset.ticketPull10, plan = ticketTenPlan(kind);
+    if(!plan.n) return;
+    if(kind === 'mon') doPull(10, plan.cost, plan.key, plan.n); else doRelicPullAndShow(10, plan.cost, plan.key, plan.n);
+    return;
+  }
   const tkEl = t.closest('[data-ticket-pull]');
   if(tkEl){
     const key = tkEl.dataset.ticketPull, tk = GACHA_TICKETS[key];
@@ -19301,6 +19353,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 120, version: 'α0.2.004', date: '9/28', title: 'ガチャとイベントショップを使いやすく', body: '<span class="nt-i">・ガチャのピックアップの切り替えを、イベント一覧と同じ横スクロールにしました。</span><span class="nt-i">・ガチャやイベントの切り替えボタンを押しても、横スクロールの位置が最初に戻らないようにしました。</span><span class="nt-i">・イベントショップの品の左にアイコンを付け、値段はメダルのアイコンと数字で表示するようにしました。</span><span class="nt-i">・モンスター召喚券・遺物召喚券(1回券)で<em>10連</em>を引けるようになりました。券が10枚に足りないときは、足りない回数ぶんを星結晶で払えます(10連と同じ単価で、1回135)。</span>' },
   { id: 119, version: 'α0.2.003', date: '9/28', title: 'お詫びの召喚券は既存プレイヤーだけに', body: 'イベント開始時間変更のお詫び(モンスター召喚券3枚)は、すでに遊んでいる方だけにお届けするようにしました。これからはじめる方には届きません。' },
   { id: 118, version: 'α0.2.002', date: '9/28', title: 'イベントの開始を 9/28 19:00 に変更', body: '「嵐呼ぶ神狼」「奈落の王」の開始を、9/29(火) 0:00 から <em>9/28(月) 19:00</em> に早めました。終了は 10/12(月) 23:59 のままです。お詫びとして、すでに遊んでいる方にモンスター召喚券3枚をプレゼントボックスにお届けしました(これからはじめる方は対象外)。告知バナーの日時も書き直しました。' },
   { id: 117, version: 'α0.2.001', date: '9/29', title: 'ゲーム内の名前を整理', body: '<span class="nt-h">表示される名前だけを整えました</span>遊び方・持ち物・進みぐあいは何も変わりません。<span class="nt-h">モンスターまわり</span><span class="nt-i">・昇格 → <em>星刻</em>(せいこく)　★を上げることをこう呼びます。</span><span class="nt-i">・限界突破 → <em>上限解放</em>(Lv30・50…でゴールドを払うほう)。★で決まるほうは<em>最大レベル</em>と呼び分けます。</span><span class="nt-i">・必殺技 → <em>奥義</em>。通常攻撃・スキル・パッシブ・奥義をまとめて<em>ワザ</em>と呼びます(詳細画面の見出しも「ワザ」に)。</span><span class="nt-i">・キャラ → <em>モンスター</em>。下のメニューの「キャラ」は<em>育成</em>、その中のタブ「キャラ一覧」は<em>モンスター図鑑</em>に。</span><span class="nt-i">・お助けキャラ → <em>お助けモンスター</em>　HATE → <em>ヘイト</em>(狙われやすさ)　パーティ(画面・操作) → <em>編成</em></span><span class="nt-h">遺物まわり</span><span class="nt-i">・遺物の覚醒 → <em>共鳴</em>。かぶった同じ遺物は<em>「〇〇の共鳴石」</em>として持ち、これで共鳴します。どの遺物にも使える石は<em>無形の共鳴石</em>です。</span><span class="nt-i">・遺物のスクラップ → <em>霊素鉱</em>　遺物のコア → <em>霊素核</em>　アーティファクト工房 → <em>霊素工房</em></span><span class="nt-h">そのほか</span><span class="nt-i">・結晶・水晶 → <em>星結晶</em>　育成ダンジョン → <em>育成クエスト</em>(EXPダンジョン → <em>EXPの泉</em> / ゴールドダンジョン → <em>黄金の洞窟</em>)</span><span class="nt-i">・育成素材・スキル素材 → <em>ワザ強化素材</em>　育成素材BOX → <em>ワザ素材BOX</em></span><span class="nt-i">・イベントの「◯層」と育成クエストの「Lv◯」→ <em>ステージ◯</em>(深淵回廊は「階」のまま)　ミッションの「初心者」 → <em>はじめてガイド</em></span><span class="nt-i">・BPに「バトルパワー＝戦力の目安」、ヘイトに「狙われやすさ」の説明を添えました。</span><span class="nt-i">・過去のアップデート内容は、当時の名前のまま残してあります。</span>' },
