@@ -23,7 +23,7 @@ ok('base64はdata-URIプレフィックス無しの生データ(既存のegg_*�
 
 // --- 2. 新規29体はまだMONSTERSに実装されていない(告知だけが先行している) ---
 api.STATE = E.DEFAULT_STATE();
-ok('新規30体がMONSTERSに実装されている(α0.1)', E.MONSTERS.length === 135, E.MONSTERS.length);
+ok('新規30体＋イベント★4の4体がMONSTERSに実装されている', E.MONSTERS.length === 139, E.MONSTERS.length);
 
 // --- 3. バナー生成ロジック: ICON_DATAにアセットがある時だけ告知バナーが出る ---
 delete E.ICON_DATA.banner_newmon29;

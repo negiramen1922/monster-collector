@@ -2331,6 +2331,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sw-speed{ padding:7px 0; border-radius:9px; font-size:11px; font-weight:800; cursor:pointer;
   background:var(--panel2); border:1px solid var(--line); color:inherit; font-family:inherit; }
 .sw-speed.on{ background:#3a2a1a; border-color:var(--gold); color:var(--gold); }
+.shop-group{ margin:12px 2px 6px; font-size:12px; }
+.shop-item-name small{ display:block; font-size:10px; font-weight:600; opacity:.65; }
+.shop-row.sold{ opacity:.45; }
+.shop-price .ev-left{ display:block; font-size:9.5px; font-weight:600; opacity:.6; }
 .stam-note{ display:block; font-size:10px; opacity:.7; font-weight:600; }
 .stam-free{ color:var(--gold); }
 .stam-ladder{ display:flex; gap:4px; margin:2px 2px 10px; }
@@ -9727,33 +9731,33 @@ function renderShop(){
     const onSale = !!sale[def.sku];
     const price = shopGoldPrice(def);
     return `
-      <div class="shop-row">
-        <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}${def.qty > 1 ? `×${def.qty}` : ''}</span></span>
-        <span class="shop-price">${onSale ? `<span class="shop-old-price">${goldText(def.price)}</span>` : ''}${goldText(price)}${onSale ? `<span class="shop-sale-badge">${Math.round(sale[def.sku] * 100)}%OFF</span>` : ''}</span>
+      <div class="shop-row ${bought ? 'sold' : ''}">
+        <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}<small>${def.qty > 1 ? `${def.qty}個` : '1個'}</small></span></span>
+        <span class="shop-price">${onSale ? `<span class="shop-old-price">${goldText(def.price)}</span>` : ''}${goldText(price)}${onSale ? `<span class="shop-sale-badge">${Math.round(sale[def.sku] * 100)}%OFF</span>` : ''}<small class="ev-left">${bought ? '本日ぶん購入済み' : '本日あと1'}</small></span>
         <button class="btn btn-sm ${bought || (STATE.gold || 0) < price ? 'btn-ghost' : ''}" data-shop-buy="gold:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
       </div>`;
   };
   const pvpRow = def => {
     const bought = shopBought(def.sku);
     return `
-      <div class="shop-row">
-        <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}${def.qty > 1 ? `×${def.qty}` : ''}</span></span>
-        <span class="shop-price">🏆${def.price}</span>
+      <div class="shop-row ${bought ? 'sold' : ''}">
+        <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}<small>${def.qty > 1 ? `${def.qty}個` : '1個'}</small></span></span>
+        <span class="shop-price">🏆${def.price}<small class="ev-left">${bought ? '本日ぶん購入済み' : '本日あと1'}</small></span>
         <button class="btn btn-sm ${bought || (STATE.pvpPoints || 0) < def.price ? 'btn-ghost' : ''}" data-shop-buy="pvp:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
       </div>`;
   };
   const stamPrice = staminaRefillPrice();
   const staminaRefillRow = () => `
       <div class="shop-row stam-row">
-        <span class="shop-item">⚡<span class="shop-item-name">スタミナ回復(+${STAMINA_REFILL_QTY})<small class="stam-note">本日あと${staminaRefillLeft()}回</small></span></span>
-        <span class="shop-price">${stamPrice === null ? '本日終了' : stamPrice === 0 ? '<b class="stam-free">無料</b>' : `${CRYSTAL_ICON}${stamPrice}`}</span>
+        <span class="shop-item">⚡<span class="shop-item-name">スタミナ回復<small>+${STAMINA_REFILL_QTY}</small></span></span>
+        <span class="shop-price">${stamPrice === null ? '本日終了' : stamPrice === 0 ? '<b class="stam-free">無料</b>' : `${CRYSTAL_ICON}${stamPrice}`}<small class="ev-left">本日あと${staminaRefillLeft()}回</small></span>
         <button class="btn btn-sm ${stamPrice !== null && (STATE.crystals || 0) >= stamPrice ? '' : 'btn-ghost'}" data-stamina-refill="1" ${stamPrice === null ? 'disabled' : ''}>${stamPrice === 0 ? '受け取る' : '購入'}</button>
       </div>
       <div class="stam-ladder">${STAMINA_REFILL_PRICES.map((p, i) => `<span class="${i < staminaRefillUsed() ? 'used' : i === staminaRefillUsed() ? 'next' : ''}">${p === 0 ? '無料' : p}</span>`).join('')}</div>`;
   const crystalRow = def => `
       <div class="shop-row">
-        <span class="shop-item">${def.icon}<span class="shop-item-name">${def.label}(+${def.qty})</span></span>
-        <span class="shop-price">${CRYSTAL_ICON}${def.price}</span>
+        <span class="shop-item">${def.icon}<span class="shop-item-name">${def.label}<small>${def.item ? `${def.qty}枚` : `+${def.qty}`}</small></span></span>
+        <span class="shop-price">${CRYSTAL_ICON}${def.price}<small class="ev-left">回数制限なし</small></span>
         <button class="btn btn-sm ${(STATE.crystals || 0) < def.price ? 'btn-ghost' : ''}" data-crystal-buy="${def.sku}">購入</button>
       </div>`;
   return `
@@ -9786,6 +9790,15 @@ function renderShop(){
 }
 /* イベントショップ(交換所)。メダルで交換する。購入上限はイベントごとにリセット。
    品と値段の正は docs/design/イベントショップとガチャ券.json */
+// イベントショップの並び順(見出し＋品)。どれにも当てはまらない品は最後の「そのほか」に入る
+const EV_SHOP_GROUPS = [
+  { label:'キャラ・遺物',   match: k => /^(soul_|relic_|gacha_)/.test(k) },
+  { label:'スキルの育成素材', match: k => /^mat\d$/.test(k) },
+  { label:'育成素材BOX',    match: k => /^box\d$/.test(k) },
+  { label:'レベル上げ',      match: k => /^pot\d$/.test(k) },
+  { label:'遺物の強化',      match: k => /^(scrap|core\d)$/.test(k) },
+  { label:'そのほか',        match: k => /^(stam|gold)/.test(k) },
+];
 function renderEventShop(evKey){
   const ev = EVENTS.find(e => e.key === evKey);
   const medal = medalOf(ev);
@@ -9811,7 +9824,11 @@ function renderEventShop(evKey){
       <b class="ev-days ${days <= 3 ? 'soon' : ''}">残り${days}日</b>
     </div>
     <div class="sw-stamina"><span class="item-ic">${ITEM_ICON[medal.icon]}</span> ${medal.name} <b>${have.toLocaleString()}</b></div>
-    <div class="panel facility">${items.map(row).join('')}</div>
+    ${EV_SHOP_GROUPS.map(g => {
+      const list = items.filter(it => g.match(it.sku));
+      if(!list.length) return '';
+      return `<div class="mc-head shop-group">${g.label}</div><div class="panel facility">${list.map(row).join('')}</div>`;
+    }).join('')}
     <div class="screen-sub" style="margin-top:8px;">メダルはイベントが終わると無くなります。交換し忘れに気をつけてください。</div>`;
 }
 function renderRuneShop(){
