@@ -2753,6 +2753,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* --- イベントメニュー --- */
 .ev-banner{ position:relative; display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:14px; overflow:hidden;
   background:linear-gradient(120deg, var(--ev-elem) -30%, var(--panel2) 62%); border:1px solid var(--line); margin-bottom:10px; }
+/* ev.banner に icon-data のキーを入れると、その絵を横いっぱいのバナーとして使う。
+   無ければピックアップの立ち絵で代用する */
+.ev-banner{ flex-wrap:wrap; }
+.ev-banner-wide{ width:100%; border-radius:10px; display:block; order:-1; margin-bottom:8px; }
 .ev-banner-art{ width:62px; height:62px; border-radius:12px; object-fit:cover; flex:none; border:2px solid rgba(255,255,255,.25); }
 .ev-banner-txt{ flex:1; min-width:0; }
 .ev-banner-tag{ font-size:10px; font-weight:900; letter-spacing:.14em; opacity:.8; }
@@ -13635,7 +13639,9 @@ function eventBannerHtml(ev){
   const medal = medalOf(ev);
   return `
     <div class="ev-banner" style="--ev-elem:${ELEM_COLOR[ev.element] || '#888'};">
-      <img class="ev-banner-art" src="${imgSrc(ev.pickup)}" alt="" draggable="false">
+      ${ev.banner && ICON_DATA[ev.banner]
+        ? `<img class="ev-banner-wide" src="data:image/png;base64,${ICON_DATA[ev.banner]}" alt="${ev.name}" draggable="false">`
+        : `<img class="ev-banner-art" src="${imgSrc(ev.pickup)}" alt="" draggable="false">`}
       <div class="ev-banner-txt">
         <div class="ev-banner-tag">EVENT</div>
         <div class="ev-banner-name">${ev.icon || '✨'} ${ev.name}</div>
