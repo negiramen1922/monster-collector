@@ -260,6 +260,8 @@ body{
 .home-items{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; font-size:12.5px; font-weight:700; }
 .home-items .btn{ margin-left:auto; }
 .gold-line{ font-size:14px; font-weight:800; color:var(--gold); margin-bottom:6px; }
+.sw-medal{ display:flex; align-items:center; gap:4px; color:var(--text); }
+.sw-medal small{ font-size:10.5px; color:var(--dim); font-weight:700; }
 .drop-row{ display:flex; align-items:center; flex-wrap:wrap; gap:3px; margin-top:6px; font-size:13px; }
 .drop-mat{ display:inline-flex; align-items:center; gap:2px; margin-right:6px; }
 .drop-mat small{ margin-left:1px !important; font-size:10px; color:var(--text) !important; }
@@ -3056,7 +3058,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.2.004';
+const GAME_VERSION = 'α0.2.005';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7476,7 +7478,9 @@ function runSweep(stageId, times, useTicket){
   const n = tkKey ? Math.min(times, getItem(tkKey)) : Math.min(times, Math.floor(STATE.stamina / stage.stamina));
   if(n <= 0){ toast(tkKey ? `${SWEEP_TICKETS[tkKey].name}が足りません` : `スタミナが足りません(必要 ${stage.stamina})`); return null; }
   if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。モンスター → ルーン で分解してください`); return null; }
-  const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [], runes: [], dust: 0 };
+  const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [], runes: [], dust: 0, medal: null };
+  // 「結果だけ」は戦闘をしないので、イベントボーナスは今の編成で数える
+  const party = getPartyIds().map(ref => ({ ref }));
   for(let i = 0; i < n; i++){
     if(tkKey){
       addItem(tkKey, -1);
@@ -7485,7 +7489,8 @@ function runSweep(stageId, times, useTicket){
       track('staminaUsed', stage.stamina);
     }
     track('sweep');
-    const r = stage.type === 'dungeon' ? grantDungeonRewards(stage) : grantStageRewards(stage, sweepSpawned(stage));
+    const r = stage.type === 'dungeon' ? grantDungeonRewards(stage) : grantStageRewards(stage, sweepSpawned(stage), party);
+    if(r.medal){ if(!total.medal) total.medal = { ...r.medal, n: 0 }; total.medal.n += r.medal.n; }
     total.runs++;
     total.gold += r.gold || 0;
     total.runes.push(...(r.runes || []));
@@ -7667,10 +7672,11 @@ function showAutoRunResult(){
 }
 
 let sweepTarget = null;
-let sweepSpeed = 2;   // ×1 / ×2 / ×3 / ×4 / 0 = 結果だけ。最初は×2
+let sweepSpeed = 0;   // ×1 / ×2 / ×3 / ×4 / 0 = 結果だけ。最初は「結果だけ」、選んだ速さは STATE.sweepSpeed に覚える
 let sweepTicket = false;   // 周回券でスタミナのかわりに回す(結果だけのとき)
 function renderSweepModal(){
   const stage = findStage(sweepTarget);
+  if(STATE.sweepSpeed !== undefined && !renderSweepModal.seen){ sweepSpeed = STATE.sweepSpeed; renderSweepModal.seen = true; }
   const layer = document.getElementById('modal-layer');
   refreshStamina();
   const tkKey = sweepTicketKey(stage);
@@ -7694,10 +7700,10 @@ function renderSweepModal(){
       <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・${ITEM_ICON.pot}EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
       <div class="sw-speed-head">速さ</div>
       <div class="sw-speeds">
-        ${SPEED_OPTIONS.map(n => `<button class="sw-speed ${sweepSpeed === n ? 'on' : ''}" data-sweep-speed="${n}">×${n}</button>`).join('')}
         <button class="sw-speed ${sweepSpeed === 0 ? 'on' : ''}" data-sweep-speed="0">結果だけ</button>
+        ${SPEED_OPTIONS.map(n => `<button class="sw-speed ${sweepSpeed === n ? 'on' : ''}" data-sweep-speed="${n}">×${n}</button>`).join('')}
       </div>
-      <div class="fs-note">${sweepSpeed === 0 ? '戦闘をスキップして、クリア報酬だけをまとめて受け取ります。' : '戦闘をそのまま自動で繰り返します。負けたら止まります。途中で止められます。'}</div>
+      <div class="fs-note">${sweepSpeed === 0 ? `戦闘をスキップして、クリア報酬だけをまとめて受け取ります。${sweepTicket ? '' : 'スタミナを使います。'}${stage.type === 'event' ? 'イベントボーナスは今の編成で数えます。' : ''}` : '戦闘をそのまま自動で繰り返します。負けたら止まります。途中で止められます。'}</div>
       ${tkKey && tkHave ? `<button class="sw-ticket ${sweepTicket ? 'on' : ''}" data-sweep-ticket="1" ${sweepSpeed === 0 ? '' : 'disabled'}>
         ${itemIcon(tkKey)}${SWEEP_TICKETS[tkKey].name}を使う<small>${sweepSpeed === 0 ? `残り${tkHave}枚・スタミナを使いません` : '「結果だけ」のときに使えます'}</small>
       </button>` : ''}
@@ -7719,6 +7725,7 @@ function showSweepResult(stage, t){
     <div class="result-modal sweep-modal" role="dialog" aria-label="周回結果">
       <h3>周回結果:${stage.name} ×${t.runs}</h3>
       ${t.gold ? `<div class="gold-line">${goldText(t.gold)}</div>` : ''}
+      ${t.medal ? `<div class="gold-line sw-medal"><span class="item-ic">${ITEM_ICON[t.medal.icon]}</span>${t.medal.name} +${t.medal.n.toLocaleString()}${t.medal.bonus ? `<small>(イベントボーナス+${Math.round(t.medal.bonus * 100)}%)</small>` : ''}</div>` : ''}
       <div class="mat-grid">${items.map(([k, n]) => `<div class="mat-chip" title="${itemName(k)}"><div class="ic">${itemIcon(k)}</div><div class="n">${n}</div></div>`).join('')}</div>
       ${runeGainHtml(t.runes || [], t.dust || 0)}
       ${souls.length ? `<div class="br-rewards-head" style="margin-top:10px;">ソウル</div>
@@ -8872,13 +8879,13 @@ function giveEventMats(mats, tier, nEach, nRole){
 }
 /* イベントメダルを渡す。周回ぶんにはイベントボーナス(編成でメダルが増える)が乗る。
    EXステージは腕試しなのでメダルを落とさない。 */
-function grantEventMedal(stage, firstTime){
+function grantEventMedal(stage, firstTime, party){
   if(stage.type !== 'event' || stage.ex) return null;
   const ev = EVENTS.find(e => e.key === stage.eventKey);
   const medal = medalOf(ev);
   if(!medal) return null;
   const tier = Number(String(stage.id).split('_').pop()) || 1;
-  const bonus = eventBonusRate(ev);
+  const bonus = eventBonusRate(ev, party);
   const run = Math.round(medalRunGain(tier) * (1 + bonus));
   const first = firstTime ? medalFirstClear(tier) : 0;
   const n = run + first;
@@ -17890,7 +17897,7 @@ function closeModal(){
 }
 
 // rewards for a cleared main stage. `spawned` = every enemy unit that appeared (all defeated on a win)
-function grantStageRewards(stage, spawned){
+function grantStageRewards(stage, spawned, party){
   const items = [];
   const add = (key, n) => { if(n <= 0) return; addItem(key, n); const hit = items.find(x => x.key === key); if(hit) hit.n += n; else items.push({ key, n }); };
   const gold = stage.gold || 0;
@@ -17949,13 +17956,13 @@ function grantStageRewards(stage, spawned){
     [...(stage.bossReward || []), ...(stage.reward || [])].forEach(r => { grantRewards([r]); firstItems.push(r); });
   }
   // イベントメダル。周回でもらえるぶんにはイベントボーナスが乗る。EXステージでは出ない
-  const medalGot = grantEventMedal(stage, firstTime);
+  const medalGot = grantEventMedal(stage, firstTime, party);
   trackEventClear(stage);
   track('stageClear');
   track('exploreClear');   // デイリー「探索を3回」: 周回・育成クエストも同じく数える
   if(stage.boss) track('bossClear');
   souls.filter(x => x.joined).forEach(() => track('befriend'));
-  return { items, gold, souls, crystals, firstItems };
+  return { items, gold, souls, crystals, firstItems, medal: medalGot };
 }
 
 function renderBattleFight(){
@@ -18923,7 +18930,7 @@ function handlePhoneClick(ev){
   const swOpen = t.closest('[data-sweep-open]');
   if(swOpen){ sweepTarget = swOpen.dataset.sweepOpen; renderSweepModal(); return; }
   const swSpeedEl = t.closest('[data-sweep-speed]');
-  if(swSpeedEl){ sweepSpeed = Number(swSpeedEl.dataset.sweepSpeed); if(sweepSpeed !== 0) sweepTicket = false; renderSweepModal(); return; }
+  if(swSpeedEl){ sweepSpeed = Number(swSpeedEl.dataset.sweepSpeed); STATE.sweepSpeed = sweepSpeed; saveState(); if(sweepSpeed !== 0) sweepTicket = false; renderSweepModal(); return; }
   if(t.closest('[data-sweep-ticket]')){ sweepTicket = !sweepTicket; renderSweepModal(); return; }
   if(t.closest('[data-auto-stop]')){ stopAutoRun('user'); return; }
   const swRun = t.closest('[data-sweep-run]');
@@ -19353,6 +19360,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 121, version: 'α0.2.005', date: '9/28', title: '周回は「結果だけ」から', body: '<span class="nt-i">・周回を開くと、最初から<em>「結果だけ」</em>が選ばれるようにしました。スタミナを使って、戦闘をせずに報酬だけをまとめて受け取れます。×1〜×4の速さを選ぶと、次からはその速さを覚えています。</span><span class="nt-i">・イベントのステージを「結果だけ」で回したとき、結果に<em>イベントメダル</em>(イベントボーナスこみ)を出すようにしました。ボーナスは今の編成で数えます。</span>' },
   { id: 120, version: 'α0.2.004', date: '9/28', title: 'ガチャとイベントショップを使いやすく', body: '<span class="nt-i">・ガチャのピックアップの切り替えを、イベント一覧と同じ横スクロールにしました。</span><span class="nt-i">・ガチャやイベントの切り替えボタンを押しても、横スクロールの位置が最初に戻らないようにしました。</span><span class="nt-i">・イベントショップの品の左にアイコンを付け、値段はメダルのアイコンと数字で表示するようにしました。</span><span class="nt-i">・モンスター召喚券・遺物召喚券(1回券)で<em>10連</em>を引けるようになりました。券が10枚に足りないときは、足りない回数ぶんを星結晶で払えます(10連と同じ単価で、1回135)。</span>' },
   { id: 119, version: 'α0.2.003', date: '9/28', title: 'お詫びの召喚券は既存プレイヤーだけに', body: 'イベント開始時間変更のお詫び(モンスター召喚券3枚)は、すでに遊んでいる方だけにお届けするようにしました。これからはじめる方には届きません。' },
   { id: 118, version: 'α0.2.002', date: '9/28', title: 'イベントの開始を 9/28 19:00 に変更', body: '「嵐呼ぶ神狼」「奈落の王」の開始を、9/29(火) 0:00 から <em>9/28(月) 19:00</em> に早めました。終了は 10/12(月) 23:59 のままです。お詫びとして、すでに遊んでいる方にモンスター召喚券3枚をプレゼントボックスにお届けしました(これからはじめる方は対象外)。告知バナーの日時も書き直しました。' },

@@ -30,6 +30,7 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | balance/power.js | スキルの強さの点数(パワー)とCT・SPごとの中央値を出す(`node tools/balance/power.js`) |
 | balance/chance_v3.js・cmp_gen.js・v3md.js | 付与率見直しの一覧・スキル比較表のデータを作る(α0.1.072より前のキットで作成) |
 | gacha_scroll_ui_test.py | ガチャ・イベントの横スクロールが押しても戻らない、イベントショップのアイコン、1回券＋星結晶の10連 |
+| sweep_result_ui_test.py | 周回は「結果だけ」が初期値で速さを覚える、イベント周回の結果にメダル(ボーナスこみ)が出る |
 | recruit_sim.js | クリアでモンスターが仲間になるまでの周回数を測る(`N=200 node recruit_sim.js q1_01`) |
 | smoke.py | 起動スモークテスト(主要7画面のJSエラー・横スクロールと、BGMの読み込みを確認) |
 | auth_test.py | ログイン・プレイヤーID・端末間のデータ引き継ぎの検証(30項目) |
