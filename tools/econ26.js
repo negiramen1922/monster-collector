@@ -57,9 +57,12 @@ ok('ランダムBOX TierIV: 3個', Object.values(got).reduce((a,b)=>a+b,0)===3 &
 E.openSelectBox(2,'sp','elf');
 ok('選択BOX TierII: 選んだ素材が5個', E.getItem('sp_elf_2')===5 && E.getItem('box_sel_2')===0);
 // alchemy
-S.items={el_fire_1:23}; S.gold=1000;
+S.items={el_fire_1:23}; S.gold=1000; S.clearedStages=['q2_01'];   // 中級を1つクリア = TierIIが落ちる段階
 E.craftMat('el','fire',2,'max');
 ok('錬金術: I×23 → II×4(余り3)、ゴールド200×4', E.getItem('el_fire_2')===4 && E.getItem('el_fire_1')===3 && S.gold===200, [E.getItem('el_fire_2'),E.getItem('el_fire_1'),S.gold]);
+S.items={el_fire_1:23}; S.gold=1000; S.clearedStages=['q1_01'];   // まだTierIIが落ちない段階の先回りは15個→1個
+E.craftMat('el','fire',2,'max');
+ok('錬金術の先回り: I×23 → II×1(余り8)', E.getItem('el_fire_2')===1 && E.getItem('el_fire_1')===8, [E.getItem('el_fire_2'),E.getItem('el_fire_1')]);
 // facilities
 const base=E.baseState();
 base.mine.at=Date.now()-48*3600e3; base.mine.carry=0;
@@ -75,13 +78,12 @@ S.clearedStages=['q1_03','q1_05','q1_10']; E.upgradeFacility('mine');
 ok('施設の強化(Lv3・5万G)', base.mine.lv===3 && S.gold===1e6-50000);
 // dungeons: battle + rewards
 S.clearedStages=api.STAGES.map(x=>x.id);
-for(const kind of ['exp','gold','mat']){
+for(const kind of ['exp','gold','rune']){
   const b=api.run(['m54','m113','m116','m68','m125'], `dg_${kind}_4`, 120);
-  ok(`${kind}ダンジョンLv5: 戦闘が終わり報酬が出る`, b.finished && b.win && b.rewards && (b.rewards.gold>0 || b.rewards.items.length>0), b.rewards && {gold:b.rewards.gold, items:b.rewards.items.length});
+  ok(`${kind}ダンジョンLv5: 戦闘が終わり報酬が出る`, b.finished && b.win && b.rewards && (b.rewards.gold>0 || b.rewards.items.length>0 || (b.rewards.runes||[]).length>0), b.rewards && {gold:b.rewards.gold, items:b.rewards.items.length});
 }
-S.items={}; const r=E.grantDungeonRewards(E.dungeonStage('mat',4));
-const open=E.matOpenToday(); const allowed=new Set(Object.entries(open).flatMap(([f,ks])=>ks.map(k=>f+'_'+k)));
-ok('素材ダンジョン: 今日の曜日の素材だけ、I15/II8/III2', r.items.every(x=>allowed.has(x.key.replace(/_[1-4]$/,''))) && r.items.filter(x=>x.key.endsWith('_1')).reduce((a,x)=>a+x.n,0)===15, r.items.length);
+S.runes=[]; const r=E.grantDungeonRewards(E.dungeonStage('rune',4));
+ok('ルーン採掘Lv5: ルーン3個(TierⅤかⅣ)とルーンの粉(素材ダンジョンの置き換え)', r.runes.length===3 && r.runes.every(x=>x.tier===5||x.tier===4) && r.dust>=30 && r.items.length===0, r.runes.map(x=>x.tier));
 // main stage: drops, boss soul cap, first clear box
 const bb=api.run(['m54','m113','m116','m68','m125'], 'q1_05', 60);
 const S2=api.STATE; S2.clearedStages=['tu1','tu2','tu3','q1_01','q1_02','q1_03','q1_04']; S2.daily=null; S2.items={};
@@ -90,7 +92,7 @@ ok('ボスステージ初回: 選択BOX TierIIとボスのソウル', E.getItem(
 const bossOnly=bb.spawned.filter(u=>u.boss);
 let souls=0; for(let i=0;i<8;i++){ const rr=E.grantStageRewards(E.STAGE_BY_ID.q1_05, bossOnly); souls+=rr.souls.reduce((a,x)=>a+x.n,0); }
 ok('ボスのソウルに1日の上限はない(8回で8個)', souls===8, souls);
-ok('ボスステージのドロップ(初級: TierI×4・II×1・III×1)', res.items.filter(x=>/^(el|sp|ro)_/.test(x.key)).reduce((a,x)=>a+x.n,0)===6, res.items);
+ok('ボスステージのドロップ(初級: TierI×4だけ・上のTierは出ない)', res.items.filter(x=>/^(el|sp|ro)_/.test(x.key)).reduce((a,x)=>a+x.n,0)===4 && res.items.every(x=>!/^(el|sp|ro)_.*_[2-4]$/.test(x.key)), res.items);
 
 // ---- クリアで仲間になる抽選 ----
 setRecruit(true);

@@ -1,0 +1,31 @@
+/* テイマーのレベルアップでスタミナ+300・周回でテイマーXPが入る、の回帰テスト */
+const load = require('./harness.js');
+const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, tamerXp, tamerLevel, checkTamerLevelUp, track, TAMER_XP_PER_RUN, TAMER_LEVELUP_STAMINA, grantStageRewards, findStage, saveState };`);
+const E = global.__e;
+let fails = 0;
+const ok = (n, c, i) => { if(!c) fails++; console.log((c ? '✅' : '❌') + ' ' + n + (i !== undefined ? '  ' + JSON.stringify(i) : '')); };
+api.STATE = E.DEFAULT_STATE();
+const S = api.STATE;
+S.clearedStages = ['tu1', 'tu2', 'tu3'];
+S.stamina = 100;
+E.checkTamerLevelUp();
+const lv0 = E.tamerLevel().lv;
+ok('古いセーブは今のLvが起点(さかのぼって配らない)', S.tamerLvSeen === lv0 && S.stamina === 100, [S.tamerLvSeen, S.stamina]);
+const x0 = E.tamerXp();
+E.grantStageRewards(E.findStage('q1_01'), []);
+E.grantStageRewards(E.findStage('q1_01'), []);   // 2回目は周回(初回クリアぶんは増えない)
+ok('周回1回ごとにテイマーXP+20', E.tamerXp() - x0 === 120 + 2 * E.TAMER_XP_PER_RUN, E.tamerXp() - x0);
+const need = Math.pow(lv0, 2) * 45 - E.tamerXp();
+for(let i = 0; i < Math.ceil(need / E.TAMER_XP_PER_RUN) + 1; i++) E.track('exploreClear');
+const st0 = S.stamina;
+E.checkTamerLevelUp();
+ok('レベルが上がるとスタミナ+300', S.stamina === st0 + 300 && S.tamerLvSeen === lv0 + 1, [S.stamina - st0, S.tamerLvSeen]);
+E.checkTamerLevelUp();
+ok('同じLvでは2回配らない', S.stamina === st0 + 300);
+S.stamina = 900;
+for(let i = 0; i < 2000; i++) E.track('exploreClear');
+const lvBefore = S.tamerLvSeen;
+E.checkTamerLevelUp();
+const ups = S.tamerLvSeen - lvBefore;
+ok('上限(999)を超える分はプレゼントボックスへ', S.stamina === 999 && (S.presentBox || []).some(g => g.reward[0].type === 'stamina' && g.reward[0].n === ups * 300 - 99), [ups, S.stamina, (S.presentBox || []).map(g => g.reward[0].n)]);
+console.log(fails ? `${fails}件失敗` : 'すべて通過');

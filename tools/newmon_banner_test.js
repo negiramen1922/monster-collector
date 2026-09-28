@@ -23,24 +23,24 @@ ok('base64はdata-URIプレフィックス無しの生データ(既存のegg_*�
 
 // --- 2. 新規29体はまだMONSTERSに実装されていない(告知だけが先行している) ---
 api.STATE = E.DEFAULT_STATE();
-ok('新規29体はまだMONSTERSに実装されていない(告知だけが先行している)', E.MONSTERS.length === 105, E.MONSTERS.length);
+ok('新規30体がMONSTERSに実装されている(α0.1)', E.MONSTERS.length === 135, E.MONSTERS.length);
 
 // --- 3. バナー生成ロジック: ICON_DATAにアセットがある時だけ告知バナーが出る ---
 delete E.ICON_DATA.banner_newmon29;
 const bannersWithout = E.homeBanners();
-ok('アセットが無い時は告知バナーを出さない(壊れた画像を表示しない安全策)', !bannersWithout.find(b => b.tag === '近日実装'));
+ok('アセットが無い時は告知バナーを出さない(壊れた画像を表示しない安全策)', !bannersWithout.find(b => b.tag === '新登場'));
 
 E.ICON_DATA.banner_newmon29 = 'RkFLRV9CQVNFNjRfRk9SX1RFU1Q'; // ダミーのbase64
 const banners = E.homeBanners();
-const promo = banners.find(b => b.tag === '近日実装');
-ok('アセットがある時はホーム画面のバナー一覧に「近日実装」バナーが含まれる', !!promo);
-ok('タイトルに新モンスター29体と入っている', promo && promo.title.includes('29体'));
+const promo = banners.find(b => b.tag === '新登場');
+ok('アセットがある時はホーム画面のバナー一覧に「新登場」バナーが含まれる', !!promo);
+ok('タイトルに新モンスター30体と入っている', promo && promo.title.includes('30体'));
 ok('お知らせ画面へのリンクになっている', promo && promo.attr.includes('data-overlay="notices"'));
 ok('独自の画像(rawImg)を使い、実在しないモンスターIDをimgSrc()に渡さない', promo && !!promo.rawImg && !promo.img);
 
 // --- 4. 実際にレンダリングされたHTMLにも出る ---
 const carouselHtml = E.renderBannerCarousel();
-ok('カルーセルのHTMLにバナーのタイトルが出る', carouselHtml.includes('新モンスター29体、参戦予定'));
+ok('カルーセルのHTMLにバナーのタイトルが出る', carouselHtml.includes('新モンスター30体、参戦'));
 ok('カルーセルのHTMLに告知用画像(base64)が埋め込まれている', carouselHtml.includes(E.ICON_DATA.banner_newmon29));
 
 // --- 5. お知らせ一覧(NOTICES)にも同じ告知が載っている ---

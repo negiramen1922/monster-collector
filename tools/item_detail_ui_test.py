@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""アイテム詳細の検証: スキル強化の素材・持ち物から開ける、入手手段と移動、閉じると元の画面に戻る。
+使い方: CHROMIUM_PATH=/path/to/chrome python3 tools/item_detail_ui_test.py"""
+import asyncio, os, pathlib, sys
+from playwright.async_api import async_playwright
+from _serve import game_url, use_mock_auth, start_as_guest
+
+OUT = pathlib.Path(os.environ.get('SHOT_DIR', '/tmp'))
+LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
+bad = 0
+def check(name, cond, info=''):
+    global bad
+    bad += 0 if cond else 1
+    print(('✅' if cond else '❌') + f' {name}' + (f'  {info}' if info != '' else ''))
+
+async def main():
+    with game_url() as url:
+        async with async_playwright() as p:
+            b = await p.chromium.launch(**LAUNCH)
+            pg = await b.new_page(viewport={'width': 390, 'height': 820})
+            await use_mock_auth(pg)
+            errs = []
+            pg.on('pageerror', lambda e: errs.append(str(e)))
+            await pg.goto(url); await pg.wait_for_timeout(900)
+            await start_as_guest(pg)
+            await pg.evaluate("""() => { clearGuideToast(); STATE.announceQueue = []; STATE.clearedStages = STAGES.filter(s => ['tu','q1','q2','q3','q4'].includes(s.tier)).map(s => s.id);
+              STATE.owned.m54 = { star: 5, souls: 0, level: 120, exp: 0, skillLv: 7, skill2Lv: 1, ultLv: 1, passiveLv: 1 }; STATE.items = { el_earth_2: 3, box_sel_2: 1, exp2: 5 }; saveState();
+              skillUpgradeModal = { id: 'm54', field: 'skillLv' }; renderSkillUpgradeModal(); }""")
+            await pg.wait_for_timeout(200)
+            key = await pg.evaluate("() => [...document.querySelectorAll('[data-cost-toggle]')].find(e => e.dataset.costToggle === 'el_earth_2').dataset.costToggle")
+            await pg.evaluate("() => document.querySelector('[data-cost-toggle=\"el_earth_2\"]').click()"); await pg.wait_for_timeout(250)
+            txt = await pg.locator('.item-detail').inner_text()
+            check('スキル強化の素材を押すとアイテム詳細', key == 'el_earth_2' and '土の欠片 TierII' in txt and '所持数' in txt and '3' in txt, txt[:60])
+            check('説明と入手手段(ステージ・錬金術・BOX)と移動ボタン', '入手手段' in txt and 'ドロップ' in txt and '錬金術' in txt and await pg.locator('[data-item-go]').count() >= 3)
+            await pg.screenshot(path=str(OUT / 'item_detail.png'))
+            await pg.evaluate("() => document.querySelector('.id-tiers [data-item-detail=\"el_earth_3\"]').click()"); await pg.wait_for_timeout(150)
+            check('Tierを切り替えられる', await pg.evaluate("() => itemDetail.key") == 'el_earth_3')
+            await pg.evaluate("() => document.querySelector('.id-tiers [data-item-detail=\"el_earth_2\"]').click()"); await pg.wait_for_timeout(150)
+            n0 = await pg.evaluate("() => getItem('el_earth_2')")
+            await pg.evaluate("() => { const i = itemSources(itemDetail.key).findIndex(s => s.go && s.go.type === 'usebox'); document.querySelectorAll('[data-item-go]')[i].click(); }"); await pg.wait_for_timeout(200)
+            check('選択BOXを持っていればその場で使える', await pg.evaluate("() => getItem('el_earth_2')") == n0 + 5 and await pg.evaluate("() => !!itemDetail"))
+            await pg.evaluate("() => document.querySelector('[data-item-detail-close]').click()"); await pg.wait_for_timeout(200)
+            check('閉じるとスキル強化に戻る', await pg.locator('.skill-up-modal').count() == 1)
+            await pg.evaluate("() => document.querySelector('[data-cost-toggle=\"el_earth_2\"]').click()"); await pg.wait_for_timeout(200)
+            await pg.evaluate("() => document.querySelector('[data-item-go=\"0\"]').click()"); await pg.wait_for_timeout(400)
+            st = await pg.evaluate("() => [currentScreen, stageSheet]")
+            check('移動でそのステージの詳細が開く', st[0] == 'battle' and st[1] and await pg.evaluate("(id) => STAGE_BY_ID[id].drops.kinds.some(([f, k]) => f === 'el' && k === 'earth')", st[1]), st)
+            await pg.evaluate("() => { closeModal(); stageSheet = null; bagTab = 'mat'; renderBag(); }"); await pg.wait_for_timeout(200)
+            cells = await pg.evaluate("() => [...document.querySelectorAll('.bag-cell[data-item-detail^=\"el_earth\"]')].map(e => [e.dataset.itemDetail, e.className])")
+            check('素材はTierごとに別アイテム(縁の色=Tier)', [c[0] for c in cells] == ['el_earth_1', 'el_earth_2', 'el_earth_3', 'el_earth_4'] and all(f'tier-t{i + 1}' in c[1] for i, c in enumerate(cells)), cells)
+            await pg.screenshot(path=str(OUT / 'bag_tiers.png'))
+            await pg.evaluate("() => document.querySelector('[data-bag-tier=\"2\"]').click()"); await pg.wait_for_timeout(150)
+            only2 = await pg.evaluate("() => [...document.querySelectorAll('.bag-grid .bag-cell')].every(e => e.classList.contains('tier-t2')) && document.querySelectorAll('.bag-grid .bag-cell').length === 24")
+            check('TierIIでフィルターすると TierII の24種だけ', only2)
+            await pg.screenshot(path=str(OUT / 'bag_tier2.png'))
+            await pg.evaluate("() => { document.querySelector('[data-bag-tier=\"0\"]').click(); document.querySelector('[data-bag-owned]').click(); }"); await pg.wait_for_timeout(150)
+            owned = await pg.evaluate("() => [...document.querySelectorAll('.bag-grid .bag-cell')].map(e => e.dataset.itemDetail)")
+            check('所持のみで持っている素材だけ', owned == ['el_earth_2'], owned)
+            await pg.evaluate("() => document.querySelector('.bag-cell[data-item-detail=\"el_earth_2\"]').click()"); await pg.wait_for_timeout(200)
+            check('持ち物の素材からも開ける', await pg.evaluate("() => itemDetail && itemDetail.key") == 'el_earth_2')
+            await pg.evaluate("() => document.querySelector('[data-item-detail-close]').click()"); await pg.wait_for_timeout(200)
+            check('閉じると持ち物に戻る', await pg.locator('.bag-modal').count() == 1)
+            await pg.evaluate("() => { bagTab = 'grow'; renderBag(); document.querySelector('.bag-cell[data-item-detail=\"exp2\"]').click(); }"); await pg.wait_for_timeout(200)
+            t2 = await pg.locator('.item-detail').inner_text()
+            check('EXPポットも入手手段つきで開ける', 'EXPポット' in t2 and 'EXPダンジョン' in t2)
+            # --- 使うアイテム: 詳細画面の「使う」で、まとめて使える ---
+            await pg.evaluate("() => { itemDetail = null; addItem('box_rnd_1', 5); addItem('box_sel_2', 3); bagTab = 'other'; bagScrollSaved = 0; renderBag(); }"); await pg.wait_for_timeout(200)
+            tops = []
+            for tab in ['grow', 'mat', 'other']:
+                await pg.evaluate(f"() => document.querySelector('[data-bag-tab=\"{tab}\"]').click()"); await pg.wait_for_timeout(120)
+                tops.append(await pg.evaluate("() => Math.round(document.querySelector('.bag-modal').getBoundingClientRect().top)"))
+            check('持ち物のタブを切り替えても上の位置が動かない(上揃い)', len(set(tops)) == 1, tops)
+            check('BOXは押すと詳細(使うボタンはマスに無い)', await pg.locator('.bag-cell[data-item-detail="box_rnd_1"]').count() == 1 and await pg.locator('[data-open-box]').count() == 0)
+            await pg.evaluate("() => document.querySelector('.bag-cell[data-item-detail=\"box_rnd_1\"]').click()"); await pg.wait_for_timeout(200)
+            before = await pg.evaluate("() => Object.entries(STATE.items).filter(([k]) => /^(el|sp|ro)_.*_1$/.test(k)).reduce((a, [, n]) => a + n, 0)")
+            await pg.evaluate("() => { document.querySelector('[data-id-qty=\"1\"]').click(); document.querySelector('[data-id-qty=\"1\"]').click(); }"); await pg.wait_for_timeout(100)
+            t0 = await pg.evaluate("() => Math.round(document.querySelector('.item-detail').getBoundingClientRect().top)")
+            await pg.evaluate("() => document.querySelector('[data-id-use]').click()"); await pg.wait_for_timeout(200)
+            check('使って中身が増えてもアイテム詳細の上の位置が動かない', t0 == await pg.evaluate("() => Math.round(document.querySelector('.item-detail').getBoundingClientRect().top)"))
+            after = await pg.evaluate("() => Object.entries(STATE.items).filter(([k]) => /^(el|sp|ro)_.*_1$/.test(k)).reduce((a, [, n]) => a + n, 0)")
+            check('ランダムBOXを3個まとめて使える(TierI×20×3)', await pg.evaluate("() => getItem('box_rnd_1')") == 2 and after - before == 60, [after - before])
+            got = await pg.locator('.id-got').inner_text()
+            check('ランダムBOXは中身を並べず合計だけ', '合計60個' in got and got.count('×') == 0, got)
+            await pg.screenshot(path=str(OUT / 'item_use.png'))
+            await pg.evaluate("() => { document.querySelector('[data-item-detail-close]').click(); }"); await pg.wait_for_timeout(200)
+            await pg.evaluate("() => document.querySelector('.bag-cell[data-item-detail=\"box_sel_2\"]').click()"); await pg.wait_for_timeout(200)
+            await pg.evaluate("() => document.querySelector('[data-id-qty=\"max\"]').click()"); await pg.wait_for_timeout(100)
+            await pg.evaluate("() => document.querySelector('[data-id-use]').click()"); await pg.wait_for_timeout(150)
+            await pg.evaluate("() => document.querySelector('[data-id-selpick=\"el:fire\"]').click()"); await pg.wait_for_timeout(200)
+            check('選択BOXも3個まとめて、選んだ素材を受け取る(5×3)', await pg.evaluate("() => [getItem('box_sel_2'), getItem('el_fire_2')]") == [0, 15])
+            # --- 使っても・詳細から戻っても、持ち物のスクロール位置は一番上に戻らない ---
+            await pg.evaluate("() => { itemDetail = null; bagTab = 'mat'; bagOwnedOnly = false; bagTierFilter = 0; renderBag(); }"); await pg.wait_for_timeout(200)
+            await pg.evaluate("() => { document.querySelector('.bag-modal').scrollTop = 600; }"); await pg.wait_for_timeout(100)
+            top0 = await pg.evaluate("() => document.querySelector('.bag-modal').scrollTop")
+            await pg.evaluate("() => document.querySelector('[data-bag-tier=\"0\"]').click()"); await pg.wait_for_timeout(150)
+            check('フィルターを押してもスクロール位置が残る', top0 > 100 and abs(await pg.evaluate("() => document.querySelector('.bag-modal').scrollTop") - top0) < 2, top0)
+            await pg.evaluate("() => { document.querySelector('.bag-modal').scrollTop = 600; document.querySelector('.bag-cell[data-item-detail=\"el_fire_2\"]').click(); }"); await pg.wait_for_timeout(200)
+            await pg.evaluate("() => document.querySelector('[data-item-detail-close]').click()"); await pg.wait_for_timeout(200)
+            check('詳細から戻ってもスクロール位置が残る', abs(await pg.evaluate("() => document.querySelector('.bag-modal').scrollTop") - top0) < 2)
+            check('JSエラーなし', not errs, errs[:3])
+            await b.close()
+    print('NG' if bad else 'すべて通過')
+    return bad
+sys.exit(asyncio.run(main()))

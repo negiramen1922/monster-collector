@@ -3,7 +3,7 @@
    a fetched (fully sanitized) opponent, including a fairness check that buildPvpEnemyParty
    does not apply the stage-difficulty ENEMY_POWER buff a scripted stage enemy would get. */
 const load = require('./harness.js');
-const api = load('game.js', src => src + `;global.__e = {
+const api = load('game.js', src => src + `;global.__e = { MAX_STAR,
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE, setAccount: a => { ACCOUNT = a; },
   sanitizeDefense, sanitizeRelicSnap, buildDefenseSnapshot, publishProfile,
   pvpAvailable, searchPvpOpponents, get pvpOpponents(){ return pvpOpponents; },
@@ -43,7 +43,7 @@ global.window.__authBackend = { kind: 'local' }; // no fetchPvpOpponents: offlin
   ok('不正な陣形キーはデフォルトに落ちる', evilDefense.formationKey === E.DEFAULT_FORMATION, evilDefense.formationKey);
   ok('5枠に切り詰められる', evilDefense.slots.length === 5, evilDefense.slots.length);
   ok('不正なモンスターIDのスロットは null になる', evilDefense.slots[1] === null);
-  ok('star/levelは範囲内にクランプされる', evilDefense.slots[0].star === 7 && evilDefense.slots[0].level === 1, evilDefense.slots[0]);
+  ok('star/levelは範囲内にクランプされる', evilDefense.slots[0].star === E.MAX_STAR && E.MAX_STAR === 10 && evilDefense.slots[0].level === 1, evilDefense.slots[0]);
   ok('skillLvが非数値ならデフォルト1', evilDefense.slots[0].skillLv === 1);
   ok('遺物のdupeUsedは0-4にクランプされる', evilDefense.slots[0].relic.dupeUsed === 4, evilDefense.slots[0].relic);
   ok('存在しない遺物defIdは null', E.sanitizeRelicSnap({ defId: 'rel_does_not_exist', level: 1 }) === null);
