@@ -31,8 +31,8 @@ def encode(im):
             return buf.getvalue(), q
     raise AssertionError
 
-def main(dry=False):
-    m = json.load(io.open('tools/sprite_map.json', encoding='utf-8'))
+def main(dry=False):  # 対応表は引数で差し替えられる(既定 tools/sprite_map.json)
+    m = json.load(io.open([a for a in sys.argv[1:] if a.endswith('.json')] and [a for a in sys.argv[1:] if a.endswith('.json')][0] or 'tools/sprite_map.json', encoding='utf-8'))
     s = io.open('index.html', encoding='utf-8').read()
     i = s.find('id="sprite-data"'); j = s.find('>', i) + 1; k = s.find('</script>', j)
     data = json.loads(s[j:k])
