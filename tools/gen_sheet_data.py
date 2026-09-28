@@ -30,5 +30,8 @@ dump('perks.js', 'PERKS', pk, 'docs/design/凸ボーナス_ピックアップ4�
 # ---- 06 配布遺物 ----
 dump('relics.js', 'RELIC2', load('配布遺物_風と闇.json'), 'docs/design/配布遺物_風と闇.json から。tools/gen_sheet_data.py が生成。')
 
+# ---- 10 タイタンの必殺技 ----
+dump('titan.js', 'TITAN', load('タイタンの必殺技_粗調整.json'), 'docs/design/タイタンの必殺技_粗調整.json から。tools/gen_sheet_data.py が生成。')
+
 # ---- 09 やけどの重ねがけ ----
 dump('burn.js', 'BURN', load('やけどの重ねがけ.json'), 'docs/design/やけどの重ねがけ.json から。tools/gen_sheet_data.py が生成。')

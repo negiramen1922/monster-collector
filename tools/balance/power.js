@@ -15,7 +15,9 @@ function effPts(e, tf){
   if(e.heal){ p+=e.heal*10*tf; parts.push(`回復${Math.round(e.heal*100)}%`); }
   if(e.shield){ p+=e.shield*10*tf*1.2; parts.push(`シールド${Math.round(e.shield*100)}%`); }
   if(e.taunt){ p+=6*e.taunt; parts.push(`挑発${e.taunt}T`); }
-  if(e.redirect){ p+=12*(e.turns||3)/3*e.redirect/0.3; parts.push('肩代わり'); }
+  // 肩代わり: 実測(tools/balance/redirect_probe.js)で、肩代わり30%は「味方全体の被ダメ-11.6%」に相当した。
+  // 味方全体への被ダメカット13%×3ターン = 2.5*1.3*3*2.5 = 24.4点 なので、30%/3ターンを24点とする(以前は12点で半額だった)。
+  if(e.redirect){ p+=24*(e.turns||3)/3*e.redirect/0.3; parts.push('肩代わり'); }
   if(e.cleanse||e.cleanseDebuff){ p+=5*tf; parts.push('解除'); }
   if(e.ward){ p+=6; parts.push('免疫'); }
   if(e.immune){ p+=8; }
