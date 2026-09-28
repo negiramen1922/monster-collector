@@ -63,7 +63,7 @@ async def main():
             check('下書きのお知らせが残っていない', n_draft == 0, f'下書き{n_draft}件')
             check('ニュースも最新1件だけ開く', await pg.locator('.nt-row.on').count() == 1)
             t = await pg.locator('.nt-row').first.inner_text()
-            newest = await pg.evaluate("() => NOTICES.filter(n => !n.draft)[0].title")
+            newest = await pg.evaluate("() => liveNotices()[0].title")   # at つきのニュースは掲載時刻まで出ない
             check('先頭は最新のニュース', newest in t, t.split('\n')[0])
             check('小見出しが出ている', await pg.locator('.nt-row.on .nt-h').count() >= 3,
                   await pg.locator('.nt-row.on .nt-h').count())
