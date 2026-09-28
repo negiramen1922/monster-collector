@@ -10,10 +10,10 @@ const NEW = [
   ['スキル2 (CT4)','月喰らいの牙','ct4', { tgt:'back', pow:2.0, onHit:[{ debuff:'vuln', v:0.2, turns:2 }] }],
   ['必殺技 (SP100)','月蝕','sp100', { tgt:'all', pow:2.0, onHit:[{ debuff:'spdDown', v:0.15, turns:2 }] }],
  ]],
- ['スコル', 4, [
-  ['スキル1 (CT3)','日を追う牙','ct3', { tgt:'single', pow:2.2, bonusIf:[{}] }],
-  ['スキル2 (CT4)','陽炎の咢','ct4', { tgt:'single', pow:2.3, onHit:[{ st:'burn', chance:0.5, turns:3 }] }],
-  ['必殺技 (SP100)','太陽を呑む','sp100', { tgt:'single', pow:4.5, onHit:[{ st:'burn', chance:1, turns:3 }] }],
+ ['スコル(サポーター)', 4, [
+  ['スキル1 (CT3)','陽を遮る','ct3', { tgt:'all', pow:0.6, onHit:[{ debuff:'spdDown', v:0.1, turns:2 }] }],
+  ['スキル2 (CT4)','兄弟の狼煙','ct4', { tgt:'allies', effects:[{ to:'allies', buff:'strUp', v:0.2, turns:3 }] }],
+  ['必殺技 (SP100)','太陽を呑む','sp100', { tgt:'all', pow:0.8, onHit:[{ debuff:'spdDown', v:0.15, turns:2 }, { debuff:'pdefDown', v:0.15, turns:2 }, { st:'burn', chance:1, turns:2 }] }],
  ]],
  ['黙示の蝗', 4, [
   ['スキル1 (CT3)','群れの羽音','ct3', { tgt:'allies', effects:[{ to:'allies', buff:'critUp', v:0.2, turns:3 }] }],
