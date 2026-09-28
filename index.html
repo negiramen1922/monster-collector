@@ -2877,7 +2877,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.1.074';
+const GAME_VERSION = 'α0.1.075';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3003,6 +3003,10 @@ const RELIC_SVG_BODY = {
   rel_thunder_swift: '<path d="M28 30 L50 14 L72 30 L72 70 L50 86 L28 70 Z" fill="#8a8a98" stroke="#3a3a48" stroke-width="6" stroke-linejoin="round"/><path d="M56 26 L40 52 L52 52 L44 76 L62 46 L50 46 Z" fill="#ffd12e" stroke="#8a6400" stroke-width="3" stroke-linejoin="round"/>',
   rel_gale_slash: '<path d="M20 20 C40 30 60 30 80 20 C74 40 80 60 88 80 C66 72 34 72 12 80 C20 60 26 40 20 20 Z" fill="#9fe8f0" stroke="#2f7a8a" stroke-width="5" stroke-linejoin="round" opacity=".95"/><path d="M30 46c10-6 18 6 28 0s16-4 16-4M28 60c12-6 20 6 30 0" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>',
   rel_holy_judgement: '<circle cx="50" cy="44" r="22" fill="#ffcf3a" stroke="#b8860b" stroke-width="5"/><path d="M14 44 C24 30 36 26 28 44 C36 62 24 58 14 44 Z M86 44 C76 30 64 26 72 44 C64 62 76 58 86 44 Z" fill="#e8b455" stroke="#8a5f16" stroke-width="3"/><path d="M40 70 C44 86 56 86 60 70" fill="none" stroke="#c9a832" stroke-width="6" stroke-linecap="round"/>',
+  // 霜嵐の牙飾り(風・新規★4): 狼の牙を連ねた首飾り
+  rel_gale_fang: '<path d="M22 34 C40 22 60 22 78 34" fill="none" stroke="#6f4b2a" stroke-width="6" stroke-linecap="round"/><path d="M36 36 L30 64 L44 40 Z" fill="#eaf6ff" stroke="#3a5a72" stroke-width="4" stroke-linejoin="round"/><path d="M50 38 L50 78 L62 42 Z" fill="#ffffff" stroke="#3a5a72" stroke-width="4" stroke-linejoin="round"/><path d="M66 36 L74 62 L76 38 Z" fill="#eaf6ff" stroke="#3a5a72" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="28" r="6" fill="#9fe8f0" stroke="#2f7a8a" stroke-width="4"/>',
+  // 奈落を覗く眼(闇・新規★4): 底から見返してくる眼
+  rel_abyss_eye: '<ellipse cx="50" cy="52" rx="38" ry="24" fill="#241a3a" stroke="#6b4fa0" stroke-width="6"/><circle cx="50" cy="52" r="16" fill="#b27cf2"/><circle cx="50" cy="52" r="7" fill="#1a1230"/><path d="M12 52c14-18 62-18 76 0" fill="none" stroke="#e8b455" stroke-width="4" stroke-linecap="round"/><circle cx="44" cy="46" r="4" fill="#fff" opacity=".8"/>',
   rel_dark_corrosion: '<path d="M26 90 L60 20" stroke="#5a3a1a" stroke-width="7" stroke-linecap="round"/><path d="M60 20 C40 8 18 14 10 34 C26 26 42 26 56 32 Z" fill="#cfd4dc" stroke="#3a2a48" stroke-width="5" stroke-linejoin="round"/><circle cx="70" cy="70" r="8" fill="#b27cf2" opacity=".8"/>',
   rel_grimoire: '<circle cx="50" cy="30" r="16" fill="none" stroke="#e8b455" stroke-width="8"/><rect x="45" y="44" width="10" height="46" rx="3" fill="#e8b455" stroke="#8a5f16" stroke-width="3"/><path d="M55 70h12v8H55zM55 82h8v6h-8z" fill="#e8b455" stroke="#8a5f16" stroke-width="3"/><path d="M43 30 L50 22 L57 30 L50 38 Z" fill="#5a3a80"/>',
   rel_dragon_scale: '<path d="M50 84C24 66 14 50 14 34a18 18 0 0 1 36-4 18 18 0 0 1 36 4c0 16-10 32-36 50z" fill="#c9302a" stroke="#5a1010" stroke-width="6" stroke-linejoin="round"/><path d="M34 40c6-2 10 2 12 6M54 34c6 0 10 4 10 10" fill="none" stroke="#ffb0a0" stroke-width="4" stroke-linecap="round"/><path d="M42 58 L50 50 L58 58 L50 66 Z" fill="#e8b455"/>',
@@ -3304,7 +3308,7 @@ const EVENTS = [
     tiers: [
       { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
       { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
-      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+      { lv: 50,  star: 2, bossStar: 4, rate: 0.00001  }, // 0.001% (3層だけ護衛の★を1段下げた。気絶パーティの勝率が8%まで落ちていたため)
       { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
       { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
       { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
@@ -4758,9 +4762,17 @@ const MAT_FAMILIES = {
   sp: { label: '種族の魂', kinds: () => SPECIES_ORDER, name: k => `${SPECIES_LABEL[k]}の魂`, icon: k => SPECIES_ICON[k] },
   ro: { label: 'ロールの証', kinds: () => Object.keys(ROLE_LABEL), name: k => `${ROLE_LABEL[k]}の証`, icon: k => ROLE_ICON[k] },
 };
+// 錬金術の画面だけが見る系統。遺物のコアはここにだけ足す(育成素材のBOXやダンジョンの
+// 曜日わりに混ざらないように、MAT_FAMILIES には入れない)。
+// コアのTier2・Tier3はPVPショップにしか無く、拠点の鍛冶屋が作るのはTier1だけなので、
+// PVPをやらない人は遺物のスキルがLv4で止まっていた。
+const ALCHEMY_FAMILIES = {
+  ...MAT_FAMILIES,
+  co: { label: '遺物のコア', kinds: () => ['core'], name: () => '遺物のコア', icon: () => ITEM_ICON.core, tiers: [2, 3] },
+};
 const BOX_CONTENT = { sel: { 1: 10, 2: 5, 3: 3, 4: 1 }, rnd: { 1: 20, 2: 10, 3: 5, 4: 3 } };
 
-function matKey(fam, kind, tier){ return `${fam}_${kind}_${tier}`; }
+function matKey(fam, kind, tier){ return fam === 'co' ? `relic_core_${tier}` : `${fam}_${kind}_${tier}`; }
 /* 素材のTierは難易度で解放: 初級=I / 中級・上級=II まで / 超上級・極上級=III まで / 伝説級・神話級=IV まで。
    ステージの落とす素材は固定で、出てくる敵(ボスは2体分と数える)にいちばん多い属性・種族・ロールを1つずつ。 */
 function stageKindCounts(waves){
@@ -4840,8 +4852,12 @@ function matTierUnlocked(){
   return top;
 }
 // 錬金術: 解放済みのTierへは 5個→1個。まだ落ちないTierへの先回りは 15個→1個(できるが効率が悪い)
-function craftRatio(toTier){ return toTier <= matTierUnlocked() ? CRAFT_RATIO : CRAFT_RATIO_AHEAD; }
+function craftRatio(toTier, fam){ return fam === 'co' || toTier <= matTierUnlocked() ? CRAFT_RATIO : CRAFT_RATIO_AHEAD; }
+const CORE_CRAFT_GOLD = { 2: 1000, 3: 5000 };
+function craftGold(toTier, fam){ return (fam === 'co' ? CORE_CRAFT_GOLD : CRAFT_GOLD)[toTier] || 0; }
 function parseMat(key){
+  const c = /^relic_core_([1-3])$/.exec(key);
+  if(c) return { fam: 'co', kind: 'core', tier: Number(c[1]) };
   const m = /^(el|sp|ro)_([a-z]+)_([1-4])$/.exec(key);
   return m ? { fam: m[1], kind: m[2], tier: Number(m[3]) } : null;
 }
@@ -5242,12 +5258,13 @@ const CRAFT_RATIO_AHEAD = 15;
 const CRAFT_GOLD = { 2: 200, 3: 1000, 4: 5000 };
 function craftMat(fam, kind, toTier, times){
   const from = matKey(fam, kind, toTier - 1);
-  const ratio = craftRatio(toTier);
-  const can = Math.min(Math.floor(getItem(from) / ratio), Math.floor((STATE.gold || 0) / CRAFT_GOLD[toTier]));
+  const ratio = craftRatio(toTier, fam);
+  const gold = craftGold(toTier, fam);
+  const can = Math.min(Math.floor(getItem(from) / ratio), Math.floor((STATE.gold || 0) / gold));
   const n = Math.min(can, times === 'max' ? can : Number(times || 1));
   if(n <= 0){ toast(getItem(from) < ratio ? `${itemName(from)}が足りません` : 'ゴールドが足りません'); return; }
   addItem(from, -n * ratio);
-  addGold(-n * CRAFT_GOLD[toTier]);
+  addGold(-n * gold);
   addItem(matKey(fam, kind, toTier), n);
   track('craft', n);
   playSfx('fuse');
@@ -5366,7 +5383,7 @@ const FACILITIES = {
   lab: { name: '研究所', icon: '⚗️', desc: 'EXPポットを生産します(EXP換算)', perHour: [0, 5, 15, 40, 100, 200], maxTier: [0, 1, 1, 2, 3, 3] },
   smithy: { name: 'アーティファクト工房', icon: '🔨', desc: '遺物のスクラップとコアを生産します',
     perHour: [0, 4, 8, 16, 28, 45], corePerHour: [0, 1 / 3, 2 / 3, 1.25, 2, 3] },
-  alchemy: { name: '錬金術', icon: '🔮', desc: '育成素材を合成します(下位5個 → 上位1個)' },
+  alchemy: { name: '錬金術', icon: '🔮', desc: '育成素材と遺物のコアを合成します(下位5個 → 上位1個)' },
 };
 const FACILITY_MAX_LV = 5;
 const FACILITY_UPGRADE_GOLD = [0, 0, 10000, 50000, 200000, 600000]; // to reach that level
@@ -5708,6 +5725,20 @@ const RELICS = {
       { stat:'atk', pct:0.125, cond:null },
       { stat:'ultDmg', pct:0.125, cond:{ type:'element', value:'light' } },
       { stat:'spGain', pct:0.125, cond:{ type:'element', value:'light' } },
+    ] },
+  rel_gale_fang: { id:'rel_gale_fang', name:'霜嵐の牙飾り', star:4, icon:RELIC_ICON.rel_gale_fang, // 風属性(会心・必殺型/イベント配布)
+    base:{ hp:34.4, atk:21.6 },
+    effects:[
+      { stat:'atk', pct:0.125, cond:null },
+      { stat:'critRate', pct:0.125, cond:{ type:'element', value:'wind' } },
+      { stat:'ultDmg', pct:0.125, cond:{ type:'element', value:'wind' } },
+    ] },
+  rel_abyss_eye: { id:'rel_abyss_eye', name:'奈落を覗く眼', star:4, icon:RELIC_ICON.rel_abyss_eye, // 闇属性(会心倍率・貫通型/イベント配布)
+    base:{ hp:34.4, atk:21.6 },
+    effects:[
+      { stat:'critDmg', pct:0.125, cond:null },
+      { stat:'critRate', pct:0.125, cond:{ type:'element', value:'dark' } },
+      { stat:'pierce', pct:0.125, cond:{ type:'element', value:'dark' } },
     ] },
   rel_dark_corrosion: { id:'rel_dark_corrosion', name:'タナトスの鎌', star:4, icon:RELIC_ICON.rel_dark_corrosion, // 闇属性
     base:{ hp:67.6, atk:14.5 },
@@ -7865,9 +7896,9 @@ const QUEST_TIERS = [
   { key: 'q4h', label: '超上級ハード', short: '💀超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
   { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 2, 0], pots: { exp3: 3 } },
   { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 200], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
-  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [0, 5, 3, 1], pots: { exp3: 5 } },
+  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [8, 5, 3, 1], pots: { exp3: 5 } },
   { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [210, 250], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
-  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [0, 6, 4, 2], pots: { exp3: 8 } },
+  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [10, 6, 4, 2], pots: { exp3: 8 } },
   { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [260, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
@@ -8906,7 +8937,7 @@ function renderBase(){
           </div>` : '<div class="fc-up"><span>最大レベルです</span></div>'}
       </div>`;
   };
-  const fam = MAT_FAMILIES[alchemyFam];
+  const fam = ALCHEMY_FAMILIES[alchemyFam];
   const alchemy = !facilityUnlocked('alchemy')
     ? `<div class="panel facility locked"><div class="fc-head">
           <span class="fc-ic">🔒</span>
@@ -9039,7 +9070,7 @@ function itemSources(key){
       const st = stages[0];
       out.push({ label: `${QUEST_TIERS.find(q => q.key === st.tier).label} ${st.name}`, tag: '未解放', go: null });
     }
-    if(m.tier >= 2) out.push({ label: `拠点「錬金術」(Tier${TIER_LABEL[m.tier - 1]}から)`, tag: craftRatio(m.tier) === CRAFT_RATIO ? '合成' : '合成(効率×)', go: { type: 'alchemy', fam: m.fam } });
+    if(m.tier >= 2) out.push({ label: `拠点「錬金術」(Tier${TIER_LABEL[m.tier - 1]}から)`, tag: craftRatio(m.tier, m.fam) === CRAFT_RATIO ? '合成' : '合成(効率×)', go: { type: 'alchemy', fam: m.fam } });
     out.push({ label: `育成素材BOX(選択) Tier${TIER_LABEL[m.tier]}`, tag: getItem(`box_sel_${m.tier}`) ? `所持${getItem(`box_sel_${m.tier}`)}` : 'BOX', go: getItem(`box_sel_${m.tier}`) ? { type: 'usebox', key: `box_sel_${m.tier}`, fam: m.fam, kind: m.kind } : { type: 'shop', tab: 'gold' } });
     return out;
   }
@@ -9192,7 +9223,7 @@ function itemDetailGo(i){
 /* ---- 錬金術の画面: 作りたい素材(TierII〜IV)を一覧から選ぶと、必要な素材とゴールドが出る ---- */
 let alchemyUI = null;   // { fam, tier: 0|2|3|4, pick: key|null, qty }
 function craftMax(fam, kind, toTier){
-  return Math.min(Math.floor(getItem(matKey(fam, kind, toTier - 1)) / craftRatio(toTier)), Math.floor((STATE.gold || 0) / CRAFT_GOLD[toTier]));
+  return Math.min(Math.floor(getItem(matKey(fam, kind, toTier - 1)) / craftRatio(toTier, fam)), Math.floor((STATE.gold || 0) / craftGold(toTier, fam)));
 }
 function openAlchemy(opts){
   alchemyUI = { fam: alchemyFam, tier: 0, pick: null, qty: 1, ...(opts || {}) };
@@ -9200,8 +9231,9 @@ function openAlchemy(opts){
 }
 function renderAlchemy(){
   if(!alchemyUI) return;
-  const a = alchemyUI, fam = MAT_FAMILIES[a.fam];
-  const tiers = a.tier ? [a.tier] : [2, 3, 4];
+  const a = alchemyUI, fam = ALCHEMY_FAMILIES[a.fam];
+  const famTiers = fam.tiers || [2, 3, 4];
+  const tiers = a.tier ? (famTiers.includes(a.tier) ? [a.tier] : []) : famTiers;
   const cells = fam.kinds().flatMap(k => tiers.map(t => {
     const key = matKey(a.fam, k, t), can = craftMax(a.fam, k, t);
     return `<div class="bag-cell tier-t${t} ${a.pick === key ? 'picked' : ''} ${can ? '' : 'dim'}" data-alc-pick="${key}" role="button">
@@ -9211,10 +9243,10 @@ function renderAlchemy(){
   })).join('');
   let recipe = '<div class="alc-hint">作りたい素材を選んでください</div>';
   if(a.pick){
-    const m = parseMat(a.pick), from = matKey(m.fam, m.kind, m.tier - 1), ratio = craftRatio(m.tier);
+    const m = parseMat(a.pick), from = matKey(m.fam, m.kind, m.tier - 1), ratio = craftRatio(m.tier, m.fam);
     const max = craftMax(m.fam, m.kind, m.tier);
     a.qty = Math.max(1, Math.min(a.qty, Math.max(1, max)));
-    const needItem = ratio * a.qty, needGold = CRAFT_GOLD[m.tier] * a.qty;
+    const needItem = ratio * a.qty, needGold = craftGold(m.tier, m.fam) * a.qty;
     const okItem = getItem(from) >= needItem, okGold = (STATE.gold || 0) >= needGold;
     recipe = `
       <div class="alc-recipe">
@@ -9241,8 +9273,8 @@ function renderAlchemy(){
         <span class="bag-count">${goldText(STATE.gold || 0)}</span>
       </div>
       ${recipe}
-      <div class="mission-tabs">${Object.entries(MAT_FAMILIES).map(([k, x]) => `<button class="mission-tab ${a.fam === k ? 'on' : ''}" data-alc-fam2="${k}">${x.label}</button>`).join('')}</div>
-      <div class="bag-filter">${[0, 2, 3, 4].map(t => `<button class="bag-tier-chip ${t ? `t${t}` : ''} ${a.tier === t ? 'on' : ''}" data-alc-tier="${t}">${t ? `Tier${TIER_LABEL[t]}` : '全部'}</button>`).join('')}</div>
+      <div class="mission-tabs">${Object.entries(ALCHEMY_FAMILIES).map(([k, x]) => `<button class="mission-tab ${a.fam === k ? 'on' : ''}" data-alc-fam2="${k}">${x.label}</button>`).join('')}</div>
+      <div class="bag-filter">${[0, ...famTiers].map(t => `<button class="bag-tier-chip ${t ? `t${t}` : ''} ${a.tier === t ? 'on' : ''}" data-alc-tier="${t}">${t ? `Tier${TIER_LABEL[t]}` : '全部'}</button>`).join('')}</div>
       <div class="bag-grid ${a.tier ? '' : 'cols3'}">${cells}</div>
     </div>`;
   layer.classList.add('show');
@@ -9253,7 +9285,13 @@ function handleAlchemyClick(t){
   const a = alchemyUI;
   if(t.closest('[data-alc-close]')){ alchemyUI = null; closeModal(); render(); return true; }
   const famEl = t.closest('[data-alc-fam2]');
-  if(famEl){ a.fam = famEl.dataset.alcFam2; alchemyFam = a.fam; a.pick = null; renderAlchemy(); return true; }
+  if(famEl){
+    a.fam = famEl.dataset.alcFam2; alchemyFam = a.fam; a.pick = null;
+    // 系統で作れるTierが違う(遺物のコアはTier2・3だけ)。絞り込みが残っていると空になるので戻す
+    const ft = (ALCHEMY_FAMILIES[a.fam] || {}).tiers;
+    if(a.tier && ft && !ft.includes(a.tier)) a.tier = 0;
+    renderAlchemy(); return true;
+  }
   const tierEl = t.closest('[data-alc-tier]');
   if(tierEl){ a.tier = Number(tierEl.dataset.alcTier); renderAlchemy(); return true; }
   const pickEl = t.closest('[data-alc-pick]');
@@ -12832,6 +12870,11 @@ const NORMAL_POWER_BY_ROLE = { attacker:1.0, shooter:1.0, trickster:1.0, tank:0.
 // ---- status effects (design doc v4.4 §12) ----
 const BURN_STR_RATIO = 0.40;   // of the applier's STR
 const BURN_TURNS = 2;
+// 延焼: すでにやけど状態の敵にやけどを付け直したとき、ターン数を戻すのに加えて
+// やけどダメージの50%を即座に与える(同じ敵に1ターン3回まで)。毒のような層は作らない
+// 代わりに、重ねがけを即ダメージに変える。docs/design/やけどの重ねがけ.json
+const SPREAD_RATIO = 0.50;
+const SPREAD_MAX_PER_TURN = 3;
 const BURN_HEAL_CUT = 0.30;    // healing received −30% while burning
 const POISON_HP_RATIO = 0.02;  // per layer, of the victim's max HP
 const POISON_TURNS = 5;
@@ -13395,7 +13438,7 @@ function startBattle(stageId, opts){
    Values are Lv1 and scale +5% per level. Passives are hook objects. */
 
 const TGT_TEXT = {
-  single:'敵単体', any:'敵単体(後衛も狙える)', back:'敵後衛単体', lowest:'HPの割合が低い敵', lowestAny:'HPの割合が低い敵(陣形無視)',
+  single:'敵単体', any:'敵単体(後衛も狙える)', back:'敵後衛単体', lowest:'HPの割合が低い敵', lowestAny:'HPの割合が低い敵(陣形無視)', highestAny:'HPの割合が高い敵(陣形無視)',
   frontAll:'敵前衛全体', backAll:'敵後衛全体', all:'敵全体', random:'ランダムな敵', row:'攻撃できる列の敵全員', column:'縦に重なる敵',
   self:'自分', allies:'味方全体', allyLowest:'HPの割合が一番低い味方', allyGuard:'HPが50%以下の味方(いなければ狙われやすい味方)', allyTop:'STRが一番高い味方',
 };
@@ -14139,8 +14182,8 @@ const MONSTER_KITS = {
     skill2: { name:'岩盤砕き', ct:4, atk:'phys', tgt:'all', pow:1.3, onHit:[{ st:'stun', chance:0.2 }], desc:'敵全体に威力130%。20%で気絶' },
     passive: { name:'巨神の体躯', desc:'HPが50%以上のとき、受けるダメージ-15%', cutBonus: u => u.hp / u.maxHp >= 0.5 ? pv(u, 0.15) : 0 },
     ult: { name:'ティターンの城壁', sp:120, tgt:'allies',
-      effects:[{ to:'allies', redirect:0.3, turns:3 }, { to:'self', buff:'pdefUp', v:0.3, turns:3 }, { to:'self', buff:'mdefUp', v:0.3, turns:3 }],
-      desc:'3ターン、味方が受けるダメージの30%を肩代わり。自分の物理防御・魔法防御+30%',
+      effects:[{ to:'allies', redirect:0.4, turns:3 }, { to:'self', buff:'pdefUp', v:0.4, turns:3 }, { to:'self', buff:'mdefUp', v:0.4, turns:3 }, { to:'self', shield:0.4, turns:3 }],
+      desc:'3ターン、味方が受けるダメージの40%を肩代わり。自分の物理防御・魔法防御+40%。自分に最大HPの40%のシールド(切れるとき残りはHPに戻る)',
       run: ctx => {
         const u = ctx.actor;
         sideOf(u).filter(a => present(a) && a !== u).forEach(a => addBuff(a, 'redirect', 0.3, 3, u));
@@ -14942,12 +14985,32 @@ function cleanseDebuff(u){
 }
 function hasStatus(u, st){ return !!u.statuses[st]; }
 function isImmune(u){ return hasBuff(u, 'immune') || u.shields.some(s => s.immune && s.amt > 0); }
+// 延焼: すでに燃えている相手にもう一度火が付いたとき、やけどダメージの半分を即座に入れる。
+// 同じ相手に1ターン3回まで(狐火のように1ターンに何度も付ける手段があるため)。
+function spreadBurn(target, dmg, source){
+  if(target.spreadRound !== battleUI.round){ target.spreadRound = battleUI.round; target.spreadCount = 0; }
+  if(target.spreadCount >= SPREAD_MAX_PER_TURN) return;
+  target.spreadCount += 1;
+  const n = Math.max(1, Math.round(dmg * SPREAD_RATIO));
+  hitHp(target, n, source, { dot: true, cause: 'burn' });
+  pushFx(target, n, 'burn', { fx: 'fire' });
+  logLine(`${nm(target)} は${STATUS_ICON.burn}延焼で ${n} ダメージ`, 'burn');
+}
 function applyStatus(target, st, source, turns){
   if(!target.alive) return false;
   if(isImmune(target) || (target.passive.immuneTo || []).includes(st)){ logLine(`${nm(target)} は${STATUS_LABEL[st]}を防いだ`, 'skill'); return false; }
   if(source && source.isEnemy !== target.isEnemy && blockedByWard(target, STATUS_LABEL[st])) return false;
   if(st === 'burn'){
-    target.statuses.burn = { turns: BURN_TURNS, dmg: Math.max(1, Math.round(effStr(source) * BURN_STR_RATIO)), source };
+    const old = target.statuses.burn;
+    const dmg = Math.max(1, Math.round(effStr(source) * BURN_STR_RATIO));
+    if(old){
+      // 上書きは強いほうを残す(弱い味方が付け直しても、強いやけどが消えない)
+      const keep = Math.max(old.dmg, dmg);
+      target.statuses.burn = { turns: BURN_TURNS, dmg: keep, source: keep === old.dmg ? old.source : source };
+      spreadBurn(target, keep, source);
+    }else{
+      target.statuses.burn = { turns: BURN_TURNS, dmg, source };
+    }
   }else if(st === 'poison'){
     const cur = target.statuses.poison || { turns: POISON_TURNS, layers: [], source };
     if(cur.layers.length < POISON_MAX_LAYERS) cur.layers.push(source.maxHp * POISON_CAP_RATIO);
@@ -15068,6 +15131,10 @@ function withTaunt(pool){ const t = pool.filter(u => hasBuff(u, 'taunt')); retur
 function lowestHpRatio(pool){
   return pool.slice().sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp) || (a.row === 'front' ? -1 : 1))[0] || null;
 }
+// HPの割合が一番高い敵(ハティ用)。一番元気な相手から削る
+function highestHpRatio(pool){
+  return pool.slice().sort((a, b) => (b.hp / b.maxHp) - (a.hp / a.maxHp) || (a.row === 'front' ? -1 : 1))[0] || null;
+}
 function rowOrOther(here, row){ const r = here.filter(u => u.row === row); return r.length ? r : here; }
 
 // enemy-side targets → [{ unit, mult }]; 'random' is resolved per hit by the caller
@@ -15091,6 +15158,7 @@ function selectFoes(actor, tgt, hitMult){
     }
     case 'lowest':    return one(lowestHpRatio(withTaunt(targetableUnits(foes))));
     case 'lowestAny': return one(lowestHpRatio(here));
+    case 'highestAny': return one(highestHpRatio(here));
     case 'frontAll':  return rowOrOther(here, 'front').map(u => ({ unit: u, mult: 1 }));
     case 'backAll':   return rowOrOther(here, 'back').map(u => ({ unit: u, mult: 1 }));
     case 'all':       return here.map(u => ({ unit: u, mult: 1 }));
@@ -15700,6 +15768,12 @@ function endTurn(u){
     if(--bf.turns <= 0) delete u.buffs[k];
   });
   u.shields.forEach(sh => { if(sh.skip) sh.skip = false; else sh.turns -= 1; });
+  // シールドが切れるとき、残っていたぶんはHPに戻る(受け止めても無駄にならない)
+  const left = u.shields.filter(sh => sh.turns <= 0 && sh.amt > 0).reduce((a, sh) => a + sh.amt, 0);
+  if(left > 0 && u.alive){
+    const got = healUnit(null, u, left);
+    if(got > 0) logLine(`${nm(u)} のシールドが ${got} 回復に変わった`, 'heal');
+  }
   u.shields = u.shields.filter(sh => sh.turns > 0 && sh.amt > 0);
 }
 
@@ -17789,6 +17863,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 15, date: '9/28', title: '素材の集めやすさとやけどを見直しました', body: '<span class="nt-h">TierIの素材が伝説級・神話級でも落ちます</span>スキルを上げるのに一番たくさん要るのは<em>TierI</em>の素材(欠片・魂・証)ですが、伝説級と神話級では1個も落ちていませんでした。集めるには超上級まで戻るしかなく、1体をスキルLv10まで仕上げるのに必要なスタミナの<em>7割</em>がTierIで消えていました。<span class="nt-i">・伝説級で<em>8個</em>、神話級で<em>10個</em>落ちるようにしました。</span><span class="nt-i">・1体を仕上げるのに要るスタミナが、だいたい<em>半分</em>になります。</span><span class="nt-h">やけどに「延焼」が加わりました</span>すでに燃えている敵にもう一度やけどを付けると<em>延焼</em>し、やけどダメージの<em>50%</em>がその場で入ります(同じ敵に1ターン3回まで)。毒のように層で重ねるのではなく、付け直しがそのままダメージになる形です。<span class="nt-i">・やけどを付け直したとき、<em>ダメージの大きいほうが残る</em>ようになりました。攻撃力の低い味方が付け直しても、強いやけどが消えません。</span><span class="nt-h">タイタンが前に立ち続けられるように</span>必殺技「ティターンの城壁」の肩代わりを<em>40%</em>に、物理・魔法防御を<em>+40%</em>に上げ、<em>自分に最大HPの40%のシールド</em>を足しました。引き受けた攻撃で先に倒れてしまう問題に手を入れています。<span class="nt-i">・<em>シールドは切れるとき、残っていたぶんがHPに戻ります。</em>タイタンだけでなく、すべてのシールドが対象です。守り切れた分が無駄になりません。</span><span class="nt-h">遺物のコアが錬金術で作れます</span>遺物のコアTierIIとTierIIIは、これまで<em>PVPショップにしかありませんでした</em>。PVPをやらないと遺物のスキルがLv4で止まってしまうため、拠点の<em>錬金術</em>で合成できるようにしました。<span class="nt-i">・TierI×5 → TierII(ゴールド1,000) / TierII×5 → TierIII(ゴールド5,000)</span><span class="nt-h">新しい遺物2つ</span><span class="nt-i">・<em>霜嵐の牙飾り</em>(★4・風) 攻撃力・風属性の会心率・風属性の必殺技威力。必殺技と会心で刈る型です。</span><span class="nt-i">・<em>奈落を覗く眼</em>(★4・闇) 会心倍率・闇属性の会心率・闇属性の防御貫通。連撃は1発ごとに防御を引かれるので、貫通がそこを埋めます。</span>' },
   { id: 14, date: '9/27', title: '次回イベント予告 フェンリル&アバドン 同時開催', art: ['m68', 'm139'], body: '<span class="nt-h">9/29(火) 0:00 から2週間、2つのイベントを同時開催</span>★5の<em>フェンリル</em>と<em>アバドン</em>が主役のイベントを、2つ同時に開催します。<span class="nt-i">・<em>開催期間</em> 9/29(火) 0:00 〜 10/12(月) 23:59</span><span class="nt-i">・それぞれのピックアップガチャで、フェンリル・アバドンと専用遺物の排出率がアップします。</span><span class="nt-h">フェンリル(★5・風・アタッカー)</span>神々をも喰らうという巨狼。敵を倒すと<em>すぐにもう一度行動</em>でき、群れた敵を次々に噛み砕きます。専用遺物は「グレイプニルの残鎖」。<span class="nt-h">アバドン(★5・闇・アタッカー)</span>底なしの淵(アビス)を統べる破滅の王。<em>弱った敵ほど深く斬る</em>連撃と、敵を倒すたびに縮むスキルの待ち時間で、戦場をのみ込みます。専用遺物は「ティルヴィングの呪刃」。<span class="nt-h">期間限定クエストは手ごわく</span><span class="nt-i">・今回も全10層。<em>敵の数が増え</em>、ウェーブごとに3・3・4・4・5体が現れます。前回のイベントより手ごわくなるので、しっかり育ててから挑んでください。</span><span class="nt-i">・10層の先には、特別なルールで戦う<em>EXステージ</em>も登場予定です。</span><span class="nt-i">・くわしい内容は開催時にお知らせします。</span>' },
   { id: 13, date: '9/27', title: 'スキルの付与率と持続時間を見直しました', body: 'スキルの状態異常や弱体化を、運に左右されにくく、育てた手ごたえがわかりやすい形に見直しました。<span class="nt-h">必殺技はすべて「必ず」かかる</span>必殺技の気絶・石化・やけど・毒・弱体化・追撃は、<em>すべて必ずかかる</em>ようになりました。SPをためて撃つ一撃は、狙いどおりに決まります。<span class="nt-i">・ミノタウロス・ジャッカロープ・キョンシー・キラービーの必殺技に<em>気絶</em>を追加しました(キョンシーはHPが一番高い敵1体、キラービーは最後に当たった敵)。</span><span class="nt-h">スキルの付与率はわかりやすい値に</span>スキルの付与率は、スキルLvでは変わらない固定の値になりました。効果ごとにそろえています。<span class="nt-i">・<em>やけど・毒</em>は基本<em>50%</em>(一度に何回も当たる技はヒットごとの確率のまま)</span><span class="nt-i">・<em>STRダウンなどの弱体化</em>は50%、<em>追撃</em>は40%</span><span class="nt-i">・<em>気絶・石化</em>は20〜30%(全体技は20%)</span><span class="nt-i">・パッシブの発動率もLvでは変わりません。</span><span class="nt-h">スキルLvで伸びるもの</span>スキルLvを上げると、今までどおり<em>威力と効果量</em>(バフ・弱体化・回復・シールドの量)が伸びます。さらに<em>持続時間</em>も伸びるようになりました。<span class="nt-i">・味方へのバフ … スキルLv5とLv10で1ターンずつ長く</span><span class="nt-i">・敵への弱体化・やけど … スキルLv10で1ターン長く</span><span class="nt-i">・どれも最大5ターンです。気絶などの行動封じ・挑発・免疫は伸びません。</span><span class="nt-i">・スキル強化の画面で、持続が伸びるLvのときは「持続 2ターン → 3ターン」のように表示されます。</span>' },
   { id: 12, date: '9/26', title: '新要素「ルーン」登場・★10解放・深淵回廊がさらに深く', body: '<span class="nt-h">キャラを強くする「ルーン」が登場</span>キャラに装備して能力を伸ばす宝石<em>「ルーン」</em>が登場しました。育成クエストの<em>「ルーン採掘」</em>で掘り出せます。はじめて採掘に行くと、鉱山の妖精ノッカーが見方を教えてくれます。<span class="nt-i">・<em>形・色・数字</em> 形がレア度(白ひし形・青四角・紫五角・金六角・虹八角)、色が効果、真ん中のローマ数字がTier(Ⅰ〜Ⅹ)。虹はサブ効果が4つ付く大当たりです。</span><span class="nt-i">・<em>攻撃型と防御型</em> STR・SPD・会心率・会心倍率の攻撃型と、HP・物理防御・魔法防御の防御型があります。</span><span class="nt-i">・<em>★で枠が増える</em> ★1で1つ、★4で2つ、★6で3つ、★9で4つ付けられます。編成ごとに付け替えられるので、クエスト用とボス用で分けるのもおすすめです。</span><span class="nt-i">・<em>合成でTierを上げる</em> お気に入りのルーンに、同じTier・同じタイプのルーン2つを合成するとTierが上がります。レア度とサブ効果はそのまま、数値だけが伸びるので、当たりのルーンを長く育てられます。採掘で出るのはⅦまで。Ⅷ〜Ⅹは合成でしか作れません。</span><span class="nt-i">・<em>ルーンの粉</em> いらないルーンは分解して粉に。粉はサブ効果の振り直しや、ショップの「ルーンの粉ショップ」で<em>未鑑定のルーン</em>との交換に使えます。何が出るかは開封してのお楽しみです。</span><span class="nt-h">★10まで解放</span>キャラの★が<em>最大10</em>まで上がるようになりました。レベルの上限も★8でLv230、★9でLv260、★10でLv300まで伸びます。★は5つまで並び、★6からは左から金色に変わっていき、★10で5つすべてが金色に輝きます。★9まで上げるとルーンの4つ目の枠も開きます。<span class="nt-h">深淵回廊がさらに深く</span>深淵回廊の深い層では、敵も★を上げてきます。81階から★8、101階から★9、131階からはついに★10の敵が待ち受けます(80階までは今まで通り)。★10とルーンで鍛えたパーティで、最深部を目指してください。' },
@@ -17806,6 +17881,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 115, version: 'α0.1.075', date: '9/28', title: '素材の落ち方・やけど・タイタン・遺物を調整', body: '<span class="nt-h">伝説級・神話級でTierIの素材が落ちるように</span><span class="nt-i">・伝説級と神話級はTierIの素材を1個も落としていませんでした。スキルを上げるのに一番たくさん要るのはTierIなので、集めるには超上級まで戻る必要がありました。伝説級で8個、神話級で10個落ちるようにしました。1体をスキルLv10まで上げるのに要るスタミナが、だいたい半分になります。</span><span class="nt-h">やけどに「延焼」を追加</span><span class="nt-i">・すでにやけど状態の敵にやけどを付け直すと<em>延焼</em>し、やけどダメージの50%がすぐに入ります(同じ敵に1ターン3回まで)。</span><span class="nt-i">・やけどを付け直したとき、ダメージの大きいほうが残るようになりました。攻撃力の低い味方が付け直しても、強いやけどが消えません。</span><span class="nt-h">タイタンの必殺技を強化</span><span class="nt-i">・「ティターンの城壁」の肩代わりを30%→<em>40%</em>、物理・魔法防御を+30%→<em>+40%</em>に上げ、<em>自分に最大HPの40%のシールド</em>を追加しました。</span><span class="nt-i">・シールドは切れるとき、残っていたぶんが<em>HPに戻る</em>ようになりました(タイタンだけでなく、すべてのシールドが対象です)。</span><span class="nt-h">遺物</span><span class="nt-i">・新しい遺物を2つ追加しました。<em>霜嵐の牙飾り</em>(★4・風/攻撃力・風の会心率・風の必殺技威力)と<em>奈落を覗く眼</em>(★4・闇/会心倍率・闇の会心率・闇の防御貫通)です。</span><span class="nt-i">・拠点の<em>錬金術</em>で<em>遺物のコア</em>を合成できるようにしました(TierI×5→TierII / TierII×5→TierIII)。今までTierIIとTierIIIはPVPショップにしか無く、PVPをやらないと遺物のスキルがLv4で止まっていました。</span><span class="nt-h">イベント</span><span class="nt-i">・「底なしの淵」3層の護衛の★を1段下げました。気絶で固める編成の勝率が8%まで落ちていたためです。</span>' },
   { id: 114, version: 'α0.1.074', date: '9/28', title: 'アバドンを強化', body: 'アバドンの必殺技「無底坑」を敵全体攻撃に変更し、必要SPを120から110に下げました。スキル2「奈落の乱撃」はランダムな敵を狙う7連撃になり、パッシブ「底なしの飢え」には敵を倒したときのSP+20が加わります。他の★5アタッカーに比べて与えるダメージが6割ほどしかなかったための調整です。弱くなる点はありません。' },
   { id: 113, version: 'α0.1.073', date: '9/27', title: 'ニュースを掲載', body: 'ニュースに「次回イベント予告 フェンリル&アバドン 同時開催」を掲載しました。ニュースにキャラの立ち絵を載せられるようにしました。' },
   { id: 112, version: 'α0.1.072', date: '9/27', title: 'スキルの付与率と持続時間を見直し', body: '<span class="nt-h">付与率</span><span class="nt-i">・状態異常や弱体化の付与率は、スキルLvで変わらなくなりました。代わりに、効果ごとにわかりやすい値にそろえています(<em>やけど・毒は基本50%</em>、弱体化は50%など)。スキルLvを上げると、威力と効果量が今までどおり伸びます。</span><span class="nt-i">・<em>必殺技</em>の状態異常・弱体化・追撃は、すべて<em>必ず</em>かかるようになりました。</span><span class="nt-i">・ミノタウロス・ジャッカロープ・キョンシー・キラービーの必殺技に、気絶を追加しました。</span><span class="nt-i">・パッシブの発動率もLvでは変わらず、効果量だけが伸びます。</span><span class="nt-h">持続時間</span><span class="nt-i">・味方へのバフはスキルLv5とLv10で1ターンずつ、敵への弱体化・やけどはLv10で1ターン長くなります(最大5ターン)。気絶などの行動封じ・挑発・免疫は伸びません。スキル強化の画面で、持続が伸びるLvがわかります。</span>' },
