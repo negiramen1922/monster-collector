@@ -2284,6 +2284,58 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ui-stats b{ color:var(--text); margin-left:3px; }
 .ui-section{ font-size:11px; font-weight:800; color:var(--gold); margin:12px 0 6px; }
 .ui-none{ font-size:11px; color:var(--dim); }
+/* --- オート周回 --- */
+.ar-hud{ display:flex; align-items:center; gap:9px; padding:7px 10px; background:rgba(12,10,20,.88);
+  border-bottom:1px solid var(--line); }
+.ar-ring{ position:relative; width:44px; height:44px; flex:none; border-radius:50%;
+  background:conic-gradient(var(--gold) calc(var(--p) * 1%), rgba(255,255,255,.14) 0); }
+.ar-ring::after{ content:''; position:absolute; inset:4px; border-radius:50%; background:#141020; }
+.ar-ring span{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  z-index:1; font-size:13px; font-weight:900; }
+.ar-ring small{ font-size:9px; opacity:.65; font-weight:700; }
+.ar-mid{ flex:1; min-width:0; }
+.ar-line{ font-size:10.5px; opacity:.8; font-weight:700; }
+.ar-loot{ display:flex; gap:5px; flex-wrap:wrap; margin-top:3px; }
+.ar-chip{ display:inline-flex; align-items:center; gap:2px; font-size:10.5px; font-weight:800;
+  padding:2px 6px; border-radius:8px; background:var(--panel2); border:1px solid var(--line);
+  animation:arPop .28s ease-out; }
+.ar-chip.join{ color:var(--gold); border-color:var(--gold); }
+@keyframes arPop{ from{ transform:translateX(-10px); opacity:0; } to{ transform:none; opacity:1; } }
+.rare-flash{ background:linear-gradient(140deg,#4a3a10,#241a30); border:2px solid var(--gold);
+  border-radius:16px; padding:18px 22px; text-align:center; animation:arPop .2s ease-out; }
+.rf-tag{ font-size:11px; font-weight:900; letter-spacing:.2em; color:var(--gold); margin-bottom:8px; }
+.rf-one{ display:flex; align-items:center; gap:10px; font-size:15px; font-weight:900; margin:5px 0; }
+.rf-one img{ width:48px; height:48px; border-radius:10px; object-fit:cover; }
+.rf-ic{ font-size:28px; display:inline-flex; }
+.ar-stop{ font-size:11.5px; font-weight:700; color:#ffcf6a; margin-bottom:8px; }
+.ar-sum{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px; margin-bottom:10px; }
+.ar-sum div{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:6px 9px; }
+.ar-sum span{ display:block; font-size:10px; opacity:.65; font-weight:700; }
+.ar-sum b{ font-size:14px; font-weight:900; }
+.ar-mvp{ display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--gold);
+  border-radius:11px; padding:8px 10px; margin-bottom:10px; }
+.ar-mvp img{ width:42px; height:42px; border-radius:9px; object-fit:cover; flex:none; }
+.ar-mvp b{ display:block; font-size:13px; font-weight:900; }
+.ar-mvp small{ font-size:10.5px; opacity:.7; }
+.ar-maxdmg{ margin-left:auto; text-align:right; }
+.sw-ticket{ display:flex; align-items:center; gap:7px; width:100%; padding:9px 11px; margin-bottom:8px;
+  border-radius:11px; background:var(--panel2); border:1px solid var(--line); color:inherit;
+  font:inherit; font-size:12px; font-weight:800; cursor:pointer; text-align:left; }
+.sw-ticket.on{ background:#24371f; border-color:#6ab24f; }
+.sw-ticket:disabled{ opacity:.5; cursor:default; }
+.sw-ticket small{ margin-left:auto; font-size:10px; font-weight:700; opacity:.7; }
+.sw-speed-head{ font-size:11px; font-weight:800; opacity:.75; margin:8px 0 5px; }
+.sw-speeds{ display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:5px; margin-bottom:7px; }
+.sw-speed{ padding:7px 0; border-radius:9px; font-size:11px; font-weight:800; cursor:pointer;
+  background:var(--panel2); border:1px solid var(--line); color:inherit; font-family:inherit; }
+.sw-speed.on{ background:#3a2a1a; border-color:var(--gold); color:var(--gold); }
+.stam-note{ display:block; font-size:10px; opacity:.7; font-weight:600; }
+.stam-free{ color:var(--gold); }
+.stam-ladder{ display:flex; gap:4px; margin:2px 2px 10px; }
+.stam-ladder span{ flex:1; text-align:center; font-size:10px; font-weight:800; padding:3px 0; border-radius:6px;
+  background:var(--panel2); border:1px solid var(--line); opacity:.55; }
+.stam-ladder span.used{ opacity:.3; text-decoration:line-through; }
+.stam-ladder span.next{ opacity:1; border-color:var(--gold); color:var(--gold); }
 .ui-warn{ font-size:11px; font-weight:700; color:#ffcf6a; background:#3a2f1a; border:1px solid #7a5f2a; border-radius:10px; padding:8px 10px; margin-bottom:10px; }
 .ui-effects{ display:flex; flex-direction:column; gap:5px; }
 .ui-effect{ display:flex; align-items:center; gap:8px; padding:6px 9px; border-radius:9px;
@@ -3058,11 +3110,12 @@ const ITEM_SVG_BODY = {
   stamina: '<path d="M50 20c14-12 34-2 34 18 0 26-22 42-34 50C38 80 16 64 16 38c0-20 20-30 34-18z" fill="#f2a33a" stroke="#8a5a14" stroke-width="6"/><path d="M50 20c2-8 8-12 16-12" fill="none" stroke="#4f9a3f" stroke-width="6" stroke-linecap="round"/><path d="M54 36L40 56h10l-6 16 16-22H50l6-14z" fill="#fff4c2"/>',
   sand: '<path d="M30 12h40M30 88h40" stroke="#8a6a3a" stroke-width="7" stroke-linecap="round"/><path d="M34 16c0 18 12 24 16 34-4 10-16 16-16 34h32c0-18-12-24-16-34 4-10 16-16 16-34z" fill="#cfe8f5" stroke="#3a6a8a" stroke-width="5" stroke-linejoin="round"/><path d="M42 80c2-8 6-12 8-14 2 2 6 6 8 14z" fill="#e8c46a"/><circle cx="50" cy="30" r="3" fill="#e8c46a"/>',
   ticket_char: '<rect x="10" y="30" width="80" height="40" rx="6" fill="#e0b24d" stroke="#7a5416" stroke-width="6"/><circle cx="10" cy="50" r="7" fill="#2a1f40"/><circle cx="90" cy="50" r="7" fill="#2a1f40"/><path d="M50 36c8 0 14 6 14 13 0 8-7 12-14 17-7-5-14-9-14-17 0-7 6-13 14-13z" fill="#fff4c2" stroke="#7a5416" stroke-width="4"/>',
+  ticket_sweep: '<rect x="10" y="30" width="80" height="40" rx="6" fill="#7bc46a" stroke="#2f6a2a" stroke-width="6"/><circle cx="10" cy="50" r="7" fill="#2a1f40"/><circle cx="90" cy="50" r="7" fill="#2a1f40"/><path d="M36 42a16 16 0 1 1-4 12" fill="none" stroke="#eaffe0" stroke-width="7" stroke-linecap="round"/><path d="M30 36 L34 50 L46 44 Z" fill="#eaffe0"/>',
   ticket_relic: '<rect x="10" y="30" width="80" height="40" rx="6" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="10" cy="50" r="7" fill="#2a1f40"/><circle cx="90" cy="50" r="7" fill="#2a1f40"/><path d="M50 34 L62 43 L58 60 L42 60 L38 43 Z" fill="#eaf6ff" stroke="#2a6f8f" stroke-width="4" stroke-linejoin="round"/>',
   ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { medal_wind:'神狼の牙', medal_dark:'奈落の刻印', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'共鳴石', scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'キャラ選択券', ticket_char:'キャラ召喚券', ticket_relic:'遺物召喚券' };
+const ITEM_ICON_LABEL = { medal_wind:'神狼の牙', medal_dark:'奈落の刻印', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'共鳴石', scrap:'遺物のスクラップ', core:'遺物のコア', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'キャラ選択券', ticket_char:'キャラ召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const RESONANCE_ICON = `<span class="item-ic">${ITEM_ICON.resonance}</span>`;
@@ -5026,9 +5079,23 @@ const GACHA_TICKETS = {
   gacha_relic:   { name:'遺物召喚券',         icon:'ticket_relic', kind:'relic', times:1  },
   gacha_relic10: { name:'遺物召喚券(10連)',   icon:'ticket_relic', kind:'relic', times:10 },
 };
+/* ---- 周回券: スタミナの代わりに1回ぶんの周回ができる。ガチャ券とは別物。
+   用途を絞ってあるので、育成ダンジョン用でメインを回すことはできない。
+   イベントに使える券は作らない(メダルの見積もりが崩れるため) ---- */
+const SWEEP_TICKETS = {
+  sweep_dungeon: { name:'育成ダンジョン周回券', icon:'ticket_sweep', for:'dungeon' },
+  sweep_main:    { name:'メインクエスト周回券', icon:'ticket_sweep', for:'main' },
+};
+function sweepTicketKey(stage){
+  if(!stage) return null;
+  if(stage.type === 'dungeon') return 'sweep_dungeon';
+  if(stage.type === 'main' && stage.tier !== 'tu') return 'sweep_main';
+  return null;   // イベント・深淵はスタミナで回す
+}
 function itemName(key){
   if(key === 'relic_scrap') return '遺物のスクラップ';
   if(GACHA_TICKETS[key]) return GACHA_TICKETS[key].name;
+  if(SWEEP_TICKETS[key]) return SWEEP_TICKETS[key].name;
   const tk = MON_TICKET_RE.exec(key);
   if(tk) return `★${tk[1]}キャラ選択券`;
   if(STAMINA_ITEMS[key]) return 'スタミナの実';
@@ -5045,6 +5112,7 @@ function itemName(key){
 function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</span>`; }
 function itemIcon(key){
   if(key === 'relic_scrap') return `<span class="item-ic">${ITEM_ICON.scrap}</span>`;
+  if(SWEEP_TICKETS[key]) return `<span class="item-ic">${ITEM_ICON.ticket_sweep}</span>`;
   if(GACHA_TICKETS[key]){
     const tk = GACHA_TICKETS[key];
     return `<span class="item-ic">${ITEM_ICON[tk.icon]}${tk.times === 10 ? '<span class="tier-badge t4">10</span>' : ''}</span>`;
@@ -5518,15 +5586,42 @@ function buyShopItem(currency, sku){
    unlike the gold/PVP-point shops above, these aren't capped to 1/day - they're meant
    to be repeatable, like a stamina potion. ---- */
 const SHOP_CRYSTAL_ITEMS = [
-  { sku: 'stamina', label: 'スタミナ回復', icon: '⚡', price: 100, qty: 150 },
   { sku: 'pvp_ticket', label: 'PVP挑戦券', icon: '🏆', price: 180, qty: 3 },
+  // 値段はスタミナ回復の相場から逆算(結晶1,700でスタミナ1,200 ≒ 結晶1.4でスタミナ1)。
+  // 育成ダンジョン1回=⚡20 → 28、メインクエスト1回=⚡10 → 14。5枚まとめ売り
+  { sku: 'sweep_dungeon', label: '育成ダンジョン周回券', icon: '🔁', price: 140, qty: 5, item: 'sweep_dungeon' },
+  { sku: 'sweep_main', label: 'メインクエスト周回券', icon: '🔁', price: 70, qty: 5, item: 'sweep_main' },
 ];
+/* ---- スタミナ回復: 1日8回まで。回すたびに値上がりする(1回目は無料)。
+   1日ぶんの合計は 150×8 = 1,200スタミナ / 結晶1,700 ---- */
+const STAMINA_REFILL_PRICES = [0, 50, 100, 150, 200, 300, 400, 500];
+const STAMINA_REFILL_QTY = 150;
+function staminaRefillUsed(){ return ensureDaily().counts.staminaBuy || 0; }
+function staminaRefillLeft(){ return Math.max(0, STAMINA_REFILL_PRICES.length - staminaRefillUsed()); }
+// 今日の次の1回の値段。使い切っていたら null
+function staminaRefillPrice(){
+  const i = staminaRefillUsed();
+  return i < STAMINA_REFILL_PRICES.length ? STAMINA_REFILL_PRICES[i] : null;
+}
+function buyStaminaRefill(){
+  const price = staminaRefillPrice();
+  if(price === null){ toast(`スタミナ回復は1日${STAMINA_REFILL_PRICES.length}回までです`); return; }
+  if((STATE.crystals || 0) < price){ toast('水晶が足りません'); return; }
+  STATE.crystals -= price;
+  ensureDaily().counts.staminaBuy = staminaRefillUsed() + 1;
+  grantStamina(STAMINA_REFILL_QTY);
+  track('shopBuy');
+  playSfx('buy');
+  toast(price === 0 ? `スタミナ回復(+${STAMINA_REFILL_QTY})を無料で受け取りました` : `スタミナ回復(+${STAMINA_REFILL_QTY})を購入しました`);
+  saveState();
+  render();
+}
 function buyCrystalItem(sku){
   const def = SHOP_CRYSTAL_ITEMS.find(x => x.sku === sku);
   if(!def) return;
   if((STATE.crystals || 0) < def.price){ toast('水晶が足りません'); return; }
   STATE.crystals -= def.price;
-  if(sku === 'stamina') grantStamina(def.qty);
+  if(def.item) addItem(def.item, def.qty);
   else if(sku === 'pvp_ticket') ensurePvpDaily().bonus = (ensurePvpDaily().bonus || 0) + def.qty;
   track('shopBuy');
   playSfx('buy');
@@ -7312,10 +7407,13 @@ function battleRank(b){
 function stageStars(id){ return (STATE.stageStars || {})[id] || 0; }
 function starsText(n){ return `<span class="rank-stars">${[1, 2, 3].map(i => `<i class="${i <= n ? 'on' : ''}">★</i>`).join('')}</span>`; }
 // main stages: ★3 + VIP / growth dungeons: ★3 for everyone
+// VIP限定に切り替えるときは、ここを true にするだけでよい(判定はこの1か所だけ)
+const SWEEP_VIP_ONLY = false;
 function sweepAllowed(stage){
   if(stage.tier === 'tu') return { ok: false, why: 'チュートリアルは周回できません' };
+  if(stage.type === 'abyss') return { ok: false, why: '深淵回廊は周回できません' };
   if(stageStars(stage.id) < 3) return { ok: false, why: '★3でクリアすると周回できます' };
-  if(stage.type !== 'dungeon' && !STATE.vip) return { ok: false, why: 'メインステージの周回はVIP限定です' };
+  if(stage.type !== 'dungeon' && SWEEP_VIP_ONLY && !STATE.vip) return { ok: false, why: 'メインステージの周回はVIP限定です' };
   return { ok: true };
 }
 // what a wave would have contained, for drops without a battle
@@ -7327,19 +7425,24 @@ function sweepSpawned(stage){
   }));
   return out;
 }
-function runSweep(stageId, times){
+function runSweep(stageId, times, useTicket){
   const stage = findStage(stageId);
   if(!stage) return null;
   const can = sweepAllowed(stage);
   if(!can.ok){ toast(can.why); return null; }
   refreshStamina();
-  const n = Math.min(times, Math.floor(STATE.stamina / stage.stamina));
-  if(n <= 0){ toast(`スタミナが足りません(必要 ${stage.stamina})`); return null; }
+  const tkKey = useTicket ? sweepTicketKey(stage) : null;
+  const n = tkKey ? Math.min(times, getItem(tkKey)) : Math.min(times, Math.floor(STATE.stamina / stage.stamina));
+  if(n <= 0){ toast(tkKey ? `${SWEEP_TICKETS[tkKey].name}が足りません` : `スタミナが足りません(必要 ${stage.stamina})`); return null; }
   if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。キャラ → ルーン で分解してください`); return null; }
   const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [], runes: [], dust: 0 };
   for(let i = 0; i < n; i++){
-    spendStamina(stage.stamina);
-    track('staminaUsed', stage.stamina);
+    if(tkKey){
+      addItem(tkKey, -1);
+    }else{
+      spendStamina(stage.stamina);
+      track('staminaUsed', stage.stamina);
+    }
     track('sweep');
     const r = stage.type === 'dungeon' ? grantDungeonRewards(stage) : grantStageRewards(stage, sweepSpawned(stage));
     total.runs++;
@@ -7356,20 +7459,190 @@ function runSweep(stageId, times){
   logEvent('sweep', { stage_id: stage.id, type: stage.type || 'main', times: total.runs });
   return total;
 }
+/* ---------------- オート周回 ----------------
+   クリアずみのステージを、回数を決めて自動で戦い直す。戦闘はふつうに動くので、
+   MVP・最大ダメージ・勝率はそのまま本物の戦闘結果。速さは ×1/×2/×3/×4 と「結果だけ」。
+   「結果だけ」はこれまでの周回(戦闘をスキップして報酬だけ受け取る)と同じ動き。
+   当たり(Tier4素材・遺物・★5ソウル・仲間入り)が出た時だけ0.6秒手を止めて大きく出す。 */
+const AUTO_RUN_OPTIONS = [5, 10, 20];
+const RARE_PAUSE_MS = 600;
+let autoRun = null;
+function autoRunActive(){ return !!autoRun && !autoRun.done2; }
+function autoRunRare(r){
+  const out = [];
+  (r.items || []).forEach(x => {
+    const m = parseMat(x.key);
+    if(m && m.tier >= 4) out.push({ kind:'item', key:x.key, n:x.n });
+    else if(/^box_(sel|rnd)_4$/.test(x.key)) out.push({ kind:'item', key:x.key, n:x.n });
+  });
+  (r.souls || []).forEach(x => {
+    if(x.joined) out.push({ kind:'join', id:x.id });
+    else if(MON_BY_ID[x.id] && MON_BY_ID[x.id].rarity >= 5) out.push({ kind:'soul', id:x.id, n:x.n });
+  });
+  (r.firstItems || []).forEach(x => { if(x.type === 'relic') out.push({ kind:'relic', key:x.key }); });
+  return out;
+}
+function startAutoRun(stageId, times, speed){
+  const stage = findStage(stageId);
+  if(!stage) return;
+  const can = sweepAllowed(stage);
+  if(!can.ok){ toast(can.why); return; }
+  refreshStamina();
+  const cost = stageStaminaCost(stage);
+  if(STATE.stamina < cost){ toast(`スタミナが足りません(必要 ${cost})`); return; }
+  autoRun = { stageId, total: times, done: 0, wins: 0, streak: 0, bestStreak: 0, stopping: false,
+    startedAt: Date.now(), staminaUsed: 0, gold: 0, crystals: 0, items: {}, souls: {}, joined: [],
+    runes: [], dust: 0, dealt: {}, maxDmg: { v: 0, ref: null }, stopReason: null, rareCount: 0, done2: false };
+  if(speed){ STATE.battleSpeed = speed; saveState(); }
+  closeModal();
+  startBattle(stageId, { skipIntro: true });
+}
+// 1戦ぶんの結果を足す
+function autoRunCollect(b){
+  const a = autoRun;
+  a.done += 1;
+  a.staminaUsed += b.staminaSpent || 0;
+  (b.party || []).forEach(u => {
+    a.dealt[u.ref] = (a.dealt[u.ref] || 0) + (u.report ? u.report.dealt : 0);
+    const best = u.report ? u.report.bestHit || 0 : 0;
+    if(best > a.maxDmg.v) a.maxDmg = { v: best, ref: u.ref };
+  });
+  if(!b.win){ a.streak = 0; return []; }
+  a.wins += 1; a.streak += 1;
+  a.bestStreak = Math.max(a.bestStreak, a.streak);
+  const r = b.rewards || {};
+  a.gold += r.gold || 0;
+  a.crystals += r.crystals || 0;
+  a.dust += r.dust || 0;
+  a.runes.push(...(r.runes || []));
+  (r.items || []).forEach(x => { a.items[x.key] = (a.items[x.key] || 0) + x.n; });
+  (r.firstItems || []).forEach(x => { if(x.type === 'item' || x.type === 'mat') a.items[x.key] = (a.items[x.key] || 0) + x.n; });
+  (r.souls || []).forEach(x => {
+    a.souls[x.id] = (a.souls[x.id] || 0) + x.n;
+    if(x.joined) a.joined.push(x.id);
+  });
+  const rare = autoRunRare(r);
+  a.rareCount += rare.length;
+  return rare;
+}
+function stopAutoRun(reason){
+  if(!autoRun) return;
+  autoRun.stopping = true;
+  if(!autoRun.stopReason) autoRun.stopReason = reason || 'user';
+  renderBattleScreenOnly();
+}
+// 1戦終わったあと。続けるか、止めて結果を出すかを決める
+function autoRunAfterBattle(b){
+  const a = autoRun;
+  const rare = autoRunCollect(b);
+  const stage = findStage(a.stageId);
+  refreshStamina();
+  const cost = stageStaminaCost(stage);
+  if(!b.win) a.stopReason = 'lose';
+  else if(a.done >= a.total) a.stopReason = a.stopReason || 'done';
+  else if(a.stopping) a.stopReason = a.stopReason || 'user';
+  else if(STATE.stamina < cost) a.stopReason = 'stamina';
+  const go = () => {
+    if(a.stopReason){ a.done2 = true; showAutoRunResult(); return; }
+    startBattle(a.stageId, { skipIntro: true });
+  };
+  if(rare.length){ showRareFlash(rare, go); return; }
+  setTimeout(go, Math.round(260 / speedFactor()));
+}
+// 当たりが出た時だけ手を止める
+function showRareFlash(rare, next){
+  const layer = document.getElementById('modal-layer');
+  const one = r => r.kind === 'join' ? `<div class="rf-one"><img src="${imgSrc(r.id)}" alt=""><b>${MON_BY_ID[r.id].name} が仲間になった!</b></div>`
+    : r.kind === 'soul' ? `<div class="rf-one"><img src="${imgSrc(r.id)}" alt=""><b>★5 ${MON_BY_ID[r.id].name} のソウル +${r.n}</b></div>`
+    : r.kind === 'relic' ? `<div class="rf-one"><span class="rf-ic">${RELICS[r.key] ? RELICS[r.key].icon : '🏺'}</span><b>${RELICS[r.key] ? RELICS[r.key].name : '遺物'}</b></div>`
+    : `<div class="rf-one"><span class="rf-ic">${itemIcon(r.key)}</span><b>${itemName(r.key)} ×${r.n}</b></div>`;
+  layer.innerHTML = `<div class="rare-flash" role="status"><div class="rf-tag">RARE</div>${rare.map(one).join('')}</div>`;
+  layer.classList.add('show');
+  setTimeout(() => { closeModal(); next(); }, RARE_PAUSE_MS);
+}
+function autoRunElapsed(){ return Math.max(0, Math.round((Date.now() - autoRun.startedAt) / 1000)); }
+// 戦闘画面の上に出す周回HUD(進み具合・残りスタミナ・積み上がった取得物)
+function autoRunHud(){
+  if(!autoRunActive()) return '';
+  const a = autoRun;
+  const pct = Math.round(a.done / a.total * 100);
+  const items = Object.entries(a.items).sort((x, y) => y[1] - x[1]).slice(0, 6);
+  return `
+    <div class="ar-hud">
+      <div class="ar-ring" style="--p:${pct};"><span>${a.done}<small>/${a.total}</small></span></div>
+      <div class="ar-mid">
+        <div class="ar-line">⚡${STATE.stamina} ・ ${autoRunElapsed()}秒 ・ ${a.wins}勝${a.done - a.wins ? `${a.done - a.wins}敗` : ''}</div>
+        <div class="ar-loot">
+          ${a.gold ? `<span class="ar-chip">${goldText(a.gold)}</span>` : ''}
+          ${items.map(([k, n]) => `<span class="ar-chip" title="${itemName(k)}">${itemIcon(k)}${n}</span>`).join('')}
+          ${a.joined.length ? `<span class="ar-chip join">仲間+${a.joined.length}</span>` : ''}
+        </div>
+      </div>
+      <button class="btn btn-sm ${a.stopping ? 'btn-ghost' : ''}" data-auto-stop="1" ${a.stopping ? 'disabled' : ''}>${a.stopping ? '停止中…' : '止める'}</button>
+    </div>`;
+}
+const AUTO_STOP_LABEL = { done:'', lose:'負けたので止めました', stamina:'スタミナが足りなくなったので止めました', user:'止めました' };
+function showAutoRunResult(){
+  const a = autoRun;
+  const stage = findStage(a.stageId);
+  const layer = document.getElementById('modal-layer');
+  const items = Object.entries(a.items).sort((x, y) => x[0].localeCompare(y[0]));
+  const souls = Object.entries(a.souls);
+  const mvpRef = Object.keys(a.dealt).sort((x, y) => a.dealt[y] - a.dealt[x])[0];
+  const secs = autoRunElapsed();
+  const note = AUTO_STOP_LABEL[a.stopReason] || '';
+  layer.innerHTML = `
+    <div class="result-modal sweep-modal" role="dialog" aria-label="周回結果">
+      <h3>周回結果:${stage.name} ×${a.done}</h3>
+      ${note ? `<div class="ar-stop">${a.done}回目で${note}</div>` : ''}
+      <div class="ar-sum">
+        <div><span>勝敗</span><b>${a.wins}勝 ${a.done - a.wins}敗</b></div>
+        <div><span>連勝</span><b>${a.bestStreak}</b></div>
+        <div><span>使ったスタミナ</span><b>⚡${a.staminaUsed}</b></div>
+        <div><span>かかった時間</span><b>${Math.floor(secs / 60)}分${secs % 60}秒</b></div>
+      </div>
+      ${mvpRef ? `<div class="ar-mvp">
+        <img src="${imgSrc(mvpRef)}" alt="">
+        <div><b>MVP ${MON_BY_ID[mvpRef].name}</b><small>与ダメージ合計 ${a.dealt[mvpRef].toLocaleString()}</small></div>
+        ${a.maxDmg.ref ? `<div class="ar-maxdmg"><b>最大ダメージ ${a.maxDmg.v.toLocaleString()}</b><small>${MON_BY_ID[a.maxDmg.ref].name}</small></div>` : ''}
+      </div>` : ''}
+      ${a.gold ? `<div class="gold-line">${goldText(a.gold)}</div>` : ''}
+      ${a.crystals ? `<div class="gold-line">${CRYSTAL_ICON}${a.crystals}</div>` : ''}
+      <div class="mat-grid">${items.map(([k, n]) => `<div class="mat-chip" title="${itemName(k)}"><div class="ic">${itemIcon(k)}</div><div class="n">${n}</div></div>`).join('')}</div>
+      ${runeGainHtml(a.runes || [], a.dust || 0)}
+      ${souls.length ? `<div class="br-rewards-head" style="margin-top:10px;">ソウル</div>
+        ${souls.map(([id, n]) => `<div class="soul-row"><img src="${imgSrc(id)}" alt=""><div class="sr-body"><div class="sr-name">${MON_BY_ID[id].name}</div>
+          ${a.joined.includes(id) ? '<span class="sr-join">仲間になった!</span>' : STATE.owned[id] ? `<span class="sr-have">ソウル ${STATE.owned[id].souls}</span>` : `<span class="sr-pend">あと${UNLOCK_SOULS[MON_BY_ID[id].rarity] - (STATE.pendingSouls[id] || 0)}個で仲間に</span>`}
+          </div><div class="sr-n">◆+${n}</div></div>`).join('')}` : ''}
+      <div class="br-stamina" style="margin-top:10px;">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>
+      <div class="br-actions">
+        <button class="btn btn-block" data-sweep-open="${stage.id}">もう一度周回する</button>
+        <button class="btn btn-ghost btn-block" id="close-result">閉じる</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
+  autoRun = null;
+  saveState();
+}
+
 let sweepTarget = null;
+let sweepSpeed = 2;   // ×1 / ×2 / ×3 / ×4 / 0 = 結果だけ。最初は×2
+let sweepTicket = false;   // 周回券でスタミナのかわりに回す(結果だけのとき)
 function renderSweepModal(){
   const stage = findStage(sweepTarget);
   const layer = document.getElementById('modal-layer');
   refreshStamina();
-  const max = Math.floor(STATE.stamina / stage.stamina);
-  const opts = [...new Set([1, 5, 10, max].filter(n => n >= 1 && n <= max))].sort((a, b) => a - b);
+  const tkKey = sweepTicketKey(stage);
+  const tkHave = tkKey ? getItem(tkKey) : 0;
+  if(sweepTicket && (!tkHave || sweepSpeed !== 0)) sweepTicket = false;
+  const max = sweepTicket ? Math.min(tkHave, 99) : Math.floor(STATE.stamina / stage.stamina);
+  const opts = [...new Set([1, ...AUTO_RUN_OPTIONS, max].filter(n => n >= 1 && n <= max))].sort((a, b) => a - b);
   const stamPct = Math.min(100, Math.round(STATE.stamina / STAMINA_MAX * 100));
   const drops = stage.drops ? stage.drops.tiers.reduce((a, b) => a + b, 0) : 0;
   const pots = Object.values(stage.pots || {}).reduce((a, b) => a + b, 0);
   layer.innerHTML = `
     <div class="result-modal sweep-modal" role="dialog" aria-label="周回">
       <h3>周回:${stage.name}</h3>
-      <p class="fs-note">戦闘をスキップして、クリア報酬だけを受け取ります。</p>
       <div class="sw-stamina">
         <div class="row-between"><span>今のスタミナ</span><b>⚡${STATE.stamina} / ${STAMINA_MAX}</b></div>
         <div class="soul-bar"><div class="soul-fill" style="width:${stamPct}%;"></div></div>
@@ -7377,12 +7650,21 @@ function renderSweepModal(){
           STATE.stamina >= STAMINA_MAX ? '' : `・全回復まで ${formatDuration(msToFullStamina())}`}</div>
       </div>
       <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・${ITEM_ICON.pot}EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
+      <div class="sw-speed-head">速さ</div>
+      <div class="sw-speeds">
+        ${SPEED_OPTIONS.map(n => `<button class="sw-speed ${sweepSpeed === n ? 'on' : ''}" data-sweep-speed="${n}">×${n}</button>`).join('')}
+        <button class="sw-speed ${sweepSpeed === 0 ? 'on' : ''}" data-sweep-speed="0">結果だけ</button>
+      </div>
+      <div class="fs-note">${sweepSpeed === 0 ? '戦闘をスキップして、クリア報酬だけをまとめて受け取ります。' : '戦闘をそのまま自動で繰り返します。負けたら止まります。途中で止められます。'}</div>
+      ${tkKey && tkHave ? `<button class="sw-ticket ${sweepTicket ? 'on' : ''}" data-sweep-ticket="1" ${sweepSpeed === 0 ? '' : 'disabled'}>
+        ${itemIcon(tkKey)}${SWEEP_TICKETS[tkKey].name}を使う<small>${sweepSpeed === 0 ? `残り${tkHave}枚・スタミナを使いません` : '「結果だけ」のときに使えます'}</small>
+      </button>` : ''}
       ${opts.length ? `<div class="sweep-opts">${opts.map(n => `
         <button class="btn" data-sweep-run="${n}">
           <b>${n === max && n > 10 ? `最大 ${n}回` : `${n}回`}</b>
-          <small>⚡${n * stage.stamina} → 残り ⚡${STATE.stamina - n * stage.stamina}</small>
+          <small>${sweepTicket ? `券${n}枚 → 残り ${tkHave - n}枚` : `⚡${n * stage.stamina} → 残り ⚡${STATE.stamina - n * stage.stamina}`}</small>
         </button>`).join('')}</div>`
-        : `<div class="soul-none">スタミナが足りません(1回 ⚡${stage.stamina})</div>`}
+        : `<div class="soul-none">${sweepTicket ? '周回券が足りません' : `スタミナが足りません(1回 ⚡${stage.stamina})`}</div>`}
       <button class="btn btn-ghost btn-block" id="close-result">やめる</button>
     </div>`;
   layer.classList.add('show');
@@ -7414,7 +7696,7 @@ function sweepButton(stage){
   const can = sweepAllowed(stage);
   const unlocked = stage.type === 'dungeon' ? dungeonTierUnlocked(stage.tier, stage.dungeon) : stageUnlocked(stage);
   if(!unlocked) return '';
-  const vipOnly = stage.type !== 'dungeon' && stageStars(stage.id) >= 3 && !STATE.vip;
+  const vipOnly = stage.type !== 'dungeon' && stageStars(stage.id) >= 3 && SWEEP_VIP_ONLY && !STATE.vip;
   return `<button class="btn btn-sm btn-ghost sweep-btn ${can.ok ? 'ready' : ''}" data-sweep-open="${stage.id}" ${can.ok ? '' : 'disabled'} title="${can.ok ? '' : can.why}">
     ${vipOnly ? '周回 VIP' : '周回'}</button>`;
 }
@@ -9458,6 +9740,14 @@ function renderShop(){
         <button class="btn btn-sm ${bought || (STATE.pvpPoints || 0) < def.price ? 'btn-ghost' : ''}" data-shop-buy="pvp:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
       </div>`;
   };
+  const stamPrice = staminaRefillPrice();
+  const staminaRefillRow = () => `
+      <div class="shop-row stam-row">
+        <span class="shop-item">⚡<span class="shop-item-name">スタミナ回復(+${STAMINA_REFILL_QTY})<small class="stam-note">本日あと${staminaRefillLeft()}回</small></span></span>
+        <span class="shop-price">${stamPrice === null ? '本日終了' : stamPrice === 0 ? '<b class="stam-free">無料</b>' : `${CRYSTAL_ICON}${stamPrice}`}</span>
+        <button class="btn btn-sm ${stamPrice !== null && (STATE.crystals || 0) >= stamPrice ? '' : 'btn-ghost'}" data-stamina-refill="1" ${stamPrice === null ? 'disabled' : ''}>${stamPrice === 0 ? '受け取る' : '購入'}</button>
+      </div>
+      <div class="stam-ladder">${STAMINA_REFILL_PRICES.map((p, i) => `<span class="${i < staminaRefillUsed() ? 'used' : i === staminaRefillUsed() ? 'next' : ''}">${p === 0 ? '無料' : p}</span>`).join('')}</div>`;
   const crystalRow = def => `
       <div class="shop-row">
         <span class="shop-item">${def.icon}<span class="shop-item-name">${def.label}(+${def.qty})</span></span>
@@ -9488,8 +9778,8 @@ function renderShop(){
       <div class="panel facility">${SHOP_PVP_ITEMS.map(pvpRow).join('')}</div>
     ` : shopTab === 'rune' ? renderRuneShop()
       : String(shopTab).startsWith('ev:') ? renderEventShop(String(shopTab).slice(3)) : `
-      <div class="screen-sub">水晶でスタミナ回復・PVP挑戦券と交換できます。回数制限はありません。</div>
-      <div class="panel facility">${SHOP_CRYSTAL_ITEMS.map(crystalRow).join('')}</div>
+      <div class="screen-sub">水晶でスタミナ回復・PVP挑戦券と交換できます。スタミナ回復は1日${STAMINA_REFILL_PRICES.length}回まで(毎日${DAY_RESET_HOUR}時リセット)で、1回目は無料、回すたびに値上がりします。</div>
+      <div class="panel facility">${staminaRefillRow()}${SHOP_CRYSTAL_ITEMS.map(crystalRow).join('')}</div>
     `}`;
 }
 /* イベントショップ(交換所)。メダルで交換する。購入上限はイベントごとにリセット。
@@ -13556,7 +13846,7 @@ const MAX_ROUNDS = 30;
 const ACTION_DELAY_MS = 950;
 const HIT_DELAY_MS = 300;
 const CUTIN_HOLD_MS = 1000;
-const SPEED_OPTIONS = [1, 2, 3];
+const SPEED_OPTIONS = [1, 2, 3, 4];
 const SPEED_3X_VIP_ONLY = false;
 
 // ---- SP ----
@@ -13821,7 +14111,7 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     stacks: {},     // passive counters (fox fires, drums, moon phase…)
     flags: {},      // once-per-battle / once-per-round markers
     turnCount: 0, deathOrder: 0,
-    report: { dealt: 0, taken: 0, healSelf: 0, healAlly: 0, ults: 0 },
+    report: { dealt: 0, taken: 0, healSelf: 0, healAlly: 0, ults: 0, bestHit: 0 },
     motion: motionOf(mon),
     tie: 0,
   };
@@ -16171,7 +16461,7 @@ function hitHp(u, dmg, source, opts){
     u.hp = Math.max(0, u.hp - left);
   }
   u.report.taken += dmg;
-  if(source) source.report.dealt += dmg;
+  if(source){ source.report.dealt += dmg; if(dmg > source.report.bestHit) source.report.bestHit = dmg; }
   if(u.hp <= 0 && u.alive) killUnit(u, source, o.cause);
   else if(u.alive){ runPassive(u, 'onDamaged'); if(u.gimmick) runGimmick(u, 'damaged'); }
   return dmg;
@@ -17170,8 +17460,12 @@ function finishBattle(win){
       eyebrow: win ? 'STAGE CLEAR' : `WAVE ${w} ${timedOut ? 'TIME UP' : 'LOST'}`,
       title: win ? '勝利!' : (timedOut ? '時間切れ' : '敗北…'),
       sub: win ? `ウェーブ ${w} 勝利・ステージ制覇` : `ウェーブ ${w} で${timedOut ? '時間切れ' : '敗北'}`,
-      duration: 1500,
-    }, () => { if(battleUI === finished && currentScreen === 'battle-fight') showBattleResult(); });
+      duration: autoRunActive() ? Math.round(700 / speedFactor()) : 1500,
+    }, () => {
+      if(battleUI !== finished || currentScreen !== 'battle-fight') return;
+      if(autoRunActive() && autoRun.stageId === finished.stage.id) return autoRunAfterBattle(finished);
+      showBattleResult();
+    });
   }, 450);
 }
 
@@ -17354,7 +17648,7 @@ function showBattleResult(tab){
         <div class="br-rank">
           ${starsText(b.rank)}${b.rank > b.prevRank ? '<span class="rank-new">NEW BEST</span>' : ''}
           <ul>${rankConditions(b.stage).map((c, i) => `<li class="${b.rank > i ? 'ok' : ''}">${b.rank > i ? '✓' : '✗'} ★${i + 1} ${c}</li>`).join('')}</ul>
-          ${sweepAllowed(b.stage).ok ? '<div class="rank-note">このステージは周回できます</div>' : b.rank >= 3 && b.stage.type !== 'dungeon' && !STATE.vip ? '<div class="rank-note">★3達成!メインステージの周回はVIP限定です</div>' : ''}
+          ${sweepAllowed(b.stage).ok ? '<div class="rank-note">このステージは周回できます</div>' : b.rank >= 3 && b.stage.type !== 'dungeon' && SWEEP_VIP_ONLY && !STATE.vip ? '<div class="rank-note">★3達成!メインステージの周回はVIP限定です</div>' : ''}
         </div>` : ''}
       <div class="br-party">${partyRow}</div>
       <div class="br-waves" aria-label="ウェーブごとの結果">
@@ -17390,6 +17684,7 @@ function showBattleResult(tab){
 
 // 撤退(中断)したときも、負けたときと同じくスタミナを全額返す。報酬は出ないので返しても得はしない
 function refundStaminaOnLeave(){
+  autoRun = null;   // 撤退したら周回も止める
   const b = battleUI;
   if(!b || b.finished || b.pvp || b.staminaRefund || !b.staminaSpent) return;
   const refund = Math.floor(b.staminaSpent * STAMINA_REFUND_ON_LOSS);
@@ -17627,6 +17922,7 @@ function renderBattleFight(){
         <div class="bh-wave">WAVE ${b.waveIndex + 1}/${b.stage.waves.length}</div>
         <div class="pixel battle-timer ${MAX_ROUNDS - b.round <= 5 ? 'low' : ''}" aria-label="ラウンド">R${Math.max(1, b.round)}</div>
       </div>
+      ${autoRunHud()}
       ${turnStrip}
       <div class="battle-field">
         ${b.paused && !b.finished ? `
@@ -18448,11 +18744,21 @@ function handlePhoneClick(ev){
   if(mTabEl){ missionTab = mTabEl.dataset.missionTab; render(); return; }
   const swOpen = t.closest('[data-sweep-open]');
   if(swOpen){ sweepTarget = swOpen.dataset.sweepOpen; renderSweepModal(); return; }
+  const swSpeedEl = t.closest('[data-sweep-speed]');
+  if(swSpeedEl){ sweepSpeed = Number(swSpeedEl.dataset.sweepSpeed); if(sweepSpeed !== 0) sweepTicket = false; renderSweepModal(); return; }
+  if(t.closest('[data-sweep-ticket]')){ sweepTicket = !sweepTicket; renderSweepModal(); return; }
+  if(t.closest('[data-auto-stop]')){ stopAutoRun('user'); return; }
   const swRun = t.closest('[data-sweep-run]');
   if(swRun && sweepTarget){
     const stage = findStage(sweepTarget);
-    const res = runSweep(sweepTarget, Number(swRun.dataset.sweepRun));
-    if(res){ playSfx('confirm'); showSweepResult(stage, res); render(); }
+    const n = Number(swRun.dataset.sweepRun);
+    if(sweepSpeed === 0){
+      const res = runSweep(sweepTarget, n, sweepTicket);
+      if(res){ playSfx('confirm'); showSweepResult(stage, res); render(); }
+    }else{
+      playSfx('confirm');
+      startAutoRun(sweepTarget, n, sweepSpeed);
+    }
     return;
   }
   const qtEl = t.closest('[data-quest-tier]');
@@ -18461,6 +18767,7 @@ function handlePhoneClick(ev){
   if(t.closest('[data-quest-back]')){ questTier = null; render(); return; }
   const evtEl = t.closest('[data-event-tier]');
   if(evtEl){ eventKey = evtEl.dataset.eventTier; eventView = 'menu'; render(); return; }
+  if(t.closest('[data-stamina-refill]')){ buyStaminaRefill(); return; }
   const titleEl = t.closest('[data-set-title]');
   if(titleEl){ equipTitle(titleEl.dataset.setTitle || null); return; }
   const evViewEl = t.closest('[data-event-view]');
