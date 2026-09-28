@@ -15,12 +15,12 @@ const NEW = [
   ['スキル2 (CT4)','兄弟の狼煙','ct4', { tgt:'allies', effects:[{ to:'allies', buff:'strUp', v:0.2, turns:3 }] }],
   ['必殺技 (SP100)','太陽を呑む','sp100', { tgt:'all', pow:0.8, onHit:[{ debuff:'spdDown', v:0.15, turns:2 }, { debuff:'pdefDown', v:0.15, turns:2 }, { st:'burn', chance:1, turns:2 }] }],
  ]],
- ['黙示の蝗', 4, [
+ ['黙示のアルベ', 4, [
   ['スキル1 (CT3)','群れの羽音','ct3', { tgt:'allies', effects:[{ to:'allies', buff:'critUp', v:0.2, turns:3 }] }],
   ['スキル2 (CT4)','尾の一撃','ct4', { tgt:'single', pow:2.0, onHit:[{ debuff:'pdefDown', v:0.25, turns:3 }] }],
   ['必殺技 (SP100)','黙示の群れ','sp100', { tgt:'allies', effects:[{ to:'allies', buff:'critUp', v:0.35, turns:4 }, { to:'allies', spGain:20 }] }],
  ]],
- ['硫黄の騎兵', 4, [
+ ['ゲヘナの騎士', 4, [
   ['スキル1 (CT3)','火と煙と硫黄','ct3', { tgt:'all', pow:0.6, onHit:[{ st:'burn', chance:0.3, turns:3 }] }],
   ['スキル2 (CT4)','蛇の尾','ct4', { tgt:'back', pow:2.5, onHit:[{ st:'poison', chance:0.5, turns:5 }] }],
   ['必殺技 (SP100)','淵より湧く軍勢','sp100', { tgt:'all', pow:2.0, onHit:[{ st:'poison', chance:1, turns:5 }] }],

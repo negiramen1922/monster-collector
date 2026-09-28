@@ -36,5 +36,8 @@ dump('titan.js', 'TITAN', load('タイタンの必殺技_粗調整.json'), 'docs
 # ---- 11 EXステージのウェーブ ----
 dump('exwaves.js', 'EXW', load('次回イベントのEXステージ_ウェーブ.json'), 'docs/design/次回イベントのEXステージ_ウェーブ.json から。tools/gen_sheet_data.py が生成。')
 
+# ---- 12 イベントショップ / ボーナス / ガチャ券 ----
+dump('shop.js', 'SHOP', load('イベントショップとガチャ券.json'), 'docs/design/イベントショップとガチャ券.json から。tools/gen_sheet_data.py が生成。')
+
 # ---- 09 やけどの重ねがけ ----
 dump('burn.js', 'BURN', load('やけどの重ねがけ.json'), 'docs/design/やけどの重ねがけ.json から。tools/gen_sheet_data.py が生成。')
