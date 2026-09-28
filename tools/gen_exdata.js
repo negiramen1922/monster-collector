@@ -5,6 +5,9 @@ const load = require('./harness.js');
 const api = load('game.js', s => s + ';global.__e={buildUnit,MONSTERS,skillSlotsFor};');
 const E = global.__e;
 const by = Object.fromEntries(E.MONSTERS.map(m => [m.name, m]));
+/* まだゲームに入っていない新★4は、設計資料の素ステータスを使う */
+const NEW4 = require(path.join(__dirname, '..', 'docs', 'design', '次回イベントの★4.json'));
+for (const c of NEW4.chars) by[c.n] = Object.assign({ rarity: 4, name: c.n, role: c.role }, c.st);
 /* ゲーム内の battlePower() と同じ式(gen_eventdata.js と同じ物差し) */
 const bpOf = (u, star, sk) => Math.round((u.hp * 0.6 + u.str * 4 + (u.pdef + u.mdef) * 4 + u.spd * 1.5)
   * (1 + (sk - 1) * 0.04 * 3 + (sk - 1) * 0.05 + (E.skillSlotsFor(star) - 1) * 0.10));
