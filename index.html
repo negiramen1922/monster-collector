@@ -7418,6 +7418,7 @@ const SWEEP_VIP_ONLY = false;
 function sweepAllowed(stage){
   if(stage.tier === 'tu') return { ok: false, why: 'チュートリアルは周回できません' };
   if(stage.type === 'abyss') return { ok: false, why: '深淵回廊は周回できません' };
+  if(stage.ex) return { ok: false, why: 'EXステージは周回できません(報酬はミッションで受け取ります)' };
   if(stageStars(stage.id) < 3) return { ok: false, why: '★3でクリアすると周回できます' };
   if(stage.type !== 'dungeon' && SWEEP_VIP_ONLY && !STATE.vip) return { ok: false, why: 'メインステージの周回はVIP限定です' };
   return { ok: true };
@@ -7641,7 +7642,8 @@ function renderSweepModal(){
   const tkKey = sweepTicketKey(stage);
   const tkHave = tkKey ? getItem(tkKey) : 0;
   if(sweepTicket && (!tkHave || sweepSpeed !== 0)) sweepTicket = false;
-  const max = sweepTicket ? Math.min(tkHave, 99) : Math.floor(STATE.stamina / stage.stamina);
+  const max = sweepTicket ? Math.min(tkHave, 99)
+    : stage.stamina > 0 ? Math.floor(STATE.stamina / stage.stamina) : 99;
   const opts = [...new Set([1, ...AUTO_RUN_OPTIONS, max].filter(n => n >= 1 && n <= max))].sort((a, b) => a - b);
   const stamPct = Math.min(100, Math.round(STATE.stamina / STAMINA_MAX * 100));
   const drops = stage.drops ? stage.drops.tiers.reduce((a, b) => a + b, 0) : 0;
