@@ -40,7 +40,10 @@ const top = E.addRune(E.makeRune(10, 2, 'spd')), m1 = E.addRune(E.makeRune(10, 2
 ok('TierⅩは最大(合成できない)', E.RUNE_TIERS === 10 && !E.fuseRunes(top.uid, [m1.uid, m2.uid]).ok);
 const L = E.addRune(E.makeRune(4, 1, 'mdef')), l1 = E.addRune(E.makeRune(4, 1, 'hp')), l2 = E.addRune(E.makeRune(4, 1, 'pdef'));
 l2.lock = true;
-ok('ロック中は材料にできない', !E.fuseRunes(L.uid, [l1.uid, l2.uid]).ok && E.runeFuseMaterials(L).length === 1);
+// α0.2.007〜: 下のTierも材料にできるので、材料の総数ではなくロック中の1本が外れているかを見る
+ok('ロック中は材料にできない', !E.fuseRunes(L.uid, [l1.uid, l2.uid]).ok
+  && !E.runeFuseMaterials(L).some(r => r.uid === l2.uid)
+  && E.runeFuseMaterials(L).some(r => r.uid === l1.uid), E.runeFuseMaterials(L).map(r => r.uid));
 // α0.1.063〜064のルーン(旧仕様)は、分解の2倍の粉に交換して1回だけ知らせる
 S().runes = [{ uid: 'rx', tier: 2, rarity: 1, main: 'hp', lv: 9, spent: 40, subs: [{ stat: 'atk', val: 3, rolls: 1 }], lock: false },
              { uid: 'ry', tier: 6, rarity: 4, main: 'atk', subs: [], lock: true }];
