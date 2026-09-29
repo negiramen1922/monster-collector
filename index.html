@@ -7258,14 +7258,19 @@ function toggleRuneFusePick(uid){
   renderRuneDetail();
 }
 // おまかせ: レア度の低い材料から使う(良いルーンは土台として残るように)
-// おまかせ: 低いTier・低いレア度から先に使う(良いルーンと高いTierは残す)
+/* おまかせ: むだが出ない組み合わせを選ぶ。
+   Tierの値は3の累乗なので、大きいTierから「はみ出さない範囲で」詰めるとぴったり収まりやすい。
+   同じTierの中では、レア度が低くサブの少ないものから使う(良いルーンを残すため)。 */
 function autoRuneFusePick(){
   const r = runeByUid(runeDetail.uid);
   const need = runeFuseNeed(r);
-  const pool = runeFuseMaterials(r).sort((a, b) => a.tier - b.tier || a.rarity - b.rarity || a.subs.length - b.subs.length);
+  const pool = runeFuseMaterials(r).sort((a, b) => b.tier - a.tier || a.rarity - b.rarity || a.subs.length - b.subs.length);
   const pick = [];
   let have = 0;
-  pool.forEach(x => { if(have < need){ pick.push(x.uid); have += runeFusePoint(x.tier); } });
+  pool.forEach(x => { const v = runeFusePoint(x.tier); if(have + v <= need){ pick.push(x.uid); have += v; } });
+  if(have < need){   // ぴったり収まらないときだけ、小さいものから足して届かせる
+    [...pool].reverse().forEach(x => { if(have < need && !pick.includes(x.uid)){ pick.push(x.uid); have += runeFusePoint(x.tier); } });
+  }
   runeDetail.fuse = have >= need ? pick : [];
   renderRuneDetail();
 }
