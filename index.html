@@ -4417,6 +4417,7 @@ async function publishProfile(){
    タイミングで走ると、何も書かないまま済んだことにしていた。
    フレンドの顔ぶれが変わったときだけ書き直す形にする(同じ顔ぶれなら何もしない)。 */
 let followRecordsKey = null;
+let followRecordDenied = false;   // 相手側の「フォロワー」記録を書けなかった(ルールが古い)
 function syncFollowRecords(){
   const be = authBackend();
   if(!ACCOUNT || !STATE || typeof be.recordIncomingFriend !== 'function') return;
@@ -4424,7 +4425,10 @@ function syncFollowRecords(){
   const key = list.map(f => f.uid).sort().join(',');
   if(!list.length || key === followRecordsKey) return;
   followRecordsKey = key;
-  list.forEach(f => be.recordIncomingFriend(f.uid, ACCOUNT.uid).catch(e => console.warn('follow: 記録に失敗', f.uid, e)));
+  list.forEach(f => be.recordIncomingFriend(f.uid, ACCOUNT.uid).catch(e => {
+    console.warn('follow: 記録に失敗', f.uid, e);
+    if(e && (e.code === 'permission-denied' || /permission/i.test(String(e.message || e)))) followRecordDenied = true;
+  }));
 }
 
 /* ---- friends & the お助けモンスター they lend out ---- */
@@ -4561,7 +4565,12 @@ async function fetchIncomingFriendsList(){
   try{ uids = await be.fetchIncoming(ACCOUNT.uid); }
   catch(e){
     console.warn('followers: incoming の取得に失敗', e);
-    followerState = { ...followerState, loading: false, error: 'フォロワーの一覧を取れませんでした' };
+    // players/{uid}/incoming だけ別のルールが要る。古いルールのままだと、
+    // 読み書きの両方が拒否されてフォロワーがずっと0になる
+    const denied = e && (e.code === 'permission-denied' || /permission/i.test(String(e.message || e)));
+    followerState = { ...followerState, loading: false,
+      error: denied ? 'フォロワーの一覧を読む権限がありません(サーバーの設定が古い可能性があります)'
+                    : 'フォロワーの一覧を取れませんでした' };
     render();
     return;
   }
@@ -20202,6 +20211,7 @@ function renderFollowersView(){
     </div>
     <div class="screen-sub" style="margin:-2px 2px 8px;">あなたをフレンドに追加している人です。「フレンドを返す」でお互いのフレンドになれます。</div>
     ${st.error ? `<div class="ui-warn">${st.error}。通信の状態を確かめて「再読み込み」を押してください。</div>` : ''}
+    ${followRecordDenied ? '<div class="ui-warn">あなたがフレンドを追加したことを相手側に記録できていません。相手の「フォロワー」にもあなたが出ない状態です。</div>' : ''}
     ${!st.error && missing > 0 ? `<div class="ui-warn">${st.uids}人のうち${missing}人のプロフィールが読めませんでした(相手がデータを消した可能性があります)。</div>` : ''}
     ${followerList.length
       ? `<div class="panel panel-tight">${followerList.map(f => socialRowHtml(f, 'follower')).join('')}</div>`
@@ -20435,7 +20445,7 @@ function titleHtml(){
   return `
     <div id="title">
       <div class="title-hero">
-        <div class="title-eyebrow pixel">MONSTER TAMER</div>
+        <div class="title-eyebrow pixel">MONSTER COLLECT</div>
         <h1 class="title-name">モンコレ</h1>
         <div class="title-rule"></div>
         <img class="title-mon" src="${imgSrc(tm.id)}" alt="${tm.name}">
