@@ -2555,15 +2555,15 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rd-max{ text-align:center; font-weight:900; color:var(--gold); }
 .rd-actions{ display:flex; gap:8px; }
 .rd-actions .btn{ flex:1; }
-.rp-cur, .rp-row{ display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:8px; border-radius:12px; border:1px solid var(--line); background:var(--panel2); color:var(--text); margin-bottom:6px; }
-.rp-cur{ border-color:var(--gold); margin-bottom:10px; }
-.rp-body{ flex:1; min-width:0; }
-.rp-name{ font-size:13px; font-weight:900; margin-bottom:3px; }
-.rp-name small{ font-size:10px; color:var(--dim); font-weight:700; }
-.rp-subs .rune-sub{ font-size:10px; margin-bottom:2px; }
-.rp-used{ font-size:10px; color:#ffb35a; font-weight:800; margin-top:2px; }
-.rp-btns{ display:flex; flex-direction:column; gap:4px; }
-.rp-list{ max-height:none; }
+.rpk-cur, .rpk-row{ display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:8px; border-radius:12px; border:1px solid var(--line); background:var(--panel2); color:var(--text); margin-bottom:6px; }
+.rpk-cur{ border-color:var(--gold); margin-bottom:10px; }
+.rpk-body{ flex:1; min-width:0; }
+.rpk-name{ font-size:13px; font-weight:900; margin-bottom:3px; }
+.rpk-name small{ font-size:10px; color:var(--dim); font-weight:700; }
+.rpk-subs .rune-sub{ font-size:10px; margin-bottom:2px; }
+.rpk-used{ font-size:10px; color:#ffb35a; font-weight:800; margin-top:2px; }
+.rpk-btns{ display:flex; flex-direction:column; gap:4px; }
+.rpk-list{ max-height:none; }
 .rb-rars{ display:flex; gap:6px; margin:10px 0; }
 .rb-rars .rf-chip{ flex:1; justify-content:center; padding:8px 0; font-size:13px; }
 .rb-sum{ text-align:center; font-size:16px; font-weight:900; margin:6px 0 10px; }
@@ -7153,19 +7153,19 @@ function renderRunePicker(){
       <button class="fs-close" data-close-rune-picker="1" aria-label="閉じる">×</button>
       <h3>${mon.name}のルーン 枠${slot + 1}</h3>
       <p class="fs-note">ルーンは編成ごとに装備します(いまは<b>編成${idx + 1}</b>)。同じ編成の中では1つのルーンを1体にしか付けられませんが、別の編成なら同じルーンを使えます。</p>
-      ${cur ? `<div class="rp-cur">
+      ${cur ? `<div class="rpk-cur">
         ${runeIconHtml(cur, { used: false })}
-        <div class="rp-body"><div class="rp-name">${runeStatText(cur.main, runeMainValue(cur))} <small>${RUNE_RARITIES[cur.rarity].label}・Tier${RUNE_ROMAN[cur.tier - 1]}</small></div><div class="rp-subs">${runeSubsHtml(cur)}</div></div>
-        <div class="rp-btns"><button class="btn btn-ghost btn-sm" data-rune-open-picker="${cur.uid}">詳細</button><button class="btn btn-ghost btn-sm" data-rune-unequip="1">外す</button></div>
+        <div class="rpk-body"><div class="rpk-name">${runeStatText(cur.main, runeMainValue(cur))} <small>${RUNE_RARITIES[cur.rarity].label}・Tier${RUNE_ROMAN[cur.tier - 1]}</small></div><div class="rpk-subs">${runeSubsHtml(cur)}</div></div>
+        <div class="rpk-btns"><button class="btn btn-ghost btn-sm" data-rune-open-picker="${cur.uid}">詳細</button><button class="btn btn-ghost btn-sm" data-rune-unequip="1">外す</button></div>
       </div>` : ''}
       ${runeFilterChipsHtml(filter, 'data-rune-picker-filter')}
-      ${list.length ? `<div class="rp-list">${list.map(r => {
+      ${list.length ? `<div class="rpk-list">${list.map(r => {
         const u = runeUserIn(r.uid, idx);
-        return `<button class="rp-row" data-rune-pick="${r.uid}">
+        return `<button class="rpk-row" data-rune-pick="${r.uid}">
           ${runeIconHtml(r, { used: false })}
-          <div class="rp-body"><div class="rp-name">${runeStatText(r.main, runeMainValue(r))} <small>${RUNE_RARITIES[r.rarity].label}・Tier${RUNE_ROMAN[r.tier - 1]}</small></div>
-          <div class="rp-subs">${runeSubsHtml(r)}</div>
-          ${u ? `<div class="rp-used">この編成で ${MON_BY_ID[u.monId].name} が装備中(付け替えます)</div>` : ''}</div>
+          <div class="rpk-body"><div class="rpk-name">${runeStatText(r.main, runeMainValue(r))} <small>${RUNE_RARITIES[r.rarity].label}・Tier${RUNE_ROMAN[r.tier - 1]}</small></div>
+          <div class="rpk-subs">${runeSubsHtml(r)}</div>
+          ${u ? `<div class="rpk-used">この編成で ${MON_BY_ID[u.monId].name} が装備中(付け替えます)</div>` : ''}</div>
         </button>`;
       }).join('')}</div>` : `<p class="fs-note">${ensureRunes().length ? '条件に合うルーンがありません。' : 'まだルーンを持っていません。育成クエストの「ルーン採掘」で手に入ります。'}</p>`}
     </div>`;
@@ -8366,6 +8366,7 @@ const RARE_SPAWN_PER_WAVE = 0.08;        // a ★3/★4 from the stage's rare li
 const RECRUIT_CHANCE = { 1: 0.30, 2: 0.30, 3: 0.05, 4: 0.01, 5: 0.002 };
 const RECRUIT_CHANCE_RARE = { 3: 0.15, 4: 0.01, 5: 0.002 };
 const recruitChanceOf = (mon, asRare, stage) => {
+  if(stage && stage.ex) return 0;   // EXは腕試し枠。ソウルも仲間入りも出ない
   const override = stage && stage.recruitOverride && stage.recruitOverride[mon.id];
   if(override != null) return override;
   return (asRare && RECRUIT_CHANCE_RARE[mon.rarity]) || RECRUIT_CHANCE[mon.rarity] || 0;
@@ -17924,7 +17925,8 @@ function grantStageRewards(stage, spawned, party){
   daily.bossSouls = daily.bossSouls || {};
   const soulTotals = {};
   const addSoul = (id, n) => { soulTotals[id] = (soulTotals[id] || 0) + n; };
-  spawned.forEach(u => {
+  // EXはスタミナ0で何度でも挑めるので、ソウルも仲間入りも出さない(報酬はイベントミッションだけ)
+  if(!stage.ex) spawned.forEach(u => {
     if(u.boss){
       const got = daily.bossSouls[u.ref] || 0;
       daily.bossSouls[u.ref] = got + 1; addSoul(u.ref, 1);
@@ -17937,7 +17939,7 @@ function grantStageRewards(stage, spawned, party){
   });
   // each kind that showed up gets one roll to join; already owned, it leaves souls instead
   const recruited = [];
-  [...new Set(spawned.map(u => u.ref))].forEach(id => {
+  (stage.ex ? [] : [...new Set(spawned.map(u => u.ref))]).forEach(id => {
     const m = MON_BY_ID[id];
     const asRare = spawned.some(u => u.ref === id && u.rare);
     if(!m || Math.random() >= recruitChanceOf(m, asRare, stage)) return;
