@@ -3065,7 +3065,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.2.008';
+const GAME_VERSION = 'α0.2.009';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9036,13 +9036,13 @@ function eventShopItems(ev){
       hide: !relic, give: () => grantRelic(RELICS[relic]) },
     { sku:'gacha_char', name:'モンスター召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_char', 1) },
     { sku:'gacha_relic',name:'遺物召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_relic', 1) },
-    { sku:'mat1', name:'ピックアップのワザ強化素材 TierI',  qty:'欠片・魂 各12個 / 証20個', price:73, limit:6,
+    { sku:'mat1', name:eventMatName(mats, 1), qty:'各12個 / 証20個', price:73, limit:6,
       give: () => giveEventMats(mats, 1, 12, 20) },
-    { sku:'mat2', name:'ピックアップのワザ強化素材 TierII', qty:'欠片・魂 各5個 / 証8個',  price:50, limit:6,
+    { sku:'mat2', name:eventMatName(mats, 2), qty:'各5個 / 証8個',  price:50, limit:6,
       give: () => giveEventMats(mats, 2, 5, 8) },
-    { sku:'mat3', name:'ピックアップのワザ強化素材 TierIII',qty:'欠片・魂 各3個 / 証5個',  price:45, limit:2,
+    { sku:'mat3', name:eventMatName(mats, 3), qty:'各3個 / 証5個',  price:45, limit:2,
       give: () => giveEventMats(mats, 3, 3, 5) },
-    { sku:'mat4', name:'ピックアップのワザ強化素材 TierIV', qty:'欠片・魂 各1個 / 証2個',  price:33, limit:1,
+    { sku:'mat4', name:eventMatName(mats, 4), qty:'各1個 / 証2個',  price:33, limit:1,
       give: () => giveEventMats(mats, 4, 1, 2) },
     { sku:'box1', name:'ワザ素材BOX(選択) TierI',   qty:'1個', price:40, limit:15, give: () => addItem('box_sel_1', 1) },
     { sku:'box2', name:'ワザ素材BOX(選択) TierII',  qty:'1個', price:14, limit:5,  give: () => addItem('box_sel_2', 1) },
@@ -9063,6 +9063,11 @@ function eventShopItems(ev){
 function eventSkillMats(ev){
   const m = MON_BY_ID[ev.pickup];
   return { el:['el', m.element], sp:['sp', speciesOf(m)], ro:['ro', m.role] };
+}
+// 品名はアイテム名そのまま(例: 風の欠片・ビーストの魂・アタッカーの証 TierI)
+function eventMatName(mats, tier){
+  const nm = ([fam, kind]) => MAT_FAMILIES[fam].name(kind);
+  return `${nm(mats.el)}・${nm(mats.sp)}・${nm(mats.ro)} Tier${TIER_LABEL[tier]}`;
 }
 function giveEventMats(mats, tier, nEach, nRole){
   addItem(matKey(mats.el[0], mats.el[1], tier), nEach);
@@ -9168,8 +9173,10 @@ function equippedTitle(){ return hasTitle(STATE.title) ? TITLES[STATE.title] : n
    実績に混ざらない、イベント専用のミッション欄。通常とEXで分ける。
    イベントが終わると進みぐあいは消えるが、受け取った称号は残る */
 const EVENT_TITLES = {
-  ev_fenrir:  { deep:'神狼を狩る者', star:'嵐を継ぐ者',   ex:'黄昏を超えし者' },
-  ev_abaddon: { deep:'奈落に立つ者', star:'深淵を覗く者', ex:'底なしを踏破せし者' },
+  ev_fenrir:  { deep:'神狼を狩る者',   star:'嵐を継ぐ者',     ex:'黄昏を超えし者' },
+  ev_abaddon: { deep:'奈落に立つ者',   star:'深淵を覗く者',   ex:'底なしを踏破せし者' },
+  ev_kyubi:   { deep:'狐火を鎮めし者', star:'紅蓮を統べる者', ex:'宴を制せし者' },
+  ev_titan:   { deep:'巨神を砕く者',   star:'黄金を掘る者',   ex:'試練を越えし者' },
 };
 function evTitleKey(evKey, slot){ return `ti_${evKey}_${slot}`; }
 function evMissionState(evKey){
@@ -9258,7 +9265,7 @@ function claimEventMissionsAll(evKey){
 
 const EX_UNLOCK_TIER = 5;            // 何層をクリアすると開くか
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
-const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}]};
+const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}],"ex_kyubi":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m128","m129","m59","m127"],["m17","m66","m151","m72"],["m116","m87","m145","m67","m141"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m87","m145","m63","m151"],["m53","m67","m141","m150"],["m116","m87","m145","m53","m136"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m145","m87","m150","m141"],["m53","m67","m136","m66"],["m116","m145","m87","m136","m53"]]}],"ex_titan":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m47","m45","m51","m134"],["m13","m27","m123","m155"],["m54","m89","m144","m56","m51"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m13","m27","m155","m123"],["m56","m89","m52","m50"],["m54","m144","m89","m140","m52"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m89","m144","m56","m52"],["m140","m138","m50","m22"],["m54","m144","m89","m140","m138"]]}]};
 const EVENT_EX_RULES = {
   ex_fenrir: {
     name: '神々の黄昏',
@@ -9266,6 +9273,28 @@ const EVENT_EX_RULES = {
     rules: [
       { who:{ species:'beast' },     side:'ally', stat:{ str:0.25, hp:0.25 },  label:'ビーストの味方 STR・HP +25%' },
       { who:{ species:'celestia' },  side:'ally', stat:{ str:-0.25, hp:-0.25 }, label:'セレスティアの味方 STR・HP -25%' },
+    ],
+  },
+  ex_kyubi: {
+    name: '狐火の宴',
+    lead: '祭壇じゅうが炎に包まれる。火とシューターが伸び、水は通らない。',
+    rules: [
+      { who:{ element:'fire' },  side:'ally', stat:{ str:0.30 }, dmgDealt:0.20, label:'火属性の味方 STR+30%・与ダメージ+20%' },
+      { who:{ element:'water' }, side:'ally', stat:{ str:-0.30 }, label:'水属性の味方 STR-30%' },
+      { who:{ role:'shooter' },  side:'ally', dmgDealt:0.25, label:'シューターの味方 与ダメージ+25%' },
+      { side:'enemy', stat:{ spd:0.30 },                        label:'敵 SPD+30%' },
+      { side:'ally',  dmgTaken:0.40, when:'lowHp50',            label:'味方 HPが50%以下のとき 受けるダメージ+40%' },
+    ],
+  },
+  ex_titan: {
+    name: '巨神の試練',
+    lead: '硬い敵の前で耐える形。前で受ける編成が伸び、殴り合いは通らない。',
+    rules: [
+      { side:'enemy', stat:{ pdef:0.60 },                                     label:'敵 物理防御+60%' },
+      { who:{ role:'tank' },     side:'ally', stat:{ hp:0.50 }, dmgTaken:-0.25, label:'タンクの味方 HP+50%・受けるダメージ-25%' },
+      { who:{ role:'attacker' }, side:'ally', dmgTaken:0.40,                    label:'アタッカーの味方 受けるダメージ+40%' },
+      { who:{ element:'earth' }, side:'ally', stat:{ pdef:0.30 },               label:'土属性の味方 物理防御+30%' },
+      { who:{ element:'wind' },  side:'ally', dmgDealt:0.25,                    label:'風属性の味方 与ダメージ+25%' },
     ],
   },
   ex_abaddon: {
@@ -9280,7 +9309,8 @@ const EVENT_EX_RULES = {
     ],
   },
 };
-function exKeyOf(ev){ return ev.key === 'ev_fenrir' ? 'ex_fenrir' : ev.key === 'ev_abaddon' ? 'ex_abaddon' : null; }
+// イベントのキー → EXのキー。EVENT_EX / EVENT_EX_RULES の両方に載っているものだけEXが開く
+function exKeyOf(ev){ const k = 'ex_' + String(ev.key || '').replace(/^ev_/, ''); return EVENT_EX[k] && EVENT_EX_RULES[k] ? k : null; }
 function buildEventExStages(ev){
   const key = exKeyOf(ev);
   const def = key && EVENT_EX[key];
@@ -19366,7 +19396,7 @@ function renderTopBar(){
     <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
     <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
     <button class="tb-btn" data-overlay="menu" aria-label="メニュー">☰${
-      unreadNotices() ? `<span class="tb-dot">${unreadNotices()}</span>` : ''}</button>`;
+      menuTodoTotal() ? `<span class="tb-dot">${menuTodoTotal()}</span>` : ''}</button>`;
 }
 function updateSoundButton(){ /* the gear lives in the top bar now; render() keeps it in step */ }
 
@@ -19551,6 +19581,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 20, date: '9/29', title: '開催中の2イベントにEXステージを追加しました', art: ['m116', 'm54'], body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」にもEXが来ます</span>どちらも<em>ステージ5をクリア</em>すると開きます。スタミナを使わず何度でも挑めて、報酬はイベントミッションで受け取ります(星結晶3,500ぶん＋モンスター召喚券15枚ぶん＋称号)。<span class="nt-h">狐火の宴(紅蓮の九尾)</span>祭壇じゅうが炎に包まれます。<span class="nt-i">・<em>火属性</em>の味方 STR+30%・与ダメージ+20% / <em>シューター</em>の味方 与ダメージ+25%</span><span class="nt-i">・<em>水属性</em>の味方 STR-30% / 敵 SPD+30% / 味方はHPが50%を切ると受けるダメージ+40%</span><span class="nt-h">巨神の試練(黄金の巨神)</span>硬い敵の前で耐える形です。<span class="nt-i">・敵 物理防御+60% / <em>タンク</em>の味方 HP+50%・受けるダメージ-25%</span><span class="nt-i">・<em>アタッカー</em>の味方 受けるダメージ+40% / <em>土</em>は物理防御+30% / <em>風</em>は与ダメージ+25%</span><span class="nt-h">イベントは10/2(木) 23:59まで</span>EXの報酬は初回だけなので、期間中に挑んでみてください。' },
   { id: 19, date: '9/29', title: '貸し出しの見直しと、いくつかの追加', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span>借りたモンスターが<em>借りた時のまま</em>で、相手が育てても古いままになっていました。返して借り直さなくても最新に追いつきます。<span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>。★・ワザLv・ルーンはそのままなので、育てた人から借りる意味はちゃんと残ります。自分が育つほど、借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・<em>「全員に送る」</em>を追加しました。まだ今日送っていない人へまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を付けました。読み込めなかったときは、黙って空にせず理由を出します。</span><span class="nt-h">ルーン合成が楽になりました</span><em>下のTierのルーンも材料にできます</em>(Tier1つぶん = 1つ下のTierが3個ぶん)。材料を増やせば<em>一度に何段でも</em>上がり、要る数は1段ずつ上げたときと同じです。<span class="nt-i">・例: TierⅣのルーンをⅥにするには、TierⅣが8個(2＋3＋3)。</span><span class="nt-h">育成クエストに「霊素の鉱脈」が増えました</span><em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入ります。遺物の強化がここでまとめて進められます。<span class="nt-h">EXステージの調整</span>EXはスタミナを使わず何度でも挑めるため、ソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ないように</em>しました。報酬はこれまでどおりイベントミッションで受け取ります。<span class="nt-h">直したところ</span><span class="nt-i">・戦闘結果の「戦績」で棒グラフが出なくなっていたのを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率・会心倍率</em>を追加しました。</span>' },
   { id: 18, date: '9/28', title: '【重要】イベントの開始を今日 9/28(月) 19:00 に早めます', hero: ['ann_ev_fenrir', 'ann_ev_abaddon'], body: '<span class="nt-h">開始時間の変更</span>「嵐呼ぶ神狼」「奈落の王」の2イベントは、予告では 9/29(火) 0:00 開始とお知らせしていましたが、<em>今日 9/28(月) 19:00</em> に早めて開始します。終了はこれまでどおり 10/12(月) 23:59 です。<span class="nt-h">新しい開催期間</span><span class="nt-i">・<em>9/28(月) 19:00 〜 10/12(月) 23:59</em></span><span class="nt-i">・期間限定クエスト(全10層とEXステージ)と、フェンリル・アバドンのピックアップガチャが同時に始まります。</span><span class="nt-h">お詫び: モンスター召喚券を3枚お届けします</span>予告した時間を変更してしまい、申し訳ありません。お詫びとして、<em>モンスター召喚券3枚</em>をプレゼントボックスにお届けしました。ピックアップガチャにもお使いいただけます。<span class="nt-i">・受け取りはホーム画面のプレゼントボックスからどうぞ。</span><span class="nt-i">・お届けするのは、すでに遊んでいる方です。これからはじめる方は対象外です。</span>' },
   { id: 17, at: '2026-09-28T19:00:00+09:00', date: '9/28', title: '「嵐呼ぶ神狼」「奈落の王」2イベント同時開催!', hero: ['ann_ev_fenrir', 'ann_ev_abaddon'], art: ['m68', 'm166', 'm167', 'm139', 'm168', 'm169'], body: '<span class="nt-h">9/28(月) 19:00 〜 10/12(月) 23:59</span>★5の<em>フェンリル</em>と<em>アバドン</em>が主役のイベントを、2つ同時に開催します。それぞれのピックアップガチャで、本人と専用遺物の排出率がアップします。<span class="nt-h">嵐呼ぶ神狼(風)</span>神々をも喰らう巨狼<em>フェンリル</em>。敵を倒すとすぐにもう一度動けます。専用遺物は「グレイプニルの残鎖」。<span class="nt-i">・新★4 <em>ハティ</em>(風/アタッカー) 月を追う狼。味方が会心を出すたびに牙を研ぎます。</span><span class="nt-i">・新★4 <em>スコル</em>(炎/サポーター) 陽を喰らう狼。燃えている敵をさらに焼き上げます。</span><span class="nt-h">奈落の王(闇)</span>底なしの淵を統べる破滅の王<em>アバドン</em>。弱った敵ほど深く斬ります。専用遺物は「ティルヴィングの呪刃」。<span class="nt-i">・新★4 <em>黙示のアルベ</em>(闇/シューター) 冠をかぶった蝗の王。毒を撒いて盤面を溶かします。</span><span class="nt-i">・新★4 <em>ゲヘナの騎士</em>(闇/アタッカー) 硫黄の炎をまとう獅子頭の騎兵。HPの高い敵を狙い撃ちます。</span><span class="nt-h">イベントの入口が1つにまとまりました</span>探索の<em>イベント</em>を開くと、クエスト・EX・ミッション・ショップ・ボーナスモンスターがひと画面に並びます。<span class="nt-i">・<em>期間限定クエスト 全10ステージ</em>。回ると<em>神狼の牙</em>・<em>奈落の刻印</em>が手に入り、イベントショップで育成素材や召喚券と交換できます。メダルはイベントが終わると消えます。</span><span class="nt-i">・<em>イベントボーナス</em> 主役の★5を編成に入れると<em>+40%</em>、注目の★4は各<em>+20%</em>、そのイベントの属性は各<em>+10%</em>(最大+100%)。周回でもらえるメダルが増えます。</span><span class="nt-h">EXステージ(腕試し)</span>ステージ5をクリアすると<em>EX1〜EX3</em>が開きます。<em>スタミナを使わず何度でも</em>挑めますが、ステージごとに<em>特別なルール</em>があり、編成しだいで強さが大きく変わります。<span class="nt-i">・例:「神々の黄昏」EX1では<em>ビースト</em>が大幅に強くなり、<em>セレスティア</em>は大きく弱くなります。「底なしの淵」EX1では<em>闇</em>が強くなり、<em>光</em>はほとんど通りません。</span><span class="nt-i">・報酬はイベントミッションでまとめて受け取ります(星結晶3,500ぶん＋モンスター召喚券15枚ぶん＋称号)。</span><span class="nt-h">イベントミッションと称号</span>イベント専用のミッションを14本用意しました。達成すると<em>称号</em>が手に入り、プロフィールで名前の上に付けられます。イベントが終わっても称号は残ります。<span class="nt-i">・神狼を狩る者 / 嵐を継ぐ者 / 黄昏を超えし者 / 奈落に立つ者 / 深淵を覗く者 / 底なしを踏破せし者</span>' },
@@ -19573,6 +19604,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 125, version: 'α0.2.009', date: '9/29', title: '開催中の2イベントにもEXステージ', body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」にEXステージを追加</span>どちらもステージ5をクリアすると開きます。スタミナを使わず何度でも挑めて、報酬はイベントミッションで受け取ります。<span class="nt-i">・<em>狐火の宴</em>(紅蓮の九尾) 火属性とシューターが伸び、水属性は通りません。敵のSPDが上がり、こちらはHPが50%を切ると脆くなります。</span><span class="nt-i">・<em>巨神の試練</em>(黄金の巨神) 敵の物理防御が+60%。タンクは硬くなり、アタッカーは脆くなります。土は守りが、風は火力が伸びます。</span><span class="nt-i">・称号も4つ増えました(狐火を鎮めし者・紅蓮を統べる者・宴を制せし者 / 巨神を砕く者・黄金を掘る者・試練を越えし者)。</span><span class="nt-h">そのほか</span><span class="nt-i">・イベントショップの品名を<em>アイテム名そのまま</em>にしました(「ピックアップのワザ強化素材」→「風の欠片・ビーストの魂・アタッカーの証」)。</span><span class="nt-i">・右上の☰に、お知らせの未読だけでなく<em>プレゼント</em>と<em>まだポイントを送っていないフレンド</em>の数も出すようにしました。</span>' },
   { id: 124, version: 'α0.2.008', date: '9/29', title: 'フォロワーの記録が書かれないのを修正', body: '<span class="nt-i">・フレンドを追加したことを相手側に記録する処理が、<em>起動直後にフレンドを読み込む前</em>に走ると空振りして、そのまま一度も走らないことがありました。フレンド画面を開いたときにも記録し直します。</span><span class="nt-i">・フォロワーが0のときに、<em>ここに出るのは相手があなたを追加したとき</em>だと分かるようにしました。</span>' },
   { id: 123, version: 'α0.2.007', date: '9/29', title: '貸し出し・ルーン合成・霊素の鉱脈', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span><span class="nt-i">・借りたモンスターが<em>借りた時のまま</em>で、相手が育ててもフレンド画面を開き直すまで古いままでした。返して借り直さなくても最新に追いつきます。</span><span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>(遺物のレベルも同じ割合に)。★・ワザLv・ルーンはそのままです。自分が育つほど借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・フレンドリストに<em>「全員に送る」</em>を追加。まだ今日送っていない人にまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を追加し、読み込みに失敗したときは画面に理由を出すようにしました(今までは黙って空のままでした)。</span><span class="nt-h">ルーン合成</span><span class="nt-i">・<em>下のTierのルーンも材料にできます</em>。Tier1つぶん = 1つ下のTierが3個ぶんです。</span><span class="nt-i">・材料を増やせば<em>一度に何段でも</em>上がります。数は1段ずつ上げたときとぴったり同じです(例: TierⅣ→Ⅵ は TierⅣが8個)。</span><span class="nt-i">・「おまかせ」は低いTier・低いレア度から使います(良いルーンと高いTierを残すため)。</span><span class="nt-h">育成クエスト「霊素の鉱脈」を追加</span><span class="nt-i">・<em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入る5ステージです。遺物をLv200まで上げるには霊素鉱が20万個ほど要るのに、工房の放置生産だけでは足りていませんでした。</span><span class="nt-h">EXステージ</span><span class="nt-i">・EXは<em>スタミナ0で何度でも</em>挑めるため、ボスのソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ない</em>ようにしました。報酬はこれまでどおりイベントミッションで受け取ります。</span><span class="nt-h">そのほか</span><span class="nt-i">・戦闘結果の「戦績」で<em>棒グラフが出なくなっていた</em>のを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率と会心倍率</em>を追加しました(遺物・ルーンのぶんは内訳も出ます)。</span>' },
   { id: 122, version: 'α0.2.006', date: '9/28', title: 'スタミナ回復の値上がりをゆるやかに', body: '星結晶でのスタミナ回復(+150)は、1回目が無料で、そのあとは<em>同じ値段で3回ずつ</em>買えるようになりました(50×3 → 100×3 → 150×3 → 200×3 → 300×3 → 400×3 → 500×3)。1日に回復できる回数は8回から<em>22回</em>に増えます。' },
@@ -20136,6 +20168,16 @@ function renderPickOverlay(){
     </div>`;
 }
 
+/* 右上の☰に出す印。お知らせの未読だけでなく、プレゼントと
+   「今日まだ送っていないフレンド」もここで数える。 */
+function menuTodoCounts(){
+  return {
+    notices: unreadNotices(),
+    gifts: (STATE.presentBox || []).length,
+    friends: friendsAvailable() ? friendsToSend().length : 0,
+  };
+}
+function menuTodoTotal(){ const c = menuTodoCounts(); return c.notices + c.gifts + c.friends; }
 function renderMenuOverlay(){
   return `
     <div class="ov-screen">
@@ -20144,7 +20186,7 @@ function renderMenuOverlay(){
         <div class="ov-links">
           <button class="ov-link" data-overlay="notices">🔔 お知らせ${unreadNotices() ? `<span class="rank-new">${unreadNotices()}</span>` : ''}</button>
           <button class="ov-link" data-overlay="gifts">🎁 プレゼントボックス${STATE.presentBox.length ? `<span class="rank-new">${STATE.presentBox.length}</span>` : ''}</button>
-          <button class="ov-link" data-overlay="friends">🤝 フレンド${STATE.friends.length ? `<span class="rank-new">${STATE.friends.length}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="friends">🤝 フレンド${menuTodoCounts().friends ? `<span class="rank-new">ポイント ${menuTodoCounts().friends}人</span>` : STATE.friends.length ? `<span class="soc-tag">${STATE.friends.length}</span>` : ''}</button>
           <button class="ov-link" data-overlay="settings">⚙️ 設定</button>
         </div>
       </div>

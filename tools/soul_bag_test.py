@@ -22,25 +22,21 @@ async def main():
             await pg.goto(url); await pg.wait_for_timeout(1000)
             await start_as_guest(pg)
 
-            # --- お知らせ: イベントは開催時刻まで出ない ---
-            r = await pg.evaluate("""() => ({
-              all: NOTICES.slice(0, 2).map(n => n.id),
-              live: liveNotices().slice(0, 2).map(n => n.id),
-              at: NOTICES[0].at,
-            })""")
-            check('ニュースの一番上はイベント(id17)', r['all'][0] == 17, r['all'])
-            check('9/28のいまはまだ出ない(先頭はid16)', r['live'][0] == 16, r['live'])
-            check('掲載開始は9/29 0:00', r['at'].startswith('2026-09-29T00:00'), r['at'])
-            n = await pg.evaluate("""() => {
-              const real = Date.now;
-              Date.now = () => new Date('2026-09-29T09:00:00+09:00').getTime();
-              const got = liveNotices().slice(0, 2).map(x => x.id);
-              Date.now = real;
-              return got;
+            # --- お知らせ: at を書いたニュースは、その時刻になるまで出ない ---
+            r = await pg.evaluate("""() => {
+              const future = new Date(Date.now() + 86400000).toISOString();
+              const past   = new Date(Date.now() - 86400000).toISOString();
+              const top = NOTICES[0].id;
+              NOTICES.unshift({ id: top + 2, at: future, date: 'x', title: 'まだ先のお知らせ', body: '' });
+              NOTICES.unshift({ id: top + 3, at: past,   date: 'x', title: 'もう出るお知らせ', body: '' });
+              const live = liveNotices().slice(0, 2).map(n => n.title);
+              const hidden = !liveNotices().some(n => n.title === 'まだ先のお知らせ');
+              NOTICES.splice(0, 2);
+              return { live, hidden, gated: NOTICES.some(n => n.at) };
             }""")
-            check('9/29になるとイベントが一番上に出る', n[0] == 17 and n[1] == 16, n)
-            check('ニュースは今回ぶん2本だけ', await pg.evaluate("() => NOTICES.filter(n => n.date === '9/29').length") == 2)
-            check('アップデート内容も2本', await pg.evaluate("() => UPDATE_LOG.filter(n => n.version === 'α0.2.000').length") == 2)
+            check('掲載時刻より前のニュースは出ない', r['hidden'] is True, r['live'])
+            check('掲載時刻を過ぎたニュースは一番上に出る', r['live'][0] == 'もう出るお知らせ', r['live'])
+            check('実際のニュースにも掲載時刻つきがある', r['gated'] is True)
 
             # --- ソウル欄 ---
             await pg.evaluate("""() => {
