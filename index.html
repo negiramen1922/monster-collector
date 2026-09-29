@@ -3065,7 +3065,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.2.007';
+const GAME_VERSION = 'α0.2.008';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4631,6 +4631,7 @@ async function refreshFriendProfiles(){
     changed = true;
   });
   if(changed){ saveState(); render(); }
+  syncFollowRecords();   // フレンドを読み込んだあとに、相手側の「フォロワー」記録を書き直す
 }
 // 公開プロフィールの内容でフレンドの記録を丸ごと新しくする(自己紹介・深淵回廊・フォロー数なども)。
 // 以前は最終ログインやレベルだけ更新していて、自己紹介や到達階が追加した時のままだった
@@ -19572,6 +19573,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 124, version: 'α0.2.008', date: '9/29', title: 'フォロワーの記録が書かれないのを修正', body: '<span class="nt-i">・フレンドを追加したことを相手側に記録する処理が、<em>起動直後にフレンドを読み込む前</em>に走ると空振りして、そのまま一度も走らないことがありました。フレンド画面を開いたときにも記録し直します。</span><span class="nt-i">・フォロワーが0のときに、<em>ここに出るのは相手があなたを追加したとき</em>だと分かるようにしました。</span>' },
   { id: 123, version: 'α0.2.007', date: '9/29', title: '貸し出し・ルーン合成・霊素の鉱脈', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span><span class="nt-i">・借りたモンスターが<em>借りた時のまま</em>で、相手が育ててもフレンド画面を開き直すまで古いままでした。返して借り直さなくても最新に追いつきます。</span><span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>(遺物のレベルも同じ割合に)。★・ワザLv・ルーンはそのままです。自分が育つほど借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・フレンドリストに<em>「全員に送る」</em>を追加。まだ今日送っていない人にまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を追加し、読み込みに失敗したときは画面に理由を出すようにしました(今までは黙って空のままでした)。</span><span class="nt-h">ルーン合成</span><span class="nt-i">・<em>下のTierのルーンも材料にできます</em>。Tier1つぶん = 1つ下のTierが3個ぶんです。</span><span class="nt-i">・材料を増やせば<em>一度に何段でも</em>上がります。数は1段ずつ上げたときとぴったり同じです(例: TierⅣ→Ⅵ は TierⅣが8個)。</span><span class="nt-i">・「おまかせ」は低いTier・低いレア度から使います(良いルーンと高いTierを残すため)。</span><span class="nt-h">育成クエスト「霊素の鉱脈」を追加</span><span class="nt-i">・<em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入る5ステージです。遺物をLv200まで上げるには霊素鉱が20万個ほど要るのに、工房の放置生産だけでは足りていませんでした。</span><span class="nt-h">EXステージ</span><span class="nt-i">・EXは<em>スタミナ0で何度でも</em>挑めるため、ボスのソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ない</em>ようにしました。報酬はこれまでどおりイベントミッションで受け取ります。</span><span class="nt-h">そのほか</span><span class="nt-i">・戦闘結果の「戦績」で<em>棒グラフが出なくなっていた</em>のを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率と会心倍率</em>を追加しました(遺物・ルーンのぶんは内訳も出ます)。</span>' },
   { id: 122, version: 'α0.2.006', date: '9/28', title: 'スタミナ回復の値上がりをゆるやかに', body: '星結晶でのスタミナ回復(+150)は、1回目が無料で、そのあとは<em>同じ値段で3回ずつ</em>買えるようになりました(50×3 → 100×3 → 150×3 → 200×3 → 300×3 → 400×3 → 500×3)。1日に回復できる回数は8回から<em>22回</em>に増えます。' },
   { id: 121, version: 'α0.2.005', date: '9/28', title: '周回は「結果だけ」から', body: '<span class="nt-i">・周回を開くと、最初から<em>「結果だけ」</em>が選ばれるようにしました。スタミナを使って、戦闘をせずに報酬だけをまとめて受け取れます。×1〜×4の速さを選ぶと、次からはその速さを覚えています。</span><span class="nt-i">・イベントのステージを「結果だけ」で回したとき、結果に<em>イベントメダル</em>(イベントボーナスこみ)を出すようにしました。ボーナスは今の編成で数えます。</span>' },
@@ -19835,7 +19837,7 @@ function openOverlay(view){
     STATE.updateLogSeen = Math.max(STATE.updateLogSeen || 0, UPDATE_LOG[0] ? UPDATE_LOG[0].id : 0);
     saveState();
   }
-  if(view === 'friends'){ friendsView = 'list'; claimFriendGifts(); refreshFriendProfiles(); fetchIncomingFriendsList(); }
+  if(view === 'friends'){ friendsView = 'list'; claimFriendGifts(); syncFollowRecords(); refreshFriendProfiles(); fetchIncomingFriendsList(); }
   if(view === 'profile') fetchIncomingFriendsList();   // フォロワー数を最新にする
   render();
 }
@@ -20216,7 +20218,8 @@ function renderFollowersView(){
     ${followerList.length
       ? `<div class="panel panel-tight">${followerList.map(f => socialRowHtml(f, 'follower')).join('')}</div>`
       : st.loading ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">読み込み中…</div>'
-      : '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフォロワーがいません</div>'}`;
+      : `<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフォロワーがいません</div>
+         <div class="fs-note" style="text-align:center;">ここに出るのは<b>相手があなたをフレンドに追加した</b>ときです。${STATE.friends.length ? `あなたが追加した${STATE.friends.length}人の「フォロワー」には、あなたが出ています。` : ''}</div>`}`;
 }
 function renderFriendsOverlay(){
   const avail = friendsAvailable();
