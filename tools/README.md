@@ -24,6 +24,7 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | impact_sim.js | スキル見直しなどの影響測定。全メインクエスト(通常・ハード)×5パーティの勝率とラウンド数をJSONで出す(`N=20 node impact_sim.js game.js`) |
 | impact_one.js | 指定したステージ×パーティだけ勝率を測る(`N=100 node impact_one.js game.js q2_10:気絶`) |
 | skill_chance_test.js | 付与率はスキルLvで変わらない・必殺技は確定・やけど毒は基本50%・持続時間がLv5/Lv10で伸びる(357項目) |
+| topbar_crystal_ui_test.py | 右上のゴールドの右隣に星結晶の数(ホーム・ガチャ、390/360px ではみ出さない) |
 | skill_chance_ui_test.py | スキル強化の画面に持続時間が伸びる行が出る |
 | event_sim.js | イベント各層の勝率を3パーティで測る(`N=40 node event_sim.js ev_kyubi ev_fenrir`) |
 | slot_sim.js | 同じ4体に1体ずつ入れ替えて高難度ハードでの勝率・与ダメを比べる(`N=30 node slot_sim.js アバドン フェンリル`) |

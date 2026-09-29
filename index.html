@@ -142,6 +142,13 @@ body{
 .tb-pill{ display:flex; align-items:baseline; gap:2px; background:var(--panel2); border:1px solid rgba(232,180,85,.18);
   border-radius:999px; padding:5px 8px; font-size:11px; font-weight:800; white-space:nowrap; flex:none; }
 .tb-pill.stam{ color:#5fd0c0; } .tb-pill.gold{ color:var(--gold); } .tb-pill.gem{ color:#9fd8ff; }
+/* スタミナ・ゴールド・星結晶の3つが並ぶので、スマホ幅では詰めて名前の欄を残す */
+@media (max-width:420px){
+  #statusbar{ gap:4px; padding-left:8px; padding-right:8px; }
+  .tb-pill{ padding:5px 6px; gap:1px; }
+  .tb-btn{ width:30px; }
+  .tb-profile{ gap:5px; padding-right:8px; }
+}
 .tb-btn{ position:relative; width:32px; height:32px; border-radius:10px; background:var(--panel2);
   border:1px solid rgba(232,180,85,.2); display:flex; align-items:center; justify-content:center; font-size:15px;
   cursor:pointer; font-family:inherit; color:var(--text); flex:none; padding:0; }
@@ -3068,7 +3075,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.000';
+const GAME_VERSION = 'α0.3.001';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -19483,7 +19490,8 @@ function uiSfxFor(t){
 // top bar: who you are, what you can spend, bag and settings
 function renderTopBar(){
   const g = STATE.gold || 0;
-  const goldText2 = g >= 1e6 ? `${(g / 1e6).toFixed(1)}M` : g >= 1e4 ? `${Math.floor(g / 1000)}K` : g.toLocaleString();
+  const shortNum = v => v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e4 ? `${Math.floor(v / 1000)}K` : v.toLocaleString();
+  const goldText2 = shortNum(g);
   return `
     <button class="tb-profile" data-overlay="profile" aria-label="プロフィール">
       <span class="tb-avatar">${profileAvatar() ? `<img src="${imgSrc(profileAvatar())}" alt="">` : '👤'}</span>
@@ -19491,10 +19499,9 @@ function renderTopBar(){
         <small>Lv.${tamerLevel().lv}・所持 ${Object.keys(STATE.owned).length}体</small></span>
     </button>
     <span class="tb-gap"></span>
-    ${currentScreen === 'gacha'
-      ? `<span class="tb-pill gem" title="星結晶">${CRYSTAL_ICON}${STATE.crystals.toLocaleString()}</span>`
-      : `<span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>`}
+    <span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>
     <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
+    <span class="tb-pill gem" title="星結晶 ${(STATE.crystals || 0).toLocaleString()}">${CRYSTAL_ICON}${shortNum(STATE.crystals || 0)}</span>
     <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
     <button class="tb-btn" data-overlay="menu" aria-label="メニュー">☰${
       menuTodoTotal() ? `<span class="tb-dot">${menuTodoTotal()}</span>` : ''}</button>`;
@@ -19709,6 +19716,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 127, version: 'α0.3.001', date: '9/29', title: '右上に星結晶の数', body: '<span class="nt-i">・画面右上のゴールドの右隣に、<em>星結晶の数</em>をいつでも表示するようにしました(1万以上は「12K」のように短く)。ガチャ画面でもスタミナが出るようになります。</span>' },
   { id: 126, version: 'α0.3.000', date: '9/29', title: '新バトルシステム(設定で切り替え)', body: '<span class="nt-h">設定 → 戦闘 →「新バトルシステム」で旧の戦闘に戻せます</span><span class="nt-i">・スキル1・2とも<em>開幕から使用可</em>にし、スキル1→2の順番で使うようにしました(スキル2の再CTの+1も撤廃)</span><span class="nt-i">・被弾SPを<em>受けたダメージ基準</em>に変更(そのレベルの平均HPの1%につきSP+1.25、1ラウンド上限60)</span><span class="nt-i">・回復した側にSP+20、ウェーブ突破で味方全員にSP+30を追加</span><span class="nt-i">・撃破SPを 15 → <em>25</em></span><span class="nt-i">・奥義の必要SPを タンク<em>-30</em>・シューター<em>-20</em>(他のロールは据え置き)</span><span class="nt-i">・全モンスターのHPと、遺物のHP固定値を<em>2倍</em></span><span class="nt-i">・シールドの上限を最大HPの<em>50% → 100%</em></span><span class="nt-i">・戦闘力のHPの重みを 0.6 → <em>0.3</em>(HP2倍ぶんを打ち消して表示を据え置き)</span><span class="nt-i">・ボス以外の敵を<em>推奨レベル-10</em>に</span><span class="nt-i">・新バトルシステムでの初回クリアは<em>スタミナ0</em>、星結晶を メイン10・イベント20・EX 100/300/500 配布</span><span class="nt-i">・深淵回廊とPVPは新バトルシステムのみ</span>' },
   { id: 125, version: 'α0.2.009', date: '9/29', title: 'イベントショップの品名と、右上の印', body: '<span class="nt-i">・イベントショップの品名を<em>アイテム名そのまま</em>にしました(「ピックアップのワザ強化素材 TierI」→「風の欠片・ビーストの魂・アタッカーの証 TierI」)。</span><span class="nt-i">・右上の☰に、お知らせの未読だけでなく<em>プレゼント</em>と<em>まだポイントを送っていないフレンド</em>の数も出すようにしました。</span>' },
   { id: 124, version: 'α0.2.008', date: '9/29', title: 'フォロワーの記録が書かれないのを修正', body: '<span class="nt-i">・フレンドを追加したことを相手側に記録する処理が、<em>起動直後にフレンドを読み込む前</em>に走ると空振りして、そのまま一度も走らないことがありました。フレンド画面を開いたときにも記録し直します。</span><span class="nt-i">・フォロワーが0のときに、<em>ここに出るのは相手があなたを追加したとき</em>だと分かるようにしました。</span>' },
