@@ -26,7 +26,8 @@ global.document.getElementById = (id) => {
 
 const party = ['m06', 'm21', 'm03'];
 const opts = { star: 5, skillLv: 5, ultLv: 5, passiveLv: 5 };
-const HIGH_LV = 80; // overkill level so the win/lose RNG doesn't flake this test
+const HIGH_LV = 200; // overkill level so the win/lose RNG doesn't flake this test
+                     // (新バトルシステムは敵も開幕からワザを撃つので、80では3体編成が落ちることがあった)
 
 // --- event-type stage: must NOT offer a "次のステージへ" button at all ---
 // (note: "もう一度" retry always uses data-start-stage too, so check the button's own

@@ -12,7 +12,7 @@
    使い方: python3 tools/extract.py してから  cd tools && node mag_stage_test.js
            N=200 node mag_stage_test.js */
 const load = require('./harness.js');
-const api = load('game.js', src => src + `;global.__e={STAGE_BY_ID,MON_BY_ID,kitOf};
+const api = load('game.js', src => src.replace('battleV2: true,', 'battleV2: (global.__V2 !== false),') + `;global.__e={STAGE_BY_ID,MON_BY_ID,kitOf};
 const __o = buildUnit;
 buildUnit = function(){
   const u = __o.apply(this, arguments);
@@ -69,7 +69,15 @@ ok('ハード側にも同じ編成が入っている', magShare('q5_08h') >= 0.9
 const phys = magShare('q5_04');
 ok('比較対象の q5_04(骨の玉座)は物理のまま', phys <= 0.1, Math.round(phys * 100) + '%');
 
-console.log('\n--- 2. 魔法防御が効くか(各' + N + '戦・Lv' + LV + ') ---');
+/* 防御の効きは「旧バトルシステム」で測る。
+   新バトルシステムはHPが2倍で味方が落ちにくく、防御を積むほど奥のウェーブまで進むので、
+   「1ラウンドあたりの被ダメージ」も勝率も、25%ぶんの防御の差より試行ごとのブレのほうが
+   大きくなってしまう(実測で符号すら安定しない)。
+   ここで見たいのは「このステージの敵編成なら魔防のほうが効くか」という編成の性質で、
+   それは新旧で変わらない。新バトルシステム側でも測れるようにするには、
+   戦闘をシミュレートせず1発ぶんのダメージを直接計算する作りに書き直す必要がある(やり残し参照)。 */
+global.__V2 = false;
+console.log('\n--- 2. 魔法防御が効くか(旧バトルシステムで測定・各' + N + '戦・Lv' + LV + ') ---');
 [['q5_08', '精霊の坩堝(魔法)', true], ['q5_04', '骨の玉座(物理)', false]].forEach(([id, ja, wantMdef]) => {
   const base = measure(id, null);
   const p = measure(id, { pdef: V });
@@ -85,12 +93,19 @@ console.log('\n--- 2. 魔法防御が効くか(各' + N + '戦・Lv' + LV + ') -
   }
 });
 
-console.log('\n--- 3. 難度が前後から浮いていないか ---');
+/* 見たいのは「難度が浮いていないか」なので、勝率で判定する。
+   1ラウンドあたりの被ダメージは参考値として出すだけにした。
+   新バトルシステムでは、敵が開幕からワザを撃つぶんキャスター編成のこのステージだけ
+   被ダメージが倍近くになる(約540 → 約1000)。それでも勝率は近隣と並んでいるので、
+   被ダメの絶対値で見ると「壊れている」と誤検知する。 */
+global.__V2 = true;   // 難度は今の(新)システムで見る
+console.log('\n--- 3. 難度が前後から浮いていないか(新バトルシステム) ---');
 const around = ['q5_06', 'q5_08', 'q5_09'].map(id => ({ id, r: measure(id, null) }));
 around.forEach(x => console.log(`   ${x.id}  勝率${Math.round(x.r.wr * 100)}%  1ラウンドあたり被ダメ${Math.round(x.r.taken)}`));
 const me = around.find(x => x.id === 'q5_08').r;
-const others = around.filter(x => x.id !== 'q5_08').map(x => x.r.taken);
-ok('被ダメージが近隣ステージの1.5倍以内',
-  me.taken <= Math.max(...others) * 1.5, [Math.round(me.taken), others.map(Math.round)]);
+const others = around.filter(x => x.id !== 'q5_08').map(x => x.r.wr);
+ok('勝率が近隣ステージの一番低いものから25ポイント以上は落ちない',
+  me.wr >= Math.min(...others) - 0.25,
+  [Math.round(me.wr * 100) + '%', others.map(w => Math.round(w * 100) + '%')]);
 
 console.log('\ndone');

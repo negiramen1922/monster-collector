@@ -30,6 +30,7 @@ S.clearedStages = ['tu1'];
 ok('tu1はクリア済みだと通常コストがかかる', E.stageStaminaCost(tu1) === E.TUTORIAL_REPLAY_STAMINA, E.stageStaminaCost(tu1));
 
 const q1_01 = E.findStage('q1_01');
+S.v2Cleared = ['q1_01'];   // 新バトルシステムの「初回クリアはスタミナ0」を外して素の値を見る
 ok('通常ステージのコストはtutorial判定の影響を受けない', E.stageStaminaCost(q1_01) === 10, E.stageStaminaCost(q1_01));
 
 // --- startBattle: actually spends 0 on a fresh tutorial run, then real stamina on a replay ---
