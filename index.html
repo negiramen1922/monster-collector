@@ -173,6 +173,8 @@ body{
 .reso-have b{ color:var(--gold); font-size:13px; }
 .reso-ic{ font-size:15px; display:inline-flex; }
 .stat-row span small{ display:block; font-size:9px; opacity:.6; }
+.stat-plus{ font-size:9px; font-style:normal; color:var(--gold); opacity:.85; margin-left:5px; }
+.rf-conv{ display:block; font-size:9px; font-weight:600; opacity:.6; margin-top:1px; }
 .mc-head .mc-sub{ display:inline; margin-left:6px; font-size:10px; font-weight:600; }
 .party-count .bp small i{ display:block; font-style:normal; font-size:9px; opacity:.7; }
 .mc-go{ font-size:22px; color:var(--dim); }
@@ -4350,9 +4352,14 @@ async function publishProfile(){
   try{
     const favId = STATE && (profileState().favorites || []).filter(id => STATE.owned[id])[0];   // プロフィールの黄色い枠(貸出)と同じモンスター
     const favOwned = favId && STATE.owned[favId];
+    // 遺物とルーンも一緒に公開する(PVPの防衛編成と同じ形)。借りた側は同じ強さで使える
+    const favRelicId = favId ? equippedRelicOf(favId) : null;
+    const favRelicSt = favRelicId ? STATE.relics[favRelicId] : null;
     const support = favOwned ? {
       id: favId, star: favOwned.star, level: favOwned.level,
       skillLv: favOwned.skillLv, skill2Lv: favOwned.skill2Lv, ultLv: favOwned.ultLv, passiveLv: favOwned.passiveLv,
+      relic: favRelicSt ? { defId: favRelicId, level: favRelicSt.level, skillLv: favRelicSt.skillLv, dupeUsed: favRelicSt.dupeUsed } : null,
+      runes: sanitizeRuneBonus(runeBonusOf(favId)),
     } : null;
     await be.cloudProfile(ACCOUNT.uid, {
       playerId: ACCOUNT.playerId,
@@ -4404,6 +4411,9 @@ function sanitizeSupport(raw){
     skill2Lv: clampInt(raw.skill2Lv !== undefined ? raw.skill2Lv : raw.skillLv, 1, 12, 1),
     ultLv: clampInt(raw.ultLv, 1, 12, 1),
     passiveLv: clampInt(raw.passiveLv, 1, 12, 1),
+    // 遺物とルーンも借りたぶんに乗る(他人の公開データなので必ず丸める)
+    relic: sanitizeRelicSnap(raw.relic),
+    runes: sanitizeRuneBonus(raw.runes),
   };
 }
 // PVP: a whole opposing party (5 slots + formation), each slot the same shape as
@@ -4561,7 +4571,22 @@ async function refreshFriendProfiles(){
 function mergeFriendProfile(f, p){
   const fresh = friendEntryFromProfile(p, f.playerId);
   Object.assign(f, fresh, { uid: f.uid, playerId: fresh.playerId || f.playerId, name: p.name ? fresh.name : f.name });
+  syncBorrowedFrom(f);
   return f;
+}
+/* 借りているお助けモンスターを、その人の今の公開プロフィールに合わせて更新する。
+   以前は借りた瞬間のスナップショットのままで、返して借り直さないと
+   相手がレベルや★を上げても反映されなかった。 */
+function syncBorrowedFrom(f){
+  const b = STATE.borrowed;
+  if(!b || !f || b.uid !== f.uid) return false;
+  if(!f.support) return false;                 // 相手が貸出をやめた時は、借りている分はそのまま残す
+  const before = JSON.stringify(b.mon);
+  b.mon = { ...f.support };
+  b.name = f.name || b.name;
+  if(JSON.stringify(b.mon) === before) return false;
+  syncHelperMon();
+  return true;
 }
 // 1人のプロフィールを開いたときに、その人の最新の公開プロフィールを取り直す
 async function refreshOneProfile(uid){
@@ -4693,6 +4718,27 @@ function sendFriendPoint(uid){
   if(typeof be.sendGift === 'function' && ACCOUNT){
     be.sendGift(uid, ACCOUNT.uid, FRIEND_POINT_PER_SEND, 'send').catch(() => {}); // best-effort; offline/rules failure just means the friend won't see it this time
   }
+}
+// まだ今日送っていないフレンド全員に、まとめてポイントを送る
+function friendsToSend(){
+  const daily = ensureFriendSendDaily();
+  return STATE.friends.filter(f => f.uid && !daily.sent[f.uid]);
+}
+function sendFriendPointAll(){
+  const list = friendsToSend();
+  if(!list.length){ toast('本日はすでに全員に送信済みです'); return; }
+  const daily = ensureFriendSendDaily();
+  const be = authBackend();
+  list.forEach(f => {
+    daily.sent[f.uid] = true;
+    if(typeof be.sendGift === 'function' && ACCOUNT) be.sendGift(f.uid, ACCOUNT.uid, FRIEND_POINT_PER_SEND, 'send').catch(() => {});
+  });
+  const got = FRIEND_POINT_PER_SEND * list.length;
+  STATE.friendPoints = (STATE.friendPoints || 0) + got;
+  playSfx('confirm');
+  toast(`${list.length}人にポイントを送りました(フレンドポイント+${got})`);
+  saveState();
+  render();
 }
 // pick up any gifts friends sent us (see sendFriendPoint above) - called on login and
 // whenever the friends overlay is opened, so points show up without a manual refresh step.
@@ -6834,8 +6880,20 @@ function runeName(r){ return `${RUNE_STATS[r.main].label}のルーン`; }
 // 土台1つ + 同じTier・同じタイプ(攻撃型/防御型)の材料 → 土台のTierが1つ上がる。
 // 土台のレア度・サブ効果(当たり具合)はそのまま。土台が装備中ならそのまま。材料は装備中・ロック中は使えない
 function runeFuseCost(r){ return { gold: 2000 * r.tier }; }
+/* 材料は「土台と同じTier」だけでなく、下のTierでも出せる。
+   Tierが1つ下がるごとに、合成の比(RUNE_FUSE_COUNT)ぶん多く要る:
+   Tier(N)1個 = Tier(N-1)3個 = Tier(N-2)9個。
+   土台Tier5→6なら Tier5×2 / Tier5×1+Tier4×3 / Tier4×6 のどれでもよい。
+   (土台より上のTierは材料にできない。もったいない使い方を防ぐため) */
+function runeFusePoint(tier){ return Math.pow(RUNE_FUSE_COUNT, tier - 1); }
+function runeFuseNeed(base){ return (RUNE_FUSE_COUNT - 1) * runeFusePoint(base.tier); }
+function runeFusePicked(base, matUids){
+  const byUid = Object.fromEntries(runeFuseMaterials(base).map(r => [r.uid, r]));
+  return [...new Set(matUids)].filter(u => byUid[u]).reduce((sum, u) => sum + runeFusePoint(byUid[u].tier), 0);
+}
+// 材料の候補: 土台と同じタイプで、土台と同じかそれより下のTier
 function runeFuseMaterials(base){
-  return ensureRunes().filter(r => r.uid !== base.uid && !r.sealed && r.tier === base.tier && runeType(r) === runeType(base) && runeCanDismantle(r));
+  return ensureRunes().filter(r => r.uid !== base.uid && !r.sealed && r.tier <= base.tier && runeType(r) === runeType(base) && runeCanDismantle(r));
 }
 function fuseRunes(baseUid, matUids){
   const base = runeByUid(baseUid);
@@ -6843,7 +6901,9 @@ function fuseRunes(baseUid, matUids){
   if(base.tier >= RUNE_TIERS) return { ok: false, why: `Tier${RUNE_ROMAN[RUNE_TIERS - 1]}が最大です` };
   const ok = new Set(runeFuseMaterials(base).map(r => r.uid));
   const mats = [...new Set(matUids)].filter(u => ok.has(u));
-  if(mats.length !== RUNE_FUSE_COUNT - 1) return { ok: false, why: `同じTierの${RUNE_TYPE_LABEL[runeType(base)]}ルーンがあと${RUNE_FUSE_COUNT - 1 - mats.length}個必要です` };
+  const need = runeFuseNeed(base);
+  const have = runeFusePicked(base, mats);
+  if(have < need) return { ok: false, why: `材料が足りません(Tier${RUNE_ROMAN[base.tier - 1]}換算で ${Math.round(have / runeFusePoint(base.tier) * 100) / 100} / ${RUNE_FUSE_COUNT - 1})` };
   const c = runeFuseCost(base);
   if((STATE.gold || 0) < c.gold) return { ok: false, why: 'ゴールドが足りません' };
   STATE.gold -= c.gold;
@@ -7035,20 +7095,23 @@ function closeRuneDetail(){
 }
 function runeFusePanelHtml(r){
   if(r.tier >= RUNE_TIERS) return `<div class="rd-max">Tier${RUNE_ROMAN[RUNE_TIERS - 1]}は最大です</div>`;
-  const need = RUNE_FUSE_COUNT - 1;
   const cands = sortRunes(runeFuseMaterials(r), 'tier').reverse().sort((a, b) => a.rarity - b.rarity);
   const picked = runeDetail.fuse.filter(u => cands.some(c => c.uid === u));
   runeDetail.fuse = picked;
   const cost = runeFuseCost(r);
-  const ready = picked.length === need;
+  const unit = runeFusePoint(r.tier);
+  const need = runeFuseNeed(r);                       // 土台Tier換算のポイント
+  const have = runeFusePicked(r, picked);
+  const asTier = v => Math.round(v / unit * 100) / 100;   // 土台のTierで何個ぶんか
+  const ready = have >= need;
   const next = { ...r, tier: r.tier + 1 };
   const afford = (STATE.gold || 0) >= cost.gold;
   const type = RUNE_TYPE_LABEL[runeType(r)];
   return `
-    <div class="rd-cost">合成でTierを上げる<small>このルーン + 同じTier(${RUNE_ROMAN[r.tier - 1]})の${type}ルーン${need}個で Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}。レア度とサブ効果はこのルーンのまま、値が伸びます。材料のレア度は問いません。</small></div>
-    <div class="rf-pick-head">材料 ${picked.length} / ${need}${cands.length > need ? '<button class="btn btn-ghost btn-sm" data-rune-fuse-auto="1">おまかせ</button>' : ''}</div>
+    <div class="rd-cost">合成でTierを上げる<small>このルーン + ${type}ルーン Tier${RUNE_ROMAN[r.tier - 1]}換算で${asTier(need)}個ぶんで Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}。レア度とサブ効果はこのルーンのまま、値が伸びます。材料のレア度は問いません。</small></div>
+    <div class="rf-pick-head">材料 ${asTier(have)} / ${asTier(need)}<small class="rf-conv">Tier${RUNE_ROMAN[r.tier - 1]}換算(1つ下のTierは${RUNE_FUSE_COUNT}個で1個ぶん)</small>${cands.length ? '<button class="btn btn-ghost btn-sm" data-rune-fuse-auto="1">おまかせ</button>' : ''}</div>
     ${cands.length ? `<div class="rf-cands">${cands.map(c => `<button class="rf-cand ${picked.includes(c.uid) ? 'on' : ''}" data-rune-fuse-pick="${c.uid}" aria-label="材料 ${RUNE_STATS[c.main].label} ${RUNE_RARITIES[c.rarity].label}">${runeIconHtml(c, { used: false })}</button>`).join('')}</div>`
-      : `<div class="fs-note">材料になるルーン(Tier${RUNE_ROMAN[r.tier - 1]}の${type}で、装備・ロックしていないもの)がありません。</div>`}
+      : `<div class="fs-note">材料になるルーン(Tier${RUNE_ROMAN[r.tier - 1]}以下の${type}で、装備・ロックしていないもの)がありません。</div>`}
     <div class="rf-result">${runeIconHtml(r, { used: false })}<span class="rf-arrow">→</span>${runeIconHtml(next, { used: false })}<span class="rf-rtext">Tier${RUNE_ROMAN[next.tier - 1]}<small>レア度・サブ効果はそのまま</small></span></div>
     <div class="rf-diff">
       ${[{ stat: r.main, a: runeMainValue(r), b: runeMainValue(next), main: true }, ...r.subs.map(x => ({ stat: x.stat, a: runeSubValue(x, r.tier), b: runeSubValue(x, next.tier) }))].map(d => {
@@ -7108,16 +7171,23 @@ function renderRuneDetail(){
   layer.classList.add('show');
 }
 function toggleRuneFusePick(uid){
+  const r = runeByUid(runeDetail.uid);
   const f = runeDetail.fuse;
-  if(f.includes(uid)) runeDetail.fuse = f.filter(u => u !== uid);
-  else if(f.length < RUNE_FUSE_COUNT - 1) f.push(uid);
-  else toast(`材料は${RUNE_FUSE_COUNT - 1}個までです`);
+  if(f.includes(uid)){ runeDetail.fuse = f.filter(u => u !== uid); }
+  else if(runeFusePicked(r, f) >= runeFuseNeed(r)) toast('材料は足りています');
+  else f.push(uid);
   renderRuneDetail();
 }
 // おまかせ: レア度の低い材料から使う(良いルーンは土台として残るように)
+// おまかせ: 低いTier・低いレア度から先に使う(良いルーンと高いTierは残す)
 function autoRuneFusePick(){
   const r = runeByUid(runeDetail.uid);
-  runeDetail.fuse = runeFuseMaterials(r).sort((a, b) => a.rarity - b.rarity || a.subs.length - b.subs.length).slice(0, RUNE_FUSE_COUNT - 1).map(x => x.uid);
+  const need = runeFuseNeed(r);
+  const pool = runeFuseMaterials(r).sort((a, b) => a.tier - b.tier || a.rarity - b.rarity || a.subs.length - b.subs.length);
+  const pick = [];
+  let have = 0;
+  pool.forEach(x => { if(have < need){ pick.push(x.uid); have += runeFusePoint(x.tier); } });
+  runeDetail.fuse = have >= need ? pick : [];
   renderRuneDetail();
 }
 function doFuseRune(){
@@ -7768,6 +7838,19 @@ const DUNGEONS = {
     enemies: [['m21', 'm21'], ['m21', 'm40', 'm21'], ['m21', 'm40', 'm46'], ['m46', 'm21', 'm40', 'm21'], ['m46', 'm40', 'm21', 'm40']],
     rewards: [{ gold: 3000 }, { gold: 8000 }, { gold: 15000 }, { gold: 30000 }, { gold: 50000 }],
   },
+  // 遺物の強化素材(霊素鉱・霊素核)。遺物Lv200には霊素鉱が20万個ほど要るので、
+  // 工房の放置生産(最大1,080/日)だけでは足りない。ここが主な入手先になる
+  relic: {
+    name: '霊素の鉱脈', icon: '💠', desc: '霊素鉱と霊素核が手に入ります',
+    enemies: [['m71', 'm36'], ['m13', 'm71', 'm36'], ['m72', 'm73', 'm13'], ['m74', 'm27', 'm72', 'm13'], ['m74', 'm20', 'm27', 'm73']],
+    rewards: [
+      { relic_scrap: 50 },
+      { relic_scrap: 130, relic_core_1: 1 },
+      { relic_scrap: 250, relic_core_1: 2 },
+      { relic_scrap: 400, relic_core_1: 3, relic_core_2: 1 },
+      { relic_scrap: 600, relic_core_1: 4, relic_core_2: 2 },
+    ],
+  },
   // 素材ダンジョンの枠を置き換え。段階ごとにTierが1つずつ上がる(Ⅰ〜Ⅵ)。段階と推奨Lvは他と別
   rune: {
     name: 'ルーン採掘', icon: '⛏️', desc: 'ルーンとルーンの粉が手に入ります',
@@ -7819,7 +7902,7 @@ function grantDungeonRewards(stage){
   const add = (key, n) => { if(n <= 0) return; addItem(key, n); const hit = items.find(x => x.key === key); if(hit) hit.n += n; else items.push({ key, n }); };
   let gold = 0;
   if(r.gold){ gold = r.gold; addGold(gold); }
-  ['exp1', 'exp2', 'exp3'].forEach(k => add(k, r[k] || 0));
+  ['exp1', 'exp2', 'exp3', 'relic_scrap', 'relic_core_1', 'relic_core_2', 'relic_core_3'].forEach(k => add(k, r[k] || 0));
   const runes = [];
   let dust = 0;
   if(r.runes){
@@ -7859,6 +7942,15 @@ function scaledStats(mon, star, level){
 }
 // scaledStats() plus the equipped relic's bonus, via the same applyRelicCore battle uses
 // (so the character-detail screen and BP always match what actually fights in battle).
+// 借りたお助けモンスター用: 遺物は生のIDではなく公開スナップショットから乗せる
+function statsWithSnap(mon, star, level, relicSnap, runeB){
+  const base = scaledStats(mon, star, level);
+  if(!relicSnap && !runeB) return base;
+  const u = { maxHp: base.hp, hp: base.hp, str: base.str, pdef: base.pdef, mdef: base.mdef, spd: base.spd };
+  if(runeB) applyRuneBonusToUnit(u, runeB);
+  if(relicSnap) applyRelicSnapToUnit(u, mon, relicSnap);
+  return { hp: u.maxHp, str: u.str, pdef: u.pdef, mdef: u.mdef, spd: u.spd, critRate: u.bonusCrit || 0, critDmg: u.critDmgBonus || 0 };
+}
 function statsWithRelic(mon, star, level, relicId, runeB){
   const base = scaledStats(mon, star, level);
   const hasRelic = relicId && RELICS[relicId] && STATE.relics[relicId];
@@ -8336,7 +8428,9 @@ function battlePower(id){
   const m = MON_BY_ID[id];
   const o = slotOwnedLike(id);
   if(!m || !o) return 0;
-  const st = statsWithRelic(m, o.star, o.level, equippedRelicOf(id), id === HELP_SLOT_ID ? null : runeBonusOf(id));
+  const st = id === HELP_SLOT_ID
+    ? statsWithSnap(m, o.star, o.level, o.relic, o.runes)
+    : statsWithRelic(m, o.star, o.level, equippedRelicOf(id), runeBonusOf(id));
   // 会心はSTRの期待値として少しだけ乗せる(基本の会心率・倍率ぶんは全員同じなので入れない)
   const base = (st.hp * 0.6 + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * 4 + st.spd * 1.5);
   const kit = 1
@@ -12880,6 +12974,9 @@ function showMonsterDetail(id){
     const grow = nextStats[key] - stats[key];
     return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}</b>${grow > 0 ? `<i class="stat-grow">+${grow}/Lv</i>` : ''}</div>`;
   };
+  // 会心はレベルでは伸びない。基本値(全員同じ)＋遺物とルーンのぶん、で出す
+  const critRow = (label, base, bonus, fmt) =>
+    `<div class="stat-row"><span>${label}</span><b class="lv-stat">${fmt(base + bonus)}</b>${bonus > 0 ? `<i class="stat-plus">遺物・ルーン +${fmt(bonus).replace('×', '')}</i>` : ''}</div>`;
 
   // 強化: 本体レベル。詳細の一番上に置く(ここを何度も押すため)
   const maxed = owned.level >= lvCap;
@@ -12963,6 +13060,8 @@ function showMonsterDetail(id){
           ${statRow('物理防御', 'pdef')}
           ${statRow('魔法防御', 'mdef')}
           ${statRow('SPD', 'spd')}
+          ${critRow('会心率', BASE_CRIT_RATE, stats.critRate || 0, v => `${(v * 100).toFixed(1)}%`)}
+          ${critRow('会心倍率', BASE_CRIT_MULT, stats.critDmg || 0, v => `×${v.toFixed(2)}`)}
           <div class="stat-row"><span>ヘイト<small>狙われやすさ</small></span><b>${m.hate}</b></div>
         </div>
       </div>
@@ -13071,6 +13170,8 @@ function showMonsterPreview(id){
           <div class="stat-row"><span>物理防御</span><b>${stats.pdef}</b></div>
           <div class="stat-row"><span>魔法防御</span><b>${stats.mdef}</b></div>
           <div class="stat-row"><span>SPD</span><b>${stats.spd}</b></div>
+          <div class="stat-row"><span>会心率</span><b>${(BASE_CRIT_RATE * 100).toFixed(1)}%</b></div>
+          <div class="stat-row"><span>会心倍率</span><b>×${BASE_CRIT_MULT.toFixed(2)}</b></div>
           <div class="stat-row"><span>ヘイト<small>狙われやすさ</small></span><b>${m.hate}</b></div>
         </div>
       </div>
@@ -13752,7 +13853,7 @@ function renderDungeons(){
       return `
         <div class="stage-card dungeon ${unlocked ? '' : 'locked'}">
           <div class="row-between">
-            <h3>${unlocked ? '' : '🔒 '}${d.name} Lv${t + 1}</h3>
+            <h3>${unlocked ? '' : '🔒 '}${d.name} ステージ${t + 1}</h3>
             <div class="stage-lv">${starsText(stageStars(`dg_${dungeonTab}_${t}`))}<br>推奨Lv${dungeonBaseLv(dungeonTab, t)}</div>
           </div>
           <div class="stage-enemy-row">${[...new Set(d.enemies[t])].map(id => `<img src="${imgSrc(id)}" alt="" title="${MON_BY_ID[id].name}">`).join('')}</div>
@@ -14590,9 +14691,15 @@ function startBattle(stageId, opts){
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
-    if(id !== HELP_SLOT_ID) applyRuneBonusToUnit(u, runeBonusOf(id));
-    const relicId = equippedRelicOf(id);
-    if(relicId) applyRelicToUnit(u, m, relicId);
+    if(id === HELP_SLOT_ID){
+      // 借りたモンスターは、貸してくれた人の遺物とルーンをそのまま持ってくる
+      if(owned.runes) applyRuneBonusToUnit(u, owned.runes);
+      if(owned.relic) applyRelicSnapToUnit(u, m, owned.relic);
+    }else{
+      applyRuneBonusToUnit(u, runeBonusOf(id));
+      const relicId = equippedRelicOf(id);
+      if(relicId) applyRelicToUnit(u, m, relicId);
+    }
     applyStageRules(u, stage, false);
     applyFormationBonus(u, formation);
     party.push(u);
@@ -18759,6 +18866,7 @@ function handlePhoneClick(ev){
   if(viewFriendEl){ friendProfileUid = viewFriendEl.dataset.viewFriend; overlayView = 'friend-profile'; playSfx('open'); render(); refreshOneProfile(friendProfileUid); return; }
   const sendPointEl = t.closest('[data-send-friend-point]');
   if(sendPointEl){ sendFriendPoint(sendPointEl.dataset.sendFriendPoint); return; }
+  if(t.closest('[data-send-friend-point-all]')){ sendFriendPointAll(); return; }
   if(t.closest('[data-add-friend]')){
     const input = document.getElementById('friend-code-input');
     addFriendByCode(input ? input.value : '');
@@ -20027,7 +20135,12 @@ function renderFriendsOverlay(){
           <div class="mc-head" style="margin-bottom:4px;">お助けモンスターの貸し出し実績</div>
           <div class="screen-sub">クエストで使われた回数 <b>${STATE.helperLentStats.count}</b>回・獲得フレンドポイント <b>${STATE.helperLentStats.fp}</b>FP</div>
         </div>` : ''}
-        <div class="mc-head" style="margin:4px 2px 8px;">フレンドリスト(${STATE.friends.length} / ${FRIEND_MAX})</div>
+        ${STATE.friends.length ? `<div class="row-between" style="margin:4px 2px 8px;">
+          <div class="mc-head">フレンドリスト(${STATE.friends.length} / ${FRIEND_MAX})</div>
+          <button class="btn btn-sm ${friendsToSend().length ? '' : 'btn-ghost'}" data-send-friend-point-all="1" ${friendsToSend().length ? '' : 'disabled'}>
+            ${friendsToSend().length ? `全員に送る(${friendsToSend().length}人・+${FRIEND_POINT_PER_SEND * friendsToSend().length})` : '本日は送信済み'}
+          </button>
+        </div>` : `<div class="mc-head" style="margin:4px 2px 8px;">フレンドリスト(${STATE.friends.length} / ${FRIEND_MAX})</div>`}
         ${STATE.friends.length === 0
           ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフレンドがいません。「フレンドを追加」から探してみましょう。</div>'
           : STATE.friends.map(f => { const icon = friendIconOf(f); return `
