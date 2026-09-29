@@ -1,8 +1,8 @@
-/* イベントの主役★5のソウル(α0.2.007): 通常ステージはボスから10%で1個・仲間入りなし、EXは20/50/100%で1個(上限なし)。
+/* イベントの主役★5のソウル(α0.3.001): 通常ステージはボスからステージ番号×2%で1個・仲間入りなし、EXは20/50/100%で1個(上限なし)。
    1体目はガチャだけ(ソウルをためても仲間にならず、ガチャで仲間にしたとき引き継ぐ)。EXはステージ3で開く。
    あわせて、延焼で倒した敵にやけどを付け直しても止まらないこと */
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__e={EVENTS,grantStageRewards,grantMonster,giveSouls,MON_BY_ID,recruitChanceOf,EX_UNLOCK_TIER,EVENT_BOSS_SOUL_RATE,EX_PICKUP_SOUL_RATE,applyStatus,get battleUI(){return battleUI}};');
+const api = load('game.js', s => s + ';global.__e={EVENTS,grantStageRewards,grantMonster,giveSouls,MON_BY_ID,recruitChanceOf,EX_UNLOCK_TIER,eventBossSoulRate,EX_PICKUP_SOUL_RATE,applyStatus,get battleUI(){return battleUI}};');
 const E = global.__e;
 let bad = 0;
 const ok = (n, c, i) => { if(!c) bad++; console.log((c ? '✅' : '❌') + ' ' + n + (i !== undefined ? '  ' + JSON.stringify(i) : '')); };
@@ -16,7 +16,9 @@ ok('通常ステージで主役が仲間になる確率は0', E.recruitChanceOf(
 const N = 4000;
 for(let i = 0; i < N; i++) E.grantStageRewards(st10, [{ ref: pick, boss: true, rarity: 5 }]);
 const got = api.STATE.pendingSouls[pick] || 0;
-ok('通常ステージ: ボスから約10%で1個', Math.abs(got / N - E.EVENT_BOSS_SOUL_RATE) < 0.02, got / N);
+ok('ステージ10: ボスから約20%で1個', E.eventBossSoulRate(st10) === 0.2 && Math.abs(got / N - 0.2) < 0.02, got / N);
+ok('難しいほど上がる(2%→20%)', ev.stages.map(E.eventBossSoulRate).join() === [2,4,6,8,10,12,14,16,18,20].map(x => x / 100).join(), ev.stages.map(E.eventBossSoulRate));
+ok('EXは別枠(番号なし)', ev.exStages.every(s => E.eventBossSoulRate(s) === 0));
 api.STATE.pendingSouls[pick] = 999; E.giveSouls(pick, 1);
 ok('ソウルが400個をこえても仲間にならない(1体目はガチャ)', !api.STATE.owned[pick] && api.STATE.pendingSouls[pick] === 1000, api.STATE.pendingSouls[pick]);
 [0, 1, 2].forEach(i => {

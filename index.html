@@ -8275,7 +8275,7 @@ function pendSoulText(id){
 function stageBossSoulText(st, boss, daily){
   const ev = st.type === 'event' ? EVENTS.find(e => e.key === st.eventKey) : null;
   if(ev && boss.id === ev.pickup){
-    const rate = st.ex ? (EX_PICKUP_SOUL_RATE[st.ex - 1] || 0) : EVENT_BOSS_SOUL_RATE;
+    const rate = st.ex ? (EX_PICKUP_SOUL_RATE[st.ex - 1] || 0) : eventBossSoulRate(st);
     return `◆ ${boss.name}のソウル ${pctText(rate)}で1個・仲間になるのはガチャから`;
   }
   return `🤝 仲間になる ${pctText(recruitChanceOf(boss, false, st))}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)`;
@@ -9098,7 +9098,7 @@ function buildEventStages(ev){
       ]);
     }
     return {
-      id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, name: `${ev.stageName}・ステージ${n}`,
+      id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, evNo: n, name: `${ev.stageName}・ステージ${n}`,
       terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(12, 2 + n),
       firstClear: 60 * n, boss: true,
       desc: `期間限定・ステージ${n}(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。`,
@@ -9381,10 +9381,12 @@ function claimEventMissionsAll(evKey){
 }
 
 const EX_UNLOCK_TIER = 3;            // 何層をクリアすると開くか
-// ピックアップ★5のソウルの出どころ(α0.2.007〜)。通常ステージはボスから10%で1個だけ、
+// ピックアップ★5のソウルの出どころ(α0.3.001〜)。通常ステージはボスからステージ番号×2%(1で2%〜10で20%)で1個だけ、
 // EXはスタミナなし・周回なしの手動で EX1 20% / EX2 50% / EX3 100% で1個(回数の上限なし)。
 // 手でひたすら回した人だけが、ガチャなしでも完凸に届く形
-const EVENT_BOSS_SOUL_RATE = 0.10;
+// 通常ステージのボス(主役)がソウルを落とす率: ステージ番号×2%(ステージ1で2% … ステージ10で20%)
+const EVENT_BOSS_SOUL_PER_STAGE = 0.02;
+function eventBossSoulRate(st){ return Math.round((st.evNo || 0) * EVENT_BOSS_SOUL_PER_STAGE * 100) / 100; }
 const EX_PICKUP_SOUL_RATE = [0.20, 0.50, 1.00];
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
 const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}]};
@@ -18284,12 +18286,12 @@ function grantStageRewards(stage, spawned, party, opts){
   daily.bossSouls = daily.bossSouls || {};
   const soulTotals = {};
   const addSoul = (id, n) => { soulTotals[id] = (soulTotals[id] || 0) + n; };
-  // EXは主役のソウルだけが確率で1個出る(ほかのソウル・仲間入りは出ない)。通常ステージの主役はボスから10%で1個
+  // EXは主役のソウルだけが確率で1個出る(ほかのソウル・仲間入りは出ない)。通常ステージの主役はボスからステージ番号×2%で1個
   const evOf = stage.type === 'event' ? EVENTS.find(e => e.key === stage.eventKey) : null;
   if(stage.ex && evOf && Math.random() < (EX_PICKUP_SOUL_RATE[stage.ex - 1] || 0)) addSoul(evOf.pickup, 1);
   if(!stage.ex) spawned.forEach(u => {
     if(u.boss && evOf && u.ref === evOf.pickup){
-      if(Math.random() < EVENT_BOSS_SOUL_RATE) addSoul(u.ref, 1);
+      if(Math.random() < eventBossSoulRate(stage)) addSoul(u.ref, 1);
     }else if(u.boss){
       const got = daily.bossSouls[u.ref] || 0;
       daily.bossSouls[u.ref] = got + 1; addSoul(u.ref, 1);
@@ -19745,7 +19747,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 128, version: 'α0.3.002', date: '9/29', title: 'イベント主役のソウルはEXで集める形に', body: '<span class="nt-h">イベントの主役(ピックアップ★5)のソウル</span><span class="nt-i">・通常ステージでは主役が<em>仲間にならなくなりました</em>。1体目はガチャから迎えてください。</span><span class="nt-i">・通常ステージのボスからは<em>10%でソウル1個</em>。まだ仲間にいなくても貯まり、ガチャで仲間にしたときに引き継がれます。</span><span class="nt-i">・EXステージで<em>EX1は20%・EX2は50%・EX3は100%</em>でソウル1個。スタミナ不要・回数の上限なし(周回機能は使えません)。</span><span class="nt-i">・EXはステージ3クリアで開くようになりました。</span><span class="nt-h">不具合の修正</span><span class="nt-i">・延焼で敵を倒したときに、まれに戦闘が止まることがあったのを直しました。</span>' },
+  { id: 128, version: 'α0.3.002', date: '9/29', title: 'イベント主役のソウルはEXで集める形に', body: '<span class="nt-h">イベントの主役(ピックアップ★5)のソウル</span><span class="nt-i">・通常ステージでは主役が<em>仲間にならなくなりました</em>。1体目はガチャから迎えてください。</span><span class="nt-i">・通常ステージのボスからは<em>ソウル1個</em>(ステージ1で2%、難しいほど上がりステージ10で20%)。まだ仲間にいなくても貯まり、ガチャで仲間にしたときに引き継がれます。</span><span class="nt-i">・EXステージで<em>EX1は20%・EX2は50%・EX3は100%</em>でソウル1個。スタミナ不要・回数の上限なし(周回機能は使えません)。</span><span class="nt-i">・EXはステージ3クリアで開くようになりました。</span><span class="nt-h">不具合の修正</span><span class="nt-i">・延焼で敵を倒したときに、まれに戦闘が止まることがあったのを直しました。</span>' },
   { id: 127, version: 'α0.3.001', date: '9/29', title: '右上に星結晶の数', body: '<span class="nt-i">・画面右上のゴールドの右隣に、<em>星結晶の数</em>をいつでも表示するようにしました(1万以上は「12K」のように短く)。ガチャ画面でもスタミナが出るようになります。</span>' },
   { id: 126, version: 'α0.3.000', date: '9/29', title: '新バトルシステム(設定で切り替え)', body: '<span class="nt-h">設定 → 戦闘 →「新バトルシステム」で旧の戦闘に戻せます</span><span class="nt-i">・スキル1・2とも<em>開幕から使用可</em>にし、スキル1→2の順番で使うようにしました(スキル2の再CTの+1も撤廃)</span><span class="nt-i">・被弾SPを<em>受けたダメージ基準</em>に変更(そのレベルの平均HPの1%につきSP+1.25、1ラウンド上限60)</span><span class="nt-i">・回復した側にSP+20、ウェーブ突破で味方全員にSP+30を追加</span><span class="nt-i">・撃破SPを 15 → <em>25</em></span><span class="nt-i">・奥義の必要SPを タンク<em>-30</em>・シューター<em>-20</em>(他のロールは据え置き)</span><span class="nt-i">・全モンスターのHPと、遺物のHP固定値を<em>2倍</em></span><span class="nt-i">・シールドの上限を最大HPの<em>50% → 100%</em></span><span class="nt-i">・戦闘力のHPの重みを 0.6 → <em>0.3</em>(HP2倍ぶんを打ち消して表示を据え置き)</span><span class="nt-i">・ボス以外の敵を<em>推奨レベル-10</em>に</span><span class="nt-i">・新バトルシステムでの初回クリアは<em>スタミナ0</em>、星結晶を メイン10・イベント20・EX 100/300/500 配布</span><span class="nt-i">・深淵回廊とPVPは新バトルシステムのみ</span>' },
   { id: 125, version: 'α0.2.009', date: '9/29', title: 'イベントショップの品名と、右上の印', body: '<span class="nt-i">・イベントショップの品名を<em>アイテム名そのまま</em>にしました(「ピックアップのワザ強化素材 TierI」→「風の欠片・ビーストの魂・アタッカーの証 TierI」)。</span><span class="nt-i">・右上の☰に、お知らせの未読だけでなく<em>プレゼント</em>と<em>まだポイントを送っていないフレンド</em>の数も出すようにしました。</span>' },
