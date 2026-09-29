@@ -2869,6 +2869,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .nt-dot{ width:7px; height:7px; border-radius:50%; background:#3f3a55; margin-top:5px; flex:none; }
 .nt-dot.new{ background:var(--danger); }
 .nt-body{ flex:1; min-width:0; }
+.nt-link{ display:inline-block; margin-top:5px; padding:7px 13px; border-radius:9px; font-size:12px; font-weight:800;
+  color:var(--gold); background:rgba(232,180,85,.12); border:1px solid rgba(232,180,85,.35); cursor:pointer; }
 .nt-title{ font-size:12px; font-weight:800; }
 .nt-sub{ font-size:10.5px; color:var(--dim); margin-top:2px; line-height:1.7; }
 .nt-date{ font-size:9.5px; color:var(--dim2); white-space:nowrap; }
@@ -2920,6 +2922,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .set-list{ padding:0 !important; overflow:hidden; }
 .set-item{ display:flex; align-items:center; gap:8px; padding:13px 12px; border-bottom:1px solid rgba(232,180,85,.12); cursor:pointer; }
 .set-item:last-child{ border-bottom:none; }
+a.set-item{ color:inherit; text-decoration:none; }
 .set-val{ font-size:11px; color:var(--dim); }
 .set-val.ok{ color:#5cab52; font-weight:800; }
 .set-go{ font-size:16px; color:var(--dim); }
@@ -3614,6 +3617,16 @@ function battleV2ClearCrystal(stage){
   if(stage.type === 'event') return BATTLE_V2_CLEAR_CRYSTAL.event;
   if(stage.type === 'main') return BATTLE_V2_CLEAR_CRYSTAL.main;
   return 0;   // 育成クエスト・深淵・PVPは対象外
+}
+/* 新バトルシステムでの初クリアを記録して、お礼の星結晶を返す。
+   メインもイベントも育成クエストも、必ずここを通す(通し忘れるとスタミナ0が続いてしまう)。
+   周回(結果だけ)では呼ばない。実際に戦った人にだけ配る。 */
+function markBattleV2Clear(stage, opts){
+  if(!battleV2() || !stage || (opts && opts.sweep) || v2ClearedHas(stage.id)) return 0;
+  ensureV2Cleared().push(stage.id);
+  const n = battleV2ClearCrystal(stage);
+  if(n) STATE.crystals += n;
+  return n;
 }
 function stageStaminaCost(stage){
   // tutorial: free only the first time. Once cleared, farming it for its firstClear
@@ -7675,7 +7688,7 @@ function runSweep(stageId, times, useTicket){
       track('staminaUsed', stage.stamina);
     }
     track('sweep');
-    const r = stage.type === 'dungeon' ? grantDungeonRewards(stage) : grantStageRewards(stage, sweepSpawned(stage), party, { sweep: true });
+    const r = stage.type === 'dungeon' ? grantDungeonRewards(stage, { sweep: true }) : grantStageRewards(stage, sweepSpawned(stage), party, { sweep: true });
     if(r.medal){ if(!total.medal) total.medal = { ...r.medal, n: 0 }; total.medal.n += r.medal.n; }
     total.runs++;
     total.gold += r.gold || 0;
@@ -8009,7 +8022,7 @@ function dungeonStage(kind, t){
     waves: [list.slice(0, half).map(ref => ({ ref, level: lv })), list.map(ref => ({ ref, level: lv + Math.round(lv * 0.05) }))],
   };
 }
-function grantDungeonRewards(stage){
+function grantDungeonRewards(stage, opts){
   const r = DUNGEONS[stage.dungeon].rewards[stage.tier];
   const items = [];
   const add = (key, n) => { if(n <= 0) return; addItem(key, n); const hit = items.find(x => x.key === key); if(hit) hit.n += n; else items.push({ key, n }); };
@@ -8035,7 +8048,10 @@ function grantDungeonRewards(stage){
   }
   track('dungeonClear');
   track('exploreClear');
-  return { items, gold, souls: [], crystals: 0, runes, dust };
+  // 育成クエストはお礼の星結晶の対象外(battleV2ClearCrystal が0を返す)だが、
+  // 記録は必ず残す。残さないと「初回だけスタミナ0」が永久に続いてしまう
+  const v2Crystals = markBattleV2Clear(stage, opts);
+  return { items, gold, souls: [], crystals: 0, runes, dust, v2Crystals };
 }
 
 /* ---------------- stat scaling ---------------- */
@@ -18265,13 +18281,8 @@ function grantStageRewards(stage, spawned, party, opts){
   const souls = Object.entries(soulTotals).map(([id, n]) => ({ ...giveSouls(id, n), rare: spawned.some(u => u.ref === id && u.rare), boss: spawned.some(u => u.ref === id && u.boss), recruit: recruited.includes(id) }));
   souls.filter(x => x.joined).forEach(x => logEvent('monster_join', { monster: x.id, rarity: MON_BY_ID[x.id].rarity, how: x.recruit ? 'recruit' : 'souls' }));
 
-  // 新バトルシステムでの初クリア。テスト協力ぶんの星結晶(EXは初回クリア報酬ごと配り直す)
-  let v2Crystals = 0;
-  if(battleV2() && !(opts && opts.sweep) && !v2ClearedHas(stage.id)){
-    ensureV2Cleared().push(stage.id);
-    v2Crystals = battleV2ClearCrystal(stage);
-    if(v2Crystals) STATE.crystals += v2Crystals;
-  }
+  // 新バトルシステムでの初クリア。テスト協力ぶんの星結晶
+  const v2Crystals = markBattleV2Clear(stage, opts);
 
   // first clear
   let crystals = 0;
@@ -18574,6 +18585,8 @@ function handlePhoneClick(ev){
   if(t.closest('[data-overlay-close]')){ closeOverlay(); return; }
   if(t.closest('[data-affinity]')){ renderAffinitySheet(); playSfx('open'); return; }
   if(t.closest('[data-close-affinity]')){ closeModal(); return; }
+  const comEl = t.closest('[data-open-community]');
+  if(comEl){ openExternal(COMMUNITY[comEl.dataset.openCommunity]); return; }
   const ovAct = t.closest('[data-setting], [data-set-speed], [data-pick], [data-picked], [data-share-id], [data-clear-cache], [data-logout]');
   if(ovAct){ handleOverlayAction(ovAct); return; }
   if(t.closest('[data-install]')){ installToHome(); return; }
@@ -19669,7 +19682,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
-  { id: 23, date: '9/29', title: 'DiscordとXを用意しました(ご意見・バグ報告の窓口)', body: '<span class="nt-h">Discord</span>小規模なコミュニティとして設置しました。<em>バグ報告や要望など</em>はこちらからしていただけます。<span class="nt-i">discord.gg/6VUtBQBPzE</span><span class="nt-h">X(制作アカウント)</span>ゲーム制作のアカウントで、<em>開発の裏話</em>などを流しています。Discordアカウントのない方は、こちらのDMにもバグ報告や要望を投げていただけます。<span class="nt-i">x.com/NEG1STUDIO</span><span class="nt-h">開き方</span>どちらも<em>設定画面</em>から開けます(設定 → Discord / X)。<span class="nt-h">とくに聞きたいこと</span>いま新しい戦闘システムをテストしています。「ここが変」「前のほうがよかった」「この役割が弱い」など、遠慮なく投げてください。'
+  { id: 23, date: '9/29', title: 'DiscordとXを用意しました(ご意見・バグ報告の窓口)', body: '<span class="nt-h">Discord</span>小規模なコミュニティとして設置しました。<em>バグ報告や要望など</em>はこちらからしていただけます。<span class="nt-link" data-open-community="discord">Discordを開く</span><span class="nt-h">X(制作アカウント)</span>ゲーム制作のアカウントで、<em>開発の裏話</em>などを流しています。Discordアカウントのない方は、こちらのDMにもバグ報告や要望を投げていただけます。<span class="nt-link" data-open-community="x">Xを開く</span><span class="nt-h">開き方</span>どちらも<em>設定画面</em>から開けます(設定 → Discord / X)。<span class="nt-h">とくに聞きたいこと</span>いま新しい戦闘システムをテストしています。「ここが変」「前のほうがよかった」「この役割が弱い」など、遠慮なく投げてください。'
   },
   { id: 22, date: '9/29', title: '【重要】戦闘システムが大きく変わります', body: '<span class="nt-h">設定から新旧どちらでも遊べます</span>戦闘の仕組みを作り直しました。設定 → 戦闘 →<em>「新バトルシステム」</em>で、いつでも前の戦闘に戻せます。<span class="nt-h">なぜ変えるのか</span>これまでの戦闘には、作った側から見ても はっきりした問題がありました。<span class="nt-i">・タンクとサポートの奥義が、1戦闘でほぼ一度も撃てていませんでした(実測 タイタン <em>0.02回</em>/戦・ユニコーン <em>0.01回</em>/戦。アタッカーは0.8回)</span><span class="nt-i">・敵はスキル2も奥義も、一度も撃っていませんでした(実測 <em>0.00回</em>)</span><span class="nt-i">・後衛は敵の1撃で最大HPの<em>67%</em>を失っていて、2発で落ちる状態でした</span><span class="nt-i">・1ウェーブが平均2.1ラウンドで終わるため、SPDの低いタンクは手番の<em>40%</em>が回ってこないまま戦闘が終わっていました</span>つまり、モンスターごとに作り込んだワザや奥義が、ほとんど画面に出ていませんでした。ここを直します。<span class="nt-h">ご協力ください</span>新バトルシステムはまだ調整中です。遊んでみて「ここが変」「前のほうがよかった」があれば教えてください。戦闘のおもしろさを上げるために、力を貸してください。<em>Discord</em>と<em>XのDM</em>で受け付けています(設定画面から開けます)。<span class="nt-h">協力のお礼</span>新バトルシステムでステージをクリアすると、星結晶をお配りします。<span class="nt-i">・メインクエスト 1ステージにつき <em>10個</em></span><span class="nt-i">・イベント 1ステージにつき <em>20個</em></span><span class="nt-i">・EXステージ EX1 <em>100個</em>・EX2 <em>300個</em>・EX3 <em>500個</em></span>新バトルシステムでの初回クリアは、<em>スタミナを消費しません</em>。すでにクリアしたステージも、もう一度試してみてください。' },
   { id: 21, date: '9/29', title: '新バトルシステムの変更内容', body: '<span class="nt-h">ワザ</span><span class="nt-i">・スキル1・スキル2とも、<em>戦闘開始からすぐ</em>使えるようになりました</span><span class="nt-i">・スキル1 → スキル2 → スキル1 … と順番に使います</span><span class="nt-i">・スキル2だけ再使用が1ターン遅かったのを直しました</span>スキル2の使用回数は 1戦 0.5回 → <em>1.6回</em> になりました。<span class="nt-h">奥義(SP)</span><span class="nt-i">・SPが<em>受けたダメージの量</em>で入るようになりました(そのレベルの平均的なモンスターのHPの4%ぶん受けるごとにSP+5)</span><span class="nt-i">・味方を回復してもSPが入ります</span><span class="nt-i">・ウェーブを突破するたび、味方全員のSPが回復します</span><span class="nt-i">・敵を倒したときのSPが 15 → <em>25</em> に増えました</span><span class="nt-i">・タンクの必要SPを<em>30</em>、シューターの必要SPを<em>20</em>下げました</span>タンクの奥義は 0.02回/戦 → <em>1.0回</em>、サポートは 0.01回 → <em>1.1回</em> になりました。<span class="nt-h">ステータス</span><span class="nt-i">・すべてのモンスターのHPが<em>2倍</em>になりました(敵も味方も)。1発で溶ける戦闘を減らすためです</span><span class="nt-i">・遺物のHP上昇値も2倍になりました</span><span class="nt-i">・シールドの上限を「最大HPの50%まで」から<em>「100%まで」</em>に広げました。これまで、貼られたシールドの85%が上限で切り捨てられていました</span><span class="nt-i">・戦闘力(BP)の計算でHPの重みを下げたので、HPが2倍になっても<em>表示される数字はこれまでとほぼ同じ</em>です</span><span class="nt-h">敵</span><span class="nt-i">・敵もスキル1・2を開幕から使ってきます。奥義も撃ってきます</span><span class="nt-i">・ボス以外の敵は、推奨レベルより<em>10レベル低く</em>なりました</span><span class="nt-h">役割の考え方</span><span class="nt-i">・アタッカー / シューター … <em>奥義を回して戦う</em>。編成の軸</span><span class="nt-i">・タンク / サポート … <em>1戦に1回の切り札</em>。撃つタイミングが勝負</span><span class="nt-h">ご注意</span>深淵回廊とPVPは、記録が混ざらないように<em>新バトルシステムのみ</em>で遊べます。' },
@@ -20162,10 +20175,10 @@ function renderSettingsOverlay(){
           <div class="set-item"><div class="set-k wide">言語</div><div class="set-val">日本語</div></div>
           <div class="set-item" data-view-tutorial="1"><div class="set-k wide">チュートリアルを見る</div>
             <div class="set-val"></div><div class="set-go">›</div></div>
-          <div class="set-item" data-open-community="discord"><div class="set-k wide">Discord</div>
-            <div class="set-val">バグ報告・要望</div><div class="set-go">›</div></div>
-          <div class="set-item" data-open-community="x"><div class="set-k wide">X(開発アカウント)</div>
-            <div class="set-val">@NEG1STUDIO</div><div class="set-go">›</div></div>
+          <a class="set-item" href="${COMMUNITY.discord}" target="_blank" rel="noopener noreferrer"><div class="set-k wide">Discord</div>
+            <div class="set-val">バグ報告・要望</div><div class="set-go">›</div></a>
+          <a class="set-item" href="${COMMUNITY.x}" target="_blank" rel="noopener noreferrer"><div class="set-k wide">X(開発アカウント)</div>
+            <div class="set-val">@NEG1STUDIO</div><div class="set-go">›</div></a>
           <div class="set-item" data-clear-cache="1"><div class="set-k wide">キャッシュを削除</div>
             <div class="set-val">読み込み直します</div><div class="set-go">›</div></div>
           <div class="set-item" data-open-delete-data="1"><div class="set-k wide" style="color:var(--danger);">データを削除</div>
@@ -20497,7 +20510,6 @@ async function handleOverlayAction(el){
     render();
     return;
   }
-  if(el.dataset.openCommunity){ openExternal(COMMUNITY[el.dataset.openCommunity]); return; }
   if(el.dataset.setSpeed){
     const n = Number(el.dataset.setSpeed);
     if(n > 1 && !speedUnlocked()){ toast('「初級5」クリアで倍速が解放されます'); return; }

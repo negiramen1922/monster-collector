@@ -20,7 +20,7 @@ buildUnit = function(){
   return u;
 };`);
 const E = global.__e;
-const N = Number(process.env.N || 120);
+const N = Number(process.env.N || 200);
 const LV = Number(process.env.LV || 165);
 const PARTY = ['m24', 'm44', 'm23', 'm52', 'm104'];
 const UP = { star: 5, skillLv: 5, ultLv: 5, passiveLv: 5 };
@@ -86,8 +86,10 @@ console.log('\n--- 2. 魔法防御が効くか(旧バトルシステムで測定
   const cutM = (1 - m.taken / base.taken) * 100;
   console.log(`   ${ja}  基準 1ラウンドあたり${Math.round(base.taken)}  物防+25%→${cutP >= 0 ? '-' : '+'}${Math.abs(cutP).toFixed(1)}%  魔防+25%→${cutM >= 0 ? '-' : '+'}${Math.abs(cutM).toFixed(1)}%`);
   if(wantMdef){
+    /* 削減率の絶対値は試行ごとに 3〜16% とブレるので、同じ条件で測った物防との差で見る。
+       見たいのは「このステージでは魔防のほうが価値がある」という関係であって、絶対値ではない。 */
     ok('  魔法ステージでは魔法防御のほうが効く', cutM > cutP, [cutM.toFixed(1), cutP.toFixed(1)]);
-    ok('  魔法防御+25%で被ダメージが5%以上減る', cutM >= 5, cutM.toFixed(1) + '%');
+    ok('  魔法防御が物理防御より3ポイント以上効く', cutM - cutP >= 3, (cutM - cutP).toFixed(1) + 'pt');
   }else{
     ok('  物理ステージでは物理防御のほうが効く', cutP > cutM, [cutP.toFixed(1), cutM.toFixed(1)]);
   }

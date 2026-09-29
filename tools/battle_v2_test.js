@@ -5,7 +5,7 @@ const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   MONSTERS, MON_BY_ID, scaledStats, battlePower, initialSkillCds, buildUnit, skillCt,
   ultSpCostFor, hpScale, shieldCapRatio, spFromDamage, avgBaseHp, addShield, shieldTotal,
-  stageStaminaCost, grantStageRewards, sweepSpawned, findStage, statsWithRelic,
+  stageStaminaCost, grantStageRewards, grantDungeonRewards, sweepSpawned, findStage, statsWithRelic,
   RELICS, newRelicState, BATTLE_V2_SP_KILL, SP_ON_KILL, SP_HIT_CAP_PER_ROUND, BATTLE_V2_HIT_CAP,
   BATTLE_V2_MOB_LV, spawnWave, STAGES,
 };`);
@@ -134,6 +134,21 @@ if(ex){
 const st2 = E.findStage('q4_06');
 const r5 = E.grantStageRewards(st2, [], [{ ref: titan.id }], { sweep: true });
 check('周回(結果だけ)では配らない', !r5.v2Crystals, r5.v2Crystals);
+
+/* ---- 育成クエストも「初回だけスタミナ0」 ---- */
+const dg = E.findStage('dg_exp_1');
+if(dg){
+  check('育成クエストも新システムの初回はスタミナ0', E.stageStaminaCost(dg) === 0, E.stageStaminaCost(dg));
+  const cr = S2.crystals;
+  const rd = E.grantDungeonRewards(dg);
+  check('育成クエストでは星結晶は出ない', !rd.v2Crystals && S2.crystals === cr, rd.v2Crystals);
+  check('育成クエストも2回目からはスタミナがかかる', E.stageStaminaCost(dg) === dg.stamina, [E.stageStaminaCost(dg), dg.stamina]);
+}
+const dg2 = E.findStage('dg_gold_1');
+if(dg2){
+  E.grantDungeonRewards(dg2, { sweep: true });
+  check('育成クエストの周回では初回ぶんを使い切らない', E.stageStaminaCost(dg2) === 0, E.stageStaminaCost(dg2));
+}
 
 /* ---- 旧に戻すとスタミナも元通り ---- */
 v2(false);
