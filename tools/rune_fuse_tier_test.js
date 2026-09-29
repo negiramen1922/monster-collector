@@ -2,7 +2,7 @@
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   DEFAULT_STATE, fuseRunes, runeFuseNeed, runeFusePoint, runeFuseMaterials, runeFusePicked,
-  autoRuneFusePick, RUNE_FUSE_COUNT, RUNE_TIERS,
+  autoRuneFusePick, RUNE_FUSE_COUNT, RUNE_TIERS, runeFuseNeedFor, runeFuseSteps, runeFuseGoldFor, runeFuseCost,
   setDetail: v => { runeDetail = v; }, getDetail: () => runeDetail,
 };`);
 const E = global.__e;
@@ -58,5 +58,29 @@ E.setDetail({ uid: b5.uid, fuse: [] });
 E.autoRuneFusePick();
 const picked = E.getDetail().fuse.map(u => S.runes.find(r => r.uid === u).tier).sort();
 ok('おまかせは低いTierから使う(Tier4×3 + Tier5×1)', JSON.stringify(picked) === '[4,4,4,5]', picked);
+
+// --- 何段でも一度に上げられる。手で1段ずつ上げたときと同じ個数 ---
+S.runes = []; n = 0;
+const m4 = mk(4);
+for(let i = 0; i < 12; i++) mk(4);
+ok('TierⅣ→Ⅴ はTierⅣ2個', E.runeFuseNeedFor(m4, 1) / E.runeFusePoint(4) === 2, E.runeFuseNeedFor(m4, 1) / E.runeFusePoint(4));
+ok('TierⅣ→Ⅵ はTierⅣ8個(2+3+3)', E.runeFuseNeedFor(m4, 2) / E.runeFusePoint(4) === 8, E.runeFuseNeedFor(m4, 2) / E.runeFusePoint(4));
+ok('TierⅣ→Ⅶ はTierⅣ26個', E.runeFuseNeedFor(m4, 3) / E.runeFusePoint(4) === 26, E.runeFuseNeedFor(m4, 3) / E.runeFusePoint(4));
+ok('ゴールドも1段ずつ上げたときの合計', E.runeFuseGoldFor(m4, 2) === E.runeFuseCost({ tier: 4 }).gold + E.runeFuseCost({ tier: 5 }).gold,
+  [E.runeFuseGoldFor(m4, 2), E.runeFuseCost({ tier: 4 }).gold + E.runeFuseCost({ tier: 5 }).gold]);
+
+let pool = S.runes.filter(r => r.uid !== m4.uid);
+S.gold = 1e9;
+res = E.fuseRunes(m4.uid, pool.slice(0, 7).map(r => r.uid));
+ok('TierⅣ材料7個ではⅤ止まり', res.ok === true && res.rune.tier === 5 && res.steps === 1, res.ok ? [res.rune.tier, res.steps] : res.why);
+
+S.runes = []; n = 0;
+const m4b = mk(4);
+for(let i = 0; i < 12; i++) mk(4);
+pool = S.runes.filter(r => r.uid !== m4b.uid);
+res = E.fuseRunes(m4b.uid, pool.slice(0, 8).map(r => r.uid));
+ok('TierⅣ材料8個でⅥまで一度に上がる', res.ok === true && res.rune.tier === 6 && res.steps === 2, res.ok ? [res.rune.tier, res.steps] : res.why);
+ok('使った8個だけ消える', S.runes.length === 5, S.runes.length);
+
 console.log(bad ? `${bad}件 失敗` : 'すべて通過');
 process.exitCode = bad ? 1 : 0;

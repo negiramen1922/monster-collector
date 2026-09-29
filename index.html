@@ -174,7 +174,11 @@ body{
 .reso-ic{ font-size:15px; display:inline-flex; }
 .stat-row span small{ display:block; font-size:9px; opacity:.6; }
 .stat-plus{ font-size:9px; font-style:normal; color:var(--gold); opacity:.85; margin-left:5px; }
-.rf-conv{ display:block; font-size:9px; font-weight:600; opacity:.6; margin-top:1px; }
+.rf-conv{ display:block; font-size:10px; font-weight:600; opacity:.65; margin:-2px 2px 7px; line-height:1.5; }
+.rf-conv b{ color:var(--gold); }
+.rf-steps{ color:var(--gold); }
+.help-lv{ color:var(--gold); }
+.help-lv-note{ font-size:9px; opacity:.65; margin-left:2px; }
 .mc-head .mc-sub{ display:inline; margin-left:6px; font-size:10px; font-weight:600; }
 .party-count .bp small i{ display:block; font-style:normal; font-size:9px; opacity:.7; }
 .mc-go{ font-size:22px; color:var(--dim); }
@@ -3061,7 +3065,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.2.006';
+const GAME_VERSION = 'α0.2.007';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3567,9 +3571,33 @@ function syncHelperMon(){
   if(STATE.borrowed && MON_BY_ID[STATE.borrowed.mon.id]) MON_BY_ID[HELP_SLOT_ID] = MON_BY_ID[STATE.borrowed.mon.id];
   else delete MON_BY_ID[HELP_SLOT_ID];
 }
+/* 借りたお助けモンスターのレベルは、自分の編成の平均レベルに合わせる。
+   強い人の格上を借りて一気に抜ける、をここで止める。
+   ★・ワザLv・ルーンはそのまま(貸してくれた人の育て具合がちゃんと効く)。
+   遺物のレベルも同じ割合に合わせる(遺物だけ格上のまま残らないように)。 */
+function helperPartyAvgLv(){
+  const lvs = (STATE.slots || []).filter(id => id && id !== HELP_SLOT_ID && STATE.owned[id])
+    .map(id => STATE.owned[id].level || 1);
+  if(!lvs.length) return null;   // 自分のモンスターが1体もいなければ合わせようがない
+  return Math.max(1, Math.round(lvs.reduce((a, b) => a + b, 0) / lvs.length));
+}
+// 借りたモンスターの「所持データ相当」。レベルだけ差し替えた別物を返す(元のSTATE.borrowedは触らない)
+function borrowedOwnedLike(){
+  const b = STATE.borrowed;
+  if(!b) return null;
+  const avg = helperPartyAvgLv();
+  if(avg === null || !(b.mon.level > avg)) return b.mon;   // 平均以下ならそのまま
+  const mon = { ...b.mon, level: avg, lentLevel: b.mon.level };
+  if(mon.relic){
+    // 遺物のレベルも同じ割合まで落とす(Lv1は下回らない)
+    const ratio = avg / Math.max(1, b.mon.level);
+    mon.relic = { ...mon.relic, level: Math.max(1, Math.round((mon.relic.level || 1) * ratio)) };
+  }
+  return mon;
+}
 // the "owned" half (star/level/skill levels) for a slot id, real or borrowed
 function slotOwnedLike(id){
-  return id === HELP_SLOT_ID && STATE.borrowed ? STATE.borrowed.mon : STATE.owned[id];
+  return id === HELP_SLOT_ID && STATE.borrowed ? borrowedOwnedLike() : STATE.owned[id];
 }
 const TUTORIAL_REPLAY_STAMINA = 10; // 初回無料。2回目以降は通常ステージと同じ消費にする
 function stageStaminaCost(stage){
@@ -4385,13 +4413,18 @@ async function publishProfile(){
 // 古い版では「フレンドを返す」で自分側の記録を消していたり、フォロワー機能より前に追加した
 // フレンドは記録がなかったりして、相互なのにフォロワーが0人になっていた。起動ごとに1回だけ
 // 書き直して、その穴を埋める(ドキュメントIDが自分のuidなので何度書いても1件のまま)。
-let followRecordsSynced = false;
+/* 以前は「1セッションに1回だけ」で、ログイン直後のまだフレンドを読み込めていない
+   タイミングで走ると、何も書かないまま済んだことにしていた。
+   フレンドの顔ぶれが変わったときだけ書き直す形にする(同じ顔ぶれなら何もしない)。 */
+let followRecordsKey = null;
 function syncFollowRecords(){
   const be = authBackend();
-  if(followRecordsSynced || !ACCOUNT || !STATE || typeof be.recordIncomingFriend !== 'function') return;
-  followRecordsSynced = true;
-  STATE.friends.filter(f => f.uid && f.uid !== ACCOUNT.uid)
-    .forEach(f => be.recordIncomingFriend(f.uid, ACCOUNT.uid).catch(() => {}));
+  if(!ACCOUNT || !STATE || typeof be.recordIncomingFriend !== 'function') return;
+  const list = STATE.friends.filter(f => f.uid && f.uid !== ACCOUNT.uid);
+  const key = list.map(f => f.uid).sort().join(',');
+  if(!list.length || key === followRecordsKey) return;
+  followRecordsKey = key;
+  list.forEach(f => be.recordIncomingFriend(f.uid, ACCOUNT.uid).catch(e => console.warn('follow: 記録に失敗', f.uid, e)));
 }
 
 /* ---- friends & the お助けモンスター they lend out ---- */
@@ -4513,21 +4546,45 @@ function addFriendFromProfile(p, fallbackPlayerId){
 // incomingFriends はそのうちまだフレンドを返していない人、followerList は全員。
 let incomingFriends = [];
 let followerList = [];
+/* フォロワー一覧の状態。以前は取得に失敗しても黙って戻っていたので、
+   「フォロワーは◯人います」と出ているのに一覧が空、という見分けのつかない状態になっていた。
+   loading / error / uids(取れた人数) を持たせて、画面にそのまま出す。 */
+let followerState = { loading: false, error: null, uids: 0, loaded: 0 };
 async function fetchIncomingFriendsList(){
   const be = authBackend();
-  if(typeof be.fetchIncoming !== 'function' || !ACCOUNT) return;
+  if(typeof be.fetchIncoming !== 'function' || !ACCOUNT){
+    followerState = { loading: false, error: 'ログインすると使えます', uids: 0, loaded: 0 };
+    return;
+  }
+  followerState = { ...followerState, loading: true, error: null };
   let uids;
   try{ uids = await be.fetchIncoming(ACCOUNT.uid); }
-  catch(e){ return; }
+  catch(e){
+    console.warn('followers: incoming の取得に失敗', e);
+    followerState = { ...followerState, loading: false, error: 'フォロワーの一覧を取れませんでした' };
+    render();
+    return;
+  }
   uids = uids.filter(uid => uid !== ACCOUNT.uid);
   if(STATE.followerCount !== uids.length){ STATE.followerCount = uids.length; saveState(); publishProfile(); }
   const known = new Set(STATE.friends.map(f => f.uid));
-  if(!uids.length || typeof be.fetchProfiles !== 'function'){ incomingFriends = []; followerList = []; render(); return; }
+  if(!uids.length || typeof be.fetchProfiles !== 'function'){
+    incomingFriends = []; followerList = [];
+    followerState = { loading: false, error: null, uids: uids.length, loaded: 0 };
+    render();
+    return;
+  }
   let profiles;
   try{ profiles = await be.fetchProfiles(uids); }
-  catch(e){ return; }
+  catch(e){
+    console.warn('followers: プロフィールの取得に失敗', e);
+    followerState = { ...followerState, loading: false, error: 'フォロワーのプロフィールを取れませんでした', uids: uids.length };
+    render();
+    return;
+  }
   followerList = profiles.map(p => friendEntryFromProfile(p));
   incomingFriends = followerList.filter(f => !known.has(f.uid));
+  followerState = { loading: false, error: null, uids: uids.length, loaded: followerList.length };
   render();
 }
 // 「フレンドを返す」: 自分を追加している相手を、自分のフレンドにも追加する
@@ -6886,7 +6943,24 @@ function runeFuseCost(r){ return { gold: 2000 * r.tier }; }
    土台Tier5→6なら Tier5×2 / Tier5×1+Tier4×3 / Tier4×6 のどれでもよい。
    (土台より上のTierは材料にできない。もったいない使い方を防ぐため) */
 function runeFusePoint(tier){ return Math.pow(RUNE_FUSE_COUNT, tier - 1); }
-function runeFuseNeed(base){ return (RUNE_FUSE_COUNT - 1) * runeFusePoint(base.tier); }
+/* 何段上げるかぶんの材料。手で1段ずつ上げたときとぴったり同じ数になる。
+   TierT→T+1 は tierT が2個。T+1→T+2 は tierT+1 が2個 = tierT が6個。…
+   まとめると (3^k - 1) 個ぶん(tierT換算)。
+   例: 土台TierⅣ → Ⅵ は TierⅣ が 8個(2 + 3 + 3)。 */
+function runeFuseNeedFor(base, steps){ return (Math.pow(RUNE_FUSE_COUNT, steps) - 1) * runeFusePoint(base.tier); }
+function runeFuseNeed(base){ return runeFuseNeedFor(base, 1); }
+// 集めた材料で何段上がるか(上限はTier10)
+function runeFuseSteps(base, points){
+  let k = 0;
+  while(base.tier + k < RUNE_TIERS && points >= runeFuseNeedFor(base, k + 1)) k++;
+  return k;
+}
+// 何段ぶんのゴールドか(1段ずつ上げたときの合計と同じ)
+function runeFuseGoldFor(base, steps){
+  let g = 0;
+  for(let i = 0; i < steps; i++) g += runeFuseCost({ tier: base.tier + i }).gold;
+  return g;
+}
 function runeFusePicked(base, matUids){
   const byUid = Object.fromEntries(runeFuseMaterials(base).map(r => [r.uid, r]));
   return [...new Set(matUids)].filter(u => byUid[u]).reduce((sum, u) => sum + runeFusePoint(byUid[u].tier), 0);
@@ -6901,16 +6975,16 @@ function fuseRunes(baseUid, matUids){
   if(base.tier >= RUNE_TIERS) return { ok: false, why: `Tier${RUNE_ROMAN[RUNE_TIERS - 1]}が最大です` };
   const ok = new Set(runeFuseMaterials(base).map(r => r.uid));
   const mats = [...new Set(matUids)].filter(u => ok.has(u));
-  const need = runeFuseNeed(base);
   const have = runeFusePicked(base, mats);
-  if(have < need) return { ok: false, why: `材料が足りません(Tier${RUNE_ROMAN[base.tier - 1]}換算で ${Math.round(have / runeFusePoint(base.tier) * 100) / 100} / ${RUNE_FUSE_COUNT - 1})` };
-  const c = runeFuseCost(base);
-  if((STATE.gold || 0) < c.gold) return { ok: false, why: 'ゴールドが足りません' };
-  STATE.gold -= c.gold;
-  base.tier += 1;
+  const steps = runeFuseSteps(base, have);
+  if(steps < 1) return { ok: false, why: `材料が足りません(Tier${RUNE_ROMAN[base.tier - 1]}換算で ${Math.round(have / runeFusePoint(base.tier) * 100) / 100} / ${RUNE_FUSE_COUNT - 1})` };
+  const gold = runeFuseGoldFor(base, steps);
+  if((STATE.gold || 0) < gold) return { ok: false, why: 'ゴールドが足りません' };
+  STATE.gold -= gold;
+  base.tier += steps;
   const used = new Set(mats);
   STATE.runes = STATE.runes.filter(r => !used.has(r.uid));
-  return { ok: true, rune: base };
+  return { ok: true, rune: base, steps };
 }
 // ルーンの粉の使い道①: サブ効果1つを振り直す(効果の種類と当たり具合を引き直し。メイン・他のサブとはかぶらない)
 function runeRerollCost(r){ return 100 * r.tier; }
@@ -7100,16 +7174,21 @@ function runeFusePanelHtml(r){
   runeDetail.fuse = picked;
   const cost = runeFuseCost(r);
   const unit = runeFusePoint(r.tier);
-  const need = runeFuseNeed(r);                       // 土台Tier換算のポイント
   const have = runeFusePicked(r, picked);
+  const steps = runeFuseSteps(r, have);                 // いま選んでいる材料で上がる段数
+  const maxSteps = RUNE_TIERS - r.tier;
+  const shownSteps = Math.max(1, steps);
+  const need = runeFuseNeedFor(r, shownSteps);
+  const nextNeed = shownSteps < maxSteps ? runeFuseNeedFor(r, shownSteps + 1) : null;
   const asTier = v => Math.round(v / unit * 100) / 100;   // 土台のTierで何個ぶんか
-  const ready = have >= need;
-  const next = { ...r, tier: r.tier + 1 };
+  const ready = steps >= 1;
+  const next = { ...r, tier: Math.min(RUNE_TIERS, r.tier + shownSteps) };
   const afford = (STATE.gold || 0) >= cost.gold;
   const type = RUNE_TYPE_LABEL[runeType(r)];
   return `
-    <div class="rd-cost">合成でTierを上げる<small>このルーン + ${type}ルーン Tier${RUNE_ROMAN[r.tier - 1]}換算で${asTier(need)}個ぶんで Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}。レア度とサブ効果はこのルーンのまま、値が伸びます。材料のレア度は問いません。</small></div>
-    <div class="rf-pick-head">材料 ${asTier(have)} / ${asTier(need)}<small class="rf-conv">Tier${RUNE_ROMAN[r.tier - 1]}換算(1つ下のTierは${RUNE_FUSE_COUNT}個で1個ぶん)</small>${cands.length ? '<button class="btn btn-ghost btn-sm" data-rune-fuse-auto="1">おまかせ</button>' : ''}</div>
+    <div class="rd-cost">合成でTierを上げる<small>このルーン + ${type}ルーン Tier${RUNE_ROMAN[r.tier - 1]}換算で${asTier(runeFuseNeed(r))}個ぶんで1段上がります。材料を増やせば一度に何段でも上げられます(1段ずつ上げたときと同じ数です)。Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}。レア度とサブ効果はこのルーンのまま、値が伸びます。材料のレア度は問いません。</small></div>
+    <div class="rf-pick-head"><b>材料 ${asTier(have)} / ${asTier(need)}</b>${cands.length ? '<button class="btn btn-ghost btn-sm" data-rune-fuse-auto="1">おまかせ</button>' : ''}</div>
+    <div class="rf-conv">Tier${RUNE_ROMAN[r.tier - 1]}換算(1つ下のTierは${RUNE_FUSE_COUNT}個で1個ぶん)${nextNeed !== null ? `　あと<b>${asTier(nextNeed - have)}個ぶん</b>でTier${RUNE_ROMAN[r.tier + shownSteps]}まで` : ''}</div>
     ${cands.length ? `<div class="rf-cands">${cands.map(c => `<button class="rf-cand ${picked.includes(c.uid) ? 'on' : ''}" data-rune-fuse-pick="${c.uid}" aria-label="材料 ${RUNE_STATS[c.main].label} ${RUNE_RARITIES[c.rarity].label}">${runeIconHtml(c, { used: false })}</button>`).join('')}</div>`
       : `<div class="fs-note">材料になるルーン(Tier${RUNE_ROMAN[r.tier - 1]}以下の${type}で、装備・ロックしていないもの)がありません。</div>`}
     <div class="rf-result">${runeIconHtml(r, { used: false })}<span class="rf-arrow">→</span>${runeIconHtml(next, { used: false })}<span class="rf-rtext">Tier${RUNE_ROMAN[next.tier - 1]}<small>レア度・サブ効果はそのまま</small></span></div>
@@ -7119,7 +7198,7 @@ function runeFusePanelHtml(r){
         return `<div class="rf-drow ${d.main ? 'main' : ''}" style="--c:${RUNE_STATS[d.stat].color}"><span>${RUNE_STATS[d.stat].label}${d.main ? '(メイン)' : ''}</span><b>${d.a}${u} → ${d.b}${u}</b></div>`;
       }).join('')}
     </div>
-    <div class="rd-cost-line">${goldText(cost.gold)}</div>
+    <div class="rd-cost-line">${goldText(runeFuseGoldFor(r, shownSteps))}${steps > 1 ? `　<b class="rf-steps">${steps}段いっきに上がります</b>` : ''}</div>
     <button class="btn btn-block" data-rune-fuse-go="1" ${ready && afford ? '' : 'disabled'}>合成する</button>`;
 }
 function renderRuneDetail(){
@@ -7173,9 +7252,9 @@ function renderRuneDetail(){
 function toggleRuneFusePick(uid){
   const r = runeByUid(runeDetail.uid);
   const f = runeDetail.fuse;
-  if(f.includes(uid)){ runeDetail.fuse = f.filter(u => u !== uid); }
-  else if(runeFusePicked(r, f) >= runeFuseNeed(r)) toast('材料は足りています');
-  else f.push(uid);
+  if(f.includes(uid)) runeDetail.fuse = f.filter(u => u !== uid);
+  else if(r.tier + runeFuseSteps(r, runeFusePicked(r, f)) >= RUNE_TIERS) toast(`Tier${RUNE_ROMAN[RUNE_TIERS - 1]}までぶんの材料が足りています`);
+  else f.push(uid);   // 増やすほど上がる段数が増えるので、1段ぶんで打ち止めにはしない
   renderRuneDetail();
 }
 // おまかせ: レア度の低い材料から使う(良いルーンは土台として残るように)
@@ -13548,7 +13627,7 @@ function renderHelperRow(){
       <div class="helper-ic">🤝</div>
       <div class="info">
         <div class="name">お助けモンスター</div>
-        <div class="meta">フレンドから借りられます(お気に入り1枠目)。編成に入れると出撃時のスタミナ+${HELP_STAMINA_SURCHARGE}</div>
+        <div class="meta">フレンドから借りられます(お気に入り1枠目)。編成に入れると出撃時のスタミナ+${HELP_STAMINA_SURCHARGE}。レベルは自分の編成の平均に合わせられます</div>
       </div>
       <button class="btn btn-sm" data-overlay="friends">借りる</button>
     </div>`;
@@ -13558,7 +13637,7 @@ function renderHelperRow(){
       <img src="${imgSrc(m.id)}" alt="${m.name}">
       <div class="info">
         <div class="name"><span class="helper-tag">🤝 お助け</span>${m.name} ${starsHtml(m.rarity, b.mon.star)}</div>
-        <div class="meta"><span class="roster-bp">BP ${battlePower(HELP_SLOT_ID).toLocaleString()}</span>・Lv${b.mon.level}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${escapeHtml(b.name)}から借用中</div>
+        <div class="meta"><span class="roster-bp">BP ${battlePower(HELP_SLOT_ID).toLocaleString()}</span>・${(() => { const o = borrowedOwnedLike(); return o.lentLevel ? `<b class="help-lv">Lv${o.level}</b><small class="help-lv-note">(元Lv${o.lentLevel}・編成の平均に合わせています)</small>` : `Lv${o.level}`; })()}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${escapeHtml(b.name)}から借用中</div>
       </div>
       <div class="helper-acts">
         <button class="btn btn-sm ${placed ? 'btn-ghost' : ''}" data-toggle-helper-slot="1">${placed ? '外す' : '編成'}</button>
@@ -18867,6 +18946,7 @@ function handlePhoneClick(ev){
   const sendPointEl = t.closest('[data-send-friend-point]');
   if(sendPointEl){ sendFriendPoint(sendPointEl.dataset.sendFriendPoint); return; }
   if(t.closest('[data-send-friend-point-all]')){ sendFriendPointAll(); return; }
+  if(t.closest('[data-followers-reload]')){ fetchIncomingFriendsList(); render(); return; }
   if(t.closest('[data-add-friend]')){
     const input = document.getElementById('friend-code-input');
     addFriendByCode(input ? input.value : '');
@@ -19456,6 +19536,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 19, date: '9/29', title: '貸し出しの見直しと、いくつかの追加', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span>借りたモンスターが<em>借りた時のまま</em>で、相手が育てても古いままになっていました。返して借り直さなくても最新に追いつきます。<span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>。★・ワザLv・ルーンはそのままなので、育てた人から借りる意味はちゃんと残ります。自分が育つほど、借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・<em>「全員に送る」</em>を追加しました。まだ今日送っていない人へまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を付けました。読み込めなかったときは、黙って空にせず理由を出します。</span><span class="nt-h">ルーン合成が楽になりました</span><em>下のTierのルーンも材料にできます</em>(Tier1つぶん = 1つ下のTierが3個ぶん)。材料を増やせば<em>一度に何段でも</em>上がり、要る数は1段ずつ上げたときと同じです。<span class="nt-i">・例: TierⅣのルーンをⅥにするには、TierⅣが8個(2＋3＋3)。</span><span class="nt-h">育成クエストに「霊素の鉱脈」が増えました</span><em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入ります。遺物の強化がここでまとめて進められます。<span class="nt-h">EXステージの調整</span>EXはスタミナを使わず何度でも挑めるため、ソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ないように</em>しました。報酬はこれまでどおりイベントミッションで受け取ります。<span class="nt-h">直したところ</span><span class="nt-i">・戦闘結果の「戦績」で棒グラフが出なくなっていたのを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率・会心倍率</em>を追加しました。</span>' },
   { id: 18, date: '9/28', title: '【重要】イベントの開始を今日 9/28(月) 19:00 に早めます', hero: ['ann_ev_fenrir', 'ann_ev_abaddon'], body: '<span class="nt-h">開始時間の変更</span>「嵐呼ぶ神狼」「奈落の王」の2イベントは、予告では 9/29(火) 0:00 開始とお知らせしていましたが、<em>今日 9/28(月) 19:00</em> に早めて開始します。終了はこれまでどおり 10/12(月) 23:59 です。<span class="nt-h">新しい開催期間</span><span class="nt-i">・<em>9/28(月) 19:00 〜 10/12(月) 23:59</em></span><span class="nt-i">・期間限定クエスト(全10層とEXステージ)と、フェンリル・アバドンのピックアップガチャが同時に始まります。</span><span class="nt-h">お詫び: モンスター召喚券を3枚お届けします</span>予告した時間を変更してしまい、申し訳ありません。お詫びとして、<em>モンスター召喚券3枚</em>をプレゼントボックスにお届けしました。ピックアップガチャにもお使いいただけます。<span class="nt-i">・受け取りはホーム画面のプレゼントボックスからどうぞ。</span><span class="nt-i">・お届けするのは、すでに遊んでいる方です。これからはじめる方は対象外です。</span>' },
   { id: 17, at: '2026-09-28T19:00:00+09:00', date: '9/28', title: '「嵐呼ぶ神狼」「奈落の王」2イベント同時開催!', hero: ['ann_ev_fenrir', 'ann_ev_abaddon'], art: ['m68', 'm166', 'm167', 'm139', 'm168', 'm169'], body: '<span class="nt-h">9/28(月) 19:00 〜 10/12(月) 23:59</span>★5の<em>フェンリル</em>と<em>アバドン</em>が主役のイベントを、2つ同時に開催します。それぞれのピックアップガチャで、本人と専用遺物の排出率がアップします。<span class="nt-h">嵐呼ぶ神狼(風)</span>神々をも喰らう巨狼<em>フェンリル</em>。敵を倒すとすぐにもう一度動けます。専用遺物は「グレイプニルの残鎖」。<span class="nt-i">・新★4 <em>ハティ</em>(風/アタッカー) 月を追う狼。味方が会心を出すたびに牙を研ぎます。</span><span class="nt-i">・新★4 <em>スコル</em>(炎/サポーター) 陽を喰らう狼。燃えている敵をさらに焼き上げます。</span><span class="nt-h">奈落の王(闇)</span>底なしの淵を統べる破滅の王<em>アバドン</em>。弱った敵ほど深く斬ります。専用遺物は「ティルヴィングの呪刃」。<span class="nt-i">・新★4 <em>黙示のアルベ</em>(闇/シューター) 冠をかぶった蝗の王。毒を撒いて盤面を溶かします。</span><span class="nt-i">・新★4 <em>ゲヘナの騎士</em>(闇/アタッカー) 硫黄の炎をまとう獅子頭の騎兵。HPの高い敵を狙い撃ちます。</span><span class="nt-h">イベントの入口が1つにまとまりました</span>探索の<em>イベント</em>を開くと、クエスト・EX・ミッション・ショップ・ボーナスモンスターがひと画面に並びます。<span class="nt-i">・<em>期間限定クエスト 全10ステージ</em>。回ると<em>神狼の牙</em>・<em>奈落の刻印</em>が手に入り、イベントショップで育成素材や召喚券と交換できます。メダルはイベントが終わると消えます。</span><span class="nt-i">・<em>イベントボーナス</em> 主役の★5を編成に入れると<em>+40%</em>、注目の★4は各<em>+20%</em>、そのイベントの属性は各<em>+10%</em>(最大+100%)。周回でもらえるメダルが増えます。</span><span class="nt-h">EXステージ(腕試し)</span>ステージ5をクリアすると<em>EX1〜EX3</em>が開きます。<em>スタミナを使わず何度でも</em>挑めますが、ステージごとに<em>特別なルール</em>があり、編成しだいで強さが大きく変わります。<span class="nt-i">・例:「神々の黄昏」EX1では<em>ビースト</em>が大幅に強くなり、<em>セレスティア</em>は大きく弱くなります。「底なしの淵」EX1では<em>闇</em>が強くなり、<em>光</em>はほとんど通りません。</span><span class="nt-i">・報酬はイベントミッションでまとめて受け取ります(星結晶3,500ぶん＋モンスター召喚券15枚ぶん＋称号)。</span><span class="nt-h">イベントミッションと称号</span>イベント専用のミッションを14本用意しました。達成すると<em>称号</em>が手に入り、プロフィールで名前の上に付けられます。イベントが終わっても称号は残ります。<span class="nt-i">・神狼を狩る者 / 嵐を継ぐ者 / 黄昏を超えし者 / 奈落に立つ者 / 深淵を覗く者 / 底なしを踏破せし者</span>' },
   { id: 16, date: '9/29', title: 'α0.2 オート周回・召喚券・名前の整理', body: '<span class="nt-h">オート周回ができるようになりました</span>★3でクリアずみのステージを、回数と速さを選んで自動で回せます。メインクエストもイベントも対象です。<span class="nt-i">・回数は 1 / 5 / 10 / 20 / 最大。速さは <em>×1・×2・×3・×4</em> と「結果だけ」から選べます(<em>4倍速</em>を新しく追加しました)。</span><span class="nt-i">・戦闘をそのまま回すので、終わったあとに出る<em>MVP・最大ダメージ・勝敗・連勝</em>は本物の戦績です。</span><span class="nt-i">・上に進みぐあいのリングが出て、取った物が下に積み上がっていきます。<em>当たりが出たときだけ手が止まります</em>(Tier4のワザ強化素材・遺物・★5ソウル・仲間入り)。</span><span class="nt-i">・負けた・スタミナ切れ・「止める」で停止します。</span><span class="nt-h">召喚券と周回券</span><span class="nt-i">・<em>モンスター召喚券 / 遺物召喚券</em>(1回・10連)を追加しました。天井も召喚ポイントも、星結晶で引いた時と同じに数えます。</span><span class="nt-i">・<em>育成クエスト周回券 / メインクエスト周回券</em>を追加しました。スタミナのかわりに1回まわせます。</span><span class="nt-h">スタミナ回復が1日8回・段々値上がりに</span><span class="nt-i">・<em>無料 / 50 / 100 / 150 / 200 / 300 / 400 / 500</em> と上がっていきます(1日でスタミナ1,200ぶん)。毎日4時に戻ります。</span><span class="nt-h">アイテム欄に「ソウル」欄が増えました</span><span class="nt-i">・モンスターごとのソウルと、遺物ごとの<em>共鳴石</em>の持ち数が一覧で見られます。押すとそのモンスター/遺物の画面に移れます。</span><span class="nt-h">ゲーム内の名前を整理しました</span>遊び方は変わりません。持っているものや進みぐあいも何も変わりません。呼び名だけを分かりやすく整えました。<span class="nt-i">・昇格 → <em>星刻</em>(せいこく)　限界突破 → <em>上限解放</em>(★で決まるほうは<em>最大レベル</em>)</span><span class="nt-i">・必殺技 → <em>奥義</em>。通常攻撃・スキル・パッシブ・奥義をまとめて<em>ワザ</em>と呼びます。</span><span class="nt-i">・キャラ → <em>モンスター</em>。下のメニューの「キャラ」は<em>育成</em>になりました。お助けキャラ → <em>お助けモンスター</em>、HATE → <em>ヘイト</em>(狙われやすさ)。</span><span class="nt-i">・遺物の覚醒 → <em>共鳴</em>。かぶった同じ遺物は<em>「〇〇の共鳴石」</em>として持ち、これで共鳴します。どの遺物にも使える石は<em>無形の共鳴石</em>です。</span><span class="nt-i">・遺物のスクラップ → <em>霊素鉱</em>　遺物のコア → <em>霊素核</em>　アーティファクト工房 → <em>霊素工房</em></span><span class="nt-i">・結晶・水晶 → <em>星結晶</em>　育成ダンジョン → <em>育成クエスト</em>(<em>EXPの泉</em>・<em>黄金の洞窟</em>)　育成素材・スキル素材 → <em>ワザ強化素材</em></span><span class="nt-i">・イベントの「◯層」と育成クエストの「Lv◯」→ <em>ステージ◯</em>。深淵回廊は今までどおり「階」です。</span><span class="nt-i">・パーティ(画面・操作の意味) → <em>編成</em>　ミッションの「初心者」 → <em>はじめてガイド</em></span><span class="nt-h">そのほか</span><span class="nt-i">・伝説級・神話級で<em>TierIのワザ強化素材</em>が落ちるようになりました(1体を仕上げるのに要るスタミナがだいたい半分に)。</span><span class="nt-i">・やけどに<em>延焼</em>を追加。シールドは切れるとき、残っていたぶんが<em>HPに戻る</em>ようになりました。</span><span class="nt-i">・錬金術で<em>霊素核</em>を錬成できるようになりました(TierI×5→II / II×5→III)。PVPをやらなくても遺物スキルを上げきれます。</span><span class="nt-i">・新しい遺物2つ(<em>霜嵐の牙飾り</em>・<em>奈落を覗く眼</em>)と、<em>星刻</em>(★6〜★10でモンスター固有の効果が開く)を追加しました。</span>' },
@@ -19477,6 +19558,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 123, version: 'α0.2.007', date: '9/29', title: '貸し出し・ルーン合成・霊素の鉱脈', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span><span class="nt-i">・借りたモンスターが<em>借りた時のまま</em>で、相手が育ててもフレンド画面を開き直すまで古いままでした。返して借り直さなくても最新に追いつきます。</span><span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>(遺物のレベルも同じ割合に)。★・ワザLv・ルーンはそのままです。自分が育つほど借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・フレンドリストに<em>「全員に送る」</em>を追加。まだ今日送っていない人にまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を追加し、読み込みに失敗したときは画面に理由を出すようにしました(今までは黙って空のままでした)。</span><span class="nt-h">ルーン合成</span><span class="nt-i">・<em>下のTierのルーンも材料にできます</em>。Tier1つぶん = 1つ下のTierが3個ぶんです。</span><span class="nt-i">・材料を増やせば<em>一度に何段でも</em>上がります。数は1段ずつ上げたときとぴったり同じです(例: TierⅣ→Ⅵ は TierⅣが8個)。</span><span class="nt-i">・「おまかせ」は低いTier・低いレア度から使います(良いルーンと高いTierを残すため)。</span><span class="nt-h">育成クエスト「霊素の鉱脈」を追加</span><span class="nt-i">・<em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入る5ステージです。遺物をLv200まで上げるには霊素鉱が20万個ほど要るのに、工房の放置生産だけでは足りていませんでした。</span><span class="nt-h">EXステージ</span><span class="nt-i">・EXは<em>スタミナ0で何度でも</em>挑めるため、ボスのソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ない</em>ようにしました。報酬はこれまでどおりイベントミッションで受け取ります。</span><span class="nt-h">そのほか</span><span class="nt-i">・戦闘結果の「戦績」で<em>棒グラフが出なくなっていた</em>のを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率と会心倍率</em>を追加しました(遺物・ルーンのぶんは内訳も出ます)。</span>' },
   { id: 122, version: 'α0.2.006', date: '9/28', title: 'スタミナ回復の値上がりをゆるやかに', body: '星結晶でのスタミナ回復(+150)は、1回目が無料で、そのあとは<em>同じ値段で3回ずつ</em>買えるようになりました(50×3 → 100×3 → 150×3 → 200×3 → 300×3 → 400×3 → 500×3)。1日に回復できる回数は8回から<em>22回</em>に増えます。' },
   { id: 121, version: 'α0.2.005', date: '9/28', title: '周回は「結果だけ」から', body: '<span class="nt-i">・周回を開くと、最初から<em>「結果だけ」</em>が選ばれるようにしました。スタミナを使って、戦闘をせずに報酬だけをまとめて受け取れます。×1〜×4の速さを選ぶと、次からはその速さを覚えています。</span><span class="nt-i">・イベントのステージを「結果だけ」で回したとき、結果に<em>イベントメダル</em>(イベントボーナスこみ)を出すようにしました。ボーナスは今の編成で数えます。</span>' },
   { id: 120, version: 'α0.2.004', date: '9/28', title: 'ガチャとイベントショップを使いやすく', body: '<span class="nt-i">・ガチャのピックアップの切り替えを、イベント一覧と同じ横スクロールにしました。</span><span class="nt-i">・ガチャやイベントの切り替えボタンを押しても、横スクロールの位置が最初に戻らないようにしました。</span><span class="nt-i">・イベントショップの品の左にアイコンを付け、値段はメダルのアイコンと数字で表示するようにしました。</span><span class="nt-i">・モンスター召喚券・遺物召喚券(1回券)で<em>10連</em>を引けるようになりました。券が10枚に足りないときは、足りない回数ぶんを星結晶で払えます(10連と同じ単価で、1回135)。</span>' },
@@ -20106,11 +20188,19 @@ function renderFriendAddView(){
     </div>`;
 }
 function renderFollowersView(){
+  const st = followerState;
+  const missing = Math.max(0, st.uids - st.loaded);
   return `
-    <div class="mc-head" style="margin:4px 2px 8px;">フォロワー(${STATE.followerCount || 0})</div>
+    <div class="row-between" style="margin:4px 2px 8px;">
+      <div class="mc-head">フォロワー(${STATE.followerCount || 0})</div>
+      <button class="btn btn-ghost btn-sm" data-followers-reload="1" ${st.loading ? 'disabled' : ''}>${st.loading ? '読み込み中…' : '🔄 再読み込み'}</button>
+    </div>
     <div class="screen-sub" style="margin:-2px 2px 8px;">あなたをフレンドに追加している人です。「フレンドを返す」でお互いのフレンドになれます。</div>
+    ${st.error ? `<div class="ui-warn">${st.error}。通信の状態を確かめて「再読み込み」を押してください。</div>` : ''}
+    ${!st.error && missing > 0 ? `<div class="ui-warn">${st.uids}人のうち${missing}人のプロフィールが読めませんでした(相手がデータを消した可能性があります)。</div>` : ''}
     ${followerList.length
       ? `<div class="panel panel-tight">${followerList.map(f => socialRowHtml(f, 'follower')).join('')}</div>`
+      : st.loading ? '<div class="screen-sub" style="margin:16px 0; text-align:center;">読み込み中…</div>'
       : '<div class="screen-sub" style="margin:16px 0; text-align:center;">まだフォロワーがいません</div>'}`;
 }
 function renderFriendsOverlay(){
