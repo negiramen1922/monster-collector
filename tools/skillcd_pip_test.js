@@ -52,8 +52,8 @@ ok('スキル1発動後、skillCdMax[0]も同じ満タン値に更新される(0
 u.sp = 0;
 u.skillCd = [999, 0]; // スキル2だけ使用可能
 E.takeTurn(u);
-const expectedFull1 = E.skillCt(u, 1) + 1; // スキル2は発動後も+1ターン
-ok('スキル2発動後、skillCd[1]とskillCdMax[1]がスキル2用の満タン値(CT+1)に更新される', u.skillCd[1] === expectedFull1 && u.skillCdMax[1] === expectedFull1, [u.skillCd[1], u.skillCdMax[1], expectedFull1]);
+const expectedFull1 = E.skillCt(u, 1);   // 新バトルシステムではスキル2の再CTの+1は撤廃(旧は+1)
+ok('スキル2発動後、skillCd[1]とskillCdMax[1]がスキル2用の満タン値に更新される', u.skillCd[1] === expectedFull1 && u.skillCdMax[1] === expectedFull1, [u.skillCd[1], u.skillCdMax[1], expectedFull1]);
 
 // --- 4. 実際のバトル画面レンダリングでピップのHTMLが正しく出る ---
 let html = E.renderBattleFight();

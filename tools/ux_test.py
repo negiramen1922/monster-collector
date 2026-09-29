@@ -76,7 +76,8 @@ async def main():
             check('レベルアップが詳細の一番上にある',
                   order[0].startswith('detail-head') and 'lv-card' in order[1]
                   and all('lv-card' not in c for c in order[2:]), str(order[:4]))
-            check('レベルで変わる数字が色つき', await pg.evaluate("() => document.querySelectorAll('.detail-stats .lv-stat').length") == 5)
+            # HP/STR/物防/魔防/SPD の5つ + 会心率・会心倍率(α0.2.008で追加)の2つ
+            check('レベルで変わる数字が色つき', await pg.evaluate("() => document.querySelectorAll('.detail-stats .lv-stat').length") == 7)
             check('スキル説明の下に強化ボタンがある',
                   await pg.evaluate("() => document.querySelectorAll('.detail-skill-box .skill-upgrade [data-skill-up]').length") == 3)
 

@@ -3065,7 +3065,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.2.009';
+const GAME_VERSION = 'α0.3.000';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3600,10 +3600,26 @@ function slotOwnedLike(id){
   return id === HELP_SLOT_ID && STATE.borrowed ? borrowedOwnedLike() : STATE.owned[id];
 }
 const TUTORIAL_REPLAY_STAMINA = 10; // 初回無料。2回目以降は通常ステージと同じ消費にする
+/* 新バトルシステムでのクリア記録。1ステージにつき1回だけ、お試しのスタミナ0と
+   テスト協力ぶんの星結晶に使う。EXはステージを作り直すので、初回クリア報酬ごと配り直す。 */
+function ensureV2Cleared(){
+  if(typeof STATE === 'undefined' || !STATE) return [];   // セーブを読む前に呼ばれることがある
+  if(!Array.isArray(STATE.v2Cleared)) STATE.v2Cleared = [];
+  return STATE.v2Cleared;
+}
+function v2ClearedHas(id){ return ensureV2Cleared().includes(id); }
+function battleV2ClearCrystal(stage){
+  if(!stage || stage.tier === 'tu') return 0;
+  if(stage.type === 'event') return BATTLE_V2_CLEAR_CRYSTAL.event;
+  if(stage.type === 'main') return BATTLE_V2_CLEAR_CRYSTAL.main;
+  return 0;   // 育成クエスト・深淵・PVPは対象外
+}
 function stageStaminaCost(stage){
   // tutorial: free only the first time. Once cleared, farming it for its firstClear
   // reward would otherwise be free forever, so it costs the normal amount after that.
   if(stage.tier === 'tu') return STATE.clearedStages.includes(stage.id) ? TUTORIAL_REPLAY_STAMINA : 0;
+  // 新バトルシステムのお試し。1ステージにつき1回だけタダで挑める(2回目からは通常どおり)
+  if(battleV2() && !v2ClearedHas(stage.id)) return 0;
   if(!stage.stamina) return 0;
   return stage.stamina + (STATE.slots.includes(HELP_SLOT_ID) ? HELP_STAMINA_SURCHARGE : 0);
 }
@@ -4993,6 +5009,8 @@ const DEFAULT_STATE = () => ({
   presentBox: [],          // [{ id, label, reward:[...], receivedAt }] - claimable gifts (stamina overflow, compensation, etc.)
   presentBoxSeq: 0,        // next presentBox entry id
   giftsGranted: {},        // COMPENSATION_GIFTS id → true once delivered to this save's presentBox
+  battleV2: true,          // 新バトルシステム。false で旧に戻る(設定 →「バトルシステム」)
+  v2Cleared: [],           // 新バトルシステムでクリアずみのステージid。初回だけスタミナ0＋星結晶
 });
 
 let STATE = null;
@@ -6736,7 +6754,7 @@ function applyRelicCore(u, mon, def, st){
   const dupeMult = 1 + (st.dupeUsed || 0) * RELIC_DUPE_BONUS;
   const growthMult = relicGrowthMult(st.level) * dupeMult;
   if(def.base){
-    if(def.base.hp){ const add = Math.round(def.base.hp * growthMult); u.maxHp += add; u.hp += add; }
+    if(def.base.hp){ const add = Math.round(def.base.hp * growthMult * hpScale()); u.maxHp += add; u.hp += add; }
     if(def.base.atk){ const add = Math.round(def.base.atk * growthMult); u.str += add; }
     if(def.base.spd){ const add = Math.round(def.base.spd * growthMult); u.spd += add; }
   }
@@ -7656,7 +7674,7 @@ function runSweep(stageId, times, useTicket){
       track('staminaUsed', stage.stamina);
     }
     track('sweep');
-    const r = stage.type === 'dungeon' ? grantDungeonRewards(stage) : grantStageRewards(stage, sweepSpawned(stage), party);
+    const r = stage.type === 'dungeon' ? grantDungeonRewards(stage) : grantStageRewards(stage, sweepSpawned(stage), party, { sweep: true });
     if(r.medal){ if(!total.medal) total.medal = { ...r.medal, n: 0 }; total.medal.n += r.medal.n; }
     total.runs++;
     total.gold += r.gold || 0;
@@ -7725,7 +7743,7 @@ function autoRunCollect(b){
   a.bestStreak = Math.max(a.bestStreak, a.streak);
   const r = b.rewards || {};
   a.gold += r.gold || 0;
-  a.crystals += r.crystals || 0;
+  a.crystals += (r.crystals || 0) + (r.v2Crystals || 0);
   a.dust += r.dust || 0;
   a.runes.push(...(r.runes || []));
   (r.items || []).forEach(x => { a.items[x.key] = (a.items[x.key] || 0) + x.n; });
@@ -8022,11 +8040,48 @@ function grantDungeonRewards(stage){
 /* ---------------- stat scaling ---------------- */
 
 // battle stats = base × (1 + promotions × 10%) × (1 + (Lv − 1) × 1%)
+/* ================= 新バトルシステム(α0.3) =================
+   設定 →「バトルシステム」で 旧/新 を切り替える(既定は新)。
+   旧に戻すと HP・BP の表示まで旧の数字に戻るので、見た目と戦闘がズレることはない。
+   深淵とPVPは記録が混ざるので、新のときだけ遊べる(enterGuardBattleV2)。
+   どう変わるかと、そう決めた理由は docs/やり残し.md の「バトルシステム刷新」を見ること。 */
+const BATTLE_V2_HP_SCALE   = 2;      // 全モンスターのHP(遺物の固定値ぶんも)
+const BATTLE_V2_SP_PER_PCT = 1.25;   // 被弾SP: 基準HPの1%を失うごとに
+const BATTLE_V2_SP_HEAL    = 20;     // 味方を回復したとき、回復した側に
+const BATTLE_V2_SP_WAVE    = 30;     // ウェーブ突破で味方全員に
+const BATTLE_V2_SP_KILL    = 25;     // 撃破(旧は15)
+const BATTLE_V2_HIT_CAP    = 60;     // 被弾SPの1ラウンド上限(旧は10)
+const BATTLE_V2_ULT_ADJ    = { tank: -30, shooter: -20 };   // 奥義の必要SP
+const BATTLE_V2_ULT_MIN    = 40;
+const BATTLE_V2_MOB_LV     = 10;     // ボス以外の敵は推奨レベル-10
+const BATTLE_V2_SHIELD_CAP = 1.0;    // シールドの上限(旧は0.5)
+const BATTLE_V2_BP_HP      = 0.3;    // BPのHPの重み(旧は0.6)。HP2倍ぶんを表示で打ち消す
+const BATTLE_V2_CLEAR_CRYSTAL = { main: 10, event: 20 };    // テスト協力のお礼
+function battleV2(){ return typeof STATE !== 'undefined' && STATE ? STATE.battleV2 !== false : true; }
+function hpScale(){ return battleV2() ? BATTLE_V2_HP_SCALE : 1; }
+function shieldCapRatio(){ return battleV2() ? BATTLE_V2_SHIELD_CAP : SHIELD_CAP_RATIO; }
+function ultSpCostFor(role, sp){
+  if(!battleV2()) return sp;
+  return Math.max(BATTLE_V2_ULT_MIN, sp + (BATTLE_V2_ULT_ADJ[role] || 0));
+}
+// 被弾SPの基準になるHP。「そのレベル・★の平均的なモンスター」のHP。
+// 自分のHPで割るとタンクほど損をするので、全ロール共通のものさしにする。
+const AVG_BASE_HP = {};
+function avgBaseHp(star, level){
+  const key = star + '/' + level;
+  if(AVG_BASE_HP[key] == null){
+    let total = 0;
+    MONSTERS.forEach(m => { total += scaledStats(m, star, level).hp; });
+    AVG_BASE_HP[key] = total / Math.max(1, MONSTERS.length);
+  }
+  return AVG_BASE_HP[key];
+}
+
 function scaledStats(mon, star, level){
   const promotions = Math.max(0, (star || mon.rarity) - mon.rarity);
   const mult = (1 + promotions * PROMOTION_STAT_BONUS) * (1 + ((level || 1) - 1) * LEVEL_STAT_BONUS);
   return {
-    hp: Math.round(mon.hp * mult),
+    hp: Math.round(mon.hp * mult * hpScale()),
     str: Math.round(mon.str * mult),
     pdef: Math.round(mon.pdef * mult),
     mdef: Math.round(mon.mdef * mult),
@@ -8526,7 +8581,7 @@ function battlePower(id){
     ? statsWithSnap(m, o.star, o.level, o.relic, o.runes)
     : statsWithRelic(m, o.star, o.level, equippedRelicOf(id), runeBonusOf(id));
   // 会心はSTRの期待値として少しだけ乗せる(基本の会心率・倍率ぶんは全員同じなので入れない)
-  const base = (st.hp * 0.6 + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * 4 + st.spd * 1.5);
+  const base = (st.hp * (battleV2() ? BATTLE_V2_BP_HP : 0.6) + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * 4 + st.spd * 1.5);
   const kit = 1
     + ((o.skillLv || 1) - 1) * 0.04
     + ((o.skill2Lv || 1) - 1) * 0.04
@@ -14436,8 +14491,10 @@ function skillSlotsOf(mon, star){
   return skillSlotsFor(star || mon.rarity) >= 2 ? [kit.skill1, kit.skill2 || kit.skill1] : [kit.skill1];
 }
 function skillCt(unit, slot){ return Math.max(1, unit.skills[slot].ct - (unit.ctReduce || 0)); }
-// slot 1 opens halfway through its first cooldown; slot 2 one turn later than its CT
+// 旧: スキル1は初回CTの半分から、スキル2はCT+1(=ほぼ出番が来ない)
+// 新: どちらも開幕から使える。出す順番は takeTurn のローテーションで決まる
 function initialSkillCds(unit){
+  if(battleV2()) return unit.skills.map(() => 0);
   return unit.skills.map((_, i) => i === 0 ? Math.ceil(skillCt(unit, 0) / 2) : skillCt(unit, i) + 1);
 }
 
@@ -14495,7 +14552,8 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     isEnemy, boss: !!boss, alive: true, vanished: false,
     kit, normal: kit.normal, skills: skillSlotsOf(mon, curStar), skillCd: [], ctReduce: 0,
     ult: kit.ult, passive: kit.passive || {},
-    sp: 0, spCost: kit.ult.sp, spHitRound: 0, ultReserved: false,
+    sp: 0, spCost: ultSpCostFor(mon.role, kit.ult.sp), spHitRound: 0, ultReserved: false,
+    spRefHp: Math.max(1, Math.round(avgBaseHp(curStar, isEnemy ? (stageLevel || 1) : (charLevel || 1)) * mult)),
     baseHate: mon.hate, hate: mon.hate, hateMult: HATE_GAIN_MULT[mon.role] || 1,
     row: 'front', x: 0, slot: 0, penalty: false,
     dmgCut: 0, pierce: 0, bonusCrit: 0, spGain: 0, regen: 0,
@@ -14544,7 +14602,9 @@ function spawnWave(stage, waveIndex){
   slots.forEach((e, i) => {
     if(!e) return;
     const sk = stage.enemySkill || 1;
-    const u = buildUnit(MON_BY_ID[e.ref], e.level, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: sk });
+    // 新バトルシステム: ボスだけが推奨レベルどおり。取り巻きはそれより下
+    const lv = battleV2() && !e.boss ? Math.max(1, (e.level || 1) - BATTLE_V2_MOB_LV) : e.level;
+    const u = buildUnit(MON_BY_ID[e.ref], lv, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: sk });
     u.rare = !!e.rare;
     u.gimmick = e.gimmick || null;
     u.levelHint = e.level;
@@ -14633,6 +14693,8 @@ function setPvpDefense(){
   render();
 }
 function startPvpBattle(opponent){
+  // 記録が混ざるので、PVPは新バトルシステムでしか戦わない
+  if(!battleV2()){ toast('PVPは新バトルシステムでのみ挑戦できます(設定 → バトルシステム)'); return; }
   if(!hasPvpForm('attack')){ toast('PVP攻撃編成を設定してください'); return; }
   if(pvpChallengesLeft() <= 0){ toast('本日の挑戦回数は使い切りました'); return; }
   const defense = sanitizeDefense(opponent.defense);
@@ -14775,6 +14837,7 @@ function startBattle(stageId, opts){
   if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier, stage.dungeon) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
   if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。モンスター → ルーン で分解してください`); return; }
   if(stage.type === 'abyss'){
+    if(!battleV2()){ toast('深淵回廊は新バトルシステムでのみ挑戦できます(設定 → バトルシステム)'); return; }
     if(!abyssUnlocked()){ toast('上級をクリアすると挑戦できます'); return; }
     if(stage.floor !== ensureAbyss().floor){ toast(`${ensureAbyss().floor}階から挑戦できます`); return; }
   }
@@ -16686,7 +16749,7 @@ function dispelBuff(u, thief){
 function shieldTotal(u){ return u.shields.reduce((s, x) => s + x.amt, 0); }
 function addShield(u, amt, turns, caster, immune){
   if(!u.alive) return 0;
-  const room = Math.max(0, Math.round(u.maxHp * SHIELD_CAP_RATIO) - shieldTotal(u));
+  const room = Math.max(0, Math.round(u.maxHp * shieldCapRatio()) - shieldTotal(u));
   const add = Math.min(Math.round(amt), room);
   if(add <= 0) return 0;
   u.shields.push({ amt: add, turns, skip: battleUI.currentActor === u, caster, immune: !!immune });
@@ -16907,6 +16970,8 @@ function healUnit(healer, target, amount, opts){
     if(healer === target) healer.report.healSelf += gained;
     else healer.report.healAlly += gained;
   }
+  // 新バトルシステム: 味方を回復した側にもSPが入る(サポートの蛇口。被弾と同じ上限枠)
+  if(battleV2() && healer && healer !== target && gained > 0) gainSp(healer, BATTLE_V2_SP_HEAL, 'hit');
   if(healer && opts && opts.bySkill && healer.passive.cleanseOnHeal) cleanseOne(target);
   return gained;
 }
@@ -16914,10 +16979,16 @@ function healUnit(healer, target, amount, opts){
 /* ---- SP ---- */
 
 function spReady(unit){ return unit.alive && unit.sp >= unit.spCost; }
+// 新バトルシステムの被弾SP。自分のHPではなく「そのレベルの平均的なHP」で割るので、
+// HPの多いタンクが損をしない。1発で基準HPを丸ごと失っても100%ぶんで頭打ち。
+function spFromDamage(unit, dmg){
+  const ref = unit.spRefHp || unit.maxHp || 1;
+  return Math.max(1, Math.round(BATTLE_V2_SP_PER_PCT * Math.min(100, dmg / ref * 100)));
+}
 function gainSp(unit, amount, source){
   if(!unit.alive || amount <= 0) return;
   if(source === 'hit'){
-    const room = SP_HIT_CAP_PER_ROUND - unit.spHitRound;
+    const room = (battleV2() ? BATTLE_V2_HIT_CAP : SP_HIT_CAP_PER_ROUND) - unit.spHitRound;
     if(room <= 0) return;
     amount = Math.min(amount, room);
     unit.spHitRound += amount;
@@ -17015,7 +17086,7 @@ function strike(ctx, target, o){
   addHate(actor, Math.min(HATE_DAMAGE_CAP_PCT, dmg / target.maxHp * 100) * HATE_PER_DAMAGE_PCT);
   pushFx(target, dmg, 'hit', { crit, eff: effectivenessOf(actor, target), fx: o.fx || hitEffectFor(actor, kind, atk),
     el: (kind !== 'normal' || atk === 'mag') && actor.element !== 'none' ? actor.element : null });
-  gainSp(target, SP_ON_HIT, 'hit');
+  gainSp(target, battleV2() ? spFromDamage(target, dmg) : SP_ON_HIT, 'hit');
   if(crit){ runPassive(actor, 'onCrit'); sideOf(actor).forEach(a => { if(a !== actor && a.alive) runPassive(a, 'onAllyCrit', actor); }); }
   if(actor.flags.frenzy && actor.alive) healUnit(actor, actor, dmg * 0.2);
   if(!o.noOnHit) runPassive(actor, 'onHitTarget', target);
@@ -17099,7 +17170,7 @@ function performAction(actor, kind, act, slot){
   actor.flags.turnedOnAllies = false;
   if(kind === 'ult' && actor.report) actor.report.ults += 1;
   if(kind === 'skill') runPassive(actor, 'onSkillUsed', act);
-  if(b.killedThisAction) gainSp(actor, SP_ON_KILL, 'kill');
+  if(b.killedThisAction) gainSp(actor, battleV2() ? BATTLE_V2_SP_KILL : SP_ON_KILL, 'kill');
   if(ctx.hits.length){
     const crit = ctx.hits.some(h => h.crit) ? '会心の一撃!' : '';
     const parts = summarizeHits(ctx.hits);
@@ -17561,10 +17632,17 @@ function takeTurn(u){
     }
   }else{
     let slot = -1;
-    for(let i = 0; i < u.skills.length; i++){ if(u.skillCd[i] <= 0){ slot = i; break; } }
+    if(battleV2()){
+      // スキル1 → スキル2 → スキル1 … と順番に使う(前回使った次のスロットから探す)
+      const n = u.skills.length, from = ((u.lastSlot == null ? n - 1 : u.lastSlot) + 1) % n;
+      for(let k = 0; k < n; k++){ const i = (from + k) % n; if(u.skillCd[i] <= 0){ slot = i; break; } }
+      if(slot >= 0) u.lastSlot = slot;
+    }else{
+      for(let i = 0; i < u.skills.length; i++){ if(u.skillCd[i] <= 0){ slot = i; break; } }
+    }
     const skill = slot >= 0 ? u.skills[slot] : null;
     if(skill && (hasFoe || skill.tgt === 'self' || String(skill.tgt).startsWith('ally'))){
-      u.skillCd[slot] = skillCt(u, slot) + (slot === 0 ? 0 : 1);
+      u.skillCd[slot] = skillCt(u, slot) + (battleV2() || slot === 0 ? 0 : 1);
       u.skillCdMax[slot] = u.skillCd[slot];
       performAction(u, 'skill', skill, slot);
     }else if(bound){
@@ -17780,7 +17858,8 @@ function advanceWave(){
       u.hp = Math.min(u.maxHp, u.hp + heal);
     }
   });
-  logLine('パーティは体勢を立て直した(HP一部回復)', 'heal');
+  if(battleV2()) battleUI.party.forEach(u => gainSp(u, BATTLE_V2_SP_WAVE, 'wave'));
+  logLine(battleV2() ? 'パーティは体勢を立て直した(HPとSPが一部回復)' : 'パーティは体勢を立て直した(HP一部回復)', 'heal');
   renderBattleScreenOnly();
 
   const b = battleUI;
@@ -17982,6 +18061,7 @@ function showBattleResult(tab){
       ...r.items.map(m => `<span class="gain-chip" title="${itemName(m.key)}">${itemIcon(m.key)} ×${m.n}</span>`),
       r.dust ? `<span class="gain-chip">✨ルーンの粉 ×${r.dust}</span>` : '',
       r.crystals ? `<span class="gain-chip first">初回クリア ${CRYSTAL_ICON}${r.crystals}</span>` : '',
+      r.v2Crystals ? `<span class="gain-chip first">新バトルシステム ${CRYSTAL_ICON}${r.v2Crystals}</span>` : '',
       ...(r.firstItems || []).map(x => `<span class="gain-chip first">${rewardHtml([x])}</span>`),
     ].filter(Boolean).join('');
     const newJoins = r.souls.filter(x => x.joined);
@@ -18123,7 +18203,7 @@ function closeModal(){
 }
 
 // rewards for a cleared main stage. `spawned` = every enemy unit that appeared (all defeated on a win)
-function grantStageRewards(stage, spawned, party){
+function grantStageRewards(stage, spawned, party, opts){
   const items = [];
   const add = (key, n) => { if(n <= 0) return; addItem(key, n); const hit = items.find(x => x.key === key); if(hit) hit.n += n; else items.push({ key, n }); };
   const gold = stage.gold || 0;
@@ -18172,6 +18252,19 @@ function grantStageRewards(stage, spawned, party){
   const souls = Object.entries(soulTotals).map(([id, n]) => ({ ...giveSouls(id, n), rare: spawned.some(u => u.ref === id && u.rare), boss: spawned.some(u => u.ref === id && u.boss), recruit: recruited.includes(id) }));
   souls.filter(x => x.joined).forEach(x => logEvent('monster_join', { monster: x.id, rarity: MON_BY_ID[x.id].rarity, how: x.recruit ? 'recruit' : 'souls' }));
 
+  // 新バトルシステムでの初クリア。テスト協力ぶんの星結晶(EXは初回クリア報酬ごと配り直す)
+  let v2Crystals = 0;
+  if(battleV2() && !(opts && opts.sweep) && !v2ClearedHas(stage.id)){
+    ensureV2Cleared().push(stage.id);
+    v2Crystals = battleV2ClearCrystal(stage);
+    if(v2Crystals) STATE.crystals += v2Crystals;
+    // EXは新システム用に組み直したので、クリア済みでももう一度「初回」として扱う
+    if(stage.ex){
+      const at = STATE.clearedStages.indexOf(stage.id);
+      if(at >= 0) STATE.clearedStages.splice(at, 1);
+    }
+  }
+
   // first clear
   let crystals = 0;
   const firstItems = [];
@@ -18189,7 +18282,7 @@ function grantStageRewards(stage, spawned, party){
   track('exploreClear');   // デイリー「探索を3回」: 周回・育成クエストも同じく数える
   if(stage.boss) track('bossClear');
   souls.filter(x => x.joined).forEach(() => track('befriend'));
-  return { items, gold, souls, crystals, firstItems, medal: medalGot };
+  return { items, gold, souls, crystals, firstItems, medal: medalGot, v2Crystals };
 }
 
 function renderBattleFight(){
@@ -19568,6 +19661,9 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 22, date: '9/29', title: '【重要】戦闘システムが大きく変わります', body: '<span class="nt-h">設定から新旧どちらでも遊べます</span>戦闘の仕組みを作り直しました。設定 → 戦闘 →<em>「新バトルシステム」</em>で、いつでも前の戦闘に戻せます。<span class="nt-h">なぜ変えるのか</span>これまでの戦闘には、作った側から見ても はっきりした問題がありました。<span class="nt-i">・タンクとサポートの奥義が、1戦闘でほぼ一度も撃てていませんでした(実測 タイタン <em>0.02回</em>/戦・ユニコーン <em>0.01回</em>/戦。アタッカーは0.8回)</span><span class="nt-i">・敵はスキル2も奥義も、一度も撃っていませんでした(実測 <em>0.00回</em>)</span><span class="nt-i">・後衛は敵の1撃で最大HPの<em>67%</em>を失っていて、2発で落ちる状態でした</span><span class="nt-i">・1ウェーブが平均2.1ラウンドで終わるため、SPDの低いタンクは手番の<em>40%</em>が回ってこないまま戦闘が終わっていました</span>つまり、モンスターごとに作り込んだワザや奥義が、ほとんど画面に出ていませんでした。ここを直します。<span class="nt-h">ご協力ください</span>新バトルシステムはまだ調整中です。遊んでみて「ここが変」「前のほうがよかった」があれば教えてください。戦闘のおもしろさを上げるために、力を貸してください。<span class="nt-h">協力のお礼</span>新バトルシステムでステージをクリアすると、星結晶をお配りします。<span class="nt-i">・メインクエスト 1ステージにつき <em>10個</em></span><span class="nt-i">・イベント 1ステージにつき <em>20個</em></span><span class="nt-i">・EXステージ クリア報酬を配りなおします</span>新バトルシステムでの初回クリアは、<em>スタミナを消費しません</em>。すでにクリアしたステージも、もう一度試してみてください。' },
+  { id: 21, date: '9/29', title: '新バトルシステムの変更内容', body: '<span class="nt-h">ワザ</span><span class="nt-i">・スキル1・スキル2とも、<em>戦闘開始からすぐ</em>使えるようになりました</span><span class="nt-i">・スキル1 → スキル2 → スキル1 … と順番に使います</span><span class="nt-i">・スキル2だけ再使用が1ターン遅かったのを直しました</span>スキル2の使用回数は 1戦 0.5回 → <em>1.6回</em> になりました。<span class="nt-h">奥義(SP)</span><span class="nt-i">・SPが<em>受けたダメージの量</em>で入るようになりました(そのレベルの平均的なモンスターのHPの4%ぶん受けるごとにSP+5)</span><span class="nt-i">・味方を回復してもSPが入ります</span><span class="nt-i">・ウェーブを突破するたび、味方全員のSPが回復します</span><span class="nt-i">・敵を倒したときのSPが 15 → <em>25</em> に増えました</span><span class="nt-i">・タンクの必要SPを<em>30</em>、シューターの必要SPを<em>20</em>下げました</span>タンクの奥義は 0.02回/戦 → <em>1.0回</em>、サポートは 0.01回 → <em>1.1回</em> になりました。<span class="nt-h">ステータス</span><span class="nt-i">・すべてのモンスターのHPが<em>2倍</em>になりました(敵も味方も)。1発で溶ける戦闘を減らすためです</span><span class="nt-i">・遺物のHP上昇値も2倍になりました</span><span class="nt-i">・シールドの上限を「最大HPの50%まで」から<em>「100%まで」</em>に広げました。これまで、貼られたシールドの85%が上限で切り捨てられていました</span><span class="nt-i">・戦闘力(BP)の計算でHPの重みを下げたので、HPが2倍になっても<em>表示される数字はこれまでとほぼ同じ</em>です</span><span class="nt-h">敵</span><span class="nt-i">・敵もスキル1・2を開幕から使ってきます。奥義も撃ってきます</span><span class="nt-i">・ボス以外の敵は、推奨レベルより<em>10レベル低く</em>なりました</span><span class="nt-h">役割の考え方</span><span class="nt-i">・アタッカー / シューター … <em>奥義を回して戦う</em>。編成の軸</span><span class="nt-i">・タンク / サポート … <em>1戦に1回の切り札</em>。撃つタイミングが勝負</span><span class="nt-h">ご注意</span>深淵回廊とPVPは、記録が混ざらないように<em>新バトルシステムのみ</em>で遊べます。' },
+  { id: 20, date: '9/29', title: 'αのあいだにやろうとしていること', body: 'いま作っているもの・これから作ろうとしているものを、わかる範囲で共有します。順番も中身も変わることがあります。<span class="nt-h">いま(α0.3)戦闘の土台づくり</span><span class="nt-i">・戦闘システムの作り直し(新旧を切り替えてテスト中)</span><span class="nt-i">・イベントEXステージの見直し</span><span class="nt-i">・★4・★5モンスターの星刻特性の追加</span><span class="nt-h">次 遊び方を整える</span><span class="nt-i">・チュートリアルとはじめてガイドの作り直し</span><span class="nt-i">・称号の一覧画面と、フレンド・ランキングでの表示</span><span class="nt-i">・PVPの作り直し(相手が見つからない・実力差が大きい問題)</span><span class="nt-i">・周回券の入手先を用意する</span><span class="nt-i">・イベント終了時に未受け取りの報酬が消える問題の修正</span><span class="nt-h">そのあと 遊べる時間を増やす</span><span class="nt-i">・遠征(放置して報酬を受け取る機能)</span><span class="nt-i">・総力戦・バベルの塔</span>いま考えているのはここまでです。進みぐあいや新しく決まったことがあれば、またお知らせでお伝えします。<span class="nt-h">αのあいだのお約束</span>αのうちは、今回のような大きな作り直しを遠慮なくやります。そのぶん、影響が出る変更のときは星結晶でしっかりお返しします。' },
   { id: 19, date: '9/29', title: '貸し出しの見直しと、いくつかの追加', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span>借りたモンスターが<em>借りた時のまま</em>で、相手が育てても古いままになっていました。返して借り直さなくても最新に追いつきます。<span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>。★・ワザLv・ルーンはそのままなので、育てた人から借りる意味はちゃんと残ります。自分が育つほど、借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・<em>「全員に送る」</em>を追加しました。まだ今日送っていない人へまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を付けました。読み込めなかったときは、黙って空にせず理由を出します。</span><span class="nt-h">ルーン合成が楽になりました</span><em>下のTierのルーンも材料にできます</em>(Tier1つぶん = 1つ下のTierが3個ぶん)。材料を増やせば<em>一度に何段でも</em>上がり、要る数は1段ずつ上げたときと同じです。<span class="nt-i">・例: TierⅣのルーンをⅥにするには、TierⅣが8個(2＋3＋3)。</span><span class="nt-h">育成クエストに「霊素の鉱脈」が増えました</span><em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入ります。遺物の強化がここでまとめて進められます。<span class="nt-h">EXステージの調整</span>EXはスタミナを使わず何度でも挑めるため、ソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ないように</em>しました。報酬はこれまでどおりイベントミッションで受け取ります。<span class="nt-h">直したところ</span><span class="nt-i">・戦闘結果の「戦績」で棒グラフが出なくなっていたのを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率・会心倍率</em>を追加しました。</span>' },
   { id: 18, date: '9/28', title: '【重要】イベントの開始を今日 9/28(月) 19:00 に早めます', hero: ['ann_ev_fenrir', 'ann_ev_abaddon'], body: '<span class="nt-h">開始時間の変更</span>「嵐呼ぶ神狼」「奈落の王」の2イベントは、予告では 9/29(火) 0:00 開始とお知らせしていましたが、<em>今日 9/28(月) 19:00</em> に早めて開始します。終了はこれまでどおり 10/12(月) 23:59 です。<span class="nt-h">新しい開催期間</span><span class="nt-i">・<em>9/28(月) 19:00 〜 10/12(月) 23:59</em></span><span class="nt-i">・期間限定クエスト(全10層とEXステージ)と、フェンリル・アバドンのピックアップガチャが同時に始まります。</span><span class="nt-h">お詫び: モンスター召喚券を3枚お届けします</span>予告した時間を変更してしまい、申し訳ありません。お詫びとして、<em>モンスター召喚券3枚</em>をプレゼントボックスにお届けしました。ピックアップガチャにもお使いいただけます。<span class="nt-i">・受け取りはホーム画面のプレゼントボックスからどうぞ。</span><span class="nt-i">・お届けするのは、すでに遊んでいる方です。これからはじめる方は対象外です。</span>' },
   { id: 17, at: '2026-09-28T19:00:00+09:00', date: '9/28', title: '「嵐呼ぶ神狼」「奈落の王」2イベント同時開催!', hero: ['ann_ev_fenrir', 'ann_ev_abaddon'], art: ['m68', 'm166', 'm167', 'm139', 'm168', 'm169'], body: '<span class="nt-h">9/28(月) 19:00 〜 10/12(月) 23:59</span>★5の<em>フェンリル</em>と<em>アバドン</em>が主役のイベントを、2つ同時に開催します。それぞれのピックアップガチャで、本人と専用遺物の排出率がアップします。<span class="nt-h">嵐呼ぶ神狼(風)</span>神々をも喰らう巨狼<em>フェンリル</em>。敵を倒すとすぐにもう一度動けます。専用遺物は「グレイプニルの残鎖」。<span class="nt-i">・新★4 <em>ハティ</em>(風/アタッカー) 月を追う狼。味方が会心を出すたびに牙を研ぎます。</span><span class="nt-i">・新★4 <em>スコル</em>(炎/サポーター) 陽を喰らう狼。燃えている敵をさらに焼き上げます。</span><span class="nt-h">奈落の王(闇)</span>底なしの淵を統べる破滅の王<em>アバドン</em>。弱った敵ほど深く斬ります。専用遺物は「ティルヴィングの呪刃」。<span class="nt-i">・新★4 <em>黙示のアルベ</em>(闇/シューター) 冠をかぶった蝗の王。毒を撒いて盤面を溶かします。</span><span class="nt-i">・新★4 <em>ゲヘナの騎士</em>(闇/アタッカー) 硫黄の炎をまとう獅子頭の騎兵。HPの高い敵を狙い撃ちます。</span><span class="nt-h">イベントの入口が1つにまとまりました</span>探索の<em>イベント</em>を開くと、クエスト・EX・ミッション・ショップ・ボーナスモンスターがひと画面に並びます。<span class="nt-i">・<em>期間限定クエスト 全10ステージ</em>。回ると<em>神狼の牙</em>・<em>奈落の刻印</em>が手に入り、イベントショップで育成素材や召喚券と交換できます。メダルはイベントが終わると消えます。</span><span class="nt-i">・<em>イベントボーナス</em> 主役の★5を編成に入れると<em>+40%</em>、注目の★4は各<em>+20%</em>、そのイベントの属性は各<em>+10%</em>(最大+100%)。周回でもらえるメダルが増えます。</span><span class="nt-h">EXステージ(腕試し)</span>ステージ5をクリアすると<em>EX1〜EX3</em>が開きます。<em>スタミナを使わず何度でも</em>挑めますが、ステージごとに<em>特別なルール</em>があり、編成しだいで強さが大きく変わります。<span class="nt-i">・例:「神々の黄昏」EX1では<em>ビースト</em>が大幅に強くなり、<em>セレスティア</em>は大きく弱くなります。「底なしの淵」EX1では<em>闇</em>が強くなり、<em>光</em>はほとんど通りません。</span><span class="nt-i">・報酬はイベントミッションでまとめて受け取ります(星結晶3,500ぶん＋モンスター召喚券15枚ぶん＋称号)。</span><span class="nt-h">イベントミッションと称号</span>イベント専用のミッションを14本用意しました。達成すると<em>称号</em>が手に入り、プロフィールで名前の上に付けられます。イベントが終わっても称号は残ります。<span class="nt-i">・神狼を狩る者 / 嵐を継ぐ者 / 黄昏を超えし者 / 奈落に立つ者 / 深淵を覗く者 / 底なしを踏破せし者</span>' },
@@ -19590,6 +19686,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 126, version: 'α0.3.000', date: '9/29', title: '新バトルシステム(設定で切り替え)', body: '<span class="nt-h">設定 → 戦闘 →「新バトルシステム」で旧の戦闘に戻せます</span><span class="nt-i">・スキル1・2とも<em>開幕から使用可</em>にし、スキル1→2の順番で使うようにしました(スキル2の再CTの+1も撤廃)</span><span class="nt-i">・被弾SPを<em>受けたダメージ基準</em>に変更(そのレベルの平均HPの1%につきSP+1.25、1ラウンド上限60)</span><span class="nt-i">・回復した側にSP+20、ウェーブ突破で味方全員にSP+30を追加</span><span class="nt-i">・撃破SPを 15 → <em>25</em></span><span class="nt-i">・奥義の必要SPを タンク<em>-30</em>・シューター<em>-20</em>(他のロールは据え置き)</span><span class="nt-i">・全モンスターのHPと、遺物のHP固定値を<em>2倍</em></span><span class="nt-i">・シールドの上限を最大HPの<em>50% → 100%</em></span><span class="nt-i">・戦闘力のHPの重みを 0.6 → <em>0.3</em>(HP2倍ぶんを打ち消して表示を据え置き)</span><span class="nt-i">・ボス以外の敵を<em>推奨レベル-10</em>に</span><span class="nt-i">・新バトルシステムでの初回クリアは<em>スタミナ0</em>、星結晶を メイン10・イベント20 配布。EXは初回クリア報酬を配りなおし</span><span class="nt-i">・深淵回廊とPVPは新バトルシステムのみ</span>' },
   { id: 125, version: 'α0.2.009', date: '9/29', title: 'イベントショップの品名と、右上の印', body: '<span class="nt-i">・イベントショップの品名を<em>アイテム名そのまま</em>にしました(「ピックアップのワザ強化素材 TierI」→「風の欠片・ビーストの魂・アタッカーの証 TierI」)。</span><span class="nt-i">・右上の☰に、お知らせの未読だけでなく<em>プレゼント</em>と<em>まだポイントを送っていないフレンド</em>の数も出すようにしました。</span>' },
   { id: 124, version: 'α0.2.008', date: '9/29', title: 'フォロワーの記録が書かれないのを修正', body: '<span class="nt-i">・フレンドを追加したことを相手側に記録する処理が、<em>起動直後にフレンドを読み込む前</em>に走ると空振りして、そのまま一度も走らないことがありました。フレンド画面を開いたときにも記録し直します。</span><span class="nt-i">・フォロワーが0のときに、<em>ここに出るのは相手があなたを追加したとき</em>だと分かるようにしました。</span>' },
   { id: 123, version: 'α0.2.007', date: '9/29', title: '貸し出し・ルーン合成・霊素の鉱脈', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span><span class="nt-i">・借りたモンスターが<em>借りた時のまま</em>で、相手が育ててもフレンド画面を開き直すまで古いままでした。返して借り直さなくても最新に追いつきます。</span><span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>(遺物のレベルも同じ割合に)。★・ワザLv・ルーンはそのままです。自分が育つほど借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・フレンドリストに<em>「全員に送る」</em>を追加。まだ今日送っていない人にまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を追加し、読み込みに失敗したときは画面に理由を出すようにしました(今までは黙って空のままでした)。</span><span class="nt-h">ルーン合成</span><span class="nt-i">・<em>下のTierのルーンも材料にできます</em>。Tier1つぶん = 1つ下のTierが3個ぶんです。</span><span class="nt-i">・材料を増やせば<em>一度に何段でも</em>上がります。数は1段ずつ上げたときとぴったり同じです(例: TierⅣ→Ⅵ は TierⅣが8個)。</span><span class="nt-i">・「おまかせ」は低いTier・低いレア度から使います(良いルーンと高いTierを残すため)。</span><span class="nt-h">育成クエスト「霊素の鉱脈」を追加</span><span class="nt-i">・<em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入る5ステージです。遺物をLv200まで上げるには霊素鉱が20万個ほど要るのに、工房の放置生産だけでは足りていませんでした。</span><span class="nt-h">EXステージ</span><span class="nt-i">・EXは<em>スタミナ0で何度でも</em>挑めるため、ボスのソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ない</em>ようにしました。報酬はこれまでどおりイベントミッションで受け取ります。</span><span class="nt-h">そのほか</span><span class="nt-i">・戦闘結果の「戦績」で<em>棒グラフが出なくなっていた</em>のを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率と会心倍率</em>を追加しました(遺物・ルーンのぶんは内訳も出ます)。</span>' },
@@ -20040,6 +20137,13 @@ function renderSettingsOverlay(){
           </div>
           <div class="set-row"><div class="set-k wide">奥義オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
+          <div class="set-row"><div class="set-k wide">新バトルシステム</div>${toggle('battleV2', battleV2())}</div>
+          <div class="screen-sub set-hint" style="margin:-4px 0 0;">
+            ワザ・奥義・HPの仕組みを作り直したものです。オフにすると前の戦闘に戻せます。<br>
+            新バトルシステムでステージを初めてクリアすると、スタミナ0で挑めて星結晶がもらえます
+            (メイン ${BATTLE_V2_CLEAR_CRYSTAL.main}・イベント ${BATTLE_V2_CLEAR_CRYSTAL.event})。<br>
+            深淵回廊とPVPは新バトルシステムのみです。
+          </div>
         </div>
 
         <div class="panel set-list">
@@ -20370,6 +20474,11 @@ async function handleOverlayAction(el){
     if(set === 'sfx'){ const s = sfxSettings(); s.on = !s.on; if(s.on) playSfx('tap'); }
     if(set === 'autoUlt') STATE.autoUlt = !STATE.autoUlt;
     if(set === 'showDamage') STATE.showDamage = STATE.showDamage === false;
+    if(set === 'battleV2'){
+      STATE.battleV2 = !battleV2();
+      // HPの目盛りが変わるので、今のHPが最大値を超えないように丸める
+      toast(STATE.battleV2 ? '新バトルシステムにしました' : '旧バトルシステムに戻しました');
+    }
     saveState();
     render();
     return;

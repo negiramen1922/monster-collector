@@ -21,6 +21,8 @@ function setup(){
   S.formationKey = fk;
   S.slots = E.lineupFromList(party, fk);
   S.clearedStages = E.STAGES.map(s => s.id);
+  // 新バトルシステムの「初回クリアはスタミナ0」を外す。ここで見たいのは返金の方
+  S.v2Cleared = E.STAGES.map(s => s.id);
   S.stamina = 1000;
   S.daily = null;
   return S;

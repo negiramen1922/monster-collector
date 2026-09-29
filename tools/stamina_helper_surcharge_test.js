@@ -8,6 +8,7 @@ const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE, STAGES,
   stageStaminaCost, HELP_SLOT_ID, HELP_STAMINA_SURCHARGE, nextAction, findStage, claimMissions,
+  ensureV2Cleared,
   helperSurchargeNote, renderStageRow,
 };`);
 const E = global.__e;
@@ -18,6 +19,7 @@ const stage = E.STAGES.find(st => st.type === 'main' && st.stamina);
 
 // --- お助けモンスターなし: サーチャージは付かない ---
 api.STATE.slots = api.STATE.slots.map(() => null);
+E.ensureV2Cleared().push(stage.id);   // 新バトルシステムの「初回クリアはスタミナ0」を外して素の値を見る
 ok('お助けモンスターがいない時はstageStaminaCostは元の値のまま', E.stageStaminaCost(stage) === stage.stamina, [E.stageStaminaCost(stage), stage.stamina]);
 
 // --- お助けモンスターを編成に入れる: +5される ---
