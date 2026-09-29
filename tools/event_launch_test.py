@@ -71,10 +71,10 @@ async def main():
             r = await pg.evaluate("""() => {
               const ev = EVENTS.find(e => e.key === 'ev_abaddon');
               const before = ev.exStages.map(s => stageUnlocked(s));
-              STATE.clearedStages.push('ev_abaddon_5');
+              STATE.clearedStages.push('ev_abaddon_3');
               return { before, after: ev.exStages.map(s => stageUnlocked(s)) };
             }""")
-            check('EXは5層クリアで開く', r['before'][0] is False and r['after'][0] is True, r)
+            check('EXは3層クリアで開く', r['before'][0] is False and r['after'][0] is True, r)
 
             # ショップで交換できる
             r = await pg.evaluate("""() => {
