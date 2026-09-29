@@ -8077,6 +8077,17 @@ function avgBaseHp(star, level){
   return AVG_BASE_HP[key];
 }
 
+/* ご意見・バグ報告の窓口。設定とお知らせから開ける */
+const COMMUNITY = {
+  discord: 'https://discord.gg/6VUtBQBPzE',
+  x:       'https://x.com/NEG1STUDIO',
+};
+function openExternal(url){
+  const w = window.open(url, '_blank');
+  if(!w){ toast('リンクを開けませんでした'); return; }
+  try{ w.opener = null; }catch(e){}
+}
+
 function scaledStats(mon, star, level){
   const promotions = Math.max(0, (star || mon.rarity) - mon.rarity);
   const mult = (1 + promotions * PROMOTION_STAT_BONUS) * (1 + ((level || 1) - 1) * LEVEL_STAT_BONUS);
@@ -18258,11 +18269,6 @@ function grantStageRewards(stage, spawned, party, opts){
     ensureV2Cleared().push(stage.id);
     v2Crystals = battleV2ClearCrystal(stage);
     if(v2Crystals) STATE.crystals += v2Crystals;
-    // EXは新システム用に組み直したので、クリア済みでももう一度「初回」として扱う
-    if(stage.ex){
-      const at = STATE.clearedStages.indexOf(stage.id);
-      if(at >= 0) STATE.clearedStages.splice(at, 1);
-    }
   }
 
   // first clear
@@ -19661,7 +19667,9 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
-  { id: 22, date: '9/29', title: '【重要】戦闘システムが大きく変わります', body: '<span class="nt-h">設定から新旧どちらでも遊べます</span>戦闘の仕組みを作り直しました。設定 → 戦闘 →<em>「新バトルシステム」</em>で、いつでも前の戦闘に戻せます。<span class="nt-h">なぜ変えるのか</span>これまでの戦闘には、作った側から見ても はっきりした問題がありました。<span class="nt-i">・タンクとサポートの奥義が、1戦闘でほぼ一度も撃てていませんでした(実測 タイタン <em>0.02回</em>/戦・ユニコーン <em>0.01回</em>/戦。アタッカーは0.8回)</span><span class="nt-i">・敵はスキル2も奥義も、一度も撃っていませんでした(実測 <em>0.00回</em>)</span><span class="nt-i">・後衛は敵の1撃で最大HPの<em>67%</em>を失っていて、2発で落ちる状態でした</span><span class="nt-i">・1ウェーブが平均2.1ラウンドで終わるため、SPDの低いタンクは手番の<em>40%</em>が回ってこないまま戦闘が終わっていました</span>つまり、モンスターごとに作り込んだワザや奥義が、ほとんど画面に出ていませんでした。ここを直します。<span class="nt-h">ご協力ください</span>新バトルシステムはまだ調整中です。遊んでみて「ここが変」「前のほうがよかった」があれば教えてください。戦闘のおもしろさを上げるために、力を貸してください。<span class="nt-h">協力のお礼</span>新バトルシステムでステージをクリアすると、星結晶をお配りします。<span class="nt-i">・メインクエスト 1ステージにつき <em>10個</em></span><span class="nt-i">・イベント 1ステージにつき <em>20個</em></span><span class="nt-i">・EXステージ クリア報酬を配りなおします</span>新バトルシステムでの初回クリアは、<em>スタミナを消費しません</em>。すでにクリアしたステージも、もう一度試してみてください。' },
+  { id: 23, date: '9/29', title: 'DiscordとXを用意しました(ご意見・バグ報告の窓口)', body: '<span class="nt-h">Discord</span>小規模なコミュニティとして設置しました。<em>バグ報告や要望など</em>はこちらからしていただけます。<span class="nt-i">discord.gg/6VUtBQBPzE</span><span class="nt-h">X(制作アカウント)</span>ゲーム制作のアカウントで、<em>開発の裏話</em>などを流しています。Discordアカウントのない方は、こちらのDMにもバグ報告や要望を投げていただけます。<span class="nt-i">x.com/NEG1STUDIO</span><span class="nt-h">開き方</span>どちらも<em>設定画面</em>から開けます(設定 → Discord / X)。<span class="nt-h">とくに聞きたいこと</span>いま新しい戦闘システムをテストしています。「ここが変」「前のほうがよかった」「この役割が弱い」など、遠慮なく投げてください。'
+  },
+  { id: 22, date: '9/29', title: '【重要】戦闘システムが大きく変わります', body: '<span class="nt-h">設定から新旧どちらでも遊べます</span>戦闘の仕組みを作り直しました。設定 → 戦闘 →<em>「新バトルシステム」</em>で、いつでも前の戦闘に戻せます。<span class="nt-h">なぜ変えるのか</span>これまでの戦闘には、作った側から見ても はっきりした問題がありました。<span class="nt-i">・タンクとサポートの奥義が、1戦闘でほぼ一度も撃てていませんでした(実測 タイタン <em>0.02回</em>/戦・ユニコーン <em>0.01回</em>/戦。アタッカーは0.8回)</span><span class="nt-i">・敵はスキル2も奥義も、一度も撃っていませんでした(実測 <em>0.00回</em>)</span><span class="nt-i">・後衛は敵の1撃で最大HPの<em>67%</em>を失っていて、2発で落ちる状態でした</span><span class="nt-i">・1ウェーブが平均2.1ラウンドで終わるため、SPDの低いタンクは手番の<em>40%</em>が回ってこないまま戦闘が終わっていました</span>つまり、モンスターごとに作り込んだワザや奥義が、ほとんど画面に出ていませんでした。ここを直します。<span class="nt-h">ご協力ください</span>新バトルシステムはまだ調整中です。遊んでみて「ここが変」「前のほうがよかった」があれば教えてください。戦闘のおもしろさを上げるために、力を貸してください。<em>Discord</em>と<em>XのDM</em>で受け付けています(設定画面から開けます)。<span class="nt-h">協力のお礼</span>新バトルシステムでステージをクリアすると、星結晶をお配りします。<span class="nt-i">・メインクエスト 1ステージにつき <em>10個</em></span><span class="nt-i">・イベント 1ステージにつき <em>20個</em></span><span class="nt-i">・EXステージ 1ステージにつき <em>20個</em></span>新バトルシステムでの初回クリアは、<em>スタミナを消費しません</em>。すでにクリアしたステージも、もう一度試してみてください。' },
   { id: 21, date: '9/29', title: '新バトルシステムの変更内容', body: '<span class="nt-h">ワザ</span><span class="nt-i">・スキル1・スキル2とも、<em>戦闘開始からすぐ</em>使えるようになりました</span><span class="nt-i">・スキル1 → スキル2 → スキル1 … と順番に使います</span><span class="nt-i">・スキル2だけ再使用が1ターン遅かったのを直しました</span>スキル2の使用回数は 1戦 0.5回 → <em>1.6回</em> になりました。<span class="nt-h">奥義(SP)</span><span class="nt-i">・SPが<em>受けたダメージの量</em>で入るようになりました(そのレベルの平均的なモンスターのHPの4%ぶん受けるごとにSP+5)</span><span class="nt-i">・味方を回復してもSPが入ります</span><span class="nt-i">・ウェーブを突破するたび、味方全員のSPが回復します</span><span class="nt-i">・敵を倒したときのSPが 15 → <em>25</em> に増えました</span><span class="nt-i">・タンクの必要SPを<em>30</em>、シューターの必要SPを<em>20</em>下げました</span>タンクの奥義は 0.02回/戦 → <em>1.0回</em>、サポートは 0.01回 → <em>1.1回</em> になりました。<span class="nt-h">ステータス</span><span class="nt-i">・すべてのモンスターのHPが<em>2倍</em>になりました(敵も味方も)。1発で溶ける戦闘を減らすためです</span><span class="nt-i">・遺物のHP上昇値も2倍になりました</span><span class="nt-i">・シールドの上限を「最大HPの50%まで」から<em>「100%まで」</em>に広げました。これまで、貼られたシールドの85%が上限で切り捨てられていました</span><span class="nt-i">・戦闘力(BP)の計算でHPの重みを下げたので、HPが2倍になっても<em>表示される数字はこれまでとほぼ同じ</em>です</span><span class="nt-h">敵</span><span class="nt-i">・敵もスキル1・2を開幕から使ってきます。奥義も撃ってきます</span><span class="nt-i">・ボス以外の敵は、推奨レベルより<em>10レベル低く</em>なりました</span><span class="nt-h">役割の考え方</span><span class="nt-i">・アタッカー / シューター … <em>奥義を回して戦う</em>。編成の軸</span><span class="nt-i">・タンク / サポート … <em>1戦に1回の切り札</em>。撃つタイミングが勝負</span><span class="nt-h">ご注意</span>深淵回廊とPVPは、記録が混ざらないように<em>新バトルシステムのみ</em>で遊べます。' },
   { id: 20, date: '9/29', title: 'αのあいだにやろうとしていること', body: 'いま作っているもの・これから作ろうとしているものを、わかる範囲で共有します。順番も中身も変わることがあります。<span class="nt-h">いま(α0.3)戦闘の土台づくり</span><span class="nt-i">・戦闘システムの作り直し(新旧を切り替えてテスト中)</span><span class="nt-i">・イベントEXステージの見直し</span><span class="nt-i">・★4・★5モンスターの星刻特性の追加</span><span class="nt-h">次 遊び方を整える</span><span class="nt-i">・チュートリアルとはじめてガイドの作り直し</span><span class="nt-i">・称号の一覧画面と、フレンド・ランキングでの表示</span><span class="nt-i">・PVPの作り直し(相手が見つからない・実力差が大きい問題)</span><span class="nt-i">・周回券の入手先を用意する</span><span class="nt-i">・イベント終了時に未受け取りの報酬が消える問題の修正</span><span class="nt-h">そのあと 遊べる時間を増やす</span><span class="nt-i">・遠征(放置して報酬を受け取る機能)</span><span class="nt-i">・総力戦・バベルの塔</span>いま考えているのはここまでです。進みぐあいや新しく決まったことがあれば、またお知らせでお伝えします。<span class="nt-h">αのあいだのお約束</span>αのうちは、今回のような大きな作り直しを遠慮なくやります。そのぶん、影響が出る変更のときは星結晶でしっかりお返しします。' },
   { id: 19, date: '9/29', title: '貸し出しの見直しと、いくつかの追加', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span>借りたモンスターが<em>借りた時のまま</em>で、相手が育てても古いままになっていました。返して借り直さなくても最新に追いつきます。<span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>。★・ワザLv・ルーンはそのままなので、育てた人から借りる意味はちゃんと残ります。自分が育つほど、借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・<em>「全員に送る」</em>を追加しました。まだ今日送っていない人へまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を付けました。読み込めなかったときは、黙って空にせず理由を出します。</span><span class="nt-h">ルーン合成が楽になりました</span><em>下のTierのルーンも材料にできます</em>(Tier1つぶん = 1つ下のTierが3個ぶん)。材料を増やせば<em>一度に何段でも</em>上がり、要る数は1段ずつ上げたときと同じです。<span class="nt-i">・例: TierⅣのルーンをⅥにするには、TierⅣが8個(2＋3＋3)。</span><span class="nt-h">育成クエストに「霊素の鉱脈」が増えました</span><em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入ります。遺物の強化がここでまとめて進められます。<span class="nt-h">EXステージの調整</span>EXはスタミナを使わず何度でも挑めるため、ソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ないように</em>しました。報酬はこれまでどおりイベントミッションで受け取ります。<span class="nt-h">直したところ</span><span class="nt-i">・戦闘結果の「戦績」で棒グラフが出なくなっていたのを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率・会心倍率</em>を追加しました。</span>' },
@@ -19686,7 +19694,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 126, version: 'α0.3.000', date: '9/29', title: '新バトルシステム(設定で切り替え)', body: '<span class="nt-h">設定 → 戦闘 →「新バトルシステム」で旧の戦闘に戻せます</span><span class="nt-i">・スキル1・2とも<em>開幕から使用可</em>にし、スキル1→2の順番で使うようにしました(スキル2の再CTの+1も撤廃)</span><span class="nt-i">・被弾SPを<em>受けたダメージ基準</em>に変更(そのレベルの平均HPの1%につきSP+1.25、1ラウンド上限60)</span><span class="nt-i">・回復した側にSP+20、ウェーブ突破で味方全員にSP+30を追加</span><span class="nt-i">・撃破SPを 15 → <em>25</em></span><span class="nt-i">・奥義の必要SPを タンク<em>-30</em>・シューター<em>-20</em>(他のロールは据え置き)</span><span class="nt-i">・全モンスターのHPと、遺物のHP固定値を<em>2倍</em></span><span class="nt-i">・シールドの上限を最大HPの<em>50% → 100%</em></span><span class="nt-i">・戦闘力のHPの重みを 0.6 → <em>0.3</em>(HP2倍ぶんを打ち消して表示を据え置き)</span><span class="nt-i">・ボス以外の敵を<em>推奨レベル-10</em>に</span><span class="nt-i">・新バトルシステムでの初回クリアは<em>スタミナ0</em>、星結晶を メイン10・イベント20 配布。EXは初回クリア報酬を配りなおし</span><span class="nt-i">・深淵回廊とPVPは新バトルシステムのみ</span>' },
+  { id: 126, version: 'α0.3.000', date: '9/29', title: '新バトルシステム(設定で切り替え)', body: '<span class="nt-h">設定 → 戦闘 →「新バトルシステム」で旧の戦闘に戻せます</span><span class="nt-i">・スキル1・2とも<em>開幕から使用可</em>にし、スキル1→2の順番で使うようにしました(スキル2の再CTの+1も撤廃)</span><span class="nt-i">・被弾SPを<em>受けたダメージ基準</em>に変更(そのレベルの平均HPの1%につきSP+1.25、1ラウンド上限60)</span><span class="nt-i">・回復した側にSP+20、ウェーブ突破で味方全員にSP+30を追加</span><span class="nt-i">・撃破SPを 15 → <em>25</em></span><span class="nt-i">・奥義の必要SPを タンク<em>-30</em>・シューター<em>-20</em>(他のロールは据え置き)</span><span class="nt-i">・全モンスターのHPと、遺物のHP固定値を<em>2倍</em></span><span class="nt-i">・シールドの上限を最大HPの<em>50% → 100%</em></span><span class="nt-i">・戦闘力のHPの重みを 0.6 → <em>0.3</em>(HP2倍ぶんを打ち消して表示を据え置き)</span><span class="nt-i">・ボス以外の敵を<em>推奨レベル-10</em>に</span><span class="nt-i">・新バトルシステムでの初回クリアは<em>スタミナ0</em>、星結晶を メイン10・イベント(EX含む)20 配布</span><span class="nt-i">・深淵回廊とPVPは新バトルシステムのみ</span>' },
   { id: 125, version: 'α0.2.009', date: '9/29', title: 'イベントショップの品名と、右上の印', body: '<span class="nt-i">・イベントショップの品名を<em>アイテム名そのまま</em>にしました(「ピックアップのワザ強化素材 TierI」→「風の欠片・ビーストの魂・アタッカーの証 TierI」)。</span><span class="nt-i">・右上の☰に、お知らせの未読だけでなく<em>プレゼント</em>と<em>まだポイントを送っていないフレンド</em>の数も出すようにしました。</span>' },
   { id: 124, version: 'α0.2.008', date: '9/29', title: 'フォロワーの記録が書かれないのを修正', body: '<span class="nt-i">・フレンドを追加したことを相手側に記録する処理が、<em>起動直後にフレンドを読み込む前</em>に走ると空振りして、そのまま一度も走らないことがありました。フレンド画面を開いたときにも記録し直します。</span><span class="nt-i">・フォロワーが0のときに、<em>ここに出るのは相手があなたを追加したとき</em>だと分かるようにしました。</span>' },
   { id: 123, version: 'α0.2.007', date: '9/29', title: '貸し出し・ルーン合成・霊素の鉱脈', body: '<span class="nt-h">お助けモンスターの貸し借りを作り直しました</span><span class="nt-i">・借りたモンスターが<em>借りた時のまま</em>で、相手が育ててもフレンド画面を開き直すまで古いままでした。返して借り直さなくても最新に追いつきます。</span><span class="nt-i">・貸し出しに<em>遺物とルーン</em>も乗るようになりました。貸してくれた人の育て具合がそのまま効きます。</span><span class="nt-i">・そのかわり、借りたモンスターの<em>レベルは自分の編成の平均に合わせられます</em>(遺物のレベルも同じ割合に)。★・ワザLv・ルーンはそのままです。自分が育つほど借りたモンスターも強くなります。</span><span class="nt-h">フレンド</span><span class="nt-i">・フレンドリストに<em>「全員に送る」</em>を追加。まだ今日送っていない人にまとめてポイントを送れます。</span><span class="nt-i">・フォロワー一覧に<em>再読み込み</em>を追加し、読み込みに失敗したときは画面に理由を出すようにしました(今までは黙って空のままでした)。</span><span class="nt-h">ルーン合成</span><span class="nt-i">・<em>下のTierのルーンも材料にできます</em>。Tier1つぶん = 1つ下のTierが3個ぶんです。</span><span class="nt-i">・材料を増やせば<em>一度に何段でも</em>上がります。数は1段ずつ上げたときとぴったり同じです(例: TierⅣ→Ⅵ は TierⅣが8個)。</span><span class="nt-i">・「おまかせ」は低いTier・低いレア度から使います(良いルーンと高いTierを残すため)。</span><span class="nt-h">育成クエスト「霊素の鉱脈」を追加</span><span class="nt-i">・<em>霊素鉱</em>と<em>霊素核Ⅰ・Ⅱ</em>が手に入る5ステージです。遺物をLv200まで上げるには霊素鉱が20万個ほど要るのに、工房の放置生産だけでは足りていませんでした。</span><span class="nt-h">EXステージ</span><span class="nt-i">・EXは<em>スタミナ0で何度でも</em>挑めるため、ボスのソウルが無制限に手に入る状態でした。<em>EXではソウルと仲間入りが出ない</em>ようにしました。報酬はこれまでどおりイベントミッションで受け取ります。</span><span class="nt-h">そのほか</span><span class="nt-i">・戦闘結果の「戦績」で<em>棒グラフが出なくなっていた</em>のを直しました。</span><span class="nt-i">・モンスターの詳細に<em>会心率と会心倍率</em>を追加しました(遺物・ルーンのぶんは内訳も出ます)。</span>' },
@@ -20152,6 +20160,10 @@ function renderSettingsOverlay(){
           <div class="set-item"><div class="set-k wide">言語</div><div class="set-val">日本語</div></div>
           <div class="set-item" data-view-tutorial="1"><div class="set-k wide">チュートリアルを見る</div>
             <div class="set-val"></div><div class="set-go">›</div></div>
+          <div class="set-item" data-open-community="discord"><div class="set-k wide">Discord</div>
+            <div class="set-val">バグ報告・要望</div><div class="set-go">›</div></div>
+          <div class="set-item" data-open-community="x"><div class="set-k wide">X(開発アカウント)</div>
+            <div class="set-val">@NEG1STUDIO</div><div class="set-go">›</div></div>
           <div class="set-item" data-clear-cache="1"><div class="set-k wide">キャッシュを削除</div>
             <div class="set-val">読み込み直します</div><div class="set-go">›</div></div>
           <div class="set-item" data-open-delete-data="1"><div class="set-k wide" style="color:var(--danger);">データを削除</div>
@@ -20483,6 +20495,7 @@ async function handleOverlayAction(el){
     render();
     return;
   }
+  if(el.dataset.openCommunity){ openExternal(COMMUNITY[el.dataset.openCommunity]); return; }
   if(el.dataset.setSpeed){
     const n = Number(el.dataset.setSpeed);
     if(n > 1 && !speedUnlocked()){ toast('「初級5」クリアで倍速が解放されます'); return; }
