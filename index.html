@@ -2354,6 +2354,35 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ar-sum div{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:6px 9px; }
 .ar-sum span{ display:block; font-size:10px; opacity:.65; font-weight:700; }
 .ar-sum b{ font-size:14px; font-weight:900; }
+/* 周回の1回ずつの結果(上から順にポポポと出る) */
+.swl{ max-height:46vh; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin:6px 0 4px; padding:2px 2px 4px;
+  scroll-behavior:smooth; overscroll-behavior:contain; }
+.swl-row{ display:flex; align-items:center; gap:9px; background:var(--panel2); border:1px solid rgba(232,180,85,.35);
+  border-left:4px solid var(--gold); border-radius:10px; padding:6px 8px; min-height:58px; flex:none; }
+.swl-row:not(.in){ display:none; }
+.swl-row.in{ animation:swlPop .28s cubic-bezier(.2,1.5,.4,1); }
+@keyframes swlPop{ from{ opacity:0; transform:translateY(-10px) scale(.94); } to{ opacity:1; transform:none; } }
+.swl-row.hit{ border-color:#ff7ab0; border-left-color:#ff4f93; background:linear-gradient(90deg, rgba(255,79,147,.16), var(--panel2) 60%); }
+.swl-row.lose{ border-left-color:#8a8a9a; filter:saturate(.3); }
+.swl-mvp{ position:relative; width:46px; height:46px; flex:none; border-radius:9px; overflow:hidden; background:#2a2346; }
+.swl-mvp img{ width:100%; height:100%; object-fit:cover; }
+.swl-mvp span{ position:absolute; left:0; right:0; bottom:0; font-size:8px; font-weight:900; text-align:center;
+  background:rgba(0,0,0,.6); color:var(--gold); letter-spacing:.5px; }
+.swl-body{ flex:1; min-width:0; line-height:1.25; }
+.swl-body small{ display:block; font-size:9.5px; opacity:.7; font-weight:800; letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.swl-body b{ display:block; font-size:13px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.swl-gain{ display:flex; gap:8px; align-items:center; font-size:11px; font-weight:800; color:var(--gold); }
+.swl-gain em{ font-style:normal; display:inline-flex; align-items:center; gap:1px; color:#e8d8ff; }
+.swl-gain .item-ic{ width:14px; height:14px; }
+.swl-drop{ flex:none; width:64px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.swl-drop small{ font-size:8.5px; opacity:.75; max-width:64px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.swl-ic{ position:relative; width:40px; height:40px; border-radius:8px; background:rgba(255,255,255,.06); display:flex;
+  align-items:center; justify-content:center; font-size:22px; }
+.swl-ic img{ width:100%; height:100%; object-fit:cover; border-radius:8px; }
+.swl-ic .item-ic{ width:32px; height:32px; }
+.swl-n{ position:absolute; right:-3px; bottom:-3px; background:#111; color:#fff; font-size:9.5px; font-weight:900;
+  padding:0 4px; border-radius:4px; line-height:14px; }
+@media (prefers-reduced-motion: reduce){ .swl-row.in{ animation:none; } }
 .ar-mvp{ display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--gold);
   border-radius:11px; padding:8px 10px; margin-bottom:10px; }
 .ar-mvp img{ width:42px; height:42px; border-radius:9px; object-fit:cover; flex:none; }
@@ -3088,7 +3117,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.005';
+const GAME_VERSION = 'α0.3.006';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7810,6 +7839,82 @@ function sweepSpawned(stage){
   }));
   return out;
 }
+/* ---- 周回の1回ずつの記録(結果画面で上から順に並べる) ----
+   各行: 左にその回のMVP、右にその回いちばん良かったドロップ(なければ空)。 */
+// 「結果だけ」は戦闘をしないので、MVPは今の編成から戦闘力に比例した抽選で決める
+function sweepMvpGuess(party){
+  const ids = party.map(u => u.ref).filter(id => MON_BY_ID[id]);
+  if(!ids.length) return null;
+  const w = ids.map(id => Math.max(1, battlePower(id)));
+  let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  for(let i = 0; i < ids.length; i++){ x -= w[i]; if(x <= 0) return ids[i]; }
+  return ids[ids.length - 1];
+}
+// その回のドロップから、いちばん目立つものを1つ選ぶ(仲間入り > ソウル > 遺物 > TierIV > ★4箱 > ルーン > TierIII > ★3箱)
+function sweepBestDrop(r){
+  let best = null;
+  const take = (score, d) => { if(!best || score > best.score) best = { score, ...d }; };
+  (r.souls || []).forEach(x => {
+    const m = MON_BY_ID[x.id]; if(!m) return;
+    if(x.joined) take(1000, { kind:'join', id:x.id, n:1 });
+    else take(500 + m.rarity * 10 + x.n, { kind:'soul', id:x.id, n:x.n });
+  });
+  (r.firstItems || []).forEach(x => { if(x.type === 'relic') take(400, { kind:'relic', key:x.key, n:1 }); });
+  (r.items || []).forEach(x => {
+    const m = parseMat(x.key), b = /^box_(sel|rnd)_([1-4])$/.exec(x.key);
+    if(m && m.tier >= 3) take(m.tier === 4 ? 300 : 150, { kind:'item', key:x.key, n:x.n });
+    else if(b && Number(b[2]) >= 3) take(b[2] === '4' ? 280 : 140, { kind:'item', key:x.key, n:x.n });
+  });
+  (r.runes || []).forEach(x => take(200 + (x.rarity || 0) * 10, { kind:'rune', rune:x, n:1 }));
+  return best;
+}
+function sweepLogEntry(r, mvp, win){
+  return { win, mvp, gold: r.gold || 0, medal: r.medal ? r.medal.n : 0, best: win ? sweepBestDrop(r) : null };
+}
+function sweepLogHtml(log, stage, medalIcon){
+  if(!log || !log.length) return '';
+  const icon = d => d.kind === 'rune' ? runeIconHtml(d.rune, { used: false })
+    : d.kind === 'relic' ? `<span class="rf-ic">${RELICS[d.key] ? RELICS[d.key].icon : '🏺'}</span>`
+    : d.kind === 'item' ? itemIcon(d.key)
+    : `<img src="${imgSrc(d.id)}" alt="">`;
+  const label = d => d.kind === 'join' ? '仲間に!' : d.kind === 'soul' ? 'ソウル'
+    : d.kind === 'relic' ? (RELICS[d.key] ? RELICS[d.key].name : '遺物') : d.kind === 'rune' ? 'ルーン' : itemName(d.key);
+  return `<div class="swl" data-sweep-log="1" aria-label="1回ずつの結果">
+    ${log.map((e, i) => `<div class="swl-row ${e.win ? '' : 'lose'} ${e.best && e.best.score >= 500 ? 'hit' : ''}" style="--i:${i}">
+      <div class="swl-mvp">${e.mvp ? `<img src="${imgSrc(e.mvp)}" alt="">` : ''}<span>MVP</span></div>
+      <div class="swl-body">
+        <small>RUN ${String(i + 1).padStart(2, '0')}${e.mvp ? ` ・ ${MON_BY_ID[e.mvp].name}` : ''}</small>
+        <b>${e.win ? stage.name : '敗北'}</b>
+        <span class="swl-gain">${e.win ? `${e.gold ? goldText(e.gold) : ''}${e.medal && medalIcon ? `<em>${medalIcon}+${e.medal}</em>` : ''}` : 'この回の報酬はありません'}</span>
+      </div>
+      <div class="swl-drop">${e.best ? `<div class="swl-ic" title="${e.best.id ? MON_BY_ID[e.best.id].name + ' ' : ''}${label(e.best)}">${icon(e.best)}${e.best.n > 1 || e.best.kind === 'soul' ? `<span class="swl-n">${e.best.kind === 'soul' ? '◆' : ''}${e.best.n}</span>` : ''}</div><small>${label(e.best)}</small>` : ''}</div>
+    </div>`).join('')}
+  </div>`;
+}
+// 行を上から1つずつ出す(ポポポ)。一覧をタップすると残りを一気に出す
+function playSweepLog(){
+  const box = document.querySelector('[data-sweep-log]');
+  if(!box) return;
+  const rows = [...box.querySelectorAll('.swl-row')];
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce || rows.length <= 1){ rows.forEach(r => r.classList.add('in')); return; }
+  const step = Math.max(30, Math.min(140, Math.round(3000 / rows.length)));
+  let i = 0, timer = null;
+  const show = row => {
+    row.classList.add('in');
+    const bottom = row.offsetTop + row.offsetHeight - box.offsetTop;
+    if(bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
+  };
+  const next = () => {
+    if(!box.isConnected){ clearTimeout(timer); return; }
+    if(i >= rows.length) return;
+    const row = rows[i++]; show(row);
+    if(row.classList.contains('hit')) playSfx('confirm');
+    timer = setTimeout(next, row.classList.contains('hit') ? step + 220 : step);
+  };
+  box.addEventListener('click', () => { clearTimeout(timer); rows.forEach(r => r.classList.add('in')); i = rows.length; }, { once: true });
+  timer = setTimeout(next, 120);
+}
 function runSweep(stageId, times, useTicket){
   const stage = findStage(stageId);
   if(!stage) return null;
@@ -7820,7 +7925,7 @@ function runSweep(stageId, times, useTicket){
   const n = tkKey ? Math.min(times, getItem(tkKey)) : Math.min(times, Math.floor(STATE.stamina / stage.stamina));
   if(n <= 0){ toast(tkKey ? `${SWEEP_TICKETS[tkKey].name}が足りません` : `スタミナが足りません(必要 ${stage.stamina})`); return null; }
   if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。モンスター → ルーン で分解してください`); return null; }
-  const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [], runes: [], dust: 0, medal: null };
+  const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [], runes: [], dust: 0, medal: null, log: [] };
   // 「結果だけ」は戦闘をしないので、イベントボーナスは今の編成で数える
   const party = getPartyIds().map(ref => ({ ref }));
   for(let i = 0; i < n; i++){
@@ -7833,6 +7938,7 @@ function runSweep(stageId, times, useTicket){
     track('sweep');
     const r = stage.type === 'dungeon' ? grantDungeonRewards(stage, { sweep: true }) : grantStageRewards(stage, sweepSpawned(stage), party, { sweep: true });
     if(r.medal){ if(!total.medal) total.medal = { ...r.medal, n: 0 }; total.medal.n += r.medal.n; }
+    total.log.push(sweepLogEntry(r, sweepMvpGuess(party), true));
     total.runs++;
     total.gold += r.gold || 0;
     total.runes.push(...(r.runes || []));
@@ -7879,7 +7985,7 @@ function startAutoRun(stageId, times, speed){
   if(STATE.stamina < cost){ toast(`スタミナが足りません(必要 ${cost})`); return; }
   autoRun = { stageId, total: times, done: 0, wins: 0, streak: 0, bestStreak: 0, stopping: false,
     startedAt: Date.now(), staminaUsed: 0, gold: 0, crystals: 0, items: {}, souls: {}, joined: [],
-    runes: [], dust: 0, dealt: {}, maxDmg: { v: 0, ref: null }, stopReason: null, rareCount: 0, done2: false };
+    runes: [], dust: 0, dealt: {}, maxDmg: { v: 0, ref: null }, stopReason: null, rareCount: 0, done2: false, log: [] };
   if(speed){ STATE.battleSpeed = speed; saveState(); }
   closeModal();
   startBattle(stageId, { skipIntro: true });
@@ -7889,15 +7995,20 @@ function autoRunCollect(b){
   const a = autoRun;
   a.done += 1;
   a.staminaUsed += b.staminaSpent || 0;
+  let mvp = null, mvpDealt = -1;
   (b.party || []).forEach(u => {
-    a.dealt[u.ref] = (a.dealt[u.ref] || 0) + (u.report ? u.report.dealt : 0);
+    const dealt = u.report ? u.report.dealt : 0;
+    a.dealt[u.ref] = (a.dealt[u.ref] || 0) + dealt;
+    if(dealt > mvpDealt){ mvpDealt = dealt; mvp = u.ref; }
     const best = u.report ? u.report.bestHit || 0 : 0;
     if(best > a.maxDmg.v) a.maxDmg = { v: best, ref: u.ref };
   });
+  a.log.push(sweepLogEntry(b.win ? (b.rewards || {}) : {}, mvp && MON_BY_ID[mvp] ? mvp : null, !!b.win));
   if(!b.win){ a.streak = 0; return []; }
   a.wins += 1; a.streak += 1;
   a.bestStreak = Math.max(a.bestStreak, a.streak);
   const r = b.rewards || {};
+  if(r.medal && ITEM_ICON[r.medal.icon]) a.medalIcon = `<span class="item-ic">${ITEM_ICON[r.medal.icon]}</span>`;
   a.gold += r.gold || 0;
   a.crystals += (r.crystals || 0) + (r.v2Crystals || 0);
   a.dust += r.dust || 0;
@@ -7982,6 +8093,7 @@ function showAutoRunResult(){
     <div class="result-modal sweep-modal" role="dialog" aria-label="周回結果">
       <h3>周回結果:${stage.name} ×${a.done}</h3>
       ${note ? `<div class="ar-stop">${a.done}回目で${note}</div>` : ''}
+      ${sweepLogHtml(a.log, stage, a.medalIcon)}
       <div class="ar-sum">
         <div><span>勝敗</span><b>${a.wins}勝 ${a.done - a.wins}敗</b></div>
         <div><span>連勝</span><b>${a.bestStreak}</b></div>
@@ -8008,6 +8120,7 @@ function showAutoRunResult(){
       </div>
     </div>`;
   layer.classList.add('show');
+  playSweepLog();
   autoRun = null;
   saveState();
 }
@@ -8080,6 +8193,8 @@ function showSweepResult(stage, t){
   layer.innerHTML = `
     <div class="result-modal sweep-modal" role="dialog" aria-label="周回結果">
       <h3>周回結果:${stage.name} ×${t.runs}</h3>
+      ${sweepLogHtml(t.log, stage, t.medal ? `<span class="item-ic">${ITEM_ICON[t.medal.icon]}</span>` : '')}
+      <div class="br-rewards-head" style="margin-top:10px;">合計</div>
       ${t.gold ? `<div class="gold-line">${goldText(t.gold)}</div>` : ''}
       ${t.medal ? `<div class="gold-line sw-medal"><span class="item-ic">${ITEM_ICON[t.medal.icon]}</span>${t.medal.name} +${t.medal.n.toLocaleString()}${t.medal.bonus ? `<small>(イベントボーナス+${Math.round(t.medal.bonus * 100)}%)</small>` : ''}</div>` : ''}
       <div class="mat-grid">${items.map(([k, n]) => `<div class="mat-chip" title="${itemName(k)}"><div class="ic">${itemIcon(k)}</div><div class="n">${n}</div></div>`).join('')}</div>
@@ -8095,6 +8210,7 @@ function showSweepResult(stage, t){
       </div>
     </div>`;
   layer.classList.add('show');
+  playSweepLog();
 }
 function sweepButton(stage){
   if(stage.tier === 'tu') return '';
@@ -20074,6 +20190,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 132, version: 'α0.3.006', date: '9/30', title: '周回結果を1回ずつ並べて見せるように', body: '<span class="nt-i">・周回の結果画面に、<em>1回ごとの結果</em>が上から順にポポポと出るようになりました。「結果だけ」でも×1〜×4のオート周回でも同じです。</span><span class="nt-i">・各行の左にはその回の<em>MVP</em>、右にはその回いちばん良かったドロップ(仲間入り・ソウル・ルーン・TierIII以上の素材など)が出ます。当たりの回はピンクで光ります。</span><span class="nt-i">・「結果だけ」は戦闘をしないので、MVPは今の編成から戦闘力に応じて選ばれます。</span><span class="nt-i">・一覧をタップすると残りを一気に出せます。合計はこれまでどおり下にまとめて出ます。</span>' },
   { id: 131, version: 'α0.3.005', date: '9/30', title: '防御が「そのままダメージカット%」になりました', body: '<span class="nt-h">物理防御31なら、受ける物理ダメージが31%減ります</span>これまでの防御は<em>引き算</em>で、「物理防御464」と言われても何%減るのか分からない数字でした。しかも<em>レベルで伸びているように見えて、効きは1ミリも変わっていません</em>でした(タンクはLv1でもLv300でも22%減のまま)。防御値をそのまま<em>カット%</em>として読む形にしました。<span class="nt-i">・<em>レベルや★では伸びません</em>。伸びているように見えていただけで、強さは変わっていません</span><span class="nt-i">・素の防御は タンク<em>9〜20%</em> / トリックスター 4〜9% / アタッカー 3〜10% / サポート 3〜9% / シューター 1〜8%</span><span class="nt-i">・上限は<em>99%</em>。ふだんは50%を超えません</span><span class="nt-h">ルーン・遺物・バフは「ポイント加算」に</span>防御の上乗せが<em>割合</em>だったため、もともと防御の高いタンクだけが得をして、柔らかい子を守るバフがほとんど意味を持っていませんでした(九尾に「物理防御+40%」を掛けても<em>+1.6</em>)。<em>誰に掛けても同じだけ増える</em>ポイント加算に変えました。<span class="nt-i">・ルーンの防御は<em>Ⅹでメイン+5・サブ+1〜2</em>。持っているルーンはそのまま新しい値になります</span><span class="nt-i">・遺物のスキル枠・陣形・種族シナジー・バフ・デバフも全部ポイント。<em>積む順番で結果が変わらなくなりました</em></span><span class="nt-i">・例: タイタンは 素20% → ルーンで36% → 遺物で42% → 双璧の陣で43% → ドワーフ5体で<em>47%</em></span><span class="nt-h">こう変わります</span><span class="nt-i">・<em>防御貫通が読めるようになりました</em>。貫通50%なら相手の防御が半分に(31%→15.5%)。ただし<em>8割までしか削れません</em></span><span class="nt-i">・<em>タンクが会心に強くなりました</em>。引き算のころは大ダメージほど防御が無力でしたが、割合なので会心でも同じだけ削ります</span><span class="nt-i">・やけど・毒は<em>今までどおり防御を無視</em>します(貫通100%あつかい)</span><span class="nt-i">・戦闘力の防御の重みを直したので、<em>表示はほぼ変わりません</em></span><span class="nt-i">・自分よりレベルの高いステージに挑むと、<em>少しだけ厳しくなります</em>(敵の防御もレベルで伸びなくなったぶん、お互いにダメージが通りやすくなりました)</span>' },
   { id: 130, version: 'α0.3.004', date: '9/30', title: 'ワザ強化素材のドロップを「期待値 + 抽選」にしました', body: '<span class="nt-h">落ちる個数が毎回変わります</span>メインクエストでワザ強化素材が<em>余りすぎていた</em>ので、ドロップの仕組みを入れ替えました。これまでは「TierI×15個」のように<em>毎回きっちり同じ個数</em>でしたが、これからは<em>期待値</em>を決めて毎回抽選します。<span class="nt-i">・期待値の2倍ぶんの枠を用意して1枠ずつふり、当たった数だけ落ちます。<em>平均はぴったり期待値どおり</em>で、出る数は毎回ブレます</span><span class="nt-i">・ステージには<em>出る可能性のあるもの</em>を、アイコンと名前と個数で並べました(例: 「光の欠片 3-8」「サポートの証 0-1」)</span><span class="nt-i">・TierI から TierIV まで、<em>どのTierも落ちます</em></span><span class="nt-h">ボスとハードは「期待値が倍になる」形に</span>足し算ではなく倍率にそろえました。<em>ボスは1.6倍・ハードは1.5倍</em>、ハードのボスは両方が乗って<em>2.4倍</em>です。<span class="nt-h">難易度ごとの期待値(雑魚ステージ)</span><span class="nt-i">・初級 TierI 4個</span><span class="nt-i">・中級 TierI 5個 / TierII 0.8個</span><span class="nt-i">・上級 TierI 5個 / TierII 0.9個 / <em>TierIII 0.04個</em> / TierIV 0.02個</span><span class="nt-i">・超上級 5.5 / 1.2 / 0.06 / 0.03</span><span class="nt-i">・極上級 6 / 1.3 / 0.08 / 0.045</span><span class="nt-i">・伝説級 6.5 / 1.55 / 0.10 / 0.06</span><span class="nt-i">・神話級 7 / 1.7 / 0.12 / 0.075</span><span class="nt-h">TierIV は1日5個まで</span>TierIV だけは<em>1日に取れる数に上限</em>があります。上限に当たっても<em>TierI〜TierIII は変わらず落ちます</em>ので、周回そのものは止まりません。周回の画面で上限を超える回数を選ぶと、先にお知らせします。<span class="nt-h">周回の回数を −・＋ で決められるように</span>「5回」「10回」のボタンを並べるのをやめて、<em>−10 / − / ＋ / ＋10 / 最大</em>で回数を決める形にしました。<span class="nt-h">ワザ素材BOXはショップのものになりました</span><span class="nt-i">・<em>メインクエスト・ハード・イベントクエスト</em>のボスの初回クリアが、BOXではなく<em>そのステージの素材そのもの</em>になりました(BOXより多めです)</span><span class="nt-i">・BOXは<em>ショップ・イベントショップ・深淵回廊・ミッション</em>で受け取れます</span><span class="nt-h">どれくらい変わるか</span><span class="nt-i">・1体のワザを<em>ぜんぶLv12</em>にするには、神話級ハードのボスで <em>約92周(3.3日)</em>です。前は8周で終わっていました</span><span class="nt-i">・<em>ワザLv10まで</em>なら TierIV を1個も使いません。極上級ハードのボスで約89周(3.2日)です。<em>極上級までは素材で詰まらず、神話級に挑むときだけ TierIV がブレーキになる</em>——という形を狙っています</span><span class="nt-i">・TierIII 以上は拠点の<em>錬金術</em>(下位5個 → 上位1個)でも作れます。必要な種類をピンポイントに用意できるので、落ちるのを待たなくても進められます</span>' },
   { id: 129, version: 'α0.3.003', date: '9/30', title: 'ソウルの集めかたを見直しました', body: '<span class="nt-h">レアリティが高いほど完凸が遠くなりました</span>星刻に必要なソウルが<em>もとのレアリティ</em>でも変わるようになりました。これまでは「いまの★」だけで決まっていたので、<em>★5がいちばん安い</em>という逆転が起きていました。<span class="nt-i">・<em>最初の1段は今までと同じ</em>です(★5→★6 は 300 のまま。★3→★4 は 100 → <em>90</em> に下がりました)。重くなるのは後半だけです</span><span class="nt-i">・★10までの合計 ★1:1,500 / ★2:2,100 / ★3:3,150 / ★4:3,900 / <em>★5:4,800</em></span><span class="nt-i">・数字はガチャの重複でもらえるソウル(★3:30 / ★4:50 / ★5:150)の倍数に揃えたので、「★5の1段目は重複2体ぶん」と数えられます</span><span class="nt-h">開催中のイベントにも入れました</span>次のイベントを待たずに、<em>いま開催中のイベントにも</em>反映しています。<span class="nt-i">・EXステージで<em>ほかの敵からもソウル</em>が出ます(抱き合わせ★4はEX3で100%、その他の★4は50%、★3以下は35%)。EXはスタミナを使わないので、星結晶を使わずにソウルを集められる道になります</span><span class="nt-i">・EX3の主役のソウルが<em>50%で1〜3個</em>(1個50% / 2個35% / 3個15%)に。1周あたりの平均は 1個 → <em>0.83個</em>で<em>少し渋くなります</em>が、そのぶん<em>ほかの敵のソウル</em>が同時に出るようになります</span><span class="nt-i">・イベントショップの主役のソウルが<em>1回10個・上限30回</em>に(合計300個で今までと同じ量です)</span><span class="nt-i">・同時ピックアップ★4のソウルを<em>1体ずつ別の商品</em>に分けました(各60メダル・20個・上限10回)。これまでは1商品で2体ぶんまとめて配っていたので、<em>片方だけ買う</em>ことができます(そのかわり2体ぶん揃えるメダルは 800 → 1,200 に増えます)</span><span class="nt-i">・イベントショップの<em>素材の値段をそろえました</em>。これまでは上のTierほど極端に安く(TierIVの素材が TierIのBOXの60倍お得)、安い順に買うのが正解になっていました。TierI 73 → <em>30</em>・TierII 50 → <em>60</em>・TierIII 45 → <em>185</em>・TierIV 33 → <em>335</em>メダル。<em>TierIII・TierIVは値上げ</em>になります</span><span class="nt-i">・<em>ワザ素材BOX TierIV</em>(125メダル・上限1)を追加しました</span><span class="nt-h">直したもの</span><span class="nt-i">・<em>霊素の鉱脈に入れなかった</em>のを修正(ステージを探す処理から漏れていました)</span><span class="nt-i">・育成クエストの必要スタミナが<em>⚡0のまま</em>表示されていたのを修正(実際には消費されていました)</span><span class="nt-i">・霊素の鉱脈の報酬が表示されていなかったのを修正</span>' },
