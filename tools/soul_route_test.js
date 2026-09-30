@@ -46,13 +46,13 @@ ok('soulsToNextOf は図鑑から元レアリティを引く', E.soulsToNextOf('
 
 /* ---- EXの主役ソウル ---- */
 const evNow = E.EVENTS.find(e => e.key === 'ev_abaddon');
-const evV2 = { ...evNow, soulV2: true, featured: [evNow.pickup, 'm157', 'm158'] };
+const evV2 = { ...evNow, econV2: true, featured: [evNow.pickup, 'm157', 'm158'] };
 ok('公開ずみのイベントの主役ソウルは 20% / 50% / 100%(据え置き)',
    [1, 2, 3].map(ex => E.exPickupSoulRate(evNow, ex)).join() === '0.2,0.5,1', [1, 2, 3].map(ex => E.exPickupSoulRate(evNow, ex)));
-ok('soulV2 のイベントは 20% / 50% / 50%',
+ok('econV2 のイベントは 20% / 50% / 50%',
    [1, 2, 3].map(ex => E.exPickupSoulRate(evV2, ex)).join() === '0.2,0.5,0.5', [1, 2, 3].map(ex => E.exPickupSoulRate(evV2, ex)));
 ok('公開ずみは1個のまま', [1, 2, 3].every(ex => E.exPickupSoulQtyText(evNow, ex) === '1個'));
-ok('soulV2 はEX3だけ1〜3個',
+ok('econV2 はEX3だけ1〜3個',
    E.exPickupSoulQtyText(evV2, 1) === '1個' && E.exPickupSoulQtyText(evV2, 2) === '1個' && E.exPickupSoulQtyText(evV2, 3) === '1〜3個');
 let sum = 0, N = 200000;
 for(let i = 0; i < N; i++) sum += E.exPickupSoulQty(evV2, 3);
@@ -61,14 +61,14 @@ ok('EX3で落ちたときの平均が1.65個(1個50%/2個35%/3個15%)', Math.abs
 ok('EX3の1クリアあたりの期待は0.825個', Math.abs(0.5 * avg - 0.825) < 0.01, (0.5 * avg).toFixed(3));
 [1, 2].forEach(ex => {
   let s2 = 0; for(let i = 0; i < 1000; i++) s2 += E.exPickupSoulQty(evV2, ex);
-  ok(`soulV2でもEX${ex}は1個`, s2 === 1000, s2 / 1000);
+  ok(`econV2でもEX${ex}は1個`, s2 === 1000, s2 / 1000);
 });
 let s3 = 0; for(let i = 0; i < 1000; i++) s3 += E.exPickupSoulQty(evNow, 3);
 ok('公開ずみのEX3は1個のまま', s3 === 1000, s3 / 1000);
 
 /* ---- EXの脇役ソウル ---- */
 const ev = evNow;
-ok('公開ずみのイベントは soulV2 を持たない(数字を動かさない)', !ev.soulV2, ev.soulV2);
+ok('公開ずみのイベントは econV2 を持たない(数字を動かさない)', !ev.econV2, ev.econV2);
 ok('  → 脇役のソウルは出ない', E.exMobSoulRate(ev, 3, E.MON_BY_ID['m17']) === 0);
 const fake = evV2;
 ok('主役はこの表の対象外(専用の率で出す)', E.exMobSoulRate(fake, 3, E.MON_BY_ID[ev.pickup]) === 0);
@@ -93,10 +93,10 @@ ok('公開ずみは★4をまとめた商品のまま', shopNow.some(it => it.sk
 
 const shopV2 = E.eventShopItems(evV2);
 const pickV2 = shopV2.find(it => it.sku === 'soul_pick');
-ok('soulV2 は主役10個×30回(合計300個・総量は同じ)',
+ok('econV2 は主役10個×30回(合計300個・総量は同じ)',
    pickV2.qty === '10個' && pickV2.limit === 30, [pickV2.qty, pickV2.limit, 10 * pickV2.limit]);
 const subRows = shopV2.filter(it => /^soul_sub\d+$/.test(it.sku));
-ok('soulV2 は抱き合わせ★4を1体ずつ別の商品に', subRows.length === 2, subRows.map(r => r.name));
+ok('econV2 は抱き合わせ★4を1体ずつ別の商品に', subRows.length === 2, subRows.map(r => r.name));
 ok('  → 各60メダルで20個・上限10回', subRows.every(r => r.price === 60 && r.qty === '20個' && r.limit === 10), subRows.map(r => [r.name, r.price]));
 ok('  → 名前にモンスター名が入る(どちらのソウルか分かる)', subRows.every(r => /のソウル$/.test(r.name)), subRows.map(r => r.name));
 ok('  → まとめて配る古い商品は出ない', !shopV2.some(it => it.sku === 'soul_sub'));

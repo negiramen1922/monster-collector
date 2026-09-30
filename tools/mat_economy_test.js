@@ -18,6 +18,7 @@ const api = load('game.js', s => s + `;global.__e={
   CRAFT_RATIO, CRAFT_RATIO_AHEAD, craftRatio, matTierUnlocked, parseMat, matKey, getItem,
   SKILL_MAT_COST, grantStageRewards, ensureDaily, tierOf, dropIconsHtml, itemSources,
   craftMat, craftMax, ALCHEMY_FAMILIES, EVENTS, eventSkillMats, SHOP_GOLD_ITEMS, abyssFloorReward, addItem, addGold,
+  eventShopItems, matT1Value, eventMatPrice, eventBoxPrice, EVENT_MAT_PER_MEDAL, EVENT_BOX_PREMIUM, BOX_CONTENT, medalRunGain,
   STAMINA_MAX, STAMINA_REGEN_MS,
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
 };`);
@@ -154,6 +155,14 @@ ok('ハードのボスは同じ素材の2倍', bosses.filter(s => !s.tier.endsWi
   return h.bossReward[0].key === s.bossReward[0].key && h.bossReward[0].n === s.bossReward[0].n * 2;
 }));
 
+/* 1周ぶんの TierI 換算(8節でも使う)。TierIVは1日の上限で頭打ちになるので周回数で割り戻す */
+const RUNS_PER_DAY_ = Math.floor(STAM_PER_DAY / 10);
+function perRunAll(id){
+  const t = st(id).drops.tiers;
+  const drop = t[0] + t[1] * 5 + t[2] * 25;
+  return drop + Math.min((t[3] || 0) * RUNS_PER_DAY_, E.MAT_T4_DAILY_CAP) / RUNS_PER_DAY_ * 125;
+}
+
 /* ---- 7b. 錬金術は「同じ種類の1つ下のTier」からだけ ---- */
 console.log('\n--- 7b. 錬金術はロールをまたげない ---');
 api.STATE = E.DEFAULT_STATE();
@@ -188,6 +197,47 @@ E.EVENTS.forEach(ev => {
 });
 ok('深淵回廊にはBOXが残っている', [25, 50].every(f => E.abyssFloorReward(f).some(r => /^box_/.test(r.key || ''))));
 ok('ゴールドショップにもBOXが残っている', E.SHOP_GOLD_ITEMS.some(x => /^box_/.test(x.itemKey || '')));
+
+/* ---- 7d. イベントショップの素材の値段 ---- */
+console.log('\n--- 7d. イベントショップは TierI換算あたり同じ値段 ---');
+const V1 = [1, 5, 25, 125];
+const MAT_QTY = { 1: [12, 20], 2: [5, 8], 3: [3, 5], 4: [1, 2] };
+function shopMats(ev){
+  return E.eventShopItems(ev).filter(x => /^(mat|box)\d$/.test(x.sku) && !x.hide).map(x => {
+    const m = /^mat(\d)$/.exec(x.sku), b = /^box(\d)$/.exec(x.sku);
+    const tier = Number((m || b)[1]);
+    const t1 = m ? (MAT_QTY[tier][0] * 2 + MAT_QTY[tier][1]) * V1[tier - 1] : E.BOX_CONTENT.sel[tier] * V1[tier - 1];
+    return { sku: x.sku, tier, price: x.price, limit: x.limit, t1, per: t1 / x.price, box: !!b };
+  });
+}
+ok('TierI換算は合成の倍率から決まる', [1, 2, 3, 4].every(t => E.matT1Value(t) === V1[t - 1]), [1, 2, 3, 4].map(E.matT1Value));
+const evNew = { ...E.EVENTS.find(e => e.key === 'ev_fenrir'), econV2: true };
+const rowsNew = shopMats(evNew);
+rowsNew.forEach(r => console.log(`   ${r.sku.padEnd(5)} ${String(r.price).padStart(4)}メダル  TierI換算${String(r.t1).padStart(4)}  ${r.per.toFixed(2)}/メダル ×${r.limit}`));
+const raw = rowsNew.filter(r => !r.box), box = rowsNew.filter(r => r.box);
+ok('生の素材はどのTierも同じ単価(±5%)', raw.every(r => Math.abs(r.per - E.EVENT_MAT_PER_MEDAL) / E.EVENT_MAT_PER_MEDAL <= 0.05),
+   raw.map(r => r.sku + ':' + r.per.toFixed(2)));
+ok('BOXもどのTierも同じ単価', box.every(r => near(r.per, box[0].per, 0.01)), box.map(r => r.sku + ':' + r.per.toFixed(2)));
+ok(`BOXは選べるぶん${E.EVENT_BOX_PREMIUM}倍の割高`, near(raw[0].per / box[0].per, E.EVENT_BOX_PREMIUM, 0.06),
+   +(raw[0].per / box[0].per).toFixed(2));
+ok('TierIVのBOXが買える(深淵回廊とミッションしか出どころが無かった)', box.some(r => r.tier === 4), box.map(r => r.sku));
+// 公開ずみのイベントは据え置き
+const rowsOld = shopMats(E.EVENTS.find(e => e.key === 'ev_fenrir'));
+ok('公開ずみのイベントの値段は変えていない',
+   JSON.stringify(rowsOld.map(r => [r.sku, r.price])) === JSON.stringify([['mat1', 73], ['mat2', 50], ['mat3', 45], ['mat4', 33], ['box1', 40], ['box2', 14], ['box3', 12]]),
+   rowsOld.map(r => r.sku + ':' + r.price));
+ok('公開ずみのイベントにはTierIVのBOXを出さない', !rowsOld.some(r => r.tier === 4 && r.box));
+// メダルは「同じスタミナをメインに使ったとき」と釣り合っているか
+const medalPerRun = E.medalRunGain(10) * 2;      // イベントボーナス最大
+const evStam = st('ev_fenrir_10').stamina;
+const mainT1PerStam = perRunAll('q7_10h') / 10;
+console.log(`   1メダル = ${(evStam / medalPerRun).toFixed(2)}スタミナ / メイン1スタミナ = TierI換算${mainT1PerStam.toFixed(1)}`
+  + ` → メダル1個ぶんの周回で ${(evStam / medalPerRun * mainT1PerStam).toFixed(2)} 相当`);
+ok('イベントで素材を買うのが、メインを回るより極端に得でも損でもない(0.5〜2倍)', (() => {
+  const mainEquiv = evStam / medalPerRun * mainT1PerStam;
+  const r = E.EVENT_MAT_PER_MEDAL / mainEquiv;
+  return r >= 0.5 && r <= 2;
+})(), +(E.EVENT_MAT_PER_MEDAL / (evStam / medalPerRun * mainT1PerStam)).toFixed(2));
 
 /* ---- 8. 完凸までの周回数 ---- */
 console.log('\n--- 8. 1体を完凸(4系統 Lv12)するのに何周か ---');

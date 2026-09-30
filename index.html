@@ -9261,22 +9261,36 @@ function medalRunGain(tier){ return 10 + 4 * tier; }          // 1層14 … 10�
 function medalFirstClear(tier){ return 50 * tier; }           // 10層ぜんぶで2,750
 const EVENT_STAR_MEDAL = [300, 600, 900];
 
+/* 素材の値段は TierI 換算から決める。合成が CRAFT_RATIO 個 → 1個 なので、
+   TierII は TierI の CRAFT_RATIO 個ぶん、TierIII はその2乗…という換算になる。 */
+function matT1Value(tier){ return Math.pow(CRAFT_RATIO, Math.max(0, tier - 1)); }
+/* イベントショップの素材の値段。1メダルで EVENT_MAT_PER_MEDAL 個ぶん(TierI換算)買える。
+   これまでは Tier が上がるほど単価が安く、TierIV は TierI のBOXの60倍お得だった。
+   ワザ素材BOXは「種類を選べる」ぶん EVENT_BOX_PREMIUM 倍の割高にしている。 */
+const EVENT_MAT_PER_MEDAL = 1.5;
+const EVENT_BOX_PREMIUM = 1.5;
+function eventMatPrice(t1, premium){
+  return Math.max(1, Math.round(t1 * (premium || 1) / EVENT_MAT_PER_MEDAL / 5) * 5);
+}
+function eventMatT1(tier, nEach, nRole){ return (nEach * 2 + nRole) * matT1Value(tier); }
+function eventBoxPrice(tier){ return eventMatPrice(BOX_CONTENT.sel[tier] * matT1Value(tier), EVENT_BOX_PREMIUM); }
+
 /* ショップの品。qty は1口の中身、limit は購入上限(イベントごとにリセット)。
-   give(ev) が実際に渡す処理。値段は「同じスタミナを神話級に使うより1.5倍得」になるよう決めてある。 */
+   give(ev) が実際に渡す処理。 */
 function eventShopItems(ev){
   const pick = ev.pickup;
   const subs = (ev.featured || []).filter(id => id !== pick);   // 同時ピックアップの★4
   const relic = EVENT_ELEMENT_RELIC[ev.element];
   const mats = eventSkillMats(ev);
   return [
-    // soulV2 のイベントは 1回10個×上限30回(合計300個)。回数を増やして1回を軽くしただけで総量は同じ
-    ...(ev.soulV2
+    // econV2 のイベントは 1回10個×上限30回(合計300個)。回数を増やして1回を軽くしただけで総量は同じ
+    ...(ev.econV2
       ? [{ sku:'soul_pick', name:`${MON_BY_ID[pick].name}のソウル`, qty:'10個', price:150, limit:30,
           give: () => giveSouls(pick, 10) }]
       : [{ sku:'soul_pick', name:`${MON_BY_ID[pick].name}のソウル`, qty:'20個', price:150, limit:15,
           give: () => giveSouls(pick, 20) }]),
-    // 同時ピックアップの★4は1商品で2体ぶんまとめて配っていたので、soulV2 では1体ずつに分けた
-    ...(ev.soulV2
+    // 同時ピックアップの★4は1商品で2体ぶんまとめて配っていたので、econV2 では1体ずつに分けた
+    ...(ev.econV2
       ? subs.map((id, i) => ({ sku:`soul_sub${i + 1}`, name:`${MON_BY_ID[id].name}のソウル`, qty:'20個', price:60, limit:10,
           give: () => giveSouls(id, 20) }))
       : [{ sku:'soul_sub', name:'同時ピックアップ★4のソウル', qty:'各20個(2体ぶん40個)', price:80, limit:10,
@@ -9285,17 +9299,19 @@ function eventShopItems(ev){
       hide: !relic, give: () => grantRelic(RELICS[relic]) },
     { sku:'gacha_char', name:'モンスター召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_char', 1) },
     { sku:'gacha_relic',name:'遺物召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_relic', 1) },
-    { sku:'mat1', name:eventMatName(mats, 1), qty:'各12個 / 証20個', price:73, limit:6,
-      give: () => giveEventMats(mats, 1, 12, 20) },
-    { sku:'mat2', name:eventMatName(mats, 2), qty:'各5個 / 証8個',  price:50, limit:6,
-      give: () => giveEventMats(mats, 2, 5, 8) },
-    { sku:'mat3', name:eventMatName(mats, 3), qty:'各3個 / 証5個',  price:45, limit:2,
-      give: () => giveEventMats(mats, 3, 3, 5) },
-    { sku:'mat4', name:eventMatName(mats, 4), qty:'各1個 / 証2個',  price:33, limit:1,
-      give: () => giveEventMats(mats, 4, 1, 2) },
-    { sku:'box1', name:'ワザ素材BOX(選択) TierI',   qty:'1個', price:40, limit:15, give: () => addItem('box_sel_1', 1) },
-    { sku:'box2', name:'ワザ素材BOX(選択) TierII',  qty:'1個', price:14, limit:5,  give: () => addItem('box_sel_2', 1) },
-    { sku:'box3', name:'ワザ素材BOX(選択) TierIII', qty:'1個', price:12, limit:3,  give: () => addItem('box_sel_3', 1) },
+    // 素材とBOXの値段は TierI 換算から決める(econV2 のイベントだけ。公開ずみは据え置き)
+    ...[[1, 12, 20, 6], [2, 5, 8, 6], [3, 3, 5, 2], [4, 1, 2, 1]].map(([tier, nEach, nRole, limit], i) => ({
+      sku: `mat${tier}`, name: eventMatName(mats, tier), qty: `各${nEach}個 / 証${nRole}個`,
+      price: ev.econV2 ? eventMatPrice(eventMatT1(tier, nEach, nRole)) : [73, 50, 45, 33][i], limit,
+      give: () => giveEventMats(mats, tier, nEach, nRole),
+    })),
+    ...[[1, 15], [2, 5], [3, 3], [4, 1]].map(([tier, limit], i) => ({
+      sku: `box${tier}`, name: `ワザ素材BOX(選択) Tier${TIER_LABEL[tier]}`, qty: '1個',
+      price: ev.econV2 ? eventBoxPrice(tier) : [40, 14, 12, 0][i], limit,
+      // TierIVのBOXは econV2 のイベントから。深淵回廊とミッションしか出どころが無かった
+      hide: tier === 4 && !ev.econV2,
+      give: () => addItem(`box_sel_${tier}`, 1),
+    })),
     { sku:'pot1', name:'EXPポット TierI',   qty:'300個', price:6,  limit:5, give: () => addItem('exp1', 300) },
     { sku:'pot2', name:'EXPポット TierII',  qty:'100個', price:20, limit:5, give: () => addItem('exp2', 100) },
     { sku:'pot3', name:'EXPポット TierIII', qty:'30個',  price:60, limit:5, give: () => addItem('exp3', 30) },
@@ -9536,11 +9552,11 @@ const EX_UNLOCK_TIER = 3;            // 何層をクリアすると開くか
 // 通常ステージのボス(主役)がソウルを落とす率: ステージ番号×2%(ステージ1で2% … ステージ10で20%)
 const EVENT_BOSS_SOUL_PER_STAGE = 0.02;
 function eventBossSoulRate(st){ return Math.round((st.evNo || 0) * EVENT_BOSS_SOUL_PER_STAGE * 100) / 100; }
-// 主役のソウルの落ちる率。soulV2 のイベントはEX3を渋くして、そのぶん1度に1〜3個出す
+// 主役のソウルの落ちる率。econV2 のイベントはEX3を渋くして、そのぶん1度に1〜3個出す
 const EX_PICKUP_SOUL_RATE     = [0.20, 0.50, 1.00];   // 公開ずみのイベント(据え置き)
-const EX_PICKUP_SOUL_RATE_V2  = [0.20, 0.50, 0.50];   // soulV2 のイベント
+const EX_PICKUP_SOUL_RATE_V2  = [0.20, 0.50, 0.50];   // econV2 のイベント
 function exPickupSoulRate(ev, ex){
-  const tbl = ev && ev.soulV2 ? EX_PICKUP_SOUL_RATE_V2 : EX_PICKUP_SOUL_RATE;
+  const tbl = ev && ev.econV2 ? EX_PICKUP_SOUL_RATE_V2 : EX_PICKUP_SOUL_RATE;
   return tbl[ex - 1] || 0;
 }
 // EX3だけ、落ちたときの個数が 1個50% / 2個35% / 3個15%(期待 0.5×1.65 = 0.825個/クリア)。
@@ -9548,12 +9564,12 @@ function exPickupSoulRate(ev, ex){
 const EX_PICKUP_SOUL_QTY = { 3: [[1, 0.50], [2, 0.35], [3, 0.15]] };
 // 画面に出す「1個」「1〜3個」の文
 function exPickupSoulQtyText(ev, ex){
-  const tbl = ev && ev.soulV2 ? EX_PICKUP_SOUL_QTY[ex] : null;
+  const tbl = ev && ev.econV2 ? EX_PICKUP_SOUL_QTY[ex] : null;
   if(!tbl) return '1個';
   return `${tbl[0][0]}〜${tbl[tbl.length - 1][0]}個`;
 }
 function exPickupSoulQty(ev, ex){
-  const tbl = ev && ev.soulV2 ? EX_PICKUP_SOUL_QTY[ex] : null;
+  const tbl = ev && ev.econV2 ? EX_PICKUP_SOUL_QTY[ex] : null;
   if(!tbl) return 1;
   let roll = Math.random();
   for(const [n, p] of tbl){ if(roll < p) return n; roll -= p; }
@@ -9561,7 +9577,7 @@ function exPickupSoulQty(ev, ex){
 }
 /* EXの脇役からもソウルが出る。もともとソウルの入手ルートが1つもないモンスターが
    71体いて(★3の41体は全部)、EXはスタミナを使わないので石を使わない唯一のルートになる。
-   すでに公開したイベントの数字は動かさないので、新しく作るイベントだけ ev.soulV2: true を付ける。
+   すでに公開したイベントの数字は動かさないので、新しく作るイベントだけ ev.econV2: true を付ける。
    このフラグは EXの主役ソウル(1〜3個)・EXの脇役ソウル・イベントショップのソウル枠をまとめて切り替える。
    率はEX3を基準に、EX1・EX2は控えめ。抱き合わせ★4が主役より先に終わり、
    それ以外は主役より後になるように置いてある(docs/design/イベントステージの作り方.md) */
@@ -9571,7 +9587,7 @@ const EX_MOB_SOUL_RATE = {
   3: { sub: 1.00, other4: 0.50, low: 0.35 },
 };
 function exMobSoulRate(ev, ex, mon){
-  if(!ev || !ev.soulV2 || !mon) return 0;
+  if(!ev || !ev.econV2 || !mon) return 0;
   const r = EX_MOB_SOUL_RATE[ex];
   if(!r || mon.id === ev.pickup) return 0;
   if((ev.featured || []).includes(mon.id)) return r.sub;
@@ -9625,7 +9641,7 @@ function buildEventExStages(ev){
       requires: `${ev.key}_${EX_UNLOCK_TIER}`,
       rules: meta.rules,
       rulesLead: meta.lead,
-      desc: `期間限定・EX${t.ex}(推奨Lv${t.lv})。特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.soulV2 ? '。ほかの敵のソウルも出る' : ''}。`,
+      desc: `期間限定・EX${t.ex}(推奨Lv${t.lv})。特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.econV2 ? '。ほかの敵のソウルも出る' : ''}。`,
       waves,
     };
   });
@@ -18507,8 +18523,8 @@ function grantStageRewards(stage, spawned, party, opts){
   const evOf = stage.type === 'event' ? EVENTS.find(e => e.key === stage.eventKey) : null;
   if(stage.ex && evOf){
     if(Math.random() < exPickupSoulRate(evOf, stage.ex)) addSoul(evOf.pickup, exPickupSoulQty(evOf, stage.ex));
-    // 脇役のソウル(ev.soulV2 を付けたイベントだけ)。同じ種類が複数体出ても1回だけ数える
-    if(evOf.soulV2) [...new Set(spawned.map(u => u.ref))].forEach(ref => {
+    // 脇役のソウル(ev.econV2 を付けたイベントだけ)。同じ種類が複数体出ても1回だけ数える
+    if(evOf.econV2) [...new Set(spawned.map(u => u.ref))].forEach(ref => {
       const rate = exMobSoulRate(evOf, stage.ex, MON_BY_ID[ref]);
       if(rate > 0 && Math.random() < rate) addSoul(ref, 1);
     });

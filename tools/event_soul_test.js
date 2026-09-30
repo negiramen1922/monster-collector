@@ -22,7 +22,7 @@ ok('EXは別枠(番号なし)', ev.exStages.every(s => E.eventBossSoulRate(s) ==
 api.STATE.pendingSouls[pick] = 999; E.giveSouls(pick, 1);
 ok('ソウルが400個をこえても仲間にならない(1体目はガチャ)', !api.STATE.owned[pick] && api.STATE.pendingSouls[pick] === 1000, api.STATE.pendingSouls[pick]);
 // 公開ずみのイベントは据え置き(20% / 50% / 100% で1個)。
-// 新しい設計(soulV2)は EX3 が「50%で落ちて1〜3個」= 1クリアあたり 0.5 × 1.65 = 0.825個
+// 新しい設計(econV2)は EX3 が「50%で落ちて1〜3個」= 1クリアあたり 0.5 × 1.65 = 0.825個
 [0, 1, 2].forEach(i => {
   api.STATE.pendingSouls[pick] = 0;
   for(let k = 0; k < 4000; k++) E.grantStageRewards(ev.exStages[i], []);
