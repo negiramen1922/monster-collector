@@ -73,6 +73,13 @@ async def main():
             check('5回は枠を伸ばして全部見せる(スクロールなし)', not r['scroll'] and not r['over'], r)
             await pg.screenshot(path=str(OUT / 'sweep_log_5.png'))
 
+            # 借りたお助けモンスター(枠のIDは __help__)がMVPでも、仮アイコン(「ア」)ではなく本物の画像
+            r = await pg.evaluate("""() => { MON_BY_ID[HELP_SLOT_ID] = MON_BY_ID.m139;
+              const html = sweepLogHtml([{ win: true, mvp: HELP_SLOT_ID, gold: 1, medal: 0, drops: [], best: null }], findStage(sweepTarget), '');
+              const ok = html.includes(imgSrc('m139')) && !imgSrc(HELP_SLOT_ID).startsWith('data:image/svg');
+              delete MON_BY_ID[HELP_SLOT_ID]; return { ok, real: imgSrc('m139').slice(0, 22) }; }""")
+            check('借りたお助けモンスターがMVPでも本物の画像が出る', r['ok'], r)
+
             # フレンドポイントのお知らせは、人ごと・理由ごとに1行
             r = await pg.evaluate("""() => {
               STATE.friends = [{ uid: 'a', name: 'アリス' }, { uid: 'b', name: 'ボブ' }];

@@ -3136,13 +3136,15 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.007';
+const GAME_VERSION = 'α0.3.008';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
 // icon-data の値はプレフィックス付き(data:...)と生のbase64が混ざっているので、どちらでも使えるようにする
 function iconSrc(v){ return !v ? '' : v.startsWith('data:') ? v : 'data:image/png;base64,' + v; }
 function imgSrc(id){
+  // 借りたお助けモンスターは枠のID(__help__)で呼ばれることがあるので、中身のモンスターのIDに直す
+  if(id === HELP_SLOT_ID && MON_BY_ID[id] && MON_BY_ID[id].id) id = MON_BY_ID[id].id;
   const key = id.replace('m', '');
   const art = SPRITES[key];
   if(art) return art.startsWith('data:') ? art : 'data:image/png;base64,' + art;
@@ -20241,6 +20243,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 134, version: 'α0.3.008', date: '9/30', title: 'お助けモンスターの画像が「ア」になるのを修正', body: '<span class="nt-i">・周回結果などで、フレンドから借りたお助けモンスターがMVPのとき、画像のかわりに名前の1文字目(「ア」など)の仮アイコンが出ていたのを直しました。</span>' },
   { id: 133, version: 'α0.3.007', date: '9/30', title: '周回結果にドロップを全部表示・フレンドポイントのお知らせをまとめて', body: '<span class="nt-h">周回結果</span><span class="nt-i">・1回ごとの行に、その回に落ちた<em>ドロップを全部アイコンで</em>並べるようにしました(目立つ順。当たりはピンクの枠)。</span><span class="nt-i">・1回ずつの結果は専用の枠に入り、<em>6回以上は枠の中でスクロール</em>します。順に出てくるときも、枠が一緒に下へ送られます。</span><span class="nt-i">・ピンクに光るのは、仲間入り・★4以上のソウル・遺物・TierIV・★4箱が出た回だけにしました。</span><span class="nt-h">フレンドポイント</span><span class="nt-i">・届いたお知らせを、人ごとに「〇〇さんがモンスターをN回借りました FP N」の1行にまとめ、最後に合計を出すようにしました。</span>' },
   { id: 132, version: 'α0.3.006', date: '9/30', title: '周回結果を1回ずつ並べて見せるように', body: '<span class="nt-i">・周回の結果画面に、<em>1回ごとの結果</em>が上から順にポポポと出るようになりました。「結果だけ」でも×1〜×4のオート周回でも同じです。</span><span class="nt-i">・各行の左にはその回の<em>MVP</em>、右にはその回いちばん良かったドロップ(仲間入り・ソウル・ルーン・TierIII以上の素材など)が出ます。当たりの回はピンクで光ります。</span><span class="nt-i">・「結果だけ」は戦闘をしないので、MVPは今の編成から戦闘力に応じて選ばれます。</span><span class="nt-i">・一覧をタップすると残りを一気に出せます。合計はこれまでどおり下にまとめて出ます。</span>' },
   { id: 131, version: 'α0.3.005', date: '9/30', title: '防御が「そのままダメージカット%」になりました', body: '<span class="nt-h">物理防御31なら、受ける物理ダメージが31%減ります</span>これまでの防御は<em>引き算</em>で、「物理防御464」と言われても何%減るのか分からない数字でした。しかも<em>レベルで伸びているように見えて、効きは1ミリも変わっていません</em>でした(タンクはLv1でもLv300でも22%減のまま)。防御値をそのまま<em>カット%</em>として読む形にしました。<span class="nt-i">・<em>レベルや★では伸びません</em>。伸びているように見えていただけで、強さは変わっていません</span><span class="nt-i">・素の防御は タンク<em>9〜20%</em> / トリックスター 4〜9% / アタッカー 3〜10% / サポート 3〜9% / シューター 1〜8%</span><span class="nt-i">・上限は<em>99%</em>。ふだんは50%を超えません</span><span class="nt-h">ルーン・遺物・バフは「ポイント加算」に</span>防御の上乗せが<em>割合</em>だったため、もともと防御の高いタンクだけが得をして、柔らかい子を守るバフがほとんど意味を持っていませんでした(九尾に「物理防御+40%」を掛けても<em>+1.6</em>)。<em>誰に掛けても同じだけ増える</em>ポイント加算に変えました。<span class="nt-i">・ルーンの防御は<em>Ⅹでメイン+5・サブ+1〜2</em>。持っているルーンはそのまま新しい値になります</span><span class="nt-i">・遺物のスキル枠・陣形・種族シナジー・バフ・デバフも全部ポイント。<em>積む順番で結果が変わらなくなりました</em></span><span class="nt-i">・例: タイタンは 素20% → ルーンで36% → 遺物で42% → 双璧の陣で43% → ドワーフ5体で<em>47%</em></span><span class="nt-h">こう変わります</span><span class="nt-i">・<em>防御貫通が読めるようになりました</em>。貫通50%なら相手の防御が半分に(31%→15.5%)。ただし<em>8割までしか削れません</em></span><span class="nt-i">・<em>タンクが会心に強くなりました</em>。引き算のころは大ダメージほど防御が無力でしたが、割合なので会心でも同じだけ削ります</span><span class="nt-i">・やけど・毒は<em>今までどおり防御を無視</em>します(貫通100%あつかい)</span><span class="nt-i">・戦闘力の防御の重みを直したので、<em>表示はほぼ変わりません</em></span><span class="nt-i">・自分よりレベルの高いステージに挑むと、<em>少しだけ厳しくなります</em>(敵の防御もレベルで伸びなくなったぶん、お互いにダメージが通りやすくなりました)</span>' },
