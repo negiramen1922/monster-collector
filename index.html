@@ -276,10 +276,14 @@ body{
 .sw-medal{ display:flex; align-items:center; gap:4px; color:var(--text); }
 .sw-medal small{ font-size:10.5px; color:var(--dim); font-weight:700; }
 .drop-row{ display:flex; align-items:center; flex-wrap:wrap; gap:3px; margin-top:6px; font-size:13px; }
-.drop-mat{ display:inline-flex; align-items:center; gap:2px; margin-right:6px; }
-.drop-mat small{ margin-left:1px !important; font-size:10px; color:var(--text) !important; }
 .drop-row small{ font-size:10px; color:var(--dim); margin-left:4px; }
 .drop-row small.drop-t4{ color:var(--gold); }
+/* 出る可能性のあるもの: アイコン・名前・個数だけ並べる */
+.drop-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(58px, 1fr)); gap:4px; margin-top:4px; }
+.drop-cell{ display:flex; flex-direction:column; align-items:center; gap:1px; padding:4px 2px 3px;
+  border:1px solid var(--line); border-radius:8px; background:#00000022; }
+.drop-cell .dc-name{ font-size:9px; line-height:1.15; text-align:center; opacity:.85; }
+.drop-cell .dc-n{ font-size:11px; font-weight:800; color:var(--gold); }
 .tier-card{ display:flex; width:100%; align-items:center; gap:10px; text-align:left; font-family:inherit; cursor:pointer;
   background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px; color:var(--fg); }
 .tier-card.locked{ opacity:.55; cursor:default; }
@@ -2364,7 +2368,15 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sw-ticket.on{ background:#24371f; border-color:#6ab24f; }
 .sw-ticket:disabled{ opacity:.5; cursor:default; }
 .sw-ticket small{ margin-left:auto; font-size:10px; font-weight:700; opacity:.7; }
-.sw-speed-head{ font-size:11px; font-weight:800; opacity:.75; margin:8px 0 5px; }
+.sw-speed-head, .sw-count-head{ font-size:11px; font-weight:800; opacity:.75; margin:8px 0 5px; }
+.sw-count{ display:grid; grid-template-columns:auto auto 1fr auto auto auto; align-items:center; gap:5px; }
+.sw-step{ padding:8px 6px; border-radius:9px; font-size:11px; font-weight:800; cursor:pointer; white-space:nowrap;
+  background:#241c14; border:1px solid var(--line); color:var(--text); }
+.sw-step:disabled{ opacity:.35; cursor:default; }
+.sw-step.on{ background:#3a2a1a; border-color:var(--gold); color:var(--gold); }
+.sw-step small{ display:block; font-size:9px; opacity:.8; font-weight:700; }
+.sw-times{ text-align:center; font-size:20px; font-weight:900; color:var(--gold); }
+.sw-times small{ font-size:11px; margin-left:1px; opacity:.8; }
 .sw-speeds{ display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:5px; margin-bottom:7px; }
 .sw-speed{ padding:7px 0; border-radius:9px; font-size:11px; font-weight:800; cursor:pointer;
   background:var(--panel2); border:1px solid var(--line); color:inherit; font-family:inherit; }
@@ -5268,11 +5280,14 @@ function rollDropCount(e){
   for(let i = 0; i < n; i++) if(Math.random() < p) got++;
   return got;
 }
-// よく出る幅(平均±標準偏差)。ステージの表示に使う
-function dropSpread(e){
+/* 1種ぶんの「よく出る幅」(平均±標準偏差)。落ちた素材は3種にランダムで割り振られるので、
+   1枠が特定の1種になる確率は 1/種類数。出る可能性があるものは上を最低1個にする
+   (0-0 という表示にならないように)。 */
+function dropKindRange(e, kinds){
   if(!(e > 0)) return null;
-  const n = Math.max(1, Math.round(e * 2)), p = e / n, sd = Math.sqrt(n * p * (1 - p));
-  return { n, p, sd, lo: Math.max(0, Math.round(e - sd)), hi: Math.min(n, Math.round(e + sd)) };
+  const n = Math.max(1, Math.round(e * 2)), q = e / (n * (kinds || 1));
+  const mean = n * q, sd = Math.sqrt(n * q * (1 - q));
+  return { n, q, mean, sd, lo: Math.max(0, Math.round(mean - sd)), hi: Math.max(1, Math.min(n, Math.round(mean + sd))) };
 }
 /* ボスとハードは、すべてのTierの期待値に倍率をかける(足し算ではない)。
    ハードのボスは両方が乗るので ×2.4。落ちないTier(期待値0)は0のまま。 */
@@ -5287,7 +5302,7 @@ function scaleDropTiers(tiers, opts){
 }
 /* TierIV だけは1日に取れる数に上限がある(周回そのものは止めない。上限に当たったあとも
    TierI〜TierIII は変わらず落ちる)。 */
-const MAT_T4_DAILY_CAP = 2;
+const MAT_T4_DAILY_CAP = 5;
 function stageMatT4Rate(stage){ return stage && stage.drops ? (stage.drops.tiers[3] || 0) : 0; }
 // 画面の描画からも呼ぶので、ここで ensureDaily() は使わない(日付が変わった時に
 // ログイン回数まで数えてしまう)。読むだけにして、書くのはドロップの抽選のときだけ。
@@ -7790,7 +7805,6 @@ function runSweep(stageId, times, useTicket){
    MVP・最大ダメージ・勝率はそのまま本物の戦闘結果。速さは ×1/×2/×3/×4 と「結果だけ」。
    「結果だけ」はこれまでの周回(戦闘をスキップして報酬だけ受け取る)と同じ動き。
    当たり(Tier4素材・遺物・★5ソウル・仲間入り)が出た時だけ0.6秒手を止めて大きく出す。 */
-const AUTO_RUN_OPTIONS = [5, 10, 20];
 const RARE_PAUSE_MS = 600;
 let autoRun = null;
 function autoRunActive(){ return !!autoRun && !autoRun.done2; }
@@ -7954,6 +7968,7 @@ function showAutoRunResult(){
 let sweepTarget = null;
 let sweepSpeed = 0;   // ×1 / ×2 / ×3 / ×4 / 0 = 結果だけ。最初は「結果だけ」、選んだ速さは STATE.sweepSpeed に覚える
 let sweepTicket = false;   // 周回券でスタミナのかわりに回す(結果だけのとき)
+let sweepTimes = 1;        // 回す回数。−/＋ボタンで決める(最大まで)
 function renderSweepModal(){
   const stage = findStage(sweepTarget);
   if(STATE.sweepSpeed !== undefined && !renderSweepModal.seen){ sweepSpeed = STATE.sweepSpeed; renderSweepModal.seen = true; }
@@ -7964,9 +7979,15 @@ function renderSweepModal(){
   if(sweepTicket && (!tkHave || sweepSpeed !== 0)) sweepTicket = false;
   const max = sweepTicket ? Math.min(tkHave, 99)
     : stage.stamina > 0 ? Math.floor(STATE.stamina / stage.stamina) : 99;
-  const opts = [...new Set([1, ...AUTO_RUN_OPTIONS, max].filter(n => n >= 1 && n <= max))].sort((a, b) => a - b);
+  sweepTimes = Math.max(1, Math.min(sweepTimes, Math.max(1, max)));
+  const times = sweepTimes;
   const stamPct = Math.min(100, Math.round(STATE.stamina / STAMINA_MAX * 100));
-  const drops = stage.drops ? stage.drops.tiers.reduce((a, b) => a + b, 0) : 0;
+  const drops = stage.drops ? Math.round(stage.drops.tiers.reduce((a, b) => a + b, 0)) : 0;
+  // TierIVは1日の上限があるので、それを超える回数を選んだら先に言っておく
+  const t4Rate = stageMatT4Rate(stage);
+  const t4Left = matT4Left();
+  const t4Exp = t4Rate * times;
+  const t4Over = t4Rate > 0 && t4Exp > t4Left;
   const pots = Object.values(stage.pots || {}).reduce((a, b) => a + b, 0);
   layer.innerHTML = `
     <div class="result-modal sweep-modal" role="dialog" aria-label="周回">
@@ -7977,7 +7998,7 @@ function renderSweepModal(){
         <div class="promo-note">1回 ⚡${stage.stamina}・いまは最大 ${max}回${
           STATE.stamina >= STAMINA_MAX ? '' : `・全回復まで ${formatDuration(msToFullStamina())}`}</div>
       </div>
-      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・${ITEM_ICON.pot}EXP×${pots}` : ''}${drops ? `・素材×${drops}` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
+      <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・${ITEM_ICON.pot}EXP×${pots}` : ''}${drops ? `・素材 約${drops}個` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
       <div class="sw-speed-head">速さ</div>
       <div class="sw-speeds">
         <button class="sw-speed ${sweepSpeed === 0 ? 'on' : ''}" data-sweep-speed="0">結果だけ</button>
@@ -7987,11 +8008,19 @@ function renderSweepModal(){
       ${tkKey && tkHave ? `<button class="sw-ticket ${sweepTicket ? 'on' : ''}" data-sweep-ticket="1" ${sweepSpeed === 0 ? '' : 'disabled'}>
         ${itemIcon(tkKey)}${SWEEP_TICKETS[tkKey].name}を使う<small>${sweepSpeed === 0 ? `残り${tkHave}枚・スタミナを使いません` : '「結果だけ」のときに使えます'}</small>
       </button>` : ''}
-      ${opts.length ? `<div class="sweep-opts">${opts.map(n => `
-        <button class="btn" data-sweep-run="${n}">
-          <b>${n === max && n > 10 ? `最大 ${n}回` : `${n}回`}</b>
-          <small>${sweepTicket ? `券${n}枚 → 残り ${tkHave - n}枚` : `⚡${n * stage.stamina} → 残り ⚡${STATE.stamina - n * stage.stamina}`}</small>
-        </button>`).join('')}</div>`
+      ${max >= 1 ? `
+      <div class="sw-count-head">回数</div>
+      <div class="sw-count">
+        <button class="sw-step" data-sweep-times="-10" ${times > 1 ? '' : 'disabled'}>−10</button>
+        <button class="sw-step" data-sweep-times="-1" ${times > 1 ? '' : 'disabled'}>−</button>
+        <b class="sw-times">${times}<small>回</small></b>
+        <button class="sw-step" data-sweep-times="1" ${times < max ? '' : 'disabled'}>＋</button>
+        <button class="sw-step" data-sweep-times="10" ${times < max ? '' : 'disabled'}>＋10</button>
+        <button class="sw-step max ${times === max ? 'on' : ''}" data-sweep-times="max">最大<small>${max}</small></button>
+      </div>
+      <div class="promo-note">${sweepTicket ? `券${times}枚 → 残り ${tkHave - times}枚` : `⚡${times * stage.stamina} → 残り ⚡${STATE.stamina - times * stage.stamina}`}</div>
+      ${t4Over ? `<div class="alc-warn">TierIVは1日${MAT_T4_DAILY_CAP}個までです(本日あと${t4Left}個)。${times}回だとおよそ${t4Exp.toFixed(1)}個ぶんなので、<b>上限を超えます</b>。超えたぶんは出ません(TierI〜TierIIIはそのまま落ちます)</div>` : ''}
+      <button class="btn btn-block" data-sweep-run="${times}">${times}回 周回する</button>`
         : `<div class="soul-none">${sweepTicket ? '周回券が足りません' : `スタミナが足りません(1回 ⚡${stage.stamina})`}</div>`}
       <button class="btn btn-ghost btn-block" id="close-result">やめる</button>
     </div>`;
@@ -10425,10 +10454,9 @@ function itemSources(key){
     const stages = STAGES.filter(st => st.drops && !st.disabled && st.drops.kinds.some(([f, k]) => f === m.fam && k === m.kind) && (st.drops.tiers[m.tier - 1] || 0) > 0);
     const open = stages.filter(st => stageUnlocked(st)).sort((a, b) => (b.drops.tiers[m.tier - 1] - a.drops.tiers[m.tier - 1]) || (STAGES.indexOf(b) - STAGES.indexOf(a)));
     open.slice(0, 4).forEach(st => {
-      const e = st.drops.tiers[m.tier - 1], sp = dropSpread(e);
+      const r = dropKindRange(st.drops.tiers[m.tier - 1], st.drops.kinds.length);
       out.push({ label: `${QUEST_TIERS.find(q => q.key === st.tier).short || QUEST_TIERS.find(q => q.key === st.tier).label} ${st.name}`,
-        tag: e >= 1 ? `ドロップ×${sp.lo}〜${sp.hi}` : `ドロップ ${pctText(e)}`
-          + (m.tier === 4 ? `・本日あと${matT4Left()}個` : ''),
+        tag: `ドロップ ${r.lo}-${r.hi}個` + (m.tier === 4 ? `・本日あと${matT4Left()}個` : ''),
         go: { type: 'stage', id: st.id } });
     });
     if(!open.length && stages.length){
@@ -14079,19 +14107,24 @@ let stageSheet = null; // stage whose details are shown
 let dungeonTab = 'exp';
 let eventKey = null;   // which event's stage list is shown when 2+ events are running
 
-/* ドロップ量の見せかた。1個以上の期待値は「よく出る幅」、1個を割るものは確率で出す */
-function dropAmountText(e, tier){
-  const sp = dropSpread(e);
-  if(!sp) return '';
-  const label = `Tier${TIER_LABEL[tier]}`;
-  return e >= 1 ? `${label}×${sp.lo}〜${sp.hi}` : `${label} ${pctText(e)}`;
-}
+/* 出る可能性のあるものを、アイコン・名前・個数だけで並べる(確率は出さない) */
 function dropIconsHtml(st){
   if(!st.drops) return '';
-  const tiers = st.drops.tiers.map((e, i) => dropAmountText(e, i + 1)).filter(Boolean).join('・');
+  const kinds = st.drops.kinds, cells = [];
+  st.drops.tiers.forEach((e, i) => {
+    const r = dropKindRange(e, kinds.length);
+    if(!r) return;
+    kinds.forEach(([f, k]) => {
+      const key = matKey(f, k, i + 1);
+      cells.push(`<div class="drop-cell" title="${itemName(key)}">
+        ${itemIcon(key)}<div class="dc-name">${MAT_FAMILIES[f].name(k)}</div><div class="dc-n">${r.lo}-${r.hi}</div>
+      </div>`);
+    });
+  });
+  if(!cells.length) return '';
   const t4 = stageMatT4Rate(st);
-  const t4Text = t4 > 0 ? `<small class="drop-t4">TierIVは本日あと${matT4Left()}個</small>` : '';
-  return `<div class="drop-row"><span class="rare-label">ドロップ</span>${st.drops.kinds.map(([f, k]) => `<span class="drop-mat" title="${MAT_FAMILIES[f].name(k)}">${MAT_FAMILIES[f].icon(k)}<small>${MAT_FAMILIES[f].name(k)}</small></span>`).join('')}<small>${tiers}(3種からランダム)</small>${t4Text}</div>`;
+  return `<div class="drop-row"><span class="rare-label">出るもの</span>${t4 > 0 ? `<small class="drop-t4">TierIVは本日あと${matT4Left()}個</small>` : ''}</div>
+    <div class="drop-grid">${cells.join('')}</div>`;
 }
 
 /* ステージ効果(EXステージ・総力戦)。出撃前に何が起きるか分かるように並べる */
@@ -19511,6 +19544,17 @@ function handlePhoneClick(ev){
   if(swOpen){ sweepTarget = swOpen.dataset.sweepOpen; renderSweepModal(); return; }
   const swSpeedEl = t.closest('[data-sweep-speed]');
   if(swSpeedEl){ sweepSpeed = Number(swSpeedEl.dataset.sweepSpeed); STATE.sweepSpeed = sweepSpeed; saveState(); if(sweepSpeed !== 0) sweepTicket = false; renderSweepModal(); return; }
+  const swTimesEl = t.closest('[data-sweep-times]');
+  if(swTimesEl && sweepTarget){
+    const stage = findStage(sweepTarget);
+    const tk = sweepTicketKey(stage);
+    const cap = sweepTicket ? Math.min(tk ? getItem(tk) : 0, 99)
+      : stage.stamina > 0 ? Math.floor(STATE.stamina / stage.stamina) : 99;
+    const v = swTimesEl.dataset.sweepTimes;
+    sweepTimes = v === 'max' ? Math.max(1, cap) : Math.max(1, Math.min(cap, sweepTimes + Number(v)));
+    renderSweepModal();
+    return;
+  }
   if(t.closest('[data-sweep-ticket]')){ sweepTicket = !sweepTicket; renderSweepModal(); return; }
   if(t.closest('[data-auto-stop]')){ stopAutoRun('user'); return; }
   const swRun = t.closest('[data-sweep-run]');
@@ -19946,7 +19990,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 130, version: 'α0.3.004', date: '9/30', title: 'ワザ強化素材のドロップを「期待値 + 抽選」にしました', body: '<span class="nt-h">落ちる個数が毎回変わります</span>メインクエストでワザ強化素材が<em>余りすぎていた</em>ので、ドロップの仕組みを入れ替えました。これまでは「TierI×15個」のように<em>毎回きっちり同じ個数</em>でしたが、これからは<em>期待値</em>を決めて毎回抽選します。<span class="nt-i">・期待値の2倍ぶんの枠を用意して1枠ずつふり、当たった数だけ落ちます。<em>平均はぴったり期待値どおり</em>で、出る数は毎回ブレます</span><span class="nt-i">・期待値が1個を割ると、そのまま<em>「N%で1個」</em>の確率ドロップになります。これで TierI から TierIV まで<em>同じ1つの決まり</em>で落ちます</span><span class="nt-i">・ステージには<em>よく出る幅</em>を出しています(例: 神話級ハードのボスなら「TierI×14〜20・TierII×3〜5・TierIII 29%・TierIV 18%」)</span><span class="nt-h">ボスとハードは「期待値が倍になる」形に</span>足し算ではなく倍率にそろえました。<em>ボスは1.6倍・ハードは1.5倍</em>、ハードのボスは両方が乗って<em>2.4倍</em>です。落ちないTierは増えません。<span class="nt-h">難易度ごとの期待値(雑魚ステージ)</span><span class="nt-i">・初級 TierI 4個</span><span class="nt-i">・中級 TierI 5個 / TierII 80%</span><span class="nt-i">・上級 TierI 5個 / TierII 90% / <em>TierIII 4%</em> / TierIV 2%</span><span class="nt-i">・超上級 TierI 5.5個 / TierII 1.2個 / TierIII 6% / TierIV 3%</span><span class="nt-i">・極上級 TierI 6個 / TierII 1.3個 / TierIII 8% / TierIV 4.5%</span><span class="nt-i">・伝説級 TierI 6.5個 / TierII 1.55個 / TierIII 10% / TierIV 6%</span><span class="nt-i">・神話級 TierI 7個 / TierII 1.7個 / TierIII 12% / TierIV 7.5%</span><span class="nt-h">TierIV は1日2個まで</span>TierIV だけは<em>1日に取れる数に上限</em>があります。上限に当たっても<em>TierI〜TierIII は変わらず落ちます</em>ので、周回そのものは止まりません。<span class="nt-h">ワザ素材BOXはショップのものになりました</span><span class="nt-i">・メインクエストのボスの初回クリアが、BOXではなく<em>そのステージの素材そのもの</em>になりました(BOXと同じぶんの量です)</span><span class="nt-i">・BOXはショップ・イベントショップ・ミッション・深淵回廊で受け取れます</span><span class="nt-h">どれくらい変わるか</span><span class="nt-i">・1体のワザを<em>ぜんぶLv12</em>にするには、神話級ハードのボスで <em>約114周(4日ほど)</em>です。前は8周で終わっていました</span><span class="nt-i">・<em>ワザLv10まで</em>なら TierIV を1個も使いません。極上級ハードのボスで約89周(3日ほど)です。<em>極上級までは素材で詰まらず、神話級に挑むときだけ TierIV がブレーキになる</em>——という形を狙っています</span><span class="nt-i">・TierIII 以上は拠点の<em>錬金術</em>(下位5個 → 上位1個)でも作れます。必要な種類をピンポイントに用意できるので、落ちるのを待たなくても進められます</span>' },
+  { id: 130, version: 'α0.3.004', date: '9/30', title: 'ワザ強化素材のドロップを「期待値 + 抽選」にしました', body: '<span class="nt-h">落ちる個数が毎回変わります</span>メインクエストでワザ強化素材が<em>余りすぎていた</em>ので、ドロップの仕組みを入れ替えました。これまでは「TierI×15個」のように<em>毎回きっちり同じ個数</em>でしたが、これからは<em>期待値</em>を決めて毎回抽選します。<span class="nt-i">・期待値の2倍ぶんの枠を用意して1枠ずつふり、当たった数だけ落ちます。<em>平均はぴったり期待値どおり</em>で、出る数は毎回ブレます</span><span class="nt-i">・ステージには<em>出る可能性のあるもの</em>を、アイコンと名前と個数で並べました(例: 「光の欠片 3-8」「サポートの証 0-1」)</span><span class="nt-i">・TierI から TierIV まで、<em>どのTierも落ちます</em></span><span class="nt-h">ボスとハードは「期待値が倍になる」形に</span>足し算ではなく倍率にそろえました。<em>ボスは1.6倍・ハードは1.5倍</em>、ハードのボスは両方が乗って<em>2.4倍</em>です。<span class="nt-h">難易度ごとの期待値(雑魚ステージ)</span><span class="nt-i">・初級 TierI 4個</span><span class="nt-i">・中級 TierI 5個 / TierII 0.8個</span><span class="nt-i">・上級 TierI 5個 / TierII 0.9個 / <em>TierIII 0.04個</em> / TierIV 0.02個</span><span class="nt-i">・超上級 5.5 / 1.2 / 0.06 / 0.03</span><span class="nt-i">・極上級 6 / 1.3 / 0.08 / 0.045</span><span class="nt-i">・伝説級 6.5 / 1.55 / 0.10 / 0.06</span><span class="nt-i">・神話級 7 / 1.7 / 0.12 / 0.075</span><span class="nt-h">TierIV は1日5個まで</span>TierIV だけは<em>1日に取れる数に上限</em>があります。上限に当たっても<em>TierI〜TierIII は変わらず落ちます</em>ので、周回そのものは止まりません。周回の画面で上限を超える回数を選ぶと、先にお知らせします。<span class="nt-h">周回の回数を −・＋ で決められるように</span>「5回」「10回」のボタンを並べるのをやめて、<em>−10 / − / ＋ / ＋10 / 最大</em>で回数を決める形にしました。<span class="nt-h">ワザ素材BOXはショップのものになりました</span><span class="nt-i">・<em>メインクエスト・ハード・イベントクエスト</em>のボスの初回クリアが、BOXではなく<em>そのステージの素材そのもの</em>になりました(BOXより多めです)</span><span class="nt-i">・BOXは<em>ショップ・イベントショップ・深淵回廊・ミッション</em>で受け取れます</span><span class="nt-h">どれくらい変わるか</span><span class="nt-i">・1体のワザを<em>ぜんぶLv12</em>にするには、神話級ハードのボスで <em>約92周(3.3日)</em>です。前は8周で終わっていました</span><span class="nt-i">・<em>ワザLv10まで</em>なら TierIV を1個も使いません。極上級ハードのボスで約89周(3.2日)です。<em>極上級までは素材で詰まらず、神話級に挑むときだけ TierIV がブレーキになる</em>——という形を狙っています</span><span class="nt-i">・TierIII 以上は拠点の<em>錬金術</em>(下位5個 → 上位1個)でも作れます。必要な種類をピンポイントに用意できるので、落ちるのを待たなくても進められます</span>' },
   { id: 129, version: 'α0.3.003', date: '9/30', title: 'ソウルの集めかたを見直しました', body: '<span class="nt-h">レアリティが高いほど完凸が遠くなりました</span>星刻に必要なソウルが<em>もとのレアリティ</em>でも変わるようになりました。これまでは「いまの★」だけで決まっていたので、<em>★5がいちばん安い</em>という逆転が起きていました。<span class="nt-i">・<em>最初の1段は今までと同じ</em>です(★5→★6 は 300 のまま。★3→★4 は 100 → <em>90</em> に下がりました)。重くなるのは後半だけです</span><span class="nt-i">・★10までの合計 ★1:1,500 / ★2:2,100 / ★3:3,150 / ★4:3,900 / <em>★5:4,800</em></span><span class="nt-i">・数字はガチャの重複でもらえるソウル(★3:30 / ★4:50 / ★5:150)の倍数に揃えたので、「★5の1段目は重複2体ぶん」と数えられます</span><span class="nt-h">これから追加するイベントから変わること</span><em>開催中のイベントの数字は変えていません。</em>次のイベントから次のようになります。<span class="nt-i">・EXステージで<em>ほかの敵からもソウル</em>が出ます(抱き合わせ★4はEX3で100%、その他の★4は50%、★3以下は35%)。EXはスタミナを使わないので、星結晶を使わずにソウルを集められる道になります</span><span class="nt-i">・EX3の主役のソウルが<em>50%で1〜3個</em>(1個50% / 2個35% / 3個15%)に。100%で1個より遠くなりますが、当たると大きく進みます</span><span class="nt-i">・イベントショップの主役のソウルが<em>1回10個・上限30回</em>に(合計300個で今までと同じ量です)</span><span class="nt-i">・同時ピックアップ★4のソウルを<em>1体ずつ別の商品</em>に分けます(各60メダル・20個・上限10回)。これまでは1商品で2体ぶんまとめて配っていました</span><span class="nt-h">直したもの</span><span class="nt-i">・<em>霊素の鉱脈に入れなかった</em>のを修正(ステージを探す処理から漏れていました)</span><span class="nt-i">・育成クエストの必要スタミナが<em>⚡0のまま</em>表示されていたのを修正(実際には消費されていました)</span><span class="nt-i">・霊素の鉱脈の報酬が表示されていなかったのを修正</span>' },
   { id: 128, version: 'α0.3.002', date: '9/29', title: 'イベント主役のソウルはEXで集める形に', body: '<span class="nt-h">イベントの主役(ピックアップ★5)のソウル</span><span class="nt-i">・通常ステージでは主役が<em>仲間にならなくなりました</em>。1体目はガチャから迎えてください。</span><span class="nt-i">・通常ステージのボスからは<em>ソウル1個</em>(ステージ1で2%、難しいほど上がりステージ10で20%)。まだ仲間にいなくても貯まり、ガチャで仲間にしたときに引き継がれます。</span><span class="nt-i">・EXステージで<em>EX1は20%・EX2は50%・EX3は100%</em>でソウル1個。スタミナ不要・回数の上限なし(周回機能は使えません)。</span><span class="nt-i">・EXはステージ3クリアで開くようになりました。</span><span class="nt-h">不具合の修正</span><span class="nt-i">・延焼で敵を倒したときに、まれに戦闘が止まることがあったのを直しました。</span>' },
   { id: 127, version: 'α0.3.001', date: '9/29', title: '右上に星結晶の数', body: '<span class="nt-i">・画面右上のゴールドの右隣に、<em>星結晶の数</em>をいつでも表示するようにしました(1万以上は「12K」のように短く)。ガチャ画面でもスタミナが出るようになります。</span>' },

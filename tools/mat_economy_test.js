@@ -13,7 +13,7 @@
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   QUEST_TIERS, STAGES, STAGE_BY_ID, MAT_FAMILIES, MAT_TIER_ROUTE, MAT_TIER_FROM,
-  DROP_MUL_BOSS, DROP_MUL_HARD, dropMul, scaleDropTiers, rollDropCount, dropSpread, dropAmountText,
+  DROP_MUL_BOSS, DROP_MUL_HARD, dropMul, scaleDropTiers, rollDropCount, dropKindRange,
   MAT_T4_DAILY_CAP, stageMatT4Rate, matT4Today, matT4Left,
   CRAFT_RATIO, CRAFT_RATIO_AHEAD, craftRatio, matTierUnlocked, parseMat, matKey, getItem,
   SKILL_MAT_COST, grantStageRewards, ensureDaily, tierOf, dropIconsHtml, itemSources,
@@ -41,7 +41,7 @@ console.log('--- 1. 期待値ぶんだけ落ち、個数はブレる ---');
   if(e >= 1) ok(`  期待値${e} は毎回同じ個数ではない`, max > min + 1, [min, max]);
 });
 ok('期待値0なら1個も落ちない', [0, -1, null, undefined].every(v => E.rollDropCount(v) === 0));
-ok('期待値が1を割ると「その確率で1個」になる', E.dropSpread(0.12).n === 1 && near(E.dropSpread(0.12).p, 0.12, 1e-9));
+ok('期待値が1を割ると「その確率で1個」になる', E.dropKindRange(0.12, 1).n === 1 && near(E.dropKindRange(0.12, 1).q, 0.12, 1e-9));
 
 /* ---- 2. ドロップ表 ---- */
 console.log('\n--- 2. 素のドロップ(雑魚ステージの期待値) ---');
@@ -76,7 +76,7 @@ ok('落ちないTierは倍率をかけても0のまま', E.STAGES.filter(s => s.
 
 /* ---- 4. TierIV の1日2個の上限 ---- */
 console.log('\n--- 4. TierIV は1日2個まで(周回は止めない) ---');
-ok(`上限は${E.MAT_T4_DAILY_CAP}個`, E.MAT_T4_DAILY_CAP === 2, E.MAT_T4_DAILY_CAP);
+ok(`上限は${E.MAT_T4_DAILY_CAP}個`, E.MAT_T4_DAILY_CAP === 5, E.MAT_T4_DAILY_CAP);
 function farm(stageId, runs){
   api.STATE = E.DEFAULT_STATE();
   const S = api.STATE;
@@ -105,14 +105,20 @@ console.log('\n--- 5. ステージとアイテム欄の案内 ---');
 api.STATE = E.DEFAULT_STATE();
 api.STATE.clearedStages = E.STAGES.map(s => s.id);
 const hbHtml = E.dropIconsHtml(st(HB));
-ok('1個以上は「×14〜20」のような幅で出る', hbHtml.includes('TierI×14〜20'), (hbHtml.match(/TierI×[^・]*/) || [])[0]);
-ok('1個を割るものは確率で出る', /TierIII 29%/.test(hbHtml) && /TierIV 18%/.test(hbHtml), (hbHtml.match(/TierIII[^・<]*/) || [])[0]);
-ok('TierIVの残りが出る', /TierIVは本日あと2個/.test(hbHtml));
+const cells = [...hbHtml.matchAll(/class="dc-name">([^<]+)<\/div><div class="dc-n">([^<]+)</g)].map(m => m[1] + ' ' + m[2]);
+console.log('   ' + cells.join(' / '));
+ok('出るものが 3種 × 落ちるTier ぶん並ぶ', cells.length === 3 * 4, cells.length);
+// アイコンのSVGにも % が入るので、タグの外に出ている文字だけを見る
+const hbText = hbHtml.replace(/<[^>]*>/g, ' ');
+ok('確率は出さない', !/%/.test(hbText), hbText.replace(/\s+/g, ' ').trim());
+ok('個数は 3-8 のような幅で出る', cells.filter(c => / 3-8$/.test(c)).length === 3, cells.slice(0, 3));
+ok('1個を割るものは 0-1 と出る', cells.filter(c => / 0-1$/.test(c)).length === 6, cells.filter(c => / 0-1$/.test(c)));
+ok('TierIVの残りが出る', /TierIVは本日あと5個/.test(hbHtml));
 ok('TierIVが落ちないステージには残りを出さない', !E.dropIconsHtml(st('q1_10h')).includes('本日あと'));
 [3, 4].forEach(t => {
   const src = E.itemSources(`el_fire_${t}`).map(x => x.label + '|' + x.tag);
-  ok(`  TierIV${t === 3 ? 'II' : ''} の入手手段にステージが出る`, src.some(l => /ドロップ/.test(l)), src.slice(0, 2));
-  ok(`  TierIV${t === 3 ? 'II' : ''} の入手手段に錬金術が出る`, src.some(l => l.includes('錬金術')), src.slice(0, 5));
+  ok(`  Tier${t === 3 ? 'III' : 'IV'} の入手手段にステージと1周の個数が出る`, src.some(l => /ドロップ \d+-\d+個/.test(l)), src.slice(0, 2));
+  ok(`  Tier${t === 3 ? 'III' : 'IV'} の入手手段に錬金術が出る`, src.some(l => l.includes('錬金術')), src.slice(0, 5));
 });
 ok('TierIVの案内に本日の残りが出る', E.itemSources('el_fire_4').some(x => /本日あと/.test(x.tag)));
 ok('案内文が全Tierぶんある', [1, 2, 3, 4].every(t => E.MAT_TIER_ROUTE[t] && E.MAT_TIER_FROM[t]));
@@ -206,10 +212,11 @@ function perRun(id){
     + ` → 完凸まで ${Math.ceil(need / p.all)}周 / ${(need / p.all / RUNS_PER_DAY).toFixed(1)}日`);
 });
 const mythic = Math.ceil(need / perRun('q7_10h').all);
-ok('神話級ハードボスの完凸は100〜125周(合意した「100周相当」)', mythic >= 100 && mythic <= 125, mythic);
-ok('TierIVの上限がちゃんと効いている(期待値が1日2個を超える)',
-   st('q7_10h').drops.tiers[3] * RUNS_PER_DAY > E.MAT_T4_DAILY_CAP,
-   +(st('q7_10h').drops.tiers[3] * RUNS_PER_DAY).toFixed(2));
+ok('神話級ハードボスの完凸は85〜105周', mythic >= 85 && mythic <= 105, mythic);
+ok('TierIVの上限(1日5個)は神話級ハードボスだけが届く',
+   st('q7_10h').drops.tiers[3] * RUNS_PER_DAY > E.MAT_T4_DAILY_CAP
+   && st('q6_10h').drops.tiers[3] * RUNS_PER_DAY < E.MAT_T4_DAILY_CAP,
+   [+(st('q7_10h').drops.tiers[3] * RUNS_PER_DAY).toFixed(2), +(st('q6_10h').drops.tiers[3] * RUNS_PER_DAY).toFixed(2)]);
 ok('TierIIIも周回で集まる(1周のTierI換算のうち10%以上)',
    st('q7_10h').drops.tiers[2] * V[2] / perRun('q7_10h').all >= 0.10,
    +(st('q7_10h').drops.tiers[2] * V[2] / perRun('q7_10h').all).toFixed(3));
