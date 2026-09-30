@@ -3856,19 +3856,28 @@ function penalizedIds(){
 
 // apply a formation bonus to a battle unit (allies and enemies alike)
 /* ---- ステージ効果(EXステージ・総力戦の「特殊ルール」) ----
-   stage.rules = [{ who, side, stat, dmgDealt, dmgTaken, when, label }]
-     who      … 当てはまるユニット。{ species, element, role, family, ref } のどれか(省略で全員)
-     side     … 'ally' | 'enemy' | 'both'(省略で both)
-     stat     … { hp, str, pdef, mdef, spd } を割合で(+0.25 なら+25%)。戦闘に入るときに1回だけ掛かる
-     dmgDealt … 与ダメージの増減(割合)
-     dmgTaken … 受けるダメージの増減(割合)
-     when     … 戦闘中の条件(STAGE_RULE_WHEN のキー。省略で常時)
-     label    … 画面に出す文
+   stage.rules = [{ who, side, stat, dmgDealt, dmgTaken, when, whenTarget, shield, immune, label }]
+     who       … 当てはまるユニット。{ species, element, role, family, ref } のどれか(省略で全員)
+     side      … 'ally' | 'enemy' | 'both'(省略で both)
+     stat      … { hp, str, pdef, mdef, spd } を割合で(+0.25 なら+25%)。戦闘に入るときに1回だけ掛かる
+     dmgDealt  … 与ダメージの増減(割合)
+     dmgTaken  … 受けるダメージの増減(割合)。「物理耐性」はこれを atk:'phys' で絞って書く
+                 (防御値(pdef/mdef)は引き算なので、倍にしてもほとんど効かない。実測で
+                  敵の物防×3 は 4.2R → 4.1R、受ける物理ダメージ-2/3 は 4.2R → 5.2R)
+     atk       … dmgDealt / dmgTaken を 'phys' か 'mag' の攻撃だけに絞る(省略で両方)
+     when      … 戦闘中の条件(STAGE_RULE_WHEN のキー。省略で常時)。**自分**の状態を見る
+     whenTarget… dmgDealt だけ。**殴る相手**の状態を見る(「やけどの敵に+50%」はこれ)
+     shield    … 受け取るシールドの量の増減(割合)。+1 なら2倍
+     immune    … かからなくなる状態異常の配列(['stun'] / ['burn','poison'] など)
+     label     … 画面に出す文
    総力戦の「タンク編成のみ」「魔法系のみ」も、who と stat/dmg で同じように書ける。 */
 const STAGE_RULE_WHEN = {
-  lowHp30: u => u.hp / u.maxHp <= 0.3,
-  lowHp50: u => u.hp / u.maxHp <= 0.5,
-  fullHp:  u => u.hp >= u.maxHp,
+  lowHp30:  u => u.hp / u.maxHp <= 0.3,
+  lowHp50:  u => u.hp / u.maxHp <= 0.5,
+  fullHp:   u => u.hp >= u.maxHp,
+  burned:   u => hasStatus(u, 'burn'),
+  poisoned: u => hasStatus(u, 'poison'),
+  shielded: u => shieldTotal(u) > 0,
 };
 function ruleHits(r, u, isEnemy){
   const side = r.side || 'both';
@@ -3884,6 +3893,19 @@ function ruleHits(r, u, isEnemy){
 }
 function stageRulesOf(stage){ return (stage && stage.rules) || []; }
 // ユニットを作ったあとに1回だけ掛ける(HPは最大値も動かす)
+/* ステージ効果でシールドの量が変わる(+1 なら2倍)。addShield から呼ぶ */
+function stageShieldMod(u){
+  let n = 0;
+  stageRulesOf(battleUI && battleUI.stage).forEach(r => {
+    if(r.shield && ruleHits(r, u, u.isEnemy)) n += r.shield;
+  });
+  return n;
+}
+/* ステージ効果でかからなくなる状態異常。applyStatus から呼ぶ */
+function stageImmune(u, st){
+  return stageRulesOf(battleUI && battleUI.stage)
+    .some(r => r.immune && r.immune.includes(st) && ruleHits(r, u, u.isEnemy));
+}
 function applyStageRules(u, stage, isEnemy){
   const rules = stageRulesOf(stage).filter(r => r.stat && ruleHits(r, u, isEnemy));
   if(!rules.length) return;
@@ -3897,14 +3919,17 @@ function applyStageRules(u, stage, isEnemy){
   u.mdef = Math.max(0, Math.round(u.mdef * mul('mdef')));
   u.spd = Math.max(1, Math.round(u.spd * mul('spd')));
 }
-// ダメージを出すときに見る。kind は dmgDealt(殴るほう) か dmgTaken(殴られるほう)
-function stageDmgMod(u, kind){
+// ダメージを出すときに見る。kind は dmgDealt(殴るほう) か dmgTaken(殴られるほう)。
+// target は dmgDealt のときの「殴る相手」(whenTarget を見るのに使う)
+function stageDmgMod(u, kind, target, atk){
   const rules = stageRulesOf(battleUI && battleUI.stage);
   if(!rules.length) return 0;
   let n = 0;
   rules.forEach(r => {
     if(!r[kind] || !ruleHits(r, u, u.isEnemy)) return;
+    if(r.atk && atk && r.atk !== atk) return;
     if(r.when && !(STAGE_RULE_WHEN[r.when] || (() => true))(u)) return;
+    if(r.whenTarget && !(target && (STAGE_RULE_WHEN[r.whenTarget] || (() => false))(target))) return;
     n += r[kind];
   });
   return n;
@@ -16977,7 +17002,7 @@ function spreadBurn(target, dmg, source){
 }
 function applyStatus(target, st, source, turns){
   if(!target.alive) return false;
-  if(isImmune(target) || (target.passive.immuneTo || []).includes(st)){ logLine(`${nm(target)} は${STATUS_LABEL[st]}を防いだ`, 'skill'); return false; }
+  if(isImmune(target) || (target.passive.immuneTo || []).includes(st) || stageImmune(target, st)){ logLine(`${nm(target)} は${STATUS_LABEL[st]}を防いだ`, 'skill'); return false; }
   if(source && source.isEnemy !== target.isEnemy && blockedByWard(target, STATUS_LABEL[st])) return false;
   if(st === 'burn'){
     const old = target.statuses.burn;
@@ -17038,7 +17063,7 @@ function shieldTotal(u){ return u.shields.reduce((s, x) => s + x.amt, 0); }
 function addShield(u, amt, turns, caster, immune){
   if(!u.alive) return 0;
   const room = Math.max(0, Math.round(u.maxHp * shieldCapRatio()) - shieldTotal(u));
-  const add = Math.min(Math.round(amt), room);
+  const add = Math.min(Math.round(amt * Math.max(0, 1 + stageShieldMod(u))), room);
   if(add <= 0) return 0;
   u.shields.push({ amt: add, turns, skip: battleUI.currentActor === u, caster, immune: !!immune });
   u.shields.sort((a, b) => a.turns - b.turns);
@@ -17345,7 +17370,7 @@ function strike(ctx, target, o){
   }
   const crit = o.raw === undefined && !o.noCrit && (stone || chance(BASE_CRIT_RATE + passiveMod(actor, 'critBonus', target) + buffV(actor, 'critUp') + (actor.bonusCrit || 0) + (act.critBonus || 0) - passiveMod(target, 'critTakenCut')));
   let bonus = passiveMod(actor, 'dmgBonus', target, act, kind) + allyMod(actor, 'allyDmgBonus', target, act, kind)
-    + stageDmgMod(actor, 'dmgDealt') + stageDmgMod(target, 'dmgTaken') + (actor.flags.fireBoost || 0) + (kind === 'normal' ? (actor.normalDmgBonus || 0) : 0)
+    + stageDmgMod(actor, 'dmgDealt', target, atk) + stageDmgMod(target, 'dmgTaken', null, atk) + (actor.flags.fireBoost || 0) + (kind === 'normal' ? (actor.normalDmgBonus || 0) : 0)
     + (actor.gimmick === 'scorch' && hasStatus(target, 'burn') ? 0.2 : 0)
     + (kind === 'skill' ? (actor.skillDmgBonus || 0) : 0) + (kind === 'ult' ? (actor.ultDmgBonus || 0) : 0);
   (act.bonusIf || []).forEach(b => { if(conditionMet(b.cond, actor, target)) bonus += b.add; });
