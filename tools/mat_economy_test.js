@@ -221,12 +221,13 @@ ok('BOXもどのTierも同じ単価', box.every(r => near(r.per, box[0].per, 0.0
 ok(`BOXは選べるぶん${E.EVENT_BOX_PREMIUM}倍の割高`, near(raw[0].per / box[0].per, E.EVENT_BOX_PREMIUM, 0.06),
    +(raw[0].per / box[0].per).toFixed(2));
 ok('TierIVのBOXが買える(深淵回廊とミッションしか出どころが無かった)', box.some(r => r.tier === 4), box.map(r => r.sku));
-// 公開ずみのイベントは据え置き
-const rowsOld = shopMats(E.EVENTS.find(e => e.key === 'ev_fenrir'));
-ok('公開ずみのイベントの値段は変えていない',
+// いまのイベントはぜんぶ econV2(開催中のものにも入れた)。econV2 を外すと旧の値段に戻る
+ok('いまのイベントはぜんぶ新しい値段', E.EVENTS.every(ev => ev.econV2), E.EVENTS.map(ev => ev.key + ':' + !!ev.econV2));
+const rowsOld = shopMats({ ...E.EVENTS.find(e => e.key === 'ev_fenrir'), econV2: false });
+ok('econV2 を外すと旧の値段に戻る',
    JSON.stringify(rowsOld.map(r => [r.sku, r.price])) === JSON.stringify([['mat1', 73], ['mat2', 50], ['mat3', 45], ['mat4', 33], ['box1', 40], ['box2', 14], ['box3', 12]]),
    rowsOld.map(r => r.sku + ':' + r.price));
-ok('公開ずみのイベントにはTierIVのBOXを出さない', !rowsOld.some(r => r.tier === 4 && r.box));
+ok('econV2 を外すとTierIVのBOXは出ない', !rowsOld.some(r => r.tier === 4 && r.box));
 // メダルは「同じスタミナをメインに使ったとき」と釣り合っているか
 const medalPerRun = E.medalRunGain(10) * 2;      // イベントボーナス最大
 const evStam = st('ev_fenrir_10').stamina;

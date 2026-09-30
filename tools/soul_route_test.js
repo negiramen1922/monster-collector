@@ -47,11 +47,13 @@ ok('soulsToNextOf は図鑑から元レアリティを引く', E.soulsToNextOf('
 /* ---- EXの主役ソウル ---- */
 const evNow = E.EVENTS.find(e => e.key === 'ev_abaddon');
 const evV2 = { ...evNow, econV2: true, featured: [evNow.pickup, 'm157', 'm158'] };
-ok('公開ずみのイベントの主役ソウルは 20% / 50% / 100%(据え置き)',
-   [1, 2, 3].map(ex => E.exPickupSoulRate(evNow, ex)).join() === '0.2,0.5,1', [1, 2, 3].map(ex => E.exPickupSoulRate(evNow, ex)));
+const evOld = { ...evNow, econV2: false };   // 旧仕様の比較用
+ok('いまのイベントはぜんぶ econV2(開催中のものにも入れた)', E.EVENTS.every(e => e.econV2), E.EVENTS.map(e => e.key + ':' + !!e.econV2));
+ok('econV2 を外すと旧仕様に戻せる(20% / 50% / 100%)',
+   [1, 2, 3].map(ex => E.exPickupSoulRate(evOld, ex)).join() === '0.2,0.5,1', [1, 2, 3].map(ex => E.exPickupSoulRate(evOld, ex)));
 ok('econV2 のイベントは 20% / 50% / 50%',
    [1, 2, 3].map(ex => E.exPickupSoulRate(evV2, ex)).join() === '0.2,0.5,0.5', [1, 2, 3].map(ex => E.exPickupSoulRate(evV2, ex)));
-ok('公開ずみは1個のまま', [1, 2, 3].every(ex => E.exPickupSoulQtyText(evNow, ex) === '1個'));
+ok('旧仕様は1個のまま', [1, 2, 3].every(ex => E.exPickupSoulQtyText(evOld, ex) === '1個'));
 ok('econV2 はEX3だけ1〜3個',
    E.exPickupSoulQtyText(evV2, 1) === '1個' && E.exPickupSoulQtyText(evV2, 2) === '1個' && E.exPickupSoulQtyText(evV2, 3) === '1〜3個');
 let sum = 0, N = 200000;
@@ -63,13 +65,13 @@ ok('EX3の1クリアあたりの期待は0.825個', Math.abs(0.5 * avg - 0.825) 
   let s2 = 0; for(let i = 0; i < 1000; i++) s2 += E.exPickupSoulQty(evV2, ex);
   ok(`econV2でもEX${ex}は1個`, s2 === 1000, s2 / 1000);
 });
-let s3 = 0; for(let i = 0; i < 1000; i++) s3 += E.exPickupSoulQty(evNow, 3);
-ok('公開ずみのEX3は1個のまま', s3 === 1000, s3 / 1000);
+let s3 = 0; for(let i = 0; i < 1000; i++) s3 += E.exPickupSoulQty(evOld, 3);
+ok('旧仕様のEX3は1個のまま', s3 === 1000, s3 / 1000);
 
 /* ---- EXの脇役ソウル ---- */
 const ev = evNow;
-ok('公開ずみのイベントは econV2 を持たない(数字を動かさない)', !ev.econV2, ev.econV2);
-ok('  → 脇役のソウルは出ない', E.exMobSoulRate(ev, 3, E.MON_BY_ID['m17']) === 0);
+ok('econV2 を外すと脇役のソウルは出ない', E.exMobSoulRate(evOld, 3, E.MON_BY_ID['m17']) === 0);
+ok('いまのイベントでは脇役のソウルが出る', E.exMobSoulRate(evNow, 3, E.MON_BY_ID['m17']) > 0, E.exMobSoulRate(evNow, 3, E.MON_BY_ID['m17']));
 const fake = evV2;
 ok('主役はこの表の対象外(専用の率で出す)', E.exMobSoulRate(fake, 3, E.MON_BY_ID[ev.pickup]) === 0);
 ok('抱き合わせ★4はEX3で100%', E.exMobSoulRate(fake, 3, E.MON_BY_ID['m157']) === 1.00);
@@ -86,10 +88,12 @@ ok('抱き合わせ★4は主役より先に終わる', cSub < cPick, { 抱き�
 ok('その他★4・★3以下は主役より後に終わる', cOther > cPick && cLow > cPick, { その他4: cOther, 低レア: cLow, 主役: cPick });
 
 /* ---- イベントショップ ---- */
-const shopNow = E.eventShopItems(evNow);
-const pickNow = shopNow.find(it => it.sku === 'soul_pick');
-ok('公開ずみは主役20個×15回のまま', pickNow.qty === '20個' && pickNow.limit === 15, [pickNow.qty, pickNow.limit]);
-ok('公開ずみは★4をまとめた商品のまま', shopNow.some(it => it.sku === 'soul_sub'));
+const shopOld = E.eventShopItems(evOld);
+const pickOld = shopOld.find(it => it.sku === 'soul_pick');
+ok('econV2 を外すと主役20個×15回に戻る', pickOld.qty === '20個' && pickOld.limit === 15, [pickOld.qty, pickOld.limit]);
+ok('econV2 を外すと★4はまとめた商品', shopOld.some(it => it.sku === 'soul_sub'));
+const pickNow = E.eventShopItems(evNow).find(it => it.sku === 'soul_pick');
+ok('いまのイベントは主役10個×30回', pickNow.qty === '10個' && pickNow.limit === 30, [pickNow.qty, pickNow.limit]);
 
 const shopV2 = E.eventShopItems(evV2);
 const pickV2 = shopV2.find(it => it.sku === 'soul_pick');
