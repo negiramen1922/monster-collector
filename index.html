@@ -6941,8 +6941,10 @@ const RUNE_RARITIES = [
 const RUNE_STATS = {
   hp:       { label: 'HP', short: 'HP',     color: '#4fd06a', pct: true,  type: 'def', main: [5, 6.5, 8, 9.5, 11, 12.5, 14, 15.5, 17, 18.5], sub: [1.5, 3] },
   atk:      { label: 'STR', short: 'STR',    color: '#ff5a5a', pct: true,  type: 'atk', main: [5, 6.5, 8, 9.5, 11, 12.5, 14, 15.5, 17, 18.5], sub: [1.5, 3] },
-  pdef:     { label: '物理防御', short: '物防', color: '#ff9d3c', pct: true,  type: 'def', main: [6, 7.8, 9.6, 11.3, 13.1, 14.9, 16.7, 18.4, 20.2, 22], sub: [2, 3.5] },
-  mdef:     { label: '魔法防御', short: '魔防', color: '#5b82ff', pct: true,  type: 'def', main: [6, 7.8, 9.6, 11.3, 13.1, 14.9, 16.7, 18.4, 20.2, 22], sub: [2, 3.5] },
+  // 防御は%ではなくポイント加算(1ポイント = 1%カット)。素の防御が 2〜33 なので、
+  // 割合で乗せると弱すぎる(Ⅹの22%でも+4.4ポイントにしかならない)
+  pdef:     { label: '物理防御', short: '物防', color: '#ff9d3c', pct: false, type: 'def', main: [3, 3.8, 4.6, 5.4, 6.2, 7, 7.8, 8.6, 9.4, 10], sub: [0.5, 1] },
+  mdef:     { label: '魔法防御', short: '魔防', color: '#5b82ff', pct: false, type: 'def', main: [3, 3.8, 4.6, 5.4, 6.2, 7, 7.8, 8.6, 9.4, 10], sub: [0.5, 1] },
   spd:      { label: 'SPD', short: 'SPD',    color: '#39d3cf', pct: false, type: 'atk', main: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], sub: [1, 2] },
   critRate: { label: '会心率', short: '会心',  color: '#ffd93f', pct: true,  type: 'atk', main: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12], sub: [1, 2] },
   critDmg:  { label: '会心倍率', short: '会心倍', color: '#ff6fcf', pct: true,  type: 'atk', main: [5, 7, 9, 11, 13, 15, 17, 19, 21, 23], sub: [1.5, 3] },
@@ -7076,8 +7078,11 @@ function runeBonusOf(monId, idx){ return runeBonusFromList(runesOf(monId, idx).m
 function applyRuneBonusToUnit(u, b){
   if(!b) return;
   if(b.spd) u.spd += b.spd;
+  // 防御はポイント加算(1ポイント = 1%カット)。HP・STRなどは今までどおり割合
+  if(b.pdef) u.pdef = Math.min(DEF_POINT_CAP, u.pdef + b.pdef);
+  if(b.mdef) u.mdef = Math.min(DEF_POINT_CAP, u.mdef + b.mdef);
   applyStatBonus(u, {
-    hp: (b.hp || 0) / 100, atk: (b.atk || 0) / 100, pdef: (b.pdef || 0) / 100, mdef: (b.mdef || 0) / 100,
+    hp: (b.hp || 0) / 100, atk: (b.atk || 0) / 100,
     critRate: (b.critRate || 0) / 100, critDmg: (b.critDmg || 0) / 100,
   });
 }
@@ -8247,8 +8252,9 @@ function scaledStats(mon, star, level){
   return {
     hp: Math.round(mon.hp * mult * hpScale()),
     str: Math.round(mon.str * mult),
-    pdef: Math.round(mon.pdef * mult),
-    mdef: Math.round(mon.mdef * mult),
+    // 防御は「%カット」そのものなので、レベルや★では伸ばさない(DEFENSE_IS_PERCENT)
+    pdef: mon.pdef,
+    mdef: mon.mdef,
     spd: mon.spd,
 
   };
@@ -8763,7 +8769,9 @@ function battlePower(id){
     ? statsWithSnap(m, o.star, o.level, o.relic, o.runes)
     : statsWithRelic(m, o.star, o.level, equippedRelicOf(id), runeBonusOf(id));
   // 会心はSTRの期待値として少しだけ乗せる(基本の会心率・倍率ぶんは全員同じなので入れない)
-  const base = (st.hp * (battleV2() ? BATTLE_V2_BP_HP : 0.6) + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * 4 + st.spd * 1.5);
+  // 防御は「%カット」なので、レベルでは伸びない小さな数字(素で2〜33・ルーンこみで50前後)。
+  // 4倍のままだとBPに乗らなくなるので、HPを2倍にしたときと同じように重みを直した
+  const base = (st.hp * (battleV2() ? BATTLE_V2_BP_HP : 0.6) + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * BP_DEF_WEIGHT + st.spd * 1.5);
   const kit = 1
     + ((o.skillLv || 1) - 1) * 0.04
     + ((o.skill2Lv || 1) - 1) * 0.04
@@ -13433,6 +13441,9 @@ function showMonsterDetail(id){
   const nextStats = statsWithRelic(m, owned.star, Math.min(lvCap, owned.level + 1), equippedRelicId, runeB);
   const statRow = (label, key) => {
     const grow = nextStats[key] - stats[key];
+    // 防御は「そのまま%カット」。レベルでは伸びないので伸び幅も出さない
+    if(key === 'pdef' || key === 'mdef')
+      return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}%</b><i class="stat-plus">ダメージを${stats[key]}%カット</i></div>`;
     return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}</b>${grow > 0 ? `<i class="stat-grow">+${grow}/Lv</i>` : ''}</div>`;
   };
   // 会心はレベルでは伸びない。基本値(全員同じ)＋遺物とルーンのぶん、で出す
@@ -13628,8 +13639,8 @@ function showMonsterPreview(id){
         <div class="stat-grid">
           <div class="stat-row"><span>HP</span><b>${stats.hp}</b></div>
           <div class="stat-row"><span>STR</span><b>${stats.str}</b></div>
-          <div class="stat-row"><span>物理防御</span><b>${stats.pdef}</b></div>
-          <div class="stat-row"><span>魔法防御</span><b>${stats.mdef}</b></div>
+          <div class="stat-row"><span>物理防御</span><b>${stats.pdef}%</b></div>
+          <div class="stat-row"><span>魔法防御</span><b>${stats.mdef}%</b></div>
           <div class="stat-row"><span>SPD</span><b>${stats.spd}</b></div>
           <div class="stat-row"><span>会心率</span><b>${(BASE_CRIT_RATE * 100).toFixed(1)}%</b></div>
           <div class="stat-row"><span>会心倍率</span><b>×${BASE_CRIT_MULT.toFixed(2)}</b></div>
@@ -14615,7 +14626,14 @@ const SP_ON_KILL = 15;
 // ---- damage ----
 // raw = STR × (1 + STR buffs) × power × (1 + damage bonuses) × element × crit × random
 // dmg = max(raw × 10%, raw − DEF) × (1 − damage cut)     (cuts add up, max 80%)
-const DAMAGE_MIN_RATIO = 0.10;
+/* 防御は「そのまま%カット」。物防24なら受ける物理ダメージが24%減る。
+   引き算をやめた理由: 防御値とSTRが同じ率で伸びるので、引き算だと効きがレベルに
+   関係なく一定(タンクはLv1でもLv300でも22.3%減)になり、数字を見ても強さが分からなかった。
+   DEF_POINT_CAP まで。ふだんは50を超えない想定で、99まで積めるのはステージ効果で
+   「確定ダメージを使わせる」ようなときだけ。 */
+const DEF_POINT_CAP = 99;
+const BP_DEF_WEIGHT = 40;        // 戦闘力での防御1ポイントの重み(旧: 防御値1につき4)
+function defCutOf(pt){ return Math.min(DEF_POINT_CAP, Math.max(0, pt)) / 100; }
 const DAMAGE_SCALE = 1.0;
 const BASE_CRIT_RATE = 0.05;
 const BASE_CRIT_MULT = 1.5;
@@ -14855,7 +14873,10 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     ref: mon.id, name: mon.name, element: mon.element, role: mon.role, rarity: mon.rarity,
     family: mon.family, tribe: mon.tribe, species: speciesOf(mon),
     hp: Math.round(s.hp * mult), maxHp: Math.round(s.hp * mult),
-    str: Math.round(s.str * mult), pdef: Math.round(s.pdef * mult), mdef: Math.round(s.mdef * mult),
+    str: Math.round(s.str * mult),
+    // 防御は「%カット」なので、敵のレベル補正(enemyMult)もボス補正も掛けない。
+    // 掛けると高レベルのステージで全員が上限99%(= ほぼ無敵)になる
+    pdef: s.pdef, mdef: s.mdef,
     spd: s.spd,
     star: curStar, level: isEnemy ? (stageLevel || 1) : (charLevel || 1),
     skillLv: up.skillLv || 1, skill2Lv: up.skill2Lv || up.skillLv || 1, ultLv: up.ultLv || 1, passiveLv: up.passiveLv || 1,
@@ -17089,7 +17110,7 @@ function absorbShields(u, dmg, attacker, byAttack){
   u.shields = u.shields.filter(s => s.amt > 0);
   return left;
 }
-function magicFixed(target, raw){ return Math.max(1, Math.round(Math.max(raw * DAMAGE_MIN_RATIO, raw - effDef(target, 'mag')) * (1 - cutOf(target, 'mag')))); }
+function magicFixed(target, raw){ return Math.max(1, Math.round(raw * (1 - defCutOf(effDef(target, 'mag'))) * (1 - cutOf(target, 'mag')))); }
 
 /* ---- effective stats ---- */
 
@@ -17107,10 +17128,11 @@ function allySpdAura(u){
   side.forEach(a => { if(a.alive && a.passive && typeof a.passive.allySpdAura === 'function') pct += a.passive.allySpdAura(a, u) || 0; });
   return pct ? u.spd * pct : 0;
 }
+// 防御ポイント(= カット%)。バフ・デバフ・パッシブは今までどおり掛け算で効く
 function effDef(u, type){
   const base = type === 'mag' ? u.mdef : u.pdef;
   const up = type === 'mag' ? buffV(u, 'mdefUp') - buffV(u, 'mdefDown') : buffV(u, 'pdefUp') - buffV(u, 'pdefDown');
-  return base * (1 + up + passiveMod(u, 'defBonus', type));
+  return Math.min(DEF_POINT_CAP, Math.max(0, base * (1 + up + passiveMod(u, 'defBonus', type))));
 }
 // damage cuts add up (max 80%); 被ダメージアップ subtracts from the total
 function cutOf(u, type, pre){ return Math.min(CUT_CAP, (u.dmgCut || 0) + buffV(u, 'cut') + buffV(u, 'statue') + passiveMod(u, 'cutBonus', type, pre) - buffV(u, 'vuln') - buffV(u, 'curse')); }
@@ -17387,8 +17409,9 @@ function strike(ctx, target, o){
     protShare = raw * red.v;
     raw -= protShare;
   }
-  const def = (o.ignoreDef || act.ignoreDef) ? 0 : effDef(target, atk) * (1 - capRatio((act.defIgnore || 0) + (actor.pierce || 0) + passiveMod(actor, 'pierceBonus')));
-  const preCut = Math.max(raw * DAMAGE_MIN_RATIO, raw - def);
+  // 防御貫通は「相手の防御ポイントを削る」。RATIO_CAP(80%)までなので、防御は必ず2割残る
+  const defPt = (o.ignoreDef || act.ignoreDef) ? 0 : effDef(target, atk) * (1 - capRatio((act.defIgnore || 0) + (actor.pierce || 0) + passiveMod(actor, 'pierceBonus')));
+  const preCut = raw * (1 - defCutOf(defPt));
   let dmg = preCut * (1 - cutOf(target, atk, preCut));
   dmg = Math.max(1, Math.round(dmg));
   hitHp(target, dmg, actor, {});
@@ -17413,7 +17436,7 @@ function strike(ctx, target, o){
   }
   if(protShare > 0){
     const p = red.source;
-    const pd = Math.max(1, Math.round(Math.max(protShare * DAMAGE_MIN_RATIO, protShare - effDef(p, atk)) * (1 - cutOf(p, atk))));
+    const pd = Math.max(1, Math.round(protShare * (1 - defCutOf(effDef(p, atk))) * (1 - cutOf(p, atk))));
     hitHp(p, pd, actor, {});
     pushFx(p, pd, 'hit', { fx: 'strike' });
     if(p.wallBank) bankWallStr(p, pd);
