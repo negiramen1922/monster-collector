@@ -14058,7 +14058,8 @@ function renderDungeons(){
     r.runes ? `ルーン(Tier${RUNE_ROMAN[t]})×${r.runes}` : '',
     r.dust ? `✨×${r.dust}` : '',
     r.gold ? goldText(r.gold) : '',
-    ...['exp1', 'exp2', 'exp3'].filter(k => r[k]).map(k => `${itemIcon(k)}×${r[k]}`),
+    ...['exp1', 'exp2', 'exp3', 'relic_scrap', 'relic_core_1', 'relic_core_2', 'relic_core_3']
+      .filter(k => r[k]).map(k => `${itemIcon(k)}×${r[k]}`),
   ].filter(Boolean).join(' ');
   return `
     <div class="dungeon-tabs" role="tablist">
@@ -14074,7 +14075,7 @@ function renderDungeons(){
     ${d.rewards.map((r, t) => {
       const unlocked = dungeonTierUnlocked(t, dungeonTab);
       const req = STAGE_BY_ID[dungeonUnlockIds(dungeonTab)[t]];
-      const cost = stageStaminaCost({ stamina: DUNGEON_STAMINA });
+      const cost = stageStaminaCost(dungeonStage(dungeonTab, t));
       const disabled = !unlocked || STATE.stamina < cost;
       return `
         <div class="stage-card dungeon ${unlocked ? '' : 'locked'}">
@@ -14711,9 +14712,10 @@ function buildPvpEnemyParty(defense){
 
 function speedFactor(){ return STATE.battleSpeed || 1; }
 
+const DUNGEON_ID_RE = new RegExp('^dg_(' + Object.keys(DUNGEONS).join('|') + ')_(\\d+)$');
 function findStage(id){
-  const d = /^dg_(exp|gold|rune)_(\d)$/.exec(id || '');
-  if(d) return dungeonStage(d[1], Number(d[2]));
+  const d = DUNGEON_ID_RE.exec(id || '');
+  if(d) return DUNGEONS[d[1]].rewards[Number(d[2])] ? dungeonStage(d[1], Number(d[2])) : null;
   const ab = /^ab_(\d+)$/.exec(id || '');
   if(ab) return abyssStage(Number(ab[1]));
   return STAGE_BY_ID[id];
