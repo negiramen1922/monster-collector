@@ -3366,15 +3366,16 @@ function skillCapOf(owned){ return STAR_TABLE[owned.star].skillCap; }
 /* 星刻に必要なソウル。「もとのレアリティ」と「いまの★」で決まる。
    もとのレアリティが高いほど1段が重く、★10までの合計は
    ★1:1,500 / ★2:2,100 / ★3:3,150 / ★4:3,900 / ★5:4,800。
+   最初の1段(★5→6 の 300 など)は今までと同じにして、重くなるのは後半だけにしてある。
    以前は STAR_TABLE[いまの★] だけで決めていたので、★5の子がいちばん安い(2,800)という
    逆転が起きていた。数字はガチャの重複でもらえるソウル(★3:30 / ★4:50 / ★5:150)の
    倍数に揃えてあるので、「★5の1段目は重複4体ぶん」と数えられる。 */
 const SOULS_TO_NEXT = {
-  1: { 1:50, 2:100, 3:150, 4:150, 5:200, 6:200, 7:200,  8:200,  9:250 },
-  2: {       2:100, 3:200, 4:250, 5:250, 6:300, 7:300,  8:350,  9:350 },
-  3: {              3:300, 4:390, 5:450, 6:450, 7:510,  8:510,  9:540 },
-  4: {                     4:400, 5:600, 6:650, 7:750,  8:750,  9:750 },
-  5: {                            5:600, 6:900, 7:1050, 8:1050, 9:1200 },
+  1: { 1:10, 2:100, 3:150, 4:200, 5:200, 6:200, 7:200,  8:200,  9:240 },
+  2: {       2:50,  3:200, 4:250, 5:300, 6:300, 7:300,  8:350,  9:350 },
+  3: {              3:90,  4:390, 5:450, 6:510, 7:540,  8:570,  9:600 },
+  4: {                     4:200, 5:600, 6:700, 7:800,  8:800,  9:800 },
+  5: {                            5:300, 6:900, 7:1050, 8:1200, 9:1350 },
 };
 // base はモンスターの元レアリティ。渡されなければ owned.base → いまの★ の順に見る
 // (owned.base は newOwned で入れ、古いセーブは migrateOwnedBase で埋める)
@@ -8306,8 +8307,8 @@ function pendSoulText(id){
 function stageBossSoulText(st, boss, daily){
   const ev = st.type === 'event' ? EVENTS.find(e => e.key === st.eventKey) : null;
   if(ev && boss.id === ev.pickup){
-    const rate = st.ex ? (EX_PICKUP_SOUL_RATE[st.ex - 1] || 0) : eventBossSoulRate(st);
-    const qty = st.ex ? exPickupSoulQtyText(st.ex) : '1個';
+    const rate = st.ex ? exPickupSoulRate(ev, st.ex) : eventBossSoulRate(st);
+    const qty = st.ex ? exPickupSoulQtyText(ev, st.ex) : '1個';
     return `◆ ${boss.name}のソウル ${pctText(rate)}で${qty}・仲間になるのはガチャから`;
   }
   return `🤝 仲間になる ${pctText(recruitChanceOf(boss, false, st))}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)`;
@@ -9168,11 +9169,18 @@ function eventShopItems(ev){
   const relic = EVENT_ELEMENT_RELIC[ev.element];
   const mats = eventSkillMats(ev);
   return [
-    { sku:'soul_pick',  name:`${MON_BY_ID[pick].name}のソウル`, qty:'10個', price:150, limit:20,
-      give: () => giveSouls(pick, 10) },
-    // 同時ピックアップの★4は1商品でまとめて配っていたので、1体ずつ買えるように分けた
-    ...subs.map((id, i) => ({ sku:`soul_sub${i + 1}`, name:`${MON_BY_ID[id].name}のソウル`, qty:'20個', price:60, limit:10,
-      give: () => giveSouls(id, 20) })),
+    // soulV2 のイベントは 1回10個×上限30回(合計300個)。回数を増やして1回を軽くしただけで総量は同じ
+    ...(ev.soulV2
+      ? [{ sku:'soul_pick', name:`${MON_BY_ID[pick].name}のソウル`, qty:'10個', price:150, limit:30,
+          give: () => giveSouls(pick, 10) }]
+      : [{ sku:'soul_pick', name:`${MON_BY_ID[pick].name}のソウル`, qty:'20個', price:150, limit:15,
+          give: () => giveSouls(pick, 20) }]),
+    // 同時ピックアップの★4は1商品で2体ぶんまとめて配っていたので、soulV2 では1体ずつに分けた
+    ...(ev.soulV2
+      ? subs.map((id, i) => ({ sku:`soul_sub${i + 1}`, name:`${MON_BY_ID[id].name}のソウル`, qty:'20個', price:60, limit:10,
+          give: () => giveSouls(id, 20) }))
+      : [{ sku:'soul_sub', name:'同時ピックアップ★4のソウル', qty:'各20個(2体ぶん40個)', price:80, limit:10,
+          hide: !subs.length, give: () => subs.forEach(id => giveSouls(id, 20)) }]),
     { sku:'relic_dupe', name:`${RELICS[relic] ? RELICS[relic].name : '配布遺物'}(重複)`, qty:'1個', price:200, limit:2,
       hide: !relic, give: () => grantRelic(RELICS[relic]) },
     { sku:'gacha_char', name:'モンスター召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_char', 1) },
@@ -9420,18 +9428,24 @@ const EX_UNLOCK_TIER = 3;            // 何層をクリアすると開くか
 // 通常ステージのボス(主役)がソウルを落とす率: ステージ番号×2%(ステージ1で2% … ステージ10で20%)
 const EVENT_BOSS_SOUL_PER_STAGE = 0.02;
 function eventBossSoulRate(st){ return Math.round((st.evNo || 0) * EVENT_BOSS_SOUL_PER_STAGE * 100) / 100; }
-const EX_PICKUP_SOUL_RATE = [0.20, 0.50, 0.50];
+// 主役のソウルの落ちる率。soulV2 のイベントはEX3を渋くして、そのぶん1度に1〜3個出す
+const EX_PICKUP_SOUL_RATE     = [0.20, 0.50, 1.00];   // 公開ずみのイベント(据え置き)
+const EX_PICKUP_SOUL_RATE_V2  = [0.20, 0.50, 0.50];   // soulV2 のイベント
+function exPickupSoulRate(ev, ex){
+  const tbl = ev && ev.soulV2 ? EX_PICKUP_SOUL_RATE_V2 : EX_PICKUP_SOUL_RATE;
+  return tbl[ex - 1] || 0;
+}
 // EX3だけ、落ちたときの個数が 1個50% / 2個35% / 3個15%(期待 0.5×1.65 = 0.825個/クリア)。
 // 100%で1個より2倍遠くなるぶん、当たると気持ちがいい形にしている
 const EX_PICKUP_SOUL_QTY = { 3: [[1, 0.50], [2, 0.35], [3, 0.15]] };
 // 画面に出す「1個」「1〜3個」の文
-function exPickupSoulQtyText(ex){
-  const tbl = EX_PICKUP_SOUL_QTY[ex];
+function exPickupSoulQtyText(ev, ex){
+  const tbl = ev && ev.soulV2 ? EX_PICKUP_SOUL_QTY[ex] : null;
   if(!tbl) return '1個';
   return `${tbl[0][0]}〜${tbl[tbl.length - 1][0]}個`;
 }
-function exPickupSoulQty(ex){
-  const tbl = EX_PICKUP_SOUL_QTY[ex];
+function exPickupSoulQty(ev, ex){
+  const tbl = ev && ev.soulV2 ? EX_PICKUP_SOUL_QTY[ex] : null;
   if(!tbl) return 1;
   let roll = Math.random();
   for(const [n, p] of tbl){ if(roll < p) return n; roll -= p; }
@@ -9439,7 +9453,8 @@ function exPickupSoulQty(ex){
 }
 /* EXの脇役からもソウルが出る。もともとソウルの入手ルートが1つもないモンスターが
    71体いて(★3の41体は全部)、EXはスタミナを使わないので石を使わない唯一のルートになる。
-   すでに公開したイベントの数字は動かさないので、新しく作るイベントだけ ev.exSouls: true を付ける。
+   すでに公開したイベントの数字は動かさないので、新しく作るイベントだけ ev.soulV2: true を付ける。
+   このフラグは EXの主役ソウル(1〜3個)・EXの脇役ソウル・イベントショップのソウル枠をまとめて切り替える。
    率はEX3を基準に、EX1・EX2は控えめ。抱き合わせ★4が主役より先に終わり、
    それ以外は主役より後になるように置いてある(docs/design/イベントステージの作り方.md) */
 const EX_MOB_SOUL_RATE = {
@@ -9448,7 +9463,7 @@ const EX_MOB_SOUL_RATE = {
   3: { sub: 1.00, other4: 0.50, low: 0.35 },
 };
 function exMobSoulRate(ev, ex, mon){
-  if(!ev || !ev.exSouls || !mon) return 0;
+  if(!ev || !ev.soulV2 || !mon) return 0;
   const r = EX_MOB_SOUL_RATE[ex];
   if(!r || mon.id === ev.pickup) return 0;
   if((ev.featured || []).includes(mon.id)) return r.sub;
@@ -9502,7 +9517,7 @@ function buildEventExStages(ev){
       requires: `${ev.key}_${EX_UNLOCK_TIER}`,
       rules: meta.rules,
       rulesLead: meta.lead,
-      desc: `期間限定・EX${t.ex}(推奨Lv${t.lv})。特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round((EX_PICKUP_SOUL_RATE[t.ex - 1] || 0) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(t.ex)}出る${ev.exSouls ? '。ほかの敵のソウルも出る' : ''}。`,
+      desc: `期間限定・EX${t.ex}(推奨Lv${t.lv})。特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.soulV2 ? '。ほかの敵のソウルも出る' : ''}。`,
       waves,
     };
   });
@@ -18357,9 +18372,9 @@ function grantStageRewards(stage, spawned, party, opts){
   // EXは主役のソウルだけが確率で1個出る(ほかのソウル・仲間入りは出ない)。通常ステージの主役はボスからステージ番号×2%で1個
   const evOf = stage.type === 'event' ? EVENTS.find(e => e.key === stage.eventKey) : null;
   if(stage.ex && evOf){
-    if(Math.random() < (EX_PICKUP_SOUL_RATE[stage.ex - 1] || 0)) addSoul(evOf.pickup, exPickupSoulQty(stage.ex));
-    // 脇役のソウル(ev.exSouls を付けたイベントだけ)。同じ種類が複数体出ても1回だけ数える
-    if(evOf.exSouls) [...new Set(spawned.map(u => u.ref))].forEach(ref => {
+    if(Math.random() < exPickupSoulRate(evOf, stage.ex)) addSoul(evOf.pickup, exPickupSoulQty(evOf, stage.ex));
+    // 脇役のソウル(ev.soulV2 を付けたイベントだけ)。同じ種類が複数体出ても1回だけ数える
+    if(evOf.soulV2) [...new Set(spawned.map(u => u.ref))].forEach(ref => {
       const rate = exMobSoulRate(evOf, stage.ex, MON_BY_ID[ref]);
       if(rate > 0 && Math.random() < rate) addSoul(ref, 1);
     });
@@ -19822,7 +19837,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 129, version: 'α0.3.003', date: '9/30', title: 'ソウルの集めかたを見直しました', body: '<span class="nt-h">レアリティが高いほど完凸が遠くなりました</span>星刻に必要なソウルが<em>もとのレアリティ</em>でも変わるようになりました。これまでは「いまの★」だけで決まっていたので、<em>★5がいちばん安い</em>という逆転が起きていました。<span class="nt-i">・★10までの合計 ★1:1,500 / ★2:2,100 / ★3:3,150 / ★4:3,900 / <em>★5:4,800</em></span><span class="nt-i">・数字はガチャの重複でもらえるソウル(★3:30 / ★4:50 / ★5:150)の倍数に揃えました</span><span class="nt-h">EXステージのソウル</span><span class="nt-i">・EX3の主役のソウルが<em>50%で1〜3個</em>(1個50% / 2個35% / 3個15%)になりました。100%で1個より遠くなりますが、当たると大きく進みます</span><span class="nt-i">・これから追加するイベントでは、EXの<em>ほかの敵からもソウル</em>が出ます(抱き合わせ★4はEX3で100%、その他の★4は50%、★3以下は35%)。開催中のイベントの数字は変えていません</span><span class="nt-h">イベントショップ</span><span class="nt-i">・主役のソウルを<em>1回10個・上限20回(合計200個)</em>に</span><span class="nt-i">・同時ピックアップ★4のソウルを<em>1体ずつ別の商品</em>に分けました(各60メダル・20個・上限10回)。これまでは1商品で2体ぶんまとめて配っていました</span><span class="nt-h">直したもの</span><span class="nt-i">・<em>霊素の鉱脈に入れなかった</em>のを修正(ステージを探す処理から漏れていました)</span><span class="nt-i">・育成クエストの必要スタミナが<em>⚡0のまま</em>表示されていたのを修正(実際には消費されていました)</span><span class="nt-i">・霊素の鉱脈の報酬が表示されていなかったのを修正</span>' },
+  { id: 129, version: 'α0.3.003', date: '9/30', title: 'ソウルの集めかたを見直しました', body: '<span class="nt-h">レアリティが高いほど完凸が遠くなりました</span>星刻に必要なソウルが<em>もとのレアリティ</em>でも変わるようになりました。これまでは「いまの★」だけで決まっていたので、<em>★5がいちばん安い</em>という逆転が起きていました。<span class="nt-i">・<em>最初の1段は今までと同じ</em>です(★5→★6 は 300 のまま。★3→★4 は 100 → <em>90</em> に下がりました)。重くなるのは後半だけです</span><span class="nt-i">・★10までの合計 ★1:1,500 / ★2:2,100 / ★3:3,150 / ★4:3,900 / <em>★5:4,800</em></span><span class="nt-i">・数字はガチャの重複でもらえるソウル(★3:30 / ★4:50 / ★5:150)の倍数に揃えたので、「★5の1段目は重複2体ぶん」と数えられます</span><span class="nt-h">これから追加するイベントから変わること</span><em>開催中のイベントの数字は変えていません。</em>次のイベントから次のようになります。<span class="nt-i">・EXステージで<em>ほかの敵からもソウル</em>が出ます(抱き合わせ★4はEX3で100%、その他の★4は50%、★3以下は35%)。EXはスタミナを使わないので、星結晶を使わずにソウルを集められる道になります</span><span class="nt-i">・EX3の主役のソウルが<em>50%で1〜3個</em>(1個50% / 2個35% / 3個15%)に。100%で1個より遠くなりますが、当たると大きく進みます</span><span class="nt-i">・イベントショップの主役のソウルが<em>1回10個・上限30回</em>に(合計300個で今までと同じ量です)</span><span class="nt-i">・同時ピックアップ★4のソウルを<em>1体ずつ別の商品</em>に分けます(各60メダル・20個・上限10回)。これまでは1商品で2体ぶんまとめて配っていました</span><span class="nt-h">直したもの</span><span class="nt-i">・<em>霊素の鉱脈に入れなかった</em>のを修正(ステージを探す処理から漏れていました)</span><span class="nt-i">・育成クエストの必要スタミナが<em>⚡0のまま</em>表示されていたのを修正(実際には消費されていました)</span><span class="nt-i">・霊素の鉱脈の報酬が表示されていなかったのを修正</span>' },
   { id: 128, version: 'α0.3.002', date: '9/29', title: 'イベント主役のソウルはEXで集める形に', body: '<span class="nt-h">イベントの主役(ピックアップ★5)のソウル</span><span class="nt-i">・通常ステージでは主役が<em>仲間にならなくなりました</em>。1体目はガチャから迎えてください。</span><span class="nt-i">・通常ステージのボスからは<em>ソウル1個</em>(ステージ1で2%、難しいほど上がりステージ10で20%)。まだ仲間にいなくても貯まり、ガチャで仲間にしたときに引き継がれます。</span><span class="nt-i">・EXステージで<em>EX1は20%・EX2は50%・EX3は100%</em>でソウル1個。スタミナ不要・回数の上限なし(周回機能は使えません)。</span><span class="nt-i">・EXはステージ3クリアで開くようになりました。</span><span class="nt-h">不具合の修正</span><span class="nt-i">・延焼で敵を倒したときに、まれに戦闘が止まることがあったのを直しました。</span>' },
   { id: 127, version: 'α0.3.001', date: '9/29', title: '右上に星結晶の数', body: '<span class="nt-i">・画面右上のゴールドの右隣に、<em>星結晶の数</em>をいつでも表示するようにしました(1万以上は「12K」のように短く)。ガチャ画面でもスタミナが出るようになります。</span>' },
   { id: 126, version: 'α0.3.000', date: '9/29', title: '新バトルシステム(設定で切り替え)', body: '<span class="nt-h">設定 → 戦闘 →「新バトルシステム」で旧の戦闘に戻せます</span><span class="nt-i">・スキル1・2とも<em>開幕から使用可</em>にし、スキル1→2の順番で使うようにしました(スキル2の再CTの+1も撤廃)</span><span class="nt-i">・被弾SPを<em>受けたダメージ基準</em>に変更(そのレベルの平均HPの1%につきSP+1.25、1ラウンド上限60)</span><span class="nt-i">・回復した側にSP+20、ウェーブ突破で味方全員にSP+30を追加</span><span class="nt-i">・撃破SPを 15 → <em>25</em></span><span class="nt-i">・奥義の必要SPを タンク<em>-30</em>・シューター<em>-20</em>(他のロールは据え置き)</span><span class="nt-i">・全モンスターのHPと、遺物のHP固定値を<em>2倍</em></span><span class="nt-i">・シールドの上限を最大HPの<em>50% → 100%</em></span><span class="nt-i">・戦闘力のHPの重みを 0.6 → <em>0.3</em>(HP2倍ぶんを打ち消して表示を据え置き)</span><span class="nt-i">・ボス以外の敵を<em>推奨レベル-10</em>に</span><span class="nt-i">・新バトルシステムでの初回クリアは<em>スタミナ0</em>、星結晶を メイン10・イベント20・EX 100/300/500 配布</span><span class="nt-i">・深淵回廊とPVPは新バトルシステムのみ</span>' },

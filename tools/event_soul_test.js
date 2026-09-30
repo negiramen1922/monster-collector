@@ -21,15 +21,13 @@ ok('難しいほど上がる(2%→20%)', ev.stages.map(E.eventBossSoulRate).join
 ok('EXは別枠(番号なし)', ev.exStages.every(s => E.eventBossSoulRate(s) === 0));
 api.STATE.pendingSouls[pick] = 999; E.giveSouls(pick, 1);
 ok('ソウルが400個をこえても仲間にならない(1体目はガチャ)', !api.STATE.owned[pick] && api.STATE.pendingSouls[pick] === 1000, api.STATE.pendingSouls[pick]);
-// EX1・EX2は「その率で1個」、EX3だけ「50%で落ちて1〜3個(1個50%/2個35%/3個15%)」なので
-// 1クリアあたりの期待は 0.5 × 1.65 = 0.825個
-const EX_EXPECT = [0.20, 0.50, 0.825];
+// 公開ずみのイベントは据え置き(20% / 50% / 100% で1個)。
+// 新しい設計(soulV2)は EX3 が「50%で落ちて1〜3個」= 1クリアあたり 0.5 × 1.65 = 0.825個
 [0, 1, 2].forEach(i => {
   api.STATE.pendingSouls[pick] = 0;
   for(let k = 0; k < 4000; k++) E.grantStageRewards(ev.exStages[i], []);
   const r = api.STATE.pendingSouls[pick] / 4000;
-  const label = i === 2 ? 'EX3: 50%で1〜3個(1クリアの期待0.825個)' : `EX${i + 1}: ${E.EX_PICKUP_SOUL_RATE[i] * 100}%で1個`;
-  ok(label, Math.abs(r - EX_EXPECT[i]) < 0.04, r);
+  ok(`EX${i + 1}: ${E.EX_PICKUP_SOUL_RATE[i] * 100}%で1個`, Math.abs(r - E.EX_PICKUP_SOUL_RATE[i]) < 0.04, r);
 });
 api.STATE.pendingSouls[pick] = 321;
 E.grantMonster(E.MON_BY_ID[pick]);
