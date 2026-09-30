@@ -1,8 +1,9 @@
-/* イベントの主役★5のソウル(α0.3.002): 通常ステージはボスからステージ番号×2%で1個・仲間入りなし、EXは20/50/100%で1個(上限なし)。
+/* イベントの主役★5のソウル: 通常ステージはボスからステージ番号×2%で1個・仲間入りなし。
+   EXは EX1 20% / EX2 50% / EX3 50%で1〜3個(= 1クリアあたり 0.825個。α0.3.004 で開催中のイベントにも入れた)。
    1体目はガチャだけ(ソウルをためても仲間にならず、ガチャで仲間にしたとき引き継ぐ)。EXはステージ3で開く。
    あわせて、延焼で倒した敵にやけどを付け直しても止まらないこと */
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__e={EVENTS,grantStageRewards,grantMonster,giveSouls,MON_BY_ID,recruitChanceOf,EX_UNLOCK_TIER,eventBossSoulRate,EX_PICKUP_SOUL_RATE,applyStatus,get battleUI(){return battleUI}};');
+const api = load('game.js', s => s + ';global.__e={EVENTS,grantStageRewards,grantMonster,giveSouls,MON_BY_ID,recruitChanceOf,EX_UNLOCK_TIER,eventBossSoulRate,exPickupSoulRate,exPickupSoulQty,applyStatus,get battleUI(){return battleUI}};');
 const E = global.__e;
 let bad = 0;
 const ok = (n, c, i) => { if(!c) bad++; console.log((c ? '✅' : '❌') + ' ' + n + (i !== undefined ? '  ' + JSON.stringify(i) : '')); };
@@ -21,13 +22,13 @@ ok('難しいほど上がる(2%→20%)', ev.stages.map(E.eventBossSoulRate).join
 ok('EXは別枠(番号なし)', ev.exStages.every(s => E.eventBossSoulRate(s) === 0));
 api.STATE.pendingSouls[pick] = 999; E.giveSouls(pick, 1);
 ok('ソウルが400個をこえても仲間にならない(1体目はガチャ)', !api.STATE.owned[pick] && api.STATE.pendingSouls[pick] === 1000, api.STATE.pendingSouls[pick]);
-// 公開ずみのイベントは据え置き(20% / 50% / 100% で1個)。
-// 新しい設計(econV2)は EX3 が「50%で落ちて1〜3個」= 1クリアあたり 0.5 × 1.65 = 0.825個
+// EX3 は「50%で落ちて1〜3個」なので、1クリアあたりの期待は 0.5 × 1.65 = 0.825個
+const wantPerClear = [0.20, 0.50, 0.825];
 [0, 1, 2].forEach(i => {
   api.STATE.pendingSouls[pick] = 0;
   for(let k = 0; k < 4000; k++) E.grantStageRewards(ev.exStages[i], []);
   const r = api.STATE.pendingSouls[pick] / 4000;
-  ok(`EX${i + 1}: ${E.EX_PICKUP_SOUL_RATE[i] * 100}%で1個`, Math.abs(r - E.EX_PICKUP_SOUL_RATE[i]) < 0.04, r);
+  ok(`EX${i + 1}: 1クリアあたり約${wantPerClear[i]}個(率${E.exPickupSoulRate(ev, i + 1) * 100}%)`, Math.abs(r - wantPerClear[i]) < 0.06, r);
 });
 api.STATE.pendingSouls[pick] = 321;
 E.grantMonster(E.MON_BY_ID[pick]);

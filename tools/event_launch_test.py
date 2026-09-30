@@ -37,12 +37,17 @@ async def main():
                   const shop = eventShopItems(ev);
                   return { stages: ev.stages.length, ex: ev.exStages.length,
                            shopN: shop.length, shopTotal: shop.reduce((a,x)=>a+x.price*(x.limit===null?0:x.limit),0),
+                           medalPerRun: medalRunGain(10) * 2, stam10: ev.stages[9].stamina,
                            missions: eventMissions(ev).length,
                            titles: Object.keys(TITLES).filter(k => k.startsWith('ti_'+key)).map(k=>TITLES[k].name),
                            exRules: ev.exStages.map(s => (s.rules||[]).length) };
                 }""", key)
                 check(f'{key}: 10層＋EX3', r['stages'] == 10 and r['ex'] == 3, (r['stages'], r['ex']))
-                check(f'{key}: ショップ22品 上限まで11,967メダル', r['shopN'] == 22 and r['shopTotal'] == 11967, (r['shopN'], r['shopTotal']))
+                check(f'{key}: ショップ24品 上限まで14,920メダル', r['shopN'] == 24 and r['shopTotal'] == 14920, (r['shopN'], r['shopTotal']))
+                # 2週間(自然回復 288×14 = 4,032スタミナ)で買い切れる量か
+                runs = -(-r['shopTotal'] // r['medalPerRun'])
+                stam = runs * r['stam10']
+                check(f'{key}: 全買いが2週間ぶんのスタミナ(4,032)で足りる', stam <= 4032, (runs, stam))
                 check(f'{key}: ミッション14本・称号3つ', r['missions'] == 14 and len(r['titles']) == 3, (r['missions'], r['titles']))
                 check(f'{key}: EX全3面にルールがある', all(n > 0 for n in r['exRules']), r['exRules'])
 
@@ -91,7 +96,7 @@ async def main():
             await pg.wait_for_timeout(500)
             n = await pg.locator('[data-shop-tab^="ev:"]').count()
             check('ショップにイベントタブが2つ', n == 2, n)
-            check('イベントショップに22行出る', await pg.locator('[data-ev-buy]').count() == 22)
+            check('イベントショップに24行出る', await pg.locator('[data-ev-buy]').count() == 24)
             await pg.screenshot(path=str(OUT / 'launch_shop.png'))
 
             # 画面: イベントタブが2つ、切り替えられる
