@@ -141,12 +141,20 @@ ok('rewardHtml が遺物報酬を表示できる(クラッシュしない)', E.r
 // Sum each matching effect's pct directly from the def - this is exactly what
 // applyRelicCore/applyStatBonus do internally, just without needing a full battle unit.
 const capMult = E.relicSkillMult(E.RELIC_SKILL_MAX);
-const sumPct = (def, mon) => Math.round((def.effects || []).filter(e => E.relicEffectMatches(e.cond, mon)).reduce((s, e) => s + e.pct, 0) * capMult * 100);
+// 防御のパークはポイント(値 = 上限% × 0.1)なので、くらべるときは ×5 して同じものさしに戻す
+const effScale = e => (['pdef', 'mdef', 'def'].includes(e.stat) ? 5 : 100);
+const sumPct = (def, mon) => Math.round((def.effects || []).filter(e => E.relicEffectMatches(e.cond, mon)).reduce((s, e) => s + e.pct * effScale(e), 0) * capMult);
 const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
 // α0.1 の遺物ルール(docs/design/遺物スキル枠のルール.json): スキル枠ごとの上限は★で決まり、
 // スキル1〜3で比重を変えない。★5=30%・★4/★3=25%・★2/★1=20%。被ダメージカットは★に関わらず20%。
 // 配布は15%で、ガチャ産より必ず弱い。★5専用の「本人のみ」枠だけ33%。
-const slotCap = e => Math.round(e.pct * capMult * 100);
+/* 防御(pdef / mdef / def)のパークは「ポイント加算」で、値がそのまま%カット。
+   ★ごとの上限%と揃えるため、ポイントは「上限% × 0.1」で持っている(★5=3.0 → 枠上限6.0)。
+   くらべるときは ×10 して同じものさしに戻す。 */
+const isPointStat = st => ['pdef', 'mdef', 'def'].includes(st);
+const slotCap = e => isPointStat(e.stat)
+  ? Math.round(e.pct * capMult * 5 * 10) / 10
+  : Math.round(e.pct * capMult * 100);
 const CAP_BY_STAR = { 5:30, 4:25, 3:25, 2:20, 1:20 };
 // 確定データ(docs/design/新規遺物56種.json)がルール表から外れている枠。データのまま実装している
 const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33 };

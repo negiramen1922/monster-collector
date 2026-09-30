@@ -24,7 +24,7 @@ const N = Number(process.env.N || 200);
 const LV = Number(process.env.LV || 165);
 const PARTY = ['m24', 'm44', 'm23', 'm52', 'm104'];
 const UP = { star: 5, skillLv: 5, ultLv: 5, passiveLv: 5 };
-const V = 0.25;
+const V = 8;   // 防御は「ポイント加算」= そのまま%カット。+8で被ダメージ8%減
 const ok = (name, cond, info) => {
   console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
   if(!cond) process.exitCode = 1;
@@ -84,7 +84,7 @@ console.log('\n--- 2. 魔法防御が効くか(旧バトルシステムで測定
   const m = measure(id, { mdef: V });
   const cutP = (1 - p.taken / base.taken) * 100;
   const cutM = (1 - m.taken / base.taken) * 100;
-  console.log(`   ${ja}  基準 1ラウンドあたり${Math.round(base.taken)}  物防+25%→${cutP >= 0 ? '-' : '+'}${Math.abs(cutP).toFixed(1)}%  魔防+25%→${cutM >= 0 ? '-' : '+'}${Math.abs(cutM).toFixed(1)}%`);
+  console.log(`   ${ja}  基準 1ラウンドあたり${Math.round(base.taken)}  物防+8→${cutP >= 0 ? '-' : '+'}${Math.abs(cutP).toFixed(1)}%  魔防+8→${cutM >= 0 ? '-' : '+'}${Math.abs(cutM).toFixed(1)}%`);
   if(wantMdef){
     /* 削減率の絶対値は試行ごとに 3〜16% とブレるので、同じ条件で測った物防との差で見る。
        見たいのは「このステージでは魔防のほうが価値がある」という関係であって、絶対値ではない。 */

@@ -12,6 +12,7 @@ const api = load('game.js', s => s + `;global.__e={
   DEF_POINT_CAP, BP_DEF_WEIGHT, RATIO_CAP, CUT_CAP, defCutOf, effDef, capRatio,
   scaledStats, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
   makeRune, runeBonusFromList, applyRuneBonusToUnit, applyStatus, hasStatus, ENEMY_POWER, LEVEL_STAT_BONUS,
+  applyStatBonus, addDefPoints, BONUS_POINT_KEYS, RELICS, SPECIES_SYNERGY, FORMATIONS, bonusText, relicEffectText,
   get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
 };`);
@@ -58,19 +59,46 @@ function unit(id, buffs){
   return u;
 }
 {
-  const base = E.MON_BY_ID[TANK].pdef;
+  const base = E.MON_BY_ID[TANK].pdef, sh = E.MON_BY_ID[SHOOTER].pdef;
   ok(`  タンクの素は ${base}%`, E.effDef(unit(TANK), 'phys') === base, E.effDef(unit(TANK), 'phys'));
-  ok('  pdefUp +40% で 1.4倍', near(E.effDef(unit(TANK, { pdefUp: 0.4 }), 'phys'), base * 1.4, 0.01),
-     E.effDef(unit(TANK, { pdefUp: 0.4 }), 'phys'));
-  ok('  pdefDown -25% で 0.75倍', near(E.effDef(unit(TANK, { pdefDown: 0.25 }), 'phys'), base * 0.75, 0.01));
-  ok('  どれだけ積んでも上限99', E.effDef(unit(TANK, { pdefUp: 10 }), 'phys') === E.DEF_POINT_CAP,
-     E.effDef(unit(TANK, { pdefUp: 10 }), 'phys'));
-  ok('  下限は0(デバフでマイナスにならない)', E.effDef(unit(TANK, { pdefDown: 5 }), 'phys') === 0);
-  // 弱い子に同じバフを掛けても、増えるポイントは小さい(比率は同じ)
-  const s = E.MON_BY_ID[SHOOTER].pdef;
-  ok('  防御が低い子ほど、同じ%バフで増えるポイントは小さい',
-     E.effDef(unit(TANK, { pdefUp: 0.4 }), 'phys') - base > E.effDef(unit(SHOOTER, { pdefUp: 0.4 }), 'phys') - s,
-     [+(base * 0.4).toFixed(1), +(s * 0.4).toFixed(1)]);
+  ok('  pdefUp +8 で +8ポイント', E.effDef(unit(TANK, { pdefUp: 8 }), 'phys') === base + 8, E.effDef(unit(TANK, { pdefUp: 8 }), 'phys'));
+  ok('  pdefDown -5 で -5ポイント', E.effDef(unit(TANK, { pdefDown: 5 }), 'phys') === base - 5);
+  ok('  どれだけ積んでも上限99', E.effDef(unit(TANK, { pdefUp: 500 }), 'phys') === E.DEF_POINT_CAP,
+     E.effDef(unit(TANK, { pdefUp: 500 }), 'phys'));
+  ok('  下限は0(デバフでマイナスにならない)', E.effDef(unit(TANK, { pdefDown: 500 }), 'phys') === 0);
+  // ここが割合をやめた理由: 柔らかい子にも同じだけ効く
+  ok('  防御が低い子にも同じ +8 が乗る(割合ではない)',
+     E.effDef(unit(SHOOTER, { pdefUp: 8 }), 'phys') - sh === 8 && E.effDef(unit(TANK, { pdefUp: 8 }), 'phys') - base === 8,
+     [sh + 8, base + 8]);
+}
+
+/* ---- 3b. 装備・陣形・シナジーもポイント加算 ---- */
+console.log('\n--- 3b. 上乗せはぜんぶポイント加算(掛け算はゼロ) ---');
+{
+  const u = unit(TANK), base = u.pdef;
+  E.applyStatBonus(u, { pdef: 6 });
+  ok('  applyStatBonus の pdef はポイント', u.pdef === base + 6, [base, u.pdef]);
+  const v = unit(TANK), vb = v.pdef, vm = v.mdef;
+  E.applyStatBonus(v, { def: 4 });
+  ok('  def は物防・魔防の両方にポイント', v.pdef === vb + 4 && v.mdef === vm + 4, [v.pdef, v.mdef]);
+  const w = unit(TANK), wh = w.maxHp;
+  E.applyStatBonus(w, { hp: 0.2 });
+  ok('  HPは今までどおり割合', near(w.maxHp / wh, 1.2, 0.01), +(w.maxHp / wh).toFixed(3));
+  ok('  上限99・下限0でクランプ', E.addDefPoints(50, 500) === E.DEF_POINT_CAP && E.addDefPoints(5, -500) === 0);
+  // 順番に依存しない(ルーン → 遺物 でも 遺物 → ルーン でも同じ)
+  const a = unit(TANK); E.applyRuneBonusToUnit(a, { pdef: 12 }); E.applyStatBonus(a, { pdef: 6 });
+  const b = unit(TANK); E.applyStatBonus(b, { pdef: 6 }); E.applyRuneBonusToUnit(b, { pdef: 12 });
+  ok('  積む順番で結果が変わらない', a.pdef === b.pdef, [a.pdef, b.pdef]);
+  // 表の中に割合が残っていないこと
+  const relicPct = [];
+  Object.values(E.RELICS).forEach(r => (r.effects || []).forEach(e => {
+    if(E.BONUS_POINT_KEYS.includes(e.stat) && e.pct < 1) relicPct.push(r.name + ':' + e.stat + ':' + e.pct);
+  }));
+  ok('  遺物パークの防御に割合が残っていない', relicPct.length === 0, relicPct.slice(0, 5));
+  ok('  陣形の防御はポイント', E.FORMATIONS.every(f => [f.frontBonus, f.backBonus].every(b => !b.def || b.def >= 1)),
+     E.FORMATIONS.map(f => f.frontBonus.def).filter(Boolean));
+  ok('  種族シナジーの防御はポイント', E.SPECIES_SYNERGY.dwarf.every(x => x.def >= 1), E.SPECIES_SYNERGY.dwarf.map(x => x.def));
+  ok('  陣形の説明文が「+1%」の形で出る(x100しない)', E.bonusText({ def: 1 }).endsWith('+1%'), E.bonusText({ def: 1 }));
 }
 
 /* ---- 4. 防御貫通 ---- */
@@ -106,7 +134,7 @@ ok('HP / STR は今までどおり %', E.RUNE_STATS.hp.pct && E.RUNE_STATS.atk.p
   console.log('   サブ1個 Ⅰ: ' + E.runeSubValue({ stat: 'pdef', q: 0 }, 1) + '〜' + E.runeSubValue({ stat: 'pdef', q: 1 }, 1)
     + '  Ⅹ: ' + E.runeSubValue({ stat: 'pdef', q: 0 }, 10) + '〜' + E.runeSubValue({ stat: 'pdef', q: 1 }, 10));
   ok('  Tierが上がるほど大きい', main.every((v, i) => i === 0 || v > main[i - 1]));
-  ok('  Ⅹのメインは10ポイント', main[9] === 10, main[9]);
+  ok('  Ⅹのメインは5ポイント', main[9] === 5, main[9]);
   const u = unit(TANK);
   const before = u.pdef;
   E.applyRuneBonusToUnit(u, { pdef: 20 });
@@ -128,7 +156,7 @@ ok('HP / STR は今までどおり %', E.RUNE_STATS.hp.pct && E.RUNE_STATS.atk.p
 
 /* ---- 7. 戦闘力の重み ---- */
 console.log('\n--- 7. 戦闘力 ---');
-ok(`BP_DEF_WEIGHT は ${E.BP_DEF_WEIGHT}`, E.BP_DEF_WEIGHT === 40, E.BP_DEF_WEIGHT);
+ok(`BP_DEF_WEIGHT は ${E.BP_DEF_WEIGHT}`, E.BP_DEF_WEIGHT === 70, E.BP_DEF_WEIGHT);
 ok('防御の重みが上がっている(旧: 4)', E.BP_DEF_WEIGHT > 4);
 
 /* ---- 8. ロール別の分布 ---- */
@@ -145,8 +173,9 @@ console.log('\n--- 8. ロール別の防御(そのままカット%) ---');
   });
   ok('タンクがいちばん硬い', stat.tank.p > Math.max(stat.attacker.p, stat.shooter.p, stat.support.p, stat.trickster.p));
   ok('シューターがいちばん柔らかい', stat.shooter.p <= Math.min(stat.attacker.p, stat.support.p, stat.trickster.p));
-  ok('素の防御は50%を超えない(ふだんは50が上限の想定)', E.MONSTERS.every(m => m.pdef <= 50 && m.mdef <= 50),
-     E.MONSTERS.filter(m => m.pdef > 50 || m.mdef > 50).map(m => m.name));
+  ok('タンクの素の防御は20前後まで', stat.tank.pMax <= 21, E.MONSTERS.filter(m => m.pdef > 21 || m.mdef > 21).map(m => m.name + ':' + m.pdef + '/' + m.mdef));
+  ok('アタッカー・シューターの素は10以下', E.MONSTERS.filter(m => ['attacker', 'shooter'].includes(m.role)).every(m => m.pdef <= 10 && m.mdef <= 10),
+     E.MONSTERS.filter(m => ['attacker', 'shooter'].includes(m.role) && (m.pdef > 10 || m.mdef > 10)).map(m => m.name));
 }
 
 console.log(ng ? `\n${ng}件 NG` : '\ndone');
