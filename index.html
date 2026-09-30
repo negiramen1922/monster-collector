@@ -282,6 +282,15 @@ body{
 .drop-row{ display:flex; align-items:center; flex-wrap:wrap; gap:3px; margin-top:6px; font-size:13px; }
 .drop-row small{ font-size:10px; color:var(--dim); margin-left:4px; }
 .drop-row small.drop-t4{ color:var(--gold); }
+/* 説明文の中の用語(状態異常・バフ)。数字は黄色なので、用語は水色＋点線の下線で分ける */
+.term{ color:#6fd3e0; border-bottom:1px dotted #6fd3e0; cursor:pointer; font-weight:700; }
+.term:active{ color:#a6e9f2; }
+.term-modal{ max-width:340px; }
+.term-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.term-top h3{ margin:0; color:#6fd3e0; font-size:17px; }
+.term-body{ font-size:13px; line-height:1.7; }
+.term-body em{ color:var(--gold); font-style:normal; font-weight:800; }
+.term-more{ margin-top:12px; padding-top:9px; border-top:1px solid var(--line); font-size:11.5px; color:var(--dim); }
 /* 出る可能性のあるもの: アイコン・名前・個数だけ並べる */
 .drop-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(58px, 1fr)); gap:4px; margin-top:4px; }
 .drop-cell{ display:flex; flex-direction:column; align-items:center; gap:1px; padding:4px 2px 3px;
@@ -10767,7 +10776,7 @@ function renderItemDetail(){
       <div class="id-body">
         <div class="id-left">
           <div class="id-art">${itemIcon(key)}<div class="id-have">所持数<b>${getItem(key).toLocaleString()}</b></div></div>
-          <div class="id-desc">${itemDesc(key)}</div>
+          <div class="id-desc">${markTerms(itemDesc(key))}</div>
         </div>
         <div class="id-right">
           <div class="id-src-head">入手手段</div>
@@ -13491,7 +13500,7 @@ function kitLinesHtml(m, star, owned, after){
   const card = (tag, kind, act, meta, upgrade, lv, locked) => `
     <div class="skill-card k-${kind} ${locked ? 'locked' : ''}">
       <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-${kind}">${tag}</span>${act.name}</span><span class="skill-ct">${meta}</span></div>
-      <div class="skill-desc">${act.desc || ''}</div>
+      <div class="skill-desc">${markTerms(act.desc || '')}</div>
       ${locked ? '' : scaledPowLine(kind, act, lv)}
       ${act.tgt || act.tgtText ? `<div class="skill-desc elem-flavor">🎯 ${act.tgtText || TGT_TEXT[act.tgt] || ''}${act.atk && !act.tgtText ? `・${typeOf(act)}` : ''}</div>` : ''}
       ${locked ? `<div class="skill-lock-note">🔒 ★${SECOND_SKILL_STAR}に星刻すると使えるようになります</div>` : (upgrade || '')}
@@ -13530,7 +13539,7 @@ function starUnlockHtml(m, owned){
     if(n === SECOND_SKILL_STAR) opens.push('スキル枠+1(スキル2が使えるようになる)');
     const rs = RUNE_SLOT_STARS.indexOf(n);
     if(rs >= 0) opens.push(`ルーンの枠 ${rs + 1}つ目`);
-    if(perks[n]) opens.push(`<b class="perk-open">${PERK_LABEL}</b> ${perks[n].desc}`);
+    if(perks[n]) opens.push(`<b class="perk-open">${PERK_LABEL}</b> ${markTerms(perks[n].desc)}`);
     const need = soulsToNext({ star: n, base: m.rarity }, m.rarity);
     rows.push(`<div class="su-row ${cur >= n ? 'on' : ''} ${cur === n ? 'now' : ''}">
         <span class="su-star">★${n}${cur === n ? '<small>いま</small>' : ''}</span>
@@ -13555,7 +13564,7 @@ function perkCardHtml(m, star){
     if(!t[n]) continue;
     const got = cur >= n;
     if(got) have++;
-    rows.push(`<div class="perk-row ${got ? 'on' : ''}"><span class="perk-star">★${n}</span><span class="perk-desc">${t[n].desc}</span></div>`);
+    rows.push(`<div class="perk-row ${got ? 'on' : ''}"><span class="perk-star">★${n}</span><span class="perk-desc">${markTerms(t[n].desc)}</span></div>`);
   }
   if(!rows.length) return '';
   return `<div class="skill-card k-perk">
@@ -14374,7 +14383,7 @@ function stageRulesHtml(st){
     <div class="ss-block sr-block">
       <div class="ss-label">ステージ効果</div>
       ${st.rulesLead ? `<div class="sr-lead">${st.rulesLead}</div>` : ''}
-      ${rules.map(r => `<div class="sr-row"><span class="sr-dot"></span>${r.label}</div>`).join('')}
+      ${rules.map(r => `<div class="sr-row"><span class="sr-dot"></span>${markTerms(r.label)}</div>`).join('')}
     </div>`;
 }
 
@@ -14863,6 +14872,99 @@ const HATE_TAUNT = 500;
 const HATE_KEEP_PER_ROUND = 0.8;
 function hateLabel(v){ return v >= 35 ? '高い' : v >= 18 ? '普通' : '低め'; }
 
+
+/* ---- 用語集(説明文の中の状態異常・バフ名を押すと出る) ----
+   説明文は素のテキストなので、ここに載っている言葉を見つけて押せる形に包む(markTerms)。
+   数字は黄色なので、用語は水色＋点線の下線にして区別する。
+   数字は GAME_TERMS の中に書かず、定数から作る(BURN_TURNS などを変えたら説明も追従する)。 */
+const GAME_TERMS = [
+  { key:'burn',    name:'やけど',   sort:1,
+    text: () => `毎ターンの終わりにダメージを受ける。ダメージは<em>かけた人のSTRの${Math.round(BURN_STR_RATIO * 100)}%</em>で、${BURN_TURNS}ターン続く。かけた人が強いほど痛い。<br>燃えている相手にもう一度かけると<b class="term" data-term="spread" role="button">延焼</b>する。` },
+  { key:'spread',  name:'延焼',     sort:1, alias:['延焼'],
+    text: () => `<em>すでにやけどの相手に、もう一度やけどをかける</em>と起きる。ターン数が戻るのに加えて、やけどダメージの<em>${Math.round(SPREAD_RATIO * 100)}%</em>をその場で与える。同じ相手に1ターン${SPREAD_MAX_PER_TURN}回まで。<br>強いやけどが上書きされることはない(強いほうが残る)。` },
+  { key:'poison',  name:'毒',       sort:2,
+    text: () => `毎ターンの終わりにダメージを受ける。${POISON_TURNS}ターン続き、<em>重ねがけで層が増える</em>(層のぶんダメージが増える)。` },
+  { key:'stun',    name:'気絶',     sort:3, text: () => '次の行動を休む。' },
+  { key:'paralyze',name:'麻痺',     sort:3, text: () => `次の行動を休む(気絶と同じ。${NEW_STATUS_TURNS.paralyze}ターン)。` },
+  { key:'bind',    name:'拘束',     sort:3, text: () => `<em>通常攻撃が使えなくなる</em>(スキル・奥義は使える)。使えるスキルが無ければ休む。${NEW_STATUS_TURNS.bind}ターン。` },
+  { key:'confuse', name:'混乱',     sort:3, text: () => `攻撃の<em>半分が味方に向く</em>。バフと回復の向きは変わらない。${NEW_STATUS_TURNS.confuse}ターン。` },
+  { key:'petrify', name:'石化',     sort:3,
+    text: () => `行動できない。ただし<em>攻撃を受けると必ず会心になり、その一撃で解ける</em>。${NEW_STATUS_TURNS.petrify}ターン。` },
+  { key:'charm',   name:'魅了',     sort:3, text: () => `半分は見とれて休み、半分は味方を攻撃する。${NEW_STATUS_TURNS.charm}ターン。` },
+  { key:'shield',  name:'シールド', sort:4,
+    text: () => `HPの前に立つ盾。ダメージはシールドから先に減る。合計で<em>最大HPの${Math.round(shieldCapRatio() * 100)}%</em>まで。<br>やけどや毒のダメージもシールドが受け止める。` },
+  { key:'taunt',   name:'挑発',     sort:5, text: () => '敵の攻撃が自分に集まる。' },
+  { key:'thorns',  name:'トゲ',     sort:5, text: () => '殴ってきた相手に、受けたダメージの一部を返す。' },
+  { key:'cut',     name:'被ダメージ軽減', sort:5, alias:['受けるダメージ-'],
+    text: () => `受けるダメージが割合で減る。防御とは別に掛かり、合計で<em>${Math.round(CUT_CAP * 100)}%</em>まで。` },
+  { key:'vuln',    name:'被ダメージアップ', sort:5, text: () => '受けるダメージが割合で増える。被ダメージ軽減と打ち消し合う。' },
+  { key:'ward',    name:'免疫',     sort:5, text: () => 'ついているあいだ、状態異常にかからない。' },
+  { key:'regen',   name:'継続回復', sort:5, text: () => 'ラウンドの終わりにHPが回復する。' },
+  { key:'redirect',name:'肩代わり', sort:5, text: () => '守っている相手が受けるダメージの一部を、自分が代わりに受ける(自分の防御で減らしてから)。' },
+  { key:'curse',   name:'呪い',     sort:5, text: () => '受けるダメージが増える(被ダメージ軽減を打ち消す形で効く)。' },
+  { key:'panic',   name:'恐慌',     sort:5, text: () => '自分の攻撃が外れやすくなる。' },
+  { key:'healCut', name:'回復阻害', sort:5, text: () => '受ける回復量が減る。' },
+  { key:'accDown', name:'命中率ダウン', sort:5, text: () => '自分の攻撃が外れやすくなる。' },
+  { key:'statue',  name:'石像化',   sort:5, text: () => '動けないかわりに、受けるダメージが大きく減る。' },
+  { key:'crit',    name:'会心',     sort:6,
+    text: () => `基本の会心率は<em>${Math.round(BASE_CRIT_RATE * 100)}%</em>、会心が出るとダメージが<em>${BASE_CRIT_MULT}倍</em>。会心率・会心倍率はルーンと遺物で伸ばせる。` },
+  { key:'pierce',  name:'防御貫通', sort:6,
+    text: () => `相手の防御ポイントを割合で削る。<em>${Math.round(RATIO_CAP * 100)}%まで</em>しか削れないので、防御は必ず2割残る。` },
+  { key:'sp',      name:'SP',       sort:6,
+    text: () => `奥義を撃つためのゲージ。<em>行動・被弾・回復・撃破・ウェーブ突破</em>で貯まる。必要な量はモンスターごとに違う。` },
+];
+const TERM_BY_NAME = {};
+GAME_TERMS.forEach(t => { [t.name, ...(t.alias || [])].forEach(n => { TERM_BY_NAME[n] = t; }); });
+// 長い言葉から先に当てる(「やけど付与」を「やけど」で切らないように)
+const TERM_RE = new RegExp('(' + Object.keys(TERM_BY_NAME)
+  .sort((a, b) => b.length - a.length)
+  .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'g');
+/* 説明文の中の用語を、押せる形に包む。テキスト専用(HTMLを渡さないこと)。
+   同じ用語は1つの説明文につき最初の1回だけ光らせる(全部光ると読みにくい) */
+function markTerms(text){
+  if(!text) return '';
+  const seen = new Set();
+  const safe = String(text).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  return safe.replace(TERM_RE, (m) => {
+    const t = TERM_BY_NAME[m];
+    if(!t || seen.has(t.key)) return m;
+    seen.add(t.key);
+    return `<b class="term" data-term="${t.key}" role="button" tabindex="0">${m}</b>`;
+  });
+}
+/* 用語の説明は、ほかのモーダル(モンスター詳細・ステージ詳細など)の上に出る。
+   どのモーダルから来たかを追うのは大変なので、開く前の中身を丸ごと覚えて、閉じたら戻す。
+   スクロール位置も覚えておかないと、長いモンスター詳細が先頭に戻ってしまう */
+let termBack = null;
+function restoreAfterTerm(){
+  const layer = document.getElementById('modal-layer');
+  const back = termBack;
+  termBack = null;
+  if(!back || !back.html){ layer.classList.remove('show'); layer.innerHTML = ''; return; }
+  layer.innerHTML = back.html;
+  layer.classList.add('show');
+  const el = layer.firstElementChild;
+  if(el && back.top) el.scrollTop = back.top;
+}
+function openTermHelp(key){
+  const t = GAME_TERMS.find(x => x.key === key);
+  if(!t) return;
+  const layer = document.getElementById('modal-layer');
+  if(!termHelp){
+    const el = layer.firstElementChild;
+    termBack = { html: layer.innerHTML, top: el ? el.scrollTop : 0 };
+  }
+  termHelp = key;
+  const others = GAME_TERMS.filter(x => x.sort === t.sort && x.key !== t.key);
+  layer.innerHTML = `
+    <div class="result-modal term-modal" role="dialog" aria-label="${t.name}">
+      <div class="term-top"><h3>${t.name}</h3><button class="btn btn-ghost btn-sm" data-term-close="1">閉じる</button></div>
+      <div class="term-body">${t.text()}</div>
+      ${others.length ? `<div class="term-more">似たもの: ${others.map(x => `<b class="term" data-term="${x.key}" role="button">${x.name}</b>`).join('・')}</div>` : ''}
+    </div>`;
+  layer.classList.add('show');
+}
+let termHelp = null;
 const STATUS_LABEL = { burn:'やけど', poison:'毒', stun:'気絶', paralyze:'麻痺', bind:'拘束', confuse:'混乱', petrify:'石化', charm:'魅了' };
 // α0.1 の新状態異常。どれもかかった側のターンで1ずつ減る(turns が残りターン数)
 //   麻痺: 気絶と同じく次の行動を休む(雷の演出だけ別) / 石化: 行動不能。攻撃を受けると必ず会心になり、その場で解ける
@@ -19092,6 +19194,13 @@ function handlePhonePointerDown(ev){
 function handlePhoneClick(ev){
   if(appPhase !== 'game') return;      // the title screen has its own handler
   const t = ev.target;
+  // 説明文の中の用語(やけど・シールドなど)。ほかのモーダルの中にも出るので、いちばん先に見る
+  const termEl = t.closest('[data-term]');
+  if(termEl){ ev.stopPropagation(); playSfx('open'); openTermHelp(termEl.dataset.term); return; }
+  if(termHelp){
+    // 用語の説明を閉じたら、元のモーダルに戻す(閉じただけで下の画面が消えないように)
+    if(t.closest('[data-term-close]') || !t.closest('.term-modal')){ termHelp = null; closeModal(); restoreAfterTerm(); return; }
+  }
   if(t.closest('[data-open-account]')){ acctView = 'main'; renderAccountModal(); playSfx('open'); return; }
   if(t.closest('[data-open-delete-data]')){ acctView = 'delete-data'; renderAccountModal(); playSfx('open'); return; }
   if(t.closest('[data-view-tutorial]')){ stageTab = 'main'; questTier = 'tu'; goto('battle'); return; }
