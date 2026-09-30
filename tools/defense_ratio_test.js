@@ -12,7 +12,7 @@ const api = load('game.js', s => s + `;global.__e={
   DEF_POINT_CAP, BP_DEF_WEIGHT, RATIO_CAP, CUT_CAP, defCutOf, effDef, capRatio,
   scaledStats, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
   makeRune, runeBonusFromList, applyRuneBonusToUnit, applyStatus, hasStatus, ENEMY_POWER, LEVEL_STAT_BONUS,
-  applyStatBonus, addDefPoints, BONUS_POINT_KEYS, RELICS, SPECIES_SYNERGY, FORMATIONS, bonusText, relicEffectText,
+  applyStatBonus, addDefPoints, BONUS_POINT_KEYS, RELICS, SPECIES_SYNERGY, FORMATIONS, bonusText, relicEffectText, STAGES,
   get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
 };`);
@@ -98,6 +98,13 @@ console.log('\n--- 3b. 上乗せはぜんぶポイント加算(掛け算はゼ�
   ok('  陣形の防御はポイント', E.FORMATIONS.every(f => [f.frontBonus, f.backBonus].every(b => !b.def || b.def >= 1)),
      E.FORMATIONS.map(f => f.frontBonus.def).filter(Boolean));
   ok('  種族シナジーの防御はポイント', E.SPECIES_SYNERGY.dwarf.every(x => x.def >= 1), E.SPECIES_SYNERGY.dwarf.map(x => x.def));
+  // ステージ効果に割合が残っていないこと(ラベルだけ直して値を忘れる事故があった)
+  const ruleBad = [];
+  E.STAGES.forEach(st => (st.rules || []).forEach(r => {
+    if(!r.stat) return;
+    ['pdef', 'mdef'].forEach(k => { const v = r.stat[k]; if(v !== undefined && v !== 0 && Math.abs(v) < 1) ruleBad.push(st.id + ' ' + k + ':' + v); });
+  }));
+  ok('  ステージ効果の防御に割合が残っていない', ruleBad.length === 0, ruleBad);
   ok('  陣形の説明文が「+1%」の形で出る(x100しない)', E.bonusText({ def: 1 }).endsWith('+1%'), E.bonusText({ def: 1 }));
 }
 

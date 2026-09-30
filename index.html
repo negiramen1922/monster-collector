@@ -9645,8 +9645,30 @@ function exMobSoulRate(ev, ex, mon){
   return mon.rarity >= 4 ? r.other4 : r.low;
 }
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
-const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}]};
+const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}],"ex_kyubi":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m128","m33","m127"],["m17","m63","m72"],["m116","m151","m164","m66"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m72","m17","m63","m66"],["m151","m87","m53","m17"],["m116","m150","m145","m151","m87"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":12,"rules":[{"side":"enemy","stat":{"hp":1.5,"str":0.4},"label":"EX3のみ 敵 最大HP+150%・STR+40%"}],"waves":[["m72","m67","m53","m141"],["m145","m87","m151","m141"],["m116","m142","m150","m72","m141"]]}],"ex_titan":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m47","m45","m51"],["m13","m123","m22"],["m54","m144","m154","m27"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m13","m27","m155","m123"],["m50","m22","m56","m13"],["m54","m144","m52","m27","m50"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":12,"rules":[{"side":"enemy","stat":{"hp":2.0,"str":1.0},"label":"EX3のみ 敵 最大HP+200%・STR+100%"}],"waves":[["m140","m138","m89","m73"],["m52","m144","m56","m73"],["m54","m144","m52","m140","m73"]]}]};
 const EVENT_EX_RULES = {
+  ex_kyubi: {
+    name: '狐火の祭壇',
+    lead: '狐火に炙られた敵ほど深く斬れる。そのかわり刃は通りにくく、敵は速い。',
+    rules: [
+      { side:'ally',  dmgDealt:0.50, whenTarget:'burned',  label:'味方 やけど状態の敵へ 与ダメージ+50%' },
+      { who:{ species:'demon' }, side:'ally', stat:{ hp:0.50 },  label:'デーモンの味方 最大HP+50%' },
+      { who:{ role:'shooter' },  side:'ally', stat:{ str:0.50 }, label:'シューターの味方 STR+50%' },
+      { side:'enemy', stat:{ pdef:40 },                     label:'敵 物理防御+40%(物理が通りにくい)' },
+      { side:'enemy', stat:{ spd:0.50 },                    label:'敵 SPD+50%' },
+    ],
+  },
+  ex_titan: {
+    name: '巨神の遺跡',
+    lead: '石の巨人は毒も炎も気絶も受けつけない。殻を割るのは、殻をまとった者だけ。',
+    rules: [
+      { side:'ally',  dmgDealt:0.50, when:'shielded',       label:'味方 シールドを持っているあいだ 与ダメージ+50%' },
+      { who:{ species:'dwarf' }, side:'ally', stat:{ hp:0.50, str:0.50 }, label:'ドワーフの味方 最大HP・STR+50%' },
+      { side:'enemy', shield:1.0,                           label:'敵 シールドの効果量+100%' },
+      { side:'enemy', immune:['stun'],                      label:'敵 気絶にかからない' },
+      { side:'enemy', immune:['burn','poison'],             label:'敵 やけど・毒にかからない' },
+    ],
+  },
   ex_fenrir: {
     name: '神々の黄昏',
     lead: '神を喰らう狼の伝承をそのままルールにした。種族で編成が変わる。',
@@ -9661,7 +9683,7 @@ const EVENT_EX_RULES = {
     rules: [
       { side:'both',  dmgTaken:0.50, when:'lowHp30',  label:'敵も味方も HPが30%以下のとき 受けるダメージ+50%' },
       { side:'enemy', stat:{ hp:0.50 },               label:'敵 最大HP+50%' },
-      { side:'enemy', stat:{ mdef:0.40 },             label:'敵 魔法防御+8%' },
+      { side:'enemy', stat:{ mdef:8 },               label:'敵 魔法防御+8%' },
       { who:{ element:'light' }, side:'ally', dmgDealt:-0.30, label:'光属性の味方 与ダメージ-30%' },
       { who:{ element:'dark' },  side:'ally', dmgTaken:-0.20, label:'闇属性の味方 受けるダメージ-20%' },
     ],
@@ -9690,7 +9712,9 @@ function buildEventExStages(ev){
       stamina: 0,                       // EXはスタミナを使わない
       power: 1, enemySkill: t.sk, boss: true, firstClear: 0, gold: 0,
       requires: `${ev.key}_${EX_UNLOCK_TIER}`,
-      rules: meta.rules,
+      // EXのルールは3面で共通。そこに、その面だけの追加ルール(t.rules)を足せる
+      // (EX3だけ敵を硬くする、のような段差を作るため)
+      rules: t.rules ? [...meta.rules, ...t.rules] : meta.rules,
       rulesLead: meta.lead,
       desc: `期間限定・EX${t.ex}(推奨Lv${t.lv})。特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.econV2 ? '。ほかの敵のソウルも出る' : ''}。`,
       waves,
