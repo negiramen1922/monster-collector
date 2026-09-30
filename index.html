@@ -279,6 +279,7 @@ body{
 .drop-mat{ display:inline-flex; align-items:center; gap:2px; margin-right:6px; }
 .drop-mat small{ margin-left:1px !important; font-size:10px; color:var(--text) !important; }
 .drop-row small{ font-size:10px; color:var(--dim); margin-left:4px; }
+.drop-row small.drop-t4{ color:var(--gold); }
 .tier-card{ display:flex; width:100%; align-items:center; gap:10px; text-align:left; font-family:inherit; cursor:pointer;
   background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px; color:var(--fg); }
 .tier-card.locked{ opacity:.55; cursor:default; }
@@ -3075,7 +3076,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.003';
+const GAME_VERSION = 'α0.3.004';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5203,7 +5204,8 @@ const ALCHEMY_FAMILIES = {
 const BOX_CONTENT = { sel: { 1: 10, 2: 5, 3: 3, 4: 1 }, rnd: { 1: 20, 2: 10, 3: 5, 4: 3 } };
 
 function matKey(fam, kind, tier){ return fam === 'co' ? `relic_core_${tier}` : `${fam}_${kind}_${tier}`; }
-/* 素材のTierは難易度で解放: 初級=I / 中級・上級=II まで / 超上級・極上級=III まで / 伝説級・神話級=IV まで。
+/* ステージが落とすのは TierI と TierII だけ。TierIII 以上は拠点の「錬金術」で合成して作る
+   (下位5個 → 上位1個)。例外はボスで、上級以上のボスだけが TierIV を確率で落とす(1日2個まで)。
    ステージの落とす素材は固定で、出てくる敵(ボスは2体分と数える)にいちばん多い属性・種族・ロールを1つずつ。 */
 function stageKindCounts(waves){
   const count = { el: {}, sp: {}, ro: {} };
@@ -5255,11 +5257,33 @@ function stageDropKinds(waves){
     return top ? [f, top[0]] : null;
   }).filter(Boolean);
 }
-function hardDropTiers(tiers){
-  const top = tiers.reduce((a, n, i) => n > 0 ? i : a, 0);
-  return tiers.map((n, i) => n <= 0 ? 0 : i === top ? n + 2 : n + 1);
+/* ボスとハードは「量」だけ増える(出るTierの上限は同じ)。落ちないTierは0のまま増えない。
+   ハードのボスは両方が乗るので TierI+6・TierII+2 になる。 */
+const BOSS_DROP_ADD = [2, 1];
+const HARD_DROP_ADD = [4, 1];
+function bumpDropTiers(tiers, add){ return tiers.map((n, i) => n > 0 ? n + (add[i] || 0) : 0); }
+function hardDropTiers(tiers){ return bumpDropTiers(tiers, HARD_DROP_ADD); }
+/* TierIV はボスだけが確率で落とす。難度が上がるほど出やすいが、1日に取れるのは MAT_T4_DAILY_CAP 個まで
+   (周回そのものは止めない。上限に当たったあとも TierI・TierII は変わらず落ちる)。 */
+const MAT_T4_DAILY_CAP = 2;
+function stageMatT4Chance(stage){
+  return stage && stage.boss && stage.drops ? (stage.drops.t4 || 0) : 0;
 }
-const MAT_TIER_FROM = { 1: '初級', 2: '中級', 3: '超上級', 4: '伝説級' };
+// 画面の描画からも呼ぶので、ここで ensureDaily() は使わない(日付が変わった時に
+// ログイン回数まで数えてしまう)。読むだけにして、書くのはドロップの抽選のときだけ。
+function matT4Today(){
+  const d = typeof STATE !== 'undefined' && STATE ? STATE.daily : null;
+  return d && d.key === currentDayKey() ? (d.counts || {}).mat4 || 0 : 0;
+}
+function matT4Left(){ return Math.max(0, MAT_T4_DAILY_CAP - matT4Today()); }
+// そのTierの素材がどこから来るか(TierI・IIはドロップ / IIIは合成だけ / IVはボスの確率+合成)
+const MAT_TIER_FROM = { 1: '初級', 2: '中級', 3: '上級', 4: '超上級' };
+const MAT_TIER_ROUTE = {
+  1: 'メインクエストのドロップ',
+  2: 'メインクエスト(中級以上)のドロップ',
+  3: '拠点「錬金術」の合成だけ(TierII×5 → TierIII×1)',
+  4: '上級以上のボスが確率で落とす(1日2個まで)ほか、錬金術の合成',
+};
 // その素材(Tier込み)がいちばん多く落ちる、いま挑戦できるメインクエストのステージ
 function bestStageForMat(info, anyLocked){
   let best = null, bestN = 0;
@@ -5272,13 +5296,17 @@ function bestStageForMat(info, anyLocked){
   });
   return best;
 }
-// いまメインクエスト(ハード含む)で手に入るいちばん上のTier = 錬金術で「正規の効率」で作れる上限
+/* 錬金術で「正規の効率」(5個→1個)で作れる上限。TierIII 以上はもうドロップしないので、
+   ドロップ表ではなくクエストの進みぐあいで見る: 初級=I / 中級=II / 上級=III / 超上級=IV。
+   ここより先回りして作ることもできるが、効率が悪くなる(CRAFT_RATIO_AHEAD)。 */
+const MAT_TIER_QUEST = { 2: 'q2', 3: 'q3', 4: 'q4' };
 function matTierUnlocked(){
   let top = 1;
-  STAGES.forEach(st => {
-    if(!st.drops || !STATE.clearedStages.includes(st.id)) return;
-    st.drops.tiers.forEach((n, i) => { if(n > 0) top = Math.max(top, i + 1); });
-  });
+  for(let t = 2; t <= 4; t++){
+    const key = MAT_TIER_QUEST[t];
+    if(!STAGES.some(st => st.tier === key && STATE.clearedStages.includes(st.id))) break;
+    top = t;
+  }
   return top;
 }
 // 錬金術: 解放済みのTierへは 5個→1個。まだ落ちないTierへの先回りは 15個→1個(できるが効率が悪い)
@@ -5629,10 +5657,12 @@ function renderSkillUpgradeModal(){
                   <button class="btn btn-sm ${hasBox ? '' : 'btn-ghost'}" data-use-box="${boxKey}:${info.fam}:${info.kind}" ${hasBox ? '' : 'disabled'}>
                     選択BOXを消費 ${itemName(boxKey)}(所持${getItem(boxKey)})
                   </button>
+                  ${info && info.tier >= 2 ? `<button class="btn btn-sm" data-goto-mat-alchemy="${info.fam}">錬金術で作る(Tier${TIER_LABEL[info.tier - 1]}×${craftRatio(info.tier, info.fam)} → 1個)</button>` : ''}
                   ${(() => { const st = info && bestStageForMat(info);
                     return st ? `<button class="btn btn-sm" data-goto-mat-stage="${st.id}">「${st.name}」${st.id.endsWith('h') ? '(ハード)' : ''}で集める</button>`
                       : (() => { const later = info && bestStageForMat(info, true);
-                          return `<div class="screen-sub" style="margin:4px 0 0;">${later ? `メインクエスト「${later.name}」(${QUEST_TIERS.find(q => q.key === later.tier).label})まで進むと集められます` : `まだ集められるステージがありません(Tier${TIER_LABEL[info ? info.tier : 1]}は${MAT_TIER_FROM[info ? info.tier : 1]}から)`}</div>`; })(); })()}
+                          const tier = info ? info.tier : 1;
+                          return `<div class="screen-sub" style="margin:4px 0 0;">${later ? `メインクエスト「${later.name}」(${QUEST_TIERS.find(q => q.key === later.tier).label})まで進むと集められます` : `Tier${TIER_LABEL[tier]}の集めかた: ${MAT_TIER_ROUTE[tier]}`}</div>`; })(); })()}
                 </div>` : ''}
             </div>`;
         }).join('')}
@@ -5710,7 +5740,7 @@ function openSelectBox(tier, fam, kind){
   return { [k]: BOX_CONTENT.sel[tier] };
 }
 
-/* ---- alchemy: 5 lower → 1 higher (tier IV can't be crafted) ---- */
+/* ---- alchemy: 5 lower → 1 higher. TierIII/TierIV はステージで落ちないので、ここが本線 ---- */
 const CRAFT_RATIO = 5;
 const CRAFT_RATIO_AHEAD = 15;
 const CRAFT_GOLD = { 2: 200, 3: 1000, 4: 5000 };
@@ -5867,7 +5897,7 @@ const FACILITIES = {
   lab: { name: '研究所', icon: '⚗️', desc: 'EXPポットを生産します(EXP換算)', perHour: [0, 5, 15, 40, 100, 200], maxTier: [0, 1, 1, 2, 3, 3] },
   smithy: { name: '霊素工房', icon: '🔨', desc: '霊素鉱とコアを生産します',
     perHour: [0, 4, 8, 16, 28, 45], corePerHour: [0, 1 / 3, 2 / 3, 1.25, 2, 3] },
-  alchemy: { name: '錬金術', icon: '🔮', desc: 'ワザ強化素材と霊素核を錬成します(下位5個 → 上位1個)' },
+  alchemy: { name: '錬金術', icon: '🔮', desc: 'ワザ強化素材と霊素核を錬成します(下位5個 → 上位1個)。TierIII以上はここでしか作れません' },
 };
 const FACILITY_MAX_LV = 5;
 const FACILITY_UPGRADE_GOLD = [0, 0, 10000, 50000, 200000, 600000]; // to reach that level
@@ -8712,24 +8742,24 @@ const DEBUG_TOOLS = false;               // test buttons (stamina refill) on the
    goes below its own rarity. Bosses use `bossStar`. No hidden multipliers. */
 const QUEST_TIERS = [
   { key: 'tu', label: 'チュートリアル', short: '入門', lv: [1, 1],   star: [1, 1], bossStar: 1, skill: 1,  waves: 3 },
-  { key: 'q1', label: '初級',   lv: [1, 28],    star: [1, 1], bossStar: 4, skill: 1,  waves: 3, drops: [3, 0, 0, 0], pots: { exp1: 5 } },
+  { key: 'q1', label: '初級',   lv: [1, 28],    star: [1, 1], bossStar: 4, skill: 1,  waves: 3, drops: [4, 0], pots: { exp1: 5 } },
   { key: 'q1h', label: '初級ハード', short: '💀初級', lv: [1, 28],  star: [4, 4], bossStar: 5, skill: 1, waves: 3, hard: 'q1' },
-  { key: 'q2', label: '中級',   lv: [30, 58],   star: [2, 2], bossStar: 4, skill: 3,  waves: 3, drops: [4, 2, 0, 0], pots: { exp1: 8, exp2: 2 } },
+  { key: 'q2', label: '中級',   lv: [30, 58],   star: [2, 2], bossStar: 4, skill: 3,  waves: 3, drops: [5, 1], pots: { exp1: 8, exp2: 2 } },
   { key: 'q2h', label: '中級ハード', short: '💀中級', lv: [30, 58], star: [4, 4], bossStar: 5, skill: 3, waves: 3, hard: 'q2' },
-  { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [4, 3, 0, 0], pots: { exp2: 4 } },
+  { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [6, 1], t4: 0.03, pots: { exp2: 4 } },
   { key: 'q3h', label: '上級ハード', short: '💀上級', lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
   // 通常クエストは雑魚★1-4・ボス★5が上限。★6以上はハードモード専用(HARD_STAR_MAPで
   // ノーマルの★を変換)。超上級以降はレベル/スキルLvだけで難度を積み増す。
   // レベル帯は星刻の上限Lvに合わせている: 極上級 150(★5上限)〜200(★7上限)、
   // 伝説級 210〜250(★8上限230が真ん中)、神話級 260(★9上限)〜300(★10上限)。
   // 上位3ティアの境目は10レベルずつ空けてある。神話級は★8〜★10の解放が前提。
-  { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [5, 3, 1, 0], pots: { exp2: 6, exp3: 1 } },
+  { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [8, 2], t4: 0.05, pots: { exp2: 6, exp3: 1 } },
   { key: 'q4h', label: '超上級ハード', short: '💀超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
-  { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [5, 4, 2, 0], pots: { exp3: 3 } },
+  { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [10, 2], t4: 0.07, pots: { exp3: 3 } },
   { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 200], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
-  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [8, 5, 3, 1], pots: { exp3: 5 } },
+  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [12, 3], t4: 0.10, pots: { exp3: 5 } },
   { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [210, 250], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
-  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [10, 6, 4, 2], pots: { exp3: 8 } },
+  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [15, 3], t4: 0.12, pots: { exp3: 8 } },
   { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [260, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
@@ -8955,8 +8985,8 @@ function buildQuestStages(){
         enemySkill: t.skill,
         gold: Math.round(300 + rec * 40 + (isBoss ? rec * 40 : 0)),
         pots: t.pots || { exp1: 3 },
-        // ボスは量だけ増える(上のTierは出さない)
-        drops: t.drops ? { kinds, tiers: isBoss ? t.drops.map(n => n > 0 ? n + 1 : 0) : t.drops } : null,
+        // ボスは量だけ増える(上のTierは出さない)。TierIVはボスだけの確率ドロップ
+        drops: t.drops ? { kinds, tiers: isBoss ? bumpDropTiers(t.drops, BOSS_DROP_ADD) : t.drops.slice(), t4: isBoss ? (t.t4 || 0) : 0 } : null,
         bossReward: isBoss ? [{ type: 'item', key: i === 9 ? 'box_sel_4' : (t.key === 'q1' ? 'box_sel_2' : 'box_sel_3'), n: 1 }] : null,
       };
       if(t.key === 'tu') stage.reward = [[{ type: 'item', key: 'exp1', n: 40 }], [{ type: 'gold', n: 20000 }], [{ type: 'item', key: 'box_sel_1', n: 2 }]][i];
@@ -9062,8 +9092,8 @@ function buildHardStages(){
         id, tier: t.key, waves, requires: prev,
         gold: Math.round(src.gold * 1.5),
         firstClear: src.firstClear ? src.firstClear * 2 : 0,
-        // ハードも出るTierの上限はノーマルと同じ。量が増え、いちばん上のTierが特に多い
-        drops: src.drops ? { kinds: src.drops.kinds, tiers: hardDropTiers(src.drops.tiers) } : null,
+        // ハードも出るTierの上限はノーマルと同じで、量だけ増える。TierIVの確率はノーマルと同率
+        drops: src.drops ? { kinds: src.drops.kinds, tiers: hardDropTiers(src.drops.tiers), t4: src.drops.t4 || 0 } : null,
         bossReward: src.bossReward ? src.bossReward.map(r => r.type === 'item' ? { ...r, key: bumpBoxTier(r.key) } : r) : null,
         desc: `${src.desc}(ハードモード:敵の★上昇)`,
       });
@@ -10343,6 +10373,16 @@ function itemSources(key){
   const out = [];
   const m = parseMat(key);
   if(m){
+    if(m.tier === 4){
+      // TierIVはボスの確率ドロップだけ。いちばん出やすい(=いま行ける中でいちばん上の)ボスを案内する
+      const bosses = STAGES.filter(st => st.boss && stageMatT4Chance(st) > 0 && !st.disabled
+        && st.drops.kinds.some(([f, k]) => f === m.fam && k === m.kind));
+      const openB = bosses.filter(st => stageUnlocked(st)).sort((a, b) => stageMatT4Chance(b) - stageMatT4Chance(a));
+      openB.slice(0, 3).forEach(st => out.push({
+        label: `${tierOf(st).short || tierOf(st).label} ${st.name}(ボス)`,
+        tag: `${pctText(stageMatT4Chance(st))}・本日あと${matT4Left()}個`, go: { type: 'stage', id: st.id } }));
+      if(!openB.length && bosses.length) out.push({ label: `${tierOf(bosses[0]).label} ${bosses[0].name}(ボス)`, tag: '未解放', go: null });
+    }
     const stages = STAGES.filter(st => st.drops && !st.disabled && st.drops.kinds.some(([f, k]) => f === m.fam && k === m.kind) && (st.drops.tiers[m.tier - 1] || 0) > 0);
     const open = stages.filter(st => stageUnlocked(st)).sort((a, b) => (b.drops.tiers[m.tier - 1] - a.drops.tiers[m.tier - 1]) || (STAGES.indexOf(b) - STAGES.indexOf(a)));
     open.slice(0, 4).forEach(st => out.push({ label: `${QUEST_TIERS.find(q => q.key === st.tier).short || QUEST_TIERS.find(q => q.key === st.tier).label} ${st.name}`, tag: `ドロップ×${st.drops.tiers[m.tier - 1]}`, go: { type: 'stage', id: st.id } }));
@@ -10534,7 +10574,7 @@ function renderAlchemy(){
         <div class="alc-need-head">作るのに必要(${a.qty}個)</div>
         <div class="alc-need ${okItem ? '' : 'short'}" data-item-detail-alc="${from}" role="button">${itemIcon(from)}<span>${itemName(from)}</span><b>${getItem(from)} / ${needItem}</b></div>
         <div class="alc-need ${okGold ? '' : 'short'}"><span class="item-ic">${GOLD_ICON}</span><span>ゴールド</span><b>${needGold.toLocaleString()}</b></div>
-        ${ratio > CRAFT_RATIO ? `<div class="alc-warn">Tier${TIER_LABEL[m.tier]}はまだメインクエストで落ちないため、${ratio}個 → 1個になります(先回り)</div>` : `<div class="alc-note">${ratio}個 → 1個</div>`}
+        ${ratio > CRAFT_RATIO ? `<div class="alc-warn">Tier${TIER_LABEL[m.tier]}はまだ解放されていないため、${ratio}個 → 1個になります(先回り。${MAT_TIER_FROM[m.tier]}をクリアすると${CRAFT_RATIO}個 → 1個)</div>` : `<div class="alc-note">${ratio}個 → 1個</div>`}
         <div class="alc-qty">
           <button class="btn btn-ghost btn-sm" data-alc-qty="-1">−</button><b>${a.qty}</b><button class="btn btn-ghost btn-sm" data-alc-qty="1">＋</button>
           <button class="btn btn-ghost btn-sm" data-alc-qty="max">最大(${max})</button>
@@ -13997,7 +14037,12 @@ let eventKey = null;   // which event's stage list is shown when 2+ events are r
 function dropIconsHtml(st){
   if(!st.drops) return '';
   const tiers = st.drops.tiers.map((n, i) => n > 0 ? `Tier${TIER_LABEL[i + 1]}×${n}` : '').filter(Boolean).join('・');
-  return `<div class="drop-row"><span class="rare-label">ドロップ</span>${st.drops.kinds.map(([f, k]) => `<span class="drop-mat" title="${MAT_FAMILIES[f].name(k)}">${MAT_FAMILIES[f].icon(k)}<small>${MAT_FAMILIES[f].name(k)}</small></span>`).join('')}<small>${tiers}(3種からランダム)</small></div>`;
+  const t4 = stageMatT4Chance(st);
+  const left = t4 > 0 ? matT4Left() : 0;
+  const t4Text = t4 > 0
+    ? `<small class="drop-t4">TierIV ${pctText(t4)}(本日あと${left}個)</small>`
+    : '';
+  return `<div class="drop-row"><span class="rare-label">ドロップ</span>${st.drops.kinds.map(([f, k]) => `<span class="drop-mat" title="${MAT_FAMILIES[f].name(k)}">${MAT_FAMILIES[f].icon(k)}<small>${MAT_FAMILIES[f].name(k)}</small></span>`).join('')}<small>${tiers}(3種からランダム)</small>${t4Text}</div>`;
 }
 
 /* ステージ効果(EXステージ・総力戦)。出撃前に何が起きるか分かるように並べる */
@@ -18356,12 +18401,21 @@ function grantStageRewards(stage, spawned, party, opts){
   addGold(gold);
   Object.entries(stage.pots || {}).forEach(([k, n]) => add(k, n));
   if(stage.drops){
+    const randKind = () => stage.drops.kinds[Math.floor(Math.random() * stage.drops.kinds.length)];
     stage.drops.tiers.forEach((count, i) => {
       for(let c = 0; c < count; c++){
-        const [fam, kind] = stage.drops.kinds[Math.floor(Math.random() * stage.drops.kinds.length)];
+        const [fam, kind] = randKind();
         add(matKey(fam, kind, i + 1), 1);
       }
     });
+    // TierIVはボスだけの確率ドロップ。1日 MAT_T4_DAILY_CAP 個まで(周回そのものは止めない)
+    const t4 = stageMatT4Chance(stage);
+    if(t4 > 0 && matT4Left() > 0 && Math.random() < t4){
+      const [fam, kind] = randKind();
+      add(matKey(fam, kind, 4), 1);
+      const d = ensureDaily();
+      d.counts.mat4 = (d.counts.mat4 || 0) + 1;
+    }
   }
 
   // souls
@@ -19043,6 +19097,14 @@ function handlePhoneClick(ev){
       if(got){ const [k, n] = Object.entries(got)[0]; playSfx('confirm'); toast(`${itemName(k)}を${n}個受け取りました`); }
       skillUpgradeShort = null;
       renderSkillUpgradeModal();
+      return;
+    }
+    const matAlcEl = t.closest('[data-goto-mat-alchemy]');
+    if(matAlcEl){
+      const fam = matAlcEl.dataset.gotoMatAlchemy;
+      skillUpgradeModal = null; skillUpgradeShort = null;
+      closeModal();
+      alchemyFam = fam; goto('base'); openAlchemy({ fam });
       return;
     }
     const matStageEl = t.closest('[data-goto-mat-stage]');
@@ -19837,6 +19899,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 130, version: 'α0.3.004', date: '9/30', title: 'ワザ強化素材は「合成」が本線になりました', body: '<span class="nt-h">ステージで落ちるのは TierI と TierII だけになりました</span>メインクエストでワザ強化素材が<em>余りすぎていた</em>ので、落ちるTierを絞って、上のTierは拠点の<em>錬金術</em>で作る形にしました。<span class="nt-i">・<em>TierIII は錬金術だけ</em>で作ります(TierII×5 → TierIII×1)</span><span class="nt-i">・<em>TierIV は上級以上のボスが確率で落とします</em>(上級3% / 超上級5% / 極上級7% / 伝説級10% / 神話級12%。ハードも同率)。<em>1日2個まで</em>で、上限に当たっても TierI・TierII は変わらず落ちます</span><span class="nt-i">・そのかわり <em>TierI と TierII の量を増やしました</em>(神話級ハードのボスなら TierI×21・TierII×5)。ボスは TierI+6・TierII+2、ハードは TierI+4・TierII+1 です</span><span class="nt-i">・錬金術が<em>5個 → 1個</em>になるTierは、クエストの進みぐあいで開きます(中級=TierII / 上級=TierIII / 超上級=TierIV)。そこより先回りして作ることもできますが 15個 → 1個になります</span><span class="nt-h">どれくらい変わるか</span><span class="nt-i">・1体のワザを<em>ぜんぶLv12</em>にするには、神話級ハードのボスで <em>約110周(4日ほど)</em>です。前は8周で終わっていました</span><span class="nt-i">・<em>ワザLv10まで</em>なら TierIV を1個も使いません。極上級ハードのボスで約86周(3日ほど)です。<em>極上級までは素材で詰まらず、神話級に挑むときだけ TierIV がブレーキになる</em>——という形を狙っています</span><span class="nt-i">・素材の集めかたは、アイテム欄で素材を押すと出る<em>入手手段</em>から確かめられます</span>' },
   { id: 129, version: 'α0.3.003', date: '9/30', title: 'ソウルの集めかたを見直しました', body: '<span class="nt-h">レアリティが高いほど完凸が遠くなりました</span>星刻に必要なソウルが<em>もとのレアリティ</em>でも変わるようになりました。これまでは「いまの★」だけで決まっていたので、<em>★5がいちばん安い</em>という逆転が起きていました。<span class="nt-i">・<em>最初の1段は今までと同じ</em>です(★5→★6 は 300 のまま。★3→★4 は 100 → <em>90</em> に下がりました)。重くなるのは後半だけです</span><span class="nt-i">・★10までの合計 ★1:1,500 / ★2:2,100 / ★3:3,150 / ★4:3,900 / <em>★5:4,800</em></span><span class="nt-i">・数字はガチャの重複でもらえるソウル(★3:30 / ★4:50 / ★5:150)の倍数に揃えたので、「★5の1段目は重複2体ぶん」と数えられます</span><span class="nt-h">これから追加するイベントから変わること</span><em>開催中のイベントの数字は変えていません。</em>次のイベントから次のようになります。<span class="nt-i">・EXステージで<em>ほかの敵からもソウル</em>が出ます(抱き合わせ★4はEX3で100%、その他の★4は50%、★3以下は35%)。EXはスタミナを使わないので、星結晶を使わずにソウルを集められる道になります</span><span class="nt-i">・EX3の主役のソウルが<em>50%で1〜3個</em>(1個50% / 2個35% / 3個15%)に。100%で1個より遠くなりますが、当たると大きく進みます</span><span class="nt-i">・イベントショップの主役のソウルが<em>1回10個・上限30回</em>に(合計300個で今までと同じ量です)</span><span class="nt-i">・同時ピックアップ★4のソウルを<em>1体ずつ別の商品</em>に分けます(各60メダル・20個・上限10回)。これまでは1商品で2体ぶんまとめて配っていました</span><span class="nt-h">直したもの</span><span class="nt-i">・<em>霊素の鉱脈に入れなかった</em>のを修正(ステージを探す処理から漏れていました)</span><span class="nt-i">・育成クエストの必要スタミナが<em>⚡0のまま</em>表示されていたのを修正(実際には消費されていました)</span><span class="nt-i">・霊素の鉱脈の報酬が表示されていなかったのを修正</span>' },
   { id: 128, version: 'α0.3.002', date: '9/29', title: 'イベント主役のソウルはEXで集める形に', body: '<span class="nt-h">イベントの主役(ピックアップ★5)のソウル</span><span class="nt-i">・通常ステージでは主役が<em>仲間にならなくなりました</em>。1体目はガチャから迎えてください。</span><span class="nt-i">・通常ステージのボスからは<em>ソウル1個</em>(ステージ1で2%、難しいほど上がりステージ10で20%)。まだ仲間にいなくても貯まり、ガチャで仲間にしたときに引き継がれます。</span><span class="nt-i">・EXステージで<em>EX1は20%・EX2は50%・EX3は100%</em>でソウル1個。スタミナ不要・回数の上限なし(周回機能は使えません)。</span><span class="nt-i">・EXはステージ3クリアで開くようになりました。</span><span class="nt-h">不具合の修正</span><span class="nt-i">・延焼で敵を倒したときに、まれに戦闘が止まることがあったのを直しました。</span>' },
   { id: 127, version: 'α0.3.001', date: '9/29', title: '右上に星結晶の数', body: '<span class="nt-i">・画面右上のゴールドの右隣に、<em>星結晶の数</em>をいつでも表示するようにしました(1万以上は「12K」のように短く)。ガチャ画面でもスタミナが出るようになります。</span>' },
