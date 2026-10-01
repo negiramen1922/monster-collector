@@ -2657,6 +2657,13 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rpk-name{ font-size:13px; font-weight:900; margin-bottom:3px; }
 .rpk-name small{ font-size:10px; color:var(--dim); font-weight:700; }
 .rpk-subs .rune-sub{ font-size:10px; margin-bottom:2px; }
+.eq-who{ flex:none; width:54px; display:flex; flex-direction:column; align-items:center; gap:1px; margin-left:auto; position:relative; }
+.eq-who img{ width:40px; height:40px; border-radius:9px; object-fit:cover; background:#2a2346; border:1px solid #ffb35a; }
+.eq-who small{ font-size:9.5px; font-weight:800; max-width:54px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+.eq-who i{ position:absolute; top:-5px; left:50%; transform:translateX(-50%); font-style:normal; font-size:8px; font-weight:900;
+  background:#ffb35a; color:#2a1a00; padding:0 4px; border-radius:6px; line-height:12px; white-space:nowrap; }
+.eq-who.self img{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(232,180,85,.35); }
+.eq-who.self i{ background:var(--gold); }
 .rpk-used{ font-size:10px; color:#ffb35a; font-weight:800; margin-top:2px; }
 .rpk-btns{ display:flex; flex-direction:column; gap:4px; }
 .rpk-list{ max-height:none; }
@@ -3166,7 +3173,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.008';
+const GAME_VERSION = 'α0.3.012';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7616,11 +7623,19 @@ function renderRunePicker(){
           ${runeIconHtml(r, { used: false })}
           <div class="rpk-body"><div class="rpk-name">${runeStatText(r.main, runeMainValue(r))} <small>${RUNE_RARITIES[r.rarity].label}・Tier${RUNE_ROMAN[r.tier - 1]}</small></div>
           <div class="rpk-subs">${runeSubsHtml(r)}</div>
-          ${u ? `<div class="rpk-used">この編成で ${MON_BY_ID[u.monId].name} が装備中(付け替えます)</div>` : ''}</div>
+          </div>
+          ${u ? equipWhoHtml(u.monId, false) : ''}
         </button>`;
       }).join('')}</div>` : `<p class="fs-note">${ensureRunes().length ? '条件に合うルーンがありません。' : 'まだルーンを持っていません。育成クエストの「ルーン採掘」で手に入ります。'}</p>`}
     </div>`;
   layer.classList.add('show');
+}
+// 装備を選ぶ一覧の右端: いま装備しているキャラの顔と名前(この子なら「この子」)
+function equipWhoHtml(monId, self){
+  const m = MON_BY_ID[monId];
+  if(!m) return '';
+  return `<span class="eq-who ${self ? 'self' : ''}" title="${m.name}が装備中">
+    <img src="${imgSrc(monId)}" alt=""><small>${self ? 'この子' : m.name}</small><i>装備中</i></span>`;
 }
 function pickRune(uid){
   const p = runePicker;
@@ -7762,8 +7777,9 @@ function renderRelicPicker(){
               <span class="relic-ic">${def.icon}</span>
               <div class="relic-row-body">
                 <div class="relic-row-name">${def.name}<span class="relic-star">${relicStarRowHtml(def, st)}</span>${matches > 0 ? `<span class="relic-match-badge">条件一致 ${matches}</span>` : ''}</div>
-                <div class="relic-row-sub">Lv${st.level} / スキルLv${st.skillLv}${here ? '・この子に装備中' : elsewhere ? `・装備中: ${elsewhere.name}` : ''}</div>
+                <div class="relic-row-sub">Lv${st.level} / スキルLv${st.skillLv}</div>
               </div>
+              ${here || elsewhere ? equipWhoHtml(st.equippedTo, here) : ''}
             </button>`;
         }).join('')}
       </div>`}
@@ -20739,6 +20755,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 138, version: 'α0.3.012', date: '10/1', title: 'ルーン・遺物の一覧で、装備している子を顔で表示', body: '<span class="nt-i">・ルーンや遺物を選ぶ一覧で、だれが装備しているかを文字ではなく、<em>右端にその子の立ち絵と名前</em>で出すようにしました。いま見ている子が付けているものは「この子」と出ます。</span>' },
   { id: 137, version: 'α0.3.011', date: '10/1', title: '宝箱から出る卵が中身の色に。召喚ポイントショップ', body: '<span class="nt-h">卵の色で中身が分かるようになりました</span>宝箱の色で<em>その回のいちばん良いレア度</em>はもう分かっているので、飛び出す卵も<em>中身の色</em>にしました。<span class="nt-i">・<em>★1〜2は青 / ★3〜4は金 / ★5は虹</em>。虹の宝箱が来たあと、どれが虹の卵かを探せます</span><span class="nt-i">・★5が<em>金の予兆で出てくることがあります</em>(そのときは金の卵のまま)。割るまで分からない楽しみは残してあります</span><span class="nt-h">召喚ポイントショップを作りました</span>ガチャ画面でワンタップだった<em>天井の交換</em>を、ほかのショップと同じ流れに移しました。<span class="nt-i">・ガチャ画面の召喚ポイントの右の<em>「交換する」</em>から開きます。ピックアップ中のモンスターと、その専用遺物が並びます</span><span class="nt-i">・<em>個数を±で選べます</em>。合計で何ポイント使うか、残りがいくつになるかをその場に出します(イベントショップでも同じように選べます)</span><span class="nt-h">ガチャ画面を整理しました</span><span class="nt-i">・並びを <em>バナー → ★4確定まで・召喚ポイント → 引くボタン → 提供割合・最近の結果</em> に変えました</span><span class="nt-i">・<em>提供割合</em>と<em>最近の結果</em>はボタンを押すと出るようにしました。最近の結果は4件から<em>20件</em>まで見えます</span><span class="nt-i">・排出率やかぶりの長い説明文を外しました</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザの説明で<em>「SPD」の「SP」だけが用語として光っていた</em>のを直しました。「SPD+10」が「SP」で切れなくなります</span><span class="nt-i">・イベント・EX・育成クエストのリザルトに<em>「次のステージへ」</em>が出るようになりました(これまでメインクエストと深淵回廊だけでした)</span><span class="nt-i">・イベントショップで<em>アイコンが出ていない品</em>が3つあったのを直しました</span>' },
   { id: 136, version: 'α0.3.010', date: '10/1', title: '九尾・タイタンのEXステージと、同時ピックアップの★4', body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」を10/7まで延長しました(追加ぶんは10/1 16:00から)</span><span class="nt-i">・<em>EXステージ</em>(EX1〜EX3)を追加しました。ステージ3クリアで開きます。スタミナを使わず何度でも挑めます。</span><span class="nt-i">・<em>EXのイベントミッション</em>を3つ追加しました。EX3のクリアで称号も手に入ります。</span><span class="nt-i">・同時ピックアップの★4を追加しました。<em>紅蓮の九尾は牛鬼・ロキ</em>、<em>黄金の巨神はブロック・スルト</em>です。</span><span class="nt-h">新★4 牛鬼(炎/タンク)</span>後衛をかばうことに特化したタンクです。<span class="nt-i">・スキル1「牛鬼の盾」 2ターンかばう状態になり、<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。そのあいだ自分の魔法防御+10。</span><span class="nt-i">・パッシブ「鬼の皮」 <em>肩代わりで受けたダメージ-25%</em>。自分が直接殴られたぶんには効きません。</span><span class="nt-i">・奥義「鬼哭」 敵全体に威力180%。自分に最大HPの50%のシールド。</span><span class="nt-h">★4のピックアップが効くようになりました</span>これまで期間限定バナーの<em>★4ピックアップは表示だけで、確率に反映されていませんでした</em>。★5と同じ決まりで、<em>★4が出たときの50%</em>が同時ピックアップの★4になります。<span class="nt-h">EXのルールは段ごとに増えます</span><span class="nt-i">・EX1は味方側のルールだけ。EX2・EX3で<em>敵側の縛りが1つずつ</em>加わります(減りません)。</span><span class="nt-i">・巨神の遺跡に「<em>シールドが無いあいだ 受けるダメージ+50%</em>」を足しました。EX3が<em>21ラウンド → 10ラウンド</em>になり、★3条件(12ラウンド以内)が狙えるようになりました。</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザが配る<em>防御のバフ・デバフが48件すべて0.8ポイントに潰れていた</em>のを修正しました。タイタンの奥義は「物理・魔法防御+8%」と書いてありながら実際は+0.8でした。<em>タンクの守りのスキルが本来の効き目になります</em>。</span><span class="nt-i">・EXのウェーブに<em>前衛・後衛を指定できる</em>ようにしました。これまでロール任せだったので、前衛が1体もいないウェーブができていました。</span><span class="nt-i">・「紅蓮の九尾」「黄金の巨神」に<em>イベントメダル</em>を追加しました。メダルが無かったため、この2つだけ<em>イベントショップと周回回数のミッションが出ていませんでした</em>。</span><span class="nt-i">・ステージ10と★30の<em>称号</em>も、もう一度取れるように戻しました。</span><span class="nt-h">★4の星刻を追加しました</span>牛鬼・ロキ・ブロック・スルトに、★6〜★10の<em>星刻</em>を入れました。数値だけでなく、<em>スキルの対象やパッシブの発動条件が変わります</em>(例: ブロックの★9で鍛冶の盾が後衛の味方にも届きます)。<span class="nt-h">ワザの入れ替え</span><span class="nt-i">・<em>フェンリル</em>のスキル2を「暴風の遠吠え(自分にSTR+30%・SPD+10)」から<em>「暴風の牙」敵単体に威力60%×5回</em>に変えました。自己バフが攻撃になったぶん、はっきり強くなります(★7の星刻で7回に)。</span><span class="nt-i">・<em>グリーンマン</em>のスキル1とスキル2を入れ替えました。<em>拘束がスキル1(CT3)</em>になり、早く・何度も撃てます。</span>' },
   { id: 135, version: 'α0.3.009', date: '10/1', title: '説明文の中の「やけど」「延焼」などを押すと意味が出ます', body: '<span class="nt-h">言葉の意味がその場で読めるようになりました</span>ワザの説明に出てくる<em>やけど・毒・気絶・シールド・挑発</em>などの言葉が、<em>水色の点線</em>になりました。押すとその場で意味が出ます。<span class="nt-i">・とくに<em>延焼</em>は、どこにも説明がないのに説明文に出てくる言葉でした。「すでにやけどの相手にもう一度やけどをかけると、ターン数が戻るうえに、やけどダメージの50%をその場で与える(同じ相手に1ターン3回まで)」という意味です</span><span class="nt-i">・やけどのダメージが<em>かけた人のSTRで決まる</em>ことも書きました。強い子がかけたやけどのほうが痛いです</span><span class="nt-i">・光るのは25語です。状態異常8つ・延焼・シールド・挑発・トゲ・被ダメージ軽減・免疫・継続回復・肩代わり・呪い・恐慌・回復阻害・命中率ダウン・石像化・会心・防御貫通・SP</span><span class="nt-i">・ワザとパッシブの説明・遺物のスキル枠・<em>ステージ効果</em>・アイテムの説明で光ります</span><span class="nt-i">・説明の中から「似たもの」で別の言葉へ飛べます(やけど → 延焼)。閉じると<em>元の画面のスクロール位置まで戻ります</em></span><span class="nt-h">直したもの</span><span class="nt-i">・「奈落の王」EXの<em>「敵 魔法防御+8%」が実際には効いていなかった</em>のを直しました(防御をポイント式に変えたときの書き漏らしで、+0.4しか乗っていませんでした)。EXが少し硬くなります</span>' },
