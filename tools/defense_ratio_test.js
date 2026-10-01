@@ -13,6 +13,7 @@ const api = load('game.js', s => s + `;global.__e={
   scaledStats, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
   makeRune, runeBonusFromList, applyRuneBonusToUnit, applyStatus, hasStatus, ENEMY_POWER, LEVEL_STAT_BONUS,
   applyStatBonus, addDefPoints, BONUS_POINT_KEYS, RELICS, SPECIES_SYNERGY, FORMATIONS, bonusText, relicEffectText, STAGES,
+  POINT_BUFF_KEYS, MONSTER_KITS, applyEffect, buffAmountText, get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
   get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
 };`);
@@ -105,6 +106,27 @@ console.log('\n--- 3b. 上乗せはぜんぶポイント加算(掛け算はゼ�
     ['pdef', 'mdef'].forEach(k => { const v = r.stat[k]; if(v !== undefined && v !== 0 && Math.abs(v) < 1) ruleBad.push(st.id + ' ' + k + ':' + v); });
   }));
   ok('  ステージ効果の防御に割合が残っていない', ruleBad.length === 0, ruleBad);
+  // ワザが配る防御バフは「ポイント」。capRatio(上限0.8)を通すと48件ぜんぶ 0.8 に潰れる
+  const clamped = [];
+  E.MONSTERS.forEach(m => {
+    const kit = E.MONSTER_KITS[m.id];
+    ['normal', 'skill1', 'skill2', 'ult'].forEach(key => {
+      const a = kit[key]; if(!a) return;
+      [...(a.effects || []), ...(a.onHit || [])].forEach(e => {
+        const b = e.buff || e.debuff;
+        if(!b || !E.POINT_BUFF_KEYS.has(b) || e.flat || e.v === undefined) return;
+        const u = unit(TANK); u.row = 'front'; u.alive = true; u.slot = 1;
+        const back = unit(SHOOTER); back.row = 'back'; back.alive = true; back.slot = 2;
+        E.battleUI = { round: 1, party: [u, back], enemies: [], log: [], fxEvents: [], stage: { id: 't' }, waveIndex: 0, finished: false };
+        E.applyEffect({ actor: u, act: a, kind: key === 'ult' ? 'ult' : 'skill', hits: [] }, e);
+        const got = [u, back].map(x => x.buffs[b] && x.buffs[b].v).find(v => v !== undefined);
+        if(got !== undefined && Math.abs(got - e.v) > 0.01) clamped.push(`${m.name} ${a.name} ${b} ${e.v}→${got}`);
+      });
+    });
+  });
+  ok('  ワザの防御バフがポイントのまま届く(0.8に潰れない)', clamped.length === 0, clamped.slice(0, 6));
+  ok('  防御バフの表示はx100しない(+8% と出る)', E.buffAmountText('mdefUp', 8, false) === '+8%', E.buffAmountText('mdefUp', 8, false));
+  ok('  割合のバフは今までどおりx100する(+30%)', E.buffAmountText('strUp', 0.3, false) === '+30%', E.buffAmountText('strUp', 0.3, false));
   ok('  陣形の説明文が「+1%」の形で出る(x100しない)', E.bonusText({ def: 1 }).endsWith('+1%'), E.bonusText({ def: 1 }));
 }
 
