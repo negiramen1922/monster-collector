@@ -2723,6 +2723,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gc-name{ font-size:18px; font-weight:800; }
 .gc-sub{ font-size:11px; color:#d9c7f0; margin-top:4px; line-height:1.7; }
 .gc-period{ font-size:11px; color:var(--gold); font-weight:800; margin-top:5px; }
+.gc-subs{ margin-top:11px; padding-top:10px; border-top:1px solid rgba(232,180,85,.25); }
+.gc-subs-title{ font-size:11px; font-weight:800; color:#d9c7f0; margin-bottom:7px; }
+.gc-subs-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(84px, 1fr)); gap:7px; }
+.gc-sub-card{ appearance:none; border:1px solid rgba(232,180,85,.3); border-radius:12px; padding:6px 4px 5px; cursor:pointer;
+  background:radial-gradient(circle at 50% 36%, rgba(232,180,85,.16) 0%, transparent 70%), rgba(22,18,42,.7); text-align:center; }
+.gc-sub-card img{ display:block; width:100%; max-width:62px; aspect-ratio:1; object-fit:contain; margin:0 auto 3px; image-rendering:pixelated; }
+.gc-sub-name{ font-size:11px; font-weight:800; color:var(--text); }
+.gc-sub-role{ font-size:9.5px; color:var(--dim); }
 .abyss-card .ab-stats{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin:8px 0; }
 .abyss-card .ab-stats div{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:6px; text-align:center; }
 .abyss-card .ab-stats small{ display:block; font-size:10px; color:var(--dim); font-weight:700; }
@@ -3237,6 +3245,8 @@ const ITEM_SVG_BODY = {
   // イベントメダル(イベントごとに色を変える)
   medal_wind: '<circle cx="50" cy="50" r="33" fill="#9fe8f0" stroke="#2f7a8a" stroke-width="6"/><path d="M30 52c9-10 18 8 28-2s14-6 14-6" fill="none" stroke="#123b47" stroke-width="6" stroke-linecap="round"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
   medal_dark: '<circle cx="50" cy="50" r="33" fill="#6b4fa0" stroke="#2a1b47" stroke-width="6"/><circle cx="50" cy="50" r="13" fill="#1a1230"/><circle cx="50" cy="50" r="33" fill="none" stroke="#e8b455" stroke-width="3" opacity=".8"/>',
+  medal_fire: '<circle cx="50" cy="50" r="33" fill="#f0864f" stroke="#7a2f1a" stroke-width="6"/><path d="M50 28c7 10 14 13 14 22a14 14 0 0 1-28 0c0-9 7-12 14-22z" fill="#ffe08a" stroke="#7a2f1a" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
+  medal_earth: '<circle cx="50" cy="50" r="33" fill="#d9a94e" stroke="#6b4a18" stroke-width="6"/><path d="M34 60l10-18 8 12 6-8 8 14z" fill="#6b4a18"/><circle cx="50" cy="50" r="33" fill="none" stroke="#fff3c4" stroke-width="3" opacity=".6"/>',
   scrap: '<path d="M22 60 L34 30 L52 38 L60 22 L78 34 L70 58 L54 52 L46 74 L30 68 Z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="50" r="7" fill="#5a5a68"/>',
   core: '<circle cx="50" cy="50" r="32" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="40" cy="40" r="9" fill="#ffffff" opacity=".65"/>',
   pot: '<rect x="40" y="10" width="20" height="10" rx="3" fill="#4a4560"/><path d="M42 20h16v16l14 32c3 7-2 14-10 14H38c-8 0-13-7-10-14l14-32z" fill="#e8e3f5" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><path d="M34 64h32l5 12c2 5-1 10-7 10H36c-6 0-9-5-7-10z" fill="#7ecbe8"/>',
@@ -3250,7 +3260,7 @@ const ITEM_SVG_BODY = {
   ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { medal_wind:'神狼の牙', medal_dark:'奈落の刻印', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
+const ITEM_ICON_LABEL = { medal_wind:'神狼の牙', medal_dark:'奈落の刻印', medal_fire:'狐火の灯', medal_earth:'巨神の金片', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const RESONANCE_ICON = `<span class="item-ic">${ITEM_ICON.resonance}</span>`;
@@ -3513,9 +3523,9 @@ const EVENTS = [
     name: '紅蓮の九尾',
     icon: '🔥',
     startAt: '2026-09-18T00:00:00+09:00',
-    endAt: '2026-10-02T23:59:59+09:00',
+    endAt: '2026-10-07T23:59:59+09:00',
     pickup: 'm116',
-    featured: ['m116'],
+    featured: ['m116', 'm170', 'm150'],   // 同時ピックアップの★4: 牛鬼・ロキ
     stageName: '狐火の祭壇',
     terrain: 'lava',
     element: 'fire',
@@ -3541,9 +3551,9 @@ const EVENTS = [
     name: '黄金の巨神',
     icon: '🗿',
     startAt: '2026-09-18T00:00:00+09:00',
-    endAt: '2026-10-02T23:59:59+09:00',
+    endAt: '2026-10-07T23:59:59+09:00',
     pickup: 'm54',
-    featured: ['m54'],
+    featured: ['m54', 'm144', 'm53'],   // 同時ピックアップの★4: ブロック・スルト
     stageName: '巨神の遺跡',
     terrain: 'ruins',
     element: 'earth',
@@ -9492,6 +9502,10 @@ function buildEventStages(ev){
 const EVENT_MEDAL = {
   ev_fenrir:  { key:'medal_ev_fenrir',  name:'神狼の牙',   icon:'medal_wind' },
   ev_abaddon: { key:'medal_ev_abaddon', name:'奈落の刻印', icon:'medal_dark' },
+  // 九尾・タイタンはメダルの無いまま開催していたので、イベントショップも
+  // 周回回数のミッションも出ていなかった(α0.3.010で追加)
+  ev_kyubi:   { key:'medal_ev_kyubi',   name:'狐火の灯',   icon:'medal_fire' },
+  ev_titan:   { key:'medal_ev_titan',   name:'巨神の金片', icon:'medal_earth' },
 };
 function medalOf(ev){ return EVENT_MEDAL[typeof ev === 'string' ? ev : ev && ev.key] || null; }
 function medalRunGain(tier){ return 10 + 4 * tier; }          // 1層14 … 10層50
@@ -9685,9 +9699,13 @@ function equippedTitle(){ return hasTitle(STATE.title) ? TITLES[STATE.title] : n
 const EVENT_TITLES = {
   ev_fenrir:  { deep:'神狼を狩る者', star:'嵐を継ぐ者',   ex:'黄昏を超えし者' },
   ev_abaddon: { deep:'奈落に立つ者', star:'深淵を覗く者', ex:'底なしを踏破せし者' },
+  // α0.2.009 で一度しまった2つ。EXを足して開催し直すので、もう一度取れるように戻した
+  // (EXの称号はEXが無かったころには誰も取れていない)
+  ev_kyubi:   { deep:'狐火を鎮めし者', star:'紅蓮を統べる者', ex:'宴を制せし者' },
+  ev_titan:   { deep:'巨神を砕く者',   star:'黄金を掘る者',   ex:'試練を越えし者' },
 };
-/* α0.2.009 で一時的に配った称号。新しくは手に入らないが、受け取った人の
-   プロフィールから消えないように名前だけ残す */
+/* 称号の名前と説明。EVENT_TITLES に戻したぶんもここで登録しておく
+   (受け取った人のプロフィールから名前が消えないように) */
 const RETIRED_TITLES = {
   ti_ev_kyubi_deep: ['狐火を鎮めし者', '「紅蓮の九尾」ステージ10クリア'],
   ti_ev_kyubi_star: ['紅蓮を統べる者', '「紅蓮の九尾」★30個獲得'],
@@ -12014,6 +12032,21 @@ function renderMonGacha(){
         </div>
         <img src="${imgSrc(pickup.id)}" alt="${pickup.name}" data-preview-mon="${pickup.id}" style="cursor:pointer;">
       </div>
+      ${(() => {
+        // 同時ピックアップの★4。★5と同じ決まりで、★4が出たときの PICKUP_SHARE ぶんを分け合う
+        const subs = (banner.featured || []).map(id => MON_BY_ID[id]).filter(m => m && m.rarity === 4);
+        if(!subs.length) return '';
+        const each = RARITY_WEIGHTS[4] * PICKUP_SHARE / subs.length;
+        return `<div class="gc-subs">
+          <div class="gc-subs-title">同時ピックアップ★4　<span class="gold">各 ${each.toFixed(2)}%</span></div>
+          <div class="gc-subs-row">${subs.map(m => `
+            <button class="gc-sub-card" data-preview-mon="${m.id}">
+              <img src="${imgSrc(m.id)}" alt="${m.name}">
+              <div class="gc-sub-name">${m.name}</div>
+              <div class="gc-sub-role">${ELEM_LABEL[m.element]}・${ROLE_LABEL[m.role]}</div>
+            </button>`).join('')}</div>
+        </div>`;
+      })()}
     </div>
 
     <div class="panel">
@@ -12157,11 +12190,22 @@ function selectPickupPool(rarity){
     .filter(m => m && m.rarity === rarity);
 }
 function pickMonsterOfRarity(rarity){
-  if(rarity >= 4 && currentBanner().key === 'default'){
+  const banner = currentBanner();
+  if(rarity >= 4 && banner.key === 'default'){
     const selPool = selectPickupPool(rarity);
     if(selPool.length && Math.random() < PICKUP_SHARE) return selPool[Math.floor(Math.random() * selPool.length)];
     const all = MONSTERS.filter(m => m.rarity === rarity);
     if(all.length) return all[Math.floor(Math.random() * all.length)];
+  }
+  // 期間限定バナーの同時ピックアップ★4。★5と同じ決まりで、そのレアリティの
+  // PICKUP_SHARE ぶんを featured の★4で分け合う(featured には主役の★5も入っている)
+  if(rarity === 4 && banner.key !== 'default'){
+    const subs = (banner.featured || []).map(id => MON_BY_ID[id]).filter(m => m && m.rarity === 4);
+    const others = MONSTERS.filter(m => m.rarity === 4 && !subs.includes(m));
+    if(subs.length){
+      if(others.length === 0 || Math.random() < PICKUP_SHARE) return subs[Math.floor(Math.random() * subs.length)];
+      return others[Math.floor(Math.random() * others.length)];   // 外れたぶんは必ず他の★4から(★5と同じ作り)
+    }
   }
   if(rarity === 5){
     const pickup = MON_BY_ID[currentBanner().pickup];
@@ -20406,6 +20450,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 24, date: '10/1', title: '「紅蓮の九尾」「黄金の巨神」にEXステージが来ます(10/7まで延長)', art: ['m116', 'm170', 'm150', 'm54', 'm144', 'm53'], body: '<span class="nt-h">10/7(火) 23:59 まで延長します</span>終了予定だった2イベントに<em>EXステージ</em>と<em>同時ピックアップの★4</em>を足して、開催を<em>10/7(火) 23:59</em>まで延ばします。<span class="nt-h">EXステージが開きます(ステージ3クリアで解放)</span><em>スタミナを使わず何度でも</em>挑める腕試しです。クリアすると主役のソウルが出ます(EX1 20% / EX2 50% / EX3 50%で1〜3個)。ほかの敵のソウルも出ます。<span class="nt-i">・EX1〜EX3で<em>ルールが1つずつ増えます</em>。減ることはありません。</span><span class="nt-i">・<em>狐火の祭壇</em>(九尾) 「<em>敵も味方も やけど状態の相手へ与ダメージ+50%</em>」「デーモンの味方HP+50%」「シューターの味方STR+50%」。EX2から<em>敵SPD+50%</em>、EX3から<em>敵物理防御+40</em>が加わります。</span><span class="nt-i">・<em>巨神の遺跡</em>(タイタン) 「シールドを持っているあいだ<em>与ダメージ+50%</em>」「シールドが無いあいだ<em>受けるダメージ+50%</em>」「ドワーフの味方HP・STR+50%」。EX2から<em>敵が気絶・やけど・毒にかからなくなり</em>、EX3から<em>敵のシールドが倍</em>になります。</span><span class="nt-i">・EX1〜EX3それぞれに<em>イベントミッション</em>が付きます(星結晶500 / 1,000＋召喚券5枚 / 2,000＋10連券1枚)。EX3のクリアで<em>称号</em>も手に入ります。</span><span class="nt-h">同時ピックアップの★4が登場します</span>ガチャで<em>★4が出たときの50%</em>がこの2体になります。イベントショップでもソウルを交換でき(各60メダルで20個・上限10回)、EXステージでは<em>EX3で100%</em>ソウルが出ます。<span class="nt-i">・<em>紅蓮の九尾</em> 新★4 <em>牛鬼</em>(炎/タンク) 牛の頭を持つ大鬼。<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。九尾のような後ろで戦う子を守る役です。／★4 <em>ロキ</em>(炎/トリックスター) 姿を変える詐術の神。敵全体を必ずやけどにします。</span><span class="nt-i">・<em>黄金の巨神</em> ★4 <em>ブロック</em>(土/タンク) 神々の武具を打つドワーフの鍛冶師。挑発しながら自分に盾を張ります。／★4 <em>スルト</em>(炎/アタッカー) 世界を焼く炎の巨人。やけどを撒いて全体を焼きます。</span><span class="nt-i">・編成に入れると<em>イベントボーナス+20%</em>が付きます(主役の★5は+40%)。</span><span class="nt-h">イベントショップが開きます</span>この2イベントには<em>これまでメダルがなく、イベントショップも周回回数のミッションも出ていませんでした</em>。<em>狐火の灯</em>(紅蓮の九尾)と<em>巨神の金片</em>(黄金の巨神)を追加して、ショップを開きます。<span class="nt-i">・ステージを回ると手に入り、<em>育成素材・ワザ素材BOX・召喚券・霊素核</em>などと交換できます。</span><span class="nt-i">・<em>牛鬼・ロキ・ブロック・スルトのソウル</em>も1体ずつ並びます(各60メダルで20個・上限10回)。</span><span class="nt-i">・<em>周回回数のミッション</em>(10回・30回・50回)も出るようになりました。</span><span class="nt-i">・メダルはイベントが終わると消えるので、期間中に使い切ってください。</span>' },
   { id: 23, date: '9/29', title: 'DiscordとXを用意しました(ご意見・バグ報告の窓口)', body: '<span class="nt-h">Discord</span>小規模なコミュニティとして設置しました。<em>バグ報告や要望など</em>はこちらからしていただけます。<span class="nt-link" data-open-community="discord">Discordを開く</span><span class="nt-h">X(制作アカウント)</span>ゲーム制作のアカウントで、<em>開発の裏話</em>などを流しています。Discordアカウントのない方は、こちらのDMにもバグ報告や要望を投げていただけます。<span class="nt-link" data-open-community="x">Xを開く</span><span class="nt-h">開き方</span>どちらも<em>設定画面</em>から開けます(設定 → Discord / X)。<span class="nt-h">とくに聞きたいこと</span>いま新しい戦闘システムをテストしています。「ここが変」「前のほうがよかった」「この役割が弱い」など、遠慮なく投げてください。'
   },
   { id: 22, date: '9/29', title: '【重要】戦闘システムが大きく変わります', body: '<span class="nt-h">設定から新旧どちらでも遊べます</span>戦闘の仕組みを作り直しました。設定 → 戦闘 →<em>「新バトルシステム」</em>で、いつでも前の戦闘に戻せます。<span class="nt-h">なぜ変えるのか</span>これまでの戦闘には、作った側から見ても はっきりした問題がありました。<span class="nt-i">・タンクとサポートの奥義が、1戦闘でほぼ一度も撃てていませんでした(実測 タイタン <em>0.02回</em>/戦・ユニコーン <em>0.01回</em>/戦。アタッカーは0.8回)</span><span class="nt-i">・敵はスキル2も奥義も、一度も撃っていませんでした(実測 <em>0.00回</em>)</span><span class="nt-i">・後衛は敵の1撃で最大HPの<em>67%</em>を失っていて、2発で落ちる状態でした</span><span class="nt-i">・1ウェーブが平均2.1ラウンドで終わるため、SPDの低いタンクは手番の<em>40%</em>が回ってこないまま戦闘が終わっていました</span>つまり、モンスターごとに作り込んだワザや奥義が、ほとんど画面に出ていませんでした。ここを直します。<span class="nt-h">ご協力ください</span>新バトルシステムはまだ調整中です。遊んでみて「ここが変」「前のほうがよかった」があれば教えてください。戦闘のおもしろさを上げるために、力を貸してください。<em>Discord</em>と<em>XのDM</em>で受け付けています(設定画面から開けます)。<span class="nt-h">協力のお礼</span>新バトルシステムでステージをクリアすると、星結晶をお配りします。<span class="nt-i">・メインクエスト 1ステージにつき <em>10個</em></span><span class="nt-i">・イベント 1ステージにつき <em>20個</em></span><span class="nt-i">・EXステージ EX1 <em>100個</em>・EX2 <em>300個</em>・EX3 <em>500個</em></span>新バトルシステムでの初回クリアは、<em>スタミナを消費しません</em>。すでにクリアしたステージも、もう一度試してみてください。' },
@@ -20433,6 +20478,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 136, version: 'α0.3.010', date: '10/1', title: '九尾・タイタンのEXステージと、同時ピックアップの★4', body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」を10/7まで延長しました</span><span class="nt-i">・<em>EXステージ</em>(EX1〜EX3)を追加しました。ステージ3クリアで開きます。スタミナを使わず何度でも挑めます。</span><span class="nt-i">・<em>EXのイベントミッション</em>を3つ追加しました。EX3のクリアで称号も手に入ります。</span><span class="nt-i">・同時ピックアップの★4を追加しました。<em>紅蓮の九尾は牛鬼・ロキ</em>、<em>黄金の巨神はブロック・スルト</em>です。</span><span class="nt-h">新★4 牛鬼(炎/タンク)</span>後衛をかばうことに特化したタンクです。<span class="nt-i">・スキル1「牛鬼の盾」 2ターンかばう状態になり、<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。そのあいだ自分の魔法防御+10。</span><span class="nt-i">・パッシブ「鬼の皮」 <em>肩代わりで受けたダメージ-25%</em>。自分が直接殴られたぶんには効きません。</span><span class="nt-i">・奥義「鬼哭」 敵全体に威力180%。自分に最大HPの50%のシールド。</span><span class="nt-h">★4のピックアップが効くようになりました</span>これまで期間限定バナーの<em>★4ピックアップは表示だけで、確率に反映されていませんでした</em>。★5と同じ決まりで、<em>★4が出たときの50%</em>が同時ピックアップの★4になります。<span class="nt-h">EXのルールは段ごとに増えます</span><span class="nt-i">・EX1は味方側のルールだけ。EX2・EX3で<em>敵側の縛りが1つずつ</em>加わります(減りません)。</span><span class="nt-i">・巨神の遺跡に「<em>シールドが無いあいだ 受けるダメージ+50%</em>」を足しました。EX3が<em>21ラウンド → 10ラウンド</em>になり、★3条件(12ラウンド以内)が狙えるようになりました。</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザが配る<em>防御のバフ・デバフが48件すべて0.8ポイントに潰れていた</em>のを修正しました。タイタンの奥義は「物理・魔法防御+8%」と書いてありながら実際は+0.8でした。<em>タンクの守りのスキルが本来の効き目になります</em>。</span><span class="nt-i">・EXのウェーブに<em>前衛・後衛を指定できる</em>ようにしました。これまでロール任せだったので、前衛が1体もいないウェーブができていました。</span><span class="nt-i">・「紅蓮の九尾」「黄金の巨神」に<em>イベントメダル</em>を追加しました。メダルが無かったため、この2つだけ<em>イベントショップと周回回数のミッションが出ていませんでした</em>。</span><span class="nt-i">・ステージ10と★30の<em>称号</em>も、もう一度取れるように戻しました。</span>' },
   { id: 135, version: 'α0.3.009', date: '10/1', title: '説明文の中の「やけど」「延焼」などを押すと意味が出ます', body: '<span class="nt-h">言葉の意味がその場で読めるようになりました</span>ワザの説明に出てくる<em>やけど・毒・気絶・シールド・挑発</em>などの言葉が、<em>水色の点線</em>になりました。押すとその場で意味が出ます。<span class="nt-i">・とくに<em>延焼</em>は、どこにも説明がないのに説明文に出てくる言葉でした。「すでにやけどの相手にもう一度やけどをかけると、ターン数が戻るうえに、やけどダメージの50%をその場で与える(同じ相手に1ターン3回まで)」という意味です</span><span class="nt-i">・やけどのダメージが<em>かけた人のSTRで決まる</em>ことも書きました。強い子がかけたやけどのほうが痛いです</span><span class="nt-i">・光るのは25語です。状態異常8つ・延焼・シールド・挑発・トゲ・被ダメージ軽減・免疫・継続回復・肩代わり・呪い・恐慌・回復阻害・命中率ダウン・石像化・会心・防御貫通・SP</span><span class="nt-i">・ワザとパッシブの説明・遺物のスキル枠・<em>ステージ効果</em>・アイテムの説明で光ります</span><span class="nt-i">・説明の中から「似たもの」で別の言葉へ飛べます(やけど → 延焼)。閉じると<em>元の画面のスクロール位置まで戻ります</em></span><span class="nt-h">直したもの</span><span class="nt-i">・「奈落の王」EXの<em>「敵 魔法防御+8%」が実際には効いていなかった</em>のを直しました(防御をポイント式に変えたときの書き漏らしで、+0.4しか乗っていませんでした)。EXが少し硬くなります</span>' },
   { id: 134, version: 'α0.3.008', date: '9/30', title: 'お助けモンスターの画像が「ア」になるのを修正', body: '<span class="nt-i">・周回結果などで、フレンドから借りたお助けモンスターがMVPのとき、画像のかわりに名前の1文字目(「ア」など)の仮アイコンが出ていたのを直しました。</span>' },
   { id: 133, version: 'α0.3.007', date: '9/30', title: '周回結果にドロップを全部表示・フレンドポイントのお知らせをまとめて', body: '<span class="nt-h">周回結果</span><span class="nt-i">・1回ごとの行に、その回に落ちた<em>ドロップを全部アイコンで</em>並べるようにしました(目立つ順。当たりはピンクの枠)。</span><span class="nt-i">・1回ずつの結果は専用の枠に入り、<em>6回以上は枠の中でスクロール</em>します。順に出てくるときも、枠が一緒に下へ送られます。</span><span class="nt-i">・ピンクに光るのは、仲間入り・★4以上のソウル・遺物・TierIV・★4箱が出た回だけにしました。</span><span class="nt-h">フレンドポイント</span><span class="nt-i">・届いたお知らせを、人ごとに「〇〇さんがモンスターをN回借りました FP N」の1行にまとめ、最後に合計を出すようにしました。</span>' },

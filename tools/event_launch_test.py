@@ -28,8 +28,10 @@ async def main():
               return activeEvents().map(e => e.key);
             }""")
             check('開催中は4つ(既存2＋新2)', len(r) == 4 and 'ev_fenrir' in r and 'ev_abaddon' in r, r)
-            m = await pg.evaluate("() => activeEvents().filter(e => medalOf(e)).map(e => medalOf(e).name)")
-            check('メダルのあるイベントは2つ', m == ['神狼の牙', '奈落の刻印'], m)
+            # メダルが無いとイベントショップも周回回数のミッションも出ないので、開催中は全部持っていること
+            m = await pg.evaluate("() => activeEvents().map(e => [e.name, medalOf(e) && medalOf(e).name])")
+            check('開催中のイベントは全部メダルを持っている', all(x[1] for x in m), m)
+            check('メダルの名前が重複していない', len({x[1] for x in m}) == len(m), m)
 
             for key in ['ev_fenrir', 'ev_abaddon']:
                 r = await pg.evaluate("""(key) => {
@@ -91,11 +93,12 @@ async def main():
             }""")
             check('イベントショップで交換できる', r['paid'] == r['price'], r)
 
-            # 画面: ショップにイベントタブが2つ出る
+            # 画面: ショップのイベントタブは開催中のイベントのぶんだけ出る
             await pg.evaluate("() => { goto('shop'); shopTab = 'ev:ev_fenrir'; render(); }")
             await pg.wait_for_timeout(500)
             n = await pg.locator('[data-shop-tab^="ev:"]').count()
-            check('ショップにイベントタブが2つ', n == 2, n)
+            want = await pg.evaluate("() => activeEvents().filter(e => medalOf(e)).length")
+            check('ショップのイベントタブが開催中のぶんだけ出る', n == want, [n, want])
             check('イベントショップに24行出る', await pg.locator('[data-ev-buy]').count() == 24)
             await pg.screenshot(path=str(OUT / 'launch_shop.png'))
 
