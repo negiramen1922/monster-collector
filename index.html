@@ -3183,7 +3183,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.018';
+const GAME_VERSION = 'α0.3.019';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7550,6 +7550,11 @@ function renderRuneDetail(){
   const flash = runeDetail.flash;
   runeDetail.flash = null;
   const layer = document.getElementById('modal-layer');
+  // 材料を選ぶ・合成する・振り直すたびに描き直しても、見ていた場所のまま(一番上に戻さない)。
+  // 詳細 ⇄ 合成の切り替えのときだけ上から
+  const openNow = layer.querySelector('.rune-detail-modal');
+  const keepScroll = openNow && openNow.dataset.rune === r.uid && openNow.dataset.view === (runeDetail.view || 'main') ? openNow.scrollTop : 0;
+  const restoreScroll = () => { const el = layer.querySelector('.rune-detail-modal'); if(el && keepScroll) el.scrollTop = keepScroll; };
   const head = `
       <div class="rd-head">
         ${runeIconHtml(r, { cls: 'big', used: false })}
@@ -7563,7 +7568,7 @@ function renderRuneDetail(){
   // 合成の画面: 「合成する」を押すと、持っているルーンから材料を選ぶ画面に切り替わる
   if(runeDetail.view === 'fuse'){
     layer.innerHTML = `
-    <div class="result-modal rune-detail-modal" role="dialog" aria-label="ルーンの合成">
+    <div class="result-modal rune-detail-modal" data-rune="${r.uid}" data-view="fuse" role="dialog" aria-label="ルーンの合成">
       <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
       <button class="btn btn-ghost btn-sm rd-back" data-rune-view="main">‹ ルーン詳細に戻る</button>
       ${head}
@@ -7571,13 +7576,14 @@ function renderRuneDetail(){
       <div class="rd-enhance">${runeFusePanelHtml(r)}</div>
     </div>`;
     layer.classList.add('show');
+    restoreScroll();
     return;
   }
   const rerollCost = runeRerollCost(r);
   const canReroll = STATE.runeDust >= rerollCost;
   const maxed = r.tier >= RUNE_TIERS;
   layer.innerHTML = `
-    <div class="result-modal rune-detail-modal" role="dialog" aria-label="ルーン詳細">
+    <div class="result-modal rune-detail-modal" data-rune="${r.uid}" data-view="main" role="dialog" aria-label="ルーン詳細">
       <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
       ${lockBtn}
       ${head}
@@ -7594,6 +7600,7 @@ function renderRuneDetail(){
       </div>
     </div>`;
   layer.classList.add('show');
+  restoreScroll();
 }
 function toggleRuneFusePick(uid){
   const r = runeByUid(runeDetail.uid);
@@ -20821,6 +20828,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 145, version: 'α0.3.019', date: '10/1', title: 'ルーンの合成・振り直しで画面が一番上に戻らないように', body: '<span class="nt-i">・ルーンの合成画面で材料を選んだり、合成・振り直し・ロックをしたりしても、<em>画面が一番上に戻らなくなりました</em>。見ていた場所のまま続けられます。</span>' },
   { id: 144, version: 'α0.3.018', date: '10/1', title: '遺物の強化画面も閉じずに続けて上げられるように・遺物の★の表示', body: '<span class="nt-i">・遺物のスキル強化で「レベルアップする」を押しても、<em>確認の画面は閉じなくなりました</em>。閉じると遺物の強化画面の、見ていた場所に戻ります。</span><span class="nt-i">・遺物の強化画面で強化しても、画面の一番上に戻らなくなりました。</span><span class="nt-i">・遺物の★を<em>モンスターと同じ並べ方</em>にしました。白い★を5個まで並べ、共鳴で★6を超えたぶんは<em>左から青</em>に変わります(★5の遺物を4回共鳴すると青4個+白1個)。</span>' },
   { id: 143, version: 'α0.3.017', date: '10/1', title: 'スキル強化の画面を閉じずに続けて上げられるように', body: '<span class="nt-i">・スキル・必殺技・パッシブの強化で「レベルアップする」を押しても、<em>強化の画面は閉じなくなりました</em>。そのまま続けて上げられます。</span><span class="nt-i">・強化の画面を閉じると、キャラ詳細の一番上ではなく、<em>開く前に見ていた場所</em>に戻ります。</span>' },
   { id: 142, version: 'α0.3.016', date: '10/1', title: 'ルーン詳細をスクロール少なめに', body: '<span class="nt-i">・ルーン詳細を「アイコン・名前・メイン効果 → サブ効果 → 合成する / 分解する」の順に並べ直し、ほとんどスクロールせずに見られるようにしました。</span><span class="nt-i">・サブ効果の各行の右に<em>🎲 振り直す</em>ボタンを置きました。</span><span class="nt-i">・ロックは右上の<em>鍵のボタン</em>をタップしてON/OFFを切り替えます(ONのときは金色)。</span><span class="nt-i">・「合成する」を押すと、持っているルーンから材料を選ぶ合成の画面に切り替わります(中身はこれまでと同じ)。「ルーン詳細に戻る」で戻れます。</span>' },
