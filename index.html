@@ -1377,6 +1377,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-detail-starrow.r1{ color:#a3a3b3; } .relic-detail-starrow.r2{ color:#79c96d; } .relic-detail-starrow.r3{ color:#5cb8e8; }
 .relic-detail-starrow.r4{ color:#c493ea; } .relic-detail-starrow.r5{ color:var(--gold); }
 .relic-dupe-star{ color:var(--fire); }
+.relic-stars{ color:#eeeaf6; letter-spacing:-.02em; }
+.relic-stars i{ font-style:normal; }
+.relic-stars i.blue{ color:#5fb4ff; text-shadow:0 0 6px rgba(95,180,255,.6); }
 
 .relic-effects{ margin:0 0 14px; display:flex; flex-direction:column; gap:6px; }
 .relic-eff-line{
@@ -3180,7 +3183,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.017';
+const GAME_VERSION = 'α0.3.018';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -6752,11 +6755,12 @@ function refreshRelicFilterSheet(){
   const sheet = layer.querySelector('.filter-sheet');
   if(sheet) sheet.scrollTop = scroll;
 }
-// 共鳴(凸)で★が上がっている時、基礎の★に続けて(色を変えて)追加分も表示する。
-// dupeUsedが無い(未所持 or 未共鳴)場合は基礎の★だけになる。
+// ★はモンスターと同じ並べ方: 白い★を最大5個まで。共鳴(凸)で★6を超えたぶんは、左から1つずつ青になる。
+// (★5の遺物を4回共鳴すると★9 → 白1個+青4個)
 function relicStarRowHtml(def, st){
-  const dupeUsed = st ? (st.dupeUsed || 0) : 0;
-  return `${'★'.repeat(def.star)}${dupeUsed > 0 ? `<span class="relic-dupe-star">${'★'.repeat(dupeUsed)}</span>` : ''}`;
+  const n = def.star + (st ? (st.dupeUsed || 0) : 0);
+  const blue = Math.max(0, n - 5);
+  return `<span class="relic-stars" title="★${n}">${Array.from({ length: Math.min(n, 5) }, (_, i) => `<i class="${i < blue ? 'blue' : ''}">★</i>`).join('')}</span>`;
 }
 function relicCell(id){
   const def = RELICS[id];
@@ -6970,7 +6974,10 @@ function upgradeRelicSkill(id){
 // (消費素材と、その入手方法を見てから確定させる)
 let relicSkillUpModal = null; // { relicId } while this modal is open
 let relicSkillUpShort = false; // whether the素材チップの入手方法パネルが開いているか
-function openRelicSkillUpModal(relicId){ relicSkillUpModal = { relicId }; relicSkillUpShort = false; renderRelicSkillUpModal(); }
+function openRelicSkillUpModal(relicId){
+  const up = document.querySelector('#modal-layer .relic-upgrade-modal');
+  if(relicUpgrade && up) relicUpgrade.scroll = up.scrollTop;
+  relicSkillUpModal = { relicId }; relicSkillUpShort = false; renderRelicSkillUpModal(); }
 function closeRelicSkillUpModal(){ relicSkillUpModal = null; relicSkillUpShort = false; if(relicUpgrade) renderRelicUpgrade(); }
 function renderRelicSkillUpModal(){
   const { relicId } = relicSkillUpModal;
@@ -6991,7 +6998,8 @@ function renderRelicSkillUpModal(){
   layer.innerHTML = `
     <div class="result-modal skill-up-modal" role="dialog" aria-label="スキルレベルアップ">
       <button class="fs-close" data-close-relic-skill-up="1" aria-label="閉じる">×</button>
-      <h3>スキルLv${lv} → Lv${lv + 1}</h3>
+      <h3>${maxed ? `スキルLv${lv}` : `スキルLv${lv} → Lv${lv + 1}`}</h3>
+      ${relicSkillUpModal.flash ? `<div class="rd-flash">${relicSkillUpModal.flash}</div>` : ''}
       ${maxed ? `<p class="fs-note">これ以上は上げられません。</p>` : `
       <div class="su-preview-list">
         ${def.effects.map(e => `<div class="su-preview-row"><span class="su-preview-name">${relicEffectText(e)}</span><span>${relicValText(e, e.pct * mult)}% → <b class="lv-scale-val">${relicValText(e, e.pct * nextMult)}%</b></span></div>`).join('')}
@@ -7844,8 +7852,13 @@ function renderRelicUpgrade(){
   const dupeSpare = (st.dupe || 0) - (st.dupeUsed || 0);
   const dupeMaxed = (st.dupeUsed || 0) >= RELIC_MAX_DUPE_USE;
   const layer = document.getElementById('modal-layer');
+  // 強化しても見ていた場所のまま(一番上に戻さない)。スキルアップ確認から戻ったときも同じ場所へ
+  const openNow = layer.querySelector('.relic-upgrade-modal');
+  const keepScroll = openNow && openNow.dataset.relic === relicUpgrade.relicId ? openNow.scrollTop
+    : (relicUpgrade.scroll || 0);
+  relicUpgrade.scroll = 0;
   layer.innerHTML = `
-    <div class="result-modal relic-upgrade-modal" role="dialog" aria-label="${def.name}">
+    <div class="result-modal relic-upgrade-modal" data-relic="${relicUpgrade.relicId}" role="dialog" aria-label="${def.name}">
       <button class="fs-close" data-close-relic-upgrade="1" aria-label="閉じる">×</button>
       <div class="relic-detail-head">
         <div class="relic-detail-ic r${def.star}">${def.icon}</div>
@@ -7939,6 +7952,8 @@ function renderRelicUpgrade(){
       </div>
     </div>`;
   layer.classList.add('show');
+  const nowEl = layer.querySelector('.relic-upgrade-modal');
+  if(nowEl && keepScroll) nowEl.scrollTop = keepScroll;
 }
 
 /* ---- clear rank (★1–3) and sweeping ---- */
@@ -19864,9 +19879,15 @@ function handlePhoneClick(ev){
   if(relicSkillUpModal){
     if(t.closest('[data-close-relic-skill-up]')){ closeRelicSkillUpModal(); return; }
     if(t.closest('[data-confirm-relic-skill-up]')){
+      // 強化しても確認画面は閉じない(続けて上げられる)。閉じると強化画面の同じ場所に戻る
       const { relicId } = relicSkillUpModal;
-      relicSkillUpModal = null;
-      upgradeRelicSkill(relicId);
+      const before = STATE.relics[relicId] ? STATE.relics[relicId].skillLv || 1 : 1;
+      const keep = relicUpgrade && relicUpgrade.scroll;
+      if(upgradeRelicSkill(relicId)){
+        if(relicUpgrade) relicUpgrade.scroll = keep || 0;
+        relicSkillUpModal = { relicId, flash: `スキルLv ${before} → ${before + 1} に上がりました!` };
+        renderRelicSkillUpModal();
+      }
       return;
     }
     if(t.closest('[data-relic-cost-toggle]')){ relicSkillUpShort = !relicSkillUpShort; renderRelicSkillUpModal(); return; }
@@ -20800,6 +20821,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 144, version: 'α0.3.018', date: '10/1', title: '遺物の強化画面も閉じずに続けて上げられるように・遺物の★の表示', body: '<span class="nt-i">・遺物のスキル強化で「レベルアップする」を押しても、<em>確認の画面は閉じなくなりました</em>。閉じると遺物の強化画面の、見ていた場所に戻ります。</span><span class="nt-i">・遺物の強化画面で強化しても、画面の一番上に戻らなくなりました。</span><span class="nt-i">・遺物の★を<em>モンスターと同じ並べ方</em>にしました。白い★を5個まで並べ、共鳴で★6を超えたぶんは<em>左から青</em>に変わります(★5の遺物を4回共鳴すると青4個+白1個)。</span>' },
   { id: 143, version: 'α0.3.017', date: '10/1', title: 'スキル強化の画面を閉じずに続けて上げられるように', body: '<span class="nt-i">・スキル・必殺技・パッシブの強化で「レベルアップする」を押しても、<em>強化の画面は閉じなくなりました</em>。そのまま続けて上げられます。</span><span class="nt-i">・強化の画面を閉じると、キャラ詳細の一番上ではなく、<em>開く前に見ていた場所</em>に戻ります。</span>' },
   { id: 142, version: 'α0.3.016', date: '10/1', title: 'ルーン詳細をスクロール少なめに', body: '<span class="nt-i">・ルーン詳細を「アイコン・名前・メイン効果 → サブ効果 → 合成する / 分解する」の順に並べ直し、ほとんどスクロールせずに見られるようにしました。</span><span class="nt-i">・サブ効果の各行の右に<em>🎲 振り直す</em>ボタンを置きました。</span><span class="nt-i">・ロックは右上の<em>鍵のボタン</em>をタップしてON/OFFを切り替えます(ONのときは金色)。</span><span class="nt-i">・「合成する」を押すと、持っているルーンから材料を選ぶ合成の画面に切り替わります(中身はこれまでと同じ)。「ルーン詳細に戻る」で戻れます。</span>' },
   { id: 141, version: 'α0.3.015', date: '10/1', title: 'ルーン・遺物の一覧は顔だけに', body: '<span class="nt-i">・ルーン・遺物を選ぶ一覧の右端は、装備しているキャラの<em>顔だけ</em>にしました(名前はなし)。いま付けている遺物は一番上で、顔の枠が金色です。</span>' },
