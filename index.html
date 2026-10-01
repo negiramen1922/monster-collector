@@ -3516,6 +3516,8 @@ const DEFAULT_BANNER = {
    startAt/endAt use the device's local clock (no server, so this is honor-system -
    fine for a single-file prototype). Several can run at once; add more entries here
    for the next event rather than replacing this one. ---- */
+/* 「紅蓮の九尾」「黄金の巨神」の追加ぶんが開く時刻 */
+const EVENT_ADDON_AT = '2026-10-01T16:00:00+09:00';
 const EVENTS = [
   {
     key: 'ev_kyubi',
@@ -3524,6 +3526,7 @@ const EVENTS = [
     icon: '🔥',
     startAt: '2026-09-18T00:00:00+09:00',
     endAt: '2026-10-07T23:59:59+09:00',
+    addonAt: EVENT_ADDON_AT,   // EX・同時ピックアップ★4・星刻が開く時刻
     pickup: 'm116',
     featured: ['m116', 'm170', 'm150'],   // 同時ピックアップの★4: 牛鬼・ロキ
     stageName: '狐火の祭壇',
@@ -3552,6 +3555,7 @@ const EVENTS = [
     icon: '🗿',
     startAt: '2026-09-18T00:00:00+09:00',
     endAt: '2026-10-07T23:59:59+09:00',
+    addonAt: EVENT_ADDON_AT,
     pickup: 'm54',
     featured: ['m54', 'm144', 'm53'],   // 同時ピックアップの★4: ブロック・スルト
     stageName: '巨神の遺跡',
@@ -3644,13 +3648,20 @@ function activeEvents(){
 }
 function eventActive(){ return activeEvents().length > 0; }
 function isEventLive(ev){ const now = Date.now(); return !!ev && now >= new Date(ev.startAt).getTime() && now <= new Date(ev.endAt).getTime(); }
+/* 開催中のイベントに、あとから足したぶん(EX・同時ピックアップ★4・その★4の星刻)を
+   開ける時刻。イベント自体はもう走っているので、追加ぶんだけ時計で切り替える。
+   ev.addonAt を書いていないイベントは、はじめから全部開いている */
+function addonOpen(ev){ return !ev || !ev.addonAt || Date.now() >= new Date(ev.addonAt).getTime(); }
+/* 時刻前は主役の★5だけ。ショップのソウル枠・イベントボーナス・ガチャの★4ピックアップ・
+   EXの脇役ソウルは、すべてここを通して出す */
+function featuredOf(ev){ return ev ? (addonOpen(ev) ? (ev.featured || []) : [ev.pickup].filter(Boolean)) : []; }
 // when several events overlap, the most recently started one is the gacha's featured pickup
 // (ties go to whichever is later in EVENTS, i.e. the one added most recently)
 // every pickup the gacha screen could show right now: one per active event, or the
 // evergreen default when no event is running. Always at least one entry.
 function activeBanners(){
   const evs = activeEvents();
-  return evs.length ? evs.map(ev => ({ key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured, startAt: ev.startAt, endAt: ev.endAt })) : [DEFAULT_BANNER];
+  return evs.length ? evs.map(ev => ({ key: ev.key, name: ev.name, pickup: ev.pickup, featured: featuredOf(ev), startAt: ev.startAt, endAt: ev.endAt })) : [DEFAULT_BANNER];
 }
 let gachaBannerKey = null; // player's tab pick among activeBanners(); null = auto (most recent)
 // when several events overlap, default to the most recently started one (ties go to
@@ -3664,7 +3675,7 @@ function currentBanner(){
   const evs = activeEvents();
   if(!evs.length) return DEFAULT_BANNER;
   const ev = evs.reduce((a, b) => new Date(b.startAt) >= new Date(a.startAt) ? b : a);
-  return { key: ev.key, name: ev.name, pickup: ev.pickup, featured: ev.featured, startAt: ev.startAt, endAt: ev.endAt };
+  return { key: ev.key, name: ev.name, pickup: ev.pickup, featured: featuredOf(ev), startAt: ev.startAt, endAt: ev.endAt };
 }
 // ガチャのピックアップの残り期間(イベントと同じ表示)。期限のない常設の召喚には出さない
 function bannerRemainHtml(b){
@@ -9530,7 +9541,7 @@ function eventBoxPrice(tier){ return eventMatPrice(BOX_CONTENT.sel[tier] * matT1
    give(ev) が実際に渡す処理。 */
 function eventShopItems(ev){
   const pick = ev.pickup;
-  const subs = (ev.featured || []).filter(id => id !== pick);   // 同時ピックアップの★4
+  const subs = featuredOf(ev).filter(id => id !== pick);   // 同時ピックアップの★4(時刻前は空)
   const relic = EVENT_ELEMENT_RELIC[ev.element];
   const mats = eventSkillMats(ev);
   return [
@@ -9620,7 +9631,7 @@ const EVENT_BONUS = { pickup: 0.40, featured: 0.20, element: 0.10, cap: 1.00 };
 function eventBonusRate(ev, party){
   if(!ev) return 0;
   const units = party || (battleUI && battleUI.party) || [];
-  const subs = new Set((ev.featured || []).filter(id => id !== ev.pickup));
+  const subs = new Set(featuredOf(ev).filter(id => id !== ev.pickup));
   let n = 0;
   units.forEach(u => {
     if(!u) return;
@@ -9760,7 +9771,7 @@ function eventMissions(ev){
     out.push({ id:`stars${g}`, kind:'star', label:`★を${g}個集める`, value:evStarsGot(ev), goal:g,
       reward:[...mk(EVENT_STAR_MEDAL[i]), { type:'crystal', n:[400, 800, 1300][i] }] });
   });
-  ((ev.exStages || []).map(st => st.ex)).forEach(n => {
+  (exStagesOf(ev).map(st => st.ex)).forEach(n => {
     const reward = n === 1 ? [{ type:'crystal', n:500 }]
       : n === 2 ? [{ type:'crystal', n:1000 }, { type:'item', key:'gacha_char', n:5 }]
       : [{ type:'crystal', n:2000 }, { type:'item', key:'gacha_char10', n:1 }];
@@ -9846,7 +9857,7 @@ function exMobSoulRate(ev, ex, mon){
   if(!ev || !ev.econV2 || !mon) return 0;
   const r = EX_MOB_SOUL_RATE[ex];
   if(!r || mon.id === ev.pickup) return 0;
-  if((ev.featured || []).includes(mon.id)) return r.sub;
+  if(featuredOf(ev).includes(mon.id)) return r.sub;
   return mon.rarity >= 4 ? r.other4 : r.low;
 }
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
@@ -9895,6 +9906,9 @@ const EVENT_EX_RULES = {
 };
 // イベントのキー → EXのキー。EVENT_EX / EVENT_EX_RULES の両方に載っているものだけEXが開く
 function exKeyOf(ev){ const k = 'ex_' + String(ev.key || '').replace(/^ev_/, ''); return EVENT_EX[k] && EVENT_EX_RULES[k] ? k : null; }
+/* EXのステージは読み込み時に作ってしまう(作るのを時刻で止めると、16時になっても
+   ページを開き直すまで出てこない)。出し入れはここで時計を見て決める */
+function exStagesOf(ev){ return ev && addonOpen(ev) ? (ev.exStages || []) : []; }
 function buildEventExStages(ev){
   const key = exKeyOf(ev);
   const def = key && EVENT_EX[key];
@@ -10664,7 +10678,7 @@ const EV_SHOP_GROUPS = [
 ];
 // イベントショップの品のアイコン(左に置く)。モンスターのソウルは立ち絵、ほかは持ち物と同じアイコン
 function evShopIconHtml(ev, it){
-  const subs = (ev.featured || []).filter(id => id !== ev.pickup);
+  const subs = featuredOf(ev).filter(id => id !== ev.pickup);
   const mon = id => `<img class="shop-mon" src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">`;
   if(it.sku === 'soul_pick') return `<span class="shop-ic">${mon(ev.pickup)}</span>`;
   if(it.sku === 'soul_sub') return `<span class="shop-ic shop-ic-pair">${subs.slice(0, 2).map(mon).join('')}</span>`;
@@ -14405,7 +14419,7 @@ const EXPLORE_MENU = [
 let exploreEventMon = null;
 function exploreMenuMon(t){
   if(t.key !== 'event') return t.mon;
-  const pool = [...new Set(activeEvents().flatMap(ev => [ev.pickup, ...(ev.featured || [])]))].filter(id => id && MON_BY_ID[id]);
+  const pool = [...new Set(activeEvents().flatMap(ev => [ev.pickup, ...featuredOf(ev)]))].filter(id => id && MON_BY_ID[id]);
   if(!pool.length) return 'm133'; // 開催中のイベントがないときはピクシー
   if(!pool.includes(exploreEventMon)) exploreEventMon = pool[Math.floor(Math.random() * pool.length)];
   return exploreEventMon;
@@ -14674,7 +14688,7 @@ function eventBannerHtml(ev){
 function eventBonusListHtml(ev){
   const rows = [];
   rows.push({ id: ev.pickup, rate: EVENT_BONUS.pickup, why: 'ピックアップ★5' });
-  (ev.featured || []).filter(id => id !== ev.pickup).forEach(id => rows.push({ id, rate: EVENT_BONUS.featured, why: '注目モンスター' }));
+  featuredOf(ev).filter(id => id !== ev.pickup).forEach(id => rows.push({ id, rate: EVENT_BONUS.featured, why: '注目モンスター' }));
   const cur = eventBonusRate(ev, getPartyIds().map(id => ({ ref: id, element: MON_BY_ID[id] && MON_BY_ID[id].element })));
   return `
     <div class="panel">
@@ -14739,7 +14753,7 @@ function renderEventMissions(ev){
     <div class="ui-warn">イベントが終わると、受け取っていない報酬も受け取れなくなります。期間中に受け取ってください。</div>
     ${sec('normal', '通常ミッション')}
     ${sec('star', '★を集める', `${ev.stageName}はステージ10まであります(1ステージにつき★3・満点で★30)。`)}
-    ${(ev.exStages || []).length ? sec('ex', 'EXミッション', 'EXはスタミナを使わず、メダルも出ません。報酬はここでまとめて受け取ります。') : ''}`;
+    ${exStagesOf(ev).length ? sec('ex', 'EXミッション', 'EXはスタミナを使わず、メダルも出ません。報酬はここでまとめて受け取ります。') : ''}`;
 }
 
 function renderEventCard(ev){
@@ -14751,7 +14765,7 @@ function renderEventCard(ev){
         ? `<div class="screen-sub" style="margin:0 0 8px;">「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。ステージが進むほど仲間になる確率も上がる。</div>${ev.stages.map(renderStageRow).join('')}`
       : eventView === 'ex'
         ? (exOpen
-            ? `<div class="screen-sub" style="margin:0 0 8px;">スタミナを使わない腕試し(周回はできません)。ステージごとに特別なルールがあり、クリアすると主役「${MON_BY_ID[ev.pickup].name}」のソウルが出ます(EX1 20%・EX2 50%・EX3 100%で1個、回数の上限なし)。</div>${(ev.exStages || []).map(renderStageRow).join('')}`
+            ? `<div class="screen-sub" style="margin:0 0 8px;">スタミナを使わない腕試し(周回はできません)。ステージごとに特別なルールがあり、クリアすると主役「${MON_BY_ID[ev.pickup].name}」のソウルが出ます(EX1 20%・EX2 50%・EX3 100%で1個、回数の上限なし)。</div>${exStagesOf(ev).map(renderStageRow).join('')}`
             : `<div class="ui-none">ステージ${EX_UNLOCK_TIER}をクリアすると挑戦できます。</div>`)
       : eventView === 'mission' ? renderEventMissions(ev)
       : eventBonusListHtml(ev);
@@ -14775,7 +14789,7 @@ function renderEventCard(ev){
     ${eventBannerHtml(ev)}
     <div class="ev-entries">
       ${entry('quest', ev.icon || '⚔', '通常クエスト', `${ev.stageName}・全${ev.tiers.length}ステージ　★${starsGot}/${starsMax}`, '', false)}
-      ${(ev.exStages || []).length ? entry('ex', '🔥', 'EXクエスト', exOpen ? `スタミナ不要・${MON_BY_ID[ev.pickup].name}のソウルが出る` : `ステージ${EX_UNLOCK_TIER}クリアで解放`, '', !exOpen) : ''}
+      ${exStagesOf(ev).length ? entry('ex', '🔥', 'EXクエスト', exOpen ? `スタミナ不要・${MON_BY_ID[ev.pickup].name}のソウルが出る` : `ステージ${EX_UNLOCK_TIER}クリアで解放`, '', !exOpen) : ''}
       ${entry('mission', '📋', 'ミッション', '報酬と称号はここで受け取る', missionN ? String(missionN) : '', false)}
       ${medal ? `<button class="ev-entry" data-ev-shop-goto="${ev.key}">
         <span class="ev-entry-ic">🛒</span>
@@ -15221,6 +15235,7 @@ function addHook(o, hook, fn){
 function perksOf(ref, star){
   const t = MONSTER_PERKS[ref];
   if(!t) return [];
+  if(t.from && Date.now() < new Date(t.from).getTime()) return [];   // 公開時刻まで出さない
   const out = [];
   for(let n = PERK_FIRST_STAR; n <= star; n++) if(t[n]) out.push({ star: n, ...t[n] });
   return out;
@@ -16438,7 +16453,7 @@ const MONSTER_KITS = {
   m68: { // フェンリル
     normal: N('牙', 1.0),
     skill1: { name:'天嵐の牙', ct:3, atk:'phys', tgt:'single', pow:2.5, bonusIf:[{ cond:'faster', add:0.3 }], desc:'威力250%。自分より素早さが低い敵には威力+30%' },
-    skill2: { name:'暴風の遠吠え', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.3, turns:3 }, { to:'self', buff:'spdUp', v:10, flat:true, turns:3 }], desc:'3ターン、STR+30%・SPD+10' },
+    skill2: { name:'暴風の牙', ct:4, atk:'phys', tgt:'single', pow:0.6, hits:5, desc:'敵単体に威力60%×5回' },
     passive: { name:'疾風の狩人', desc:'敵を倒すと、すぐにもう一度行動できる(1ラウンドに1回)',
       onKill: u => { if(!u.flags.extraThisRound){ u.flags.extraThisRound = true; u.flags.extraPending = true; logLine(`${nm(u)} は勢いのまま再び動く!`, 'skill'); } } },
     ult: { name:'フィンブルの大嵐', sp:120, atk:'phys', tgt:'all', pow:1.5, hits:2, bonusIf:[{ cond:'halfHp', add:0.5 }], desc:'敵全体に威力150%×2。HPが50%以下の敵へのダメージ+50%' },
@@ -16736,8 +16751,8 @@ const MONSTER_KITS = {
   },
   m138: { // グリーンマン
     normal: N('蔦の鞭', 0.8),
-    skill1: { name:'森の抱擁', ct:3, tgt:'self', effects:[{ to:'self', heal:0.25, base:'maxHp' }, { to:'self', buff:'regen', v:0.06, flat:true, turns:2 }], desc:'自分のHPを25%回復。2ターン、毎ターン最大HPの6%を回復' },
-    skill2: { name:'根の呪縛', ct:4, tgt:'all', foeOnly:true, effects:[{ to:'foes', st:'bind', turns:2 }], desc:'敵全体を拘束(2ターン)' },
+    skill1: { name:'根の呪縛', ct:3, tgt:'all', foeOnly:true, effects:[{ to:'foes', st:'bind', turns:2 }], desc:'敵全体を拘束(2ターン)' },
+    skill2: { name:'森の抱擁', ct:4, tgt:'self', effects:[{ to:'self', heal:0.25, base:'maxHp' }, { to:'self', buff:'regen', v:0.06, flat:true, turns:2 }], desc:'自分のHPを25%回復。2ターン、毎ターン最大HPの6%を回復' },
     passive: { name:'不滅の緑', desc:'自分のターン開始時、最大HPの4%を回復',
       onTurnStart: u => { const g = healUnit(u, u, u.maxHp * pv(u, 0.04)); if(g) pushFx(u, g, 'heal', { fx: null }); } },
     ult: { name:'大森林の怒り', sp:120, atk:'phys', tgt:'all', pow:2.0, onHit:[{ debuff:'pdefDown', v:4 }], desc:'敵全体に威力200%。物理防御-4%(2ターン)' },
@@ -17203,8 +17218,8 @@ const MONSTER_PERKS = {
       apply: u => { const pa = ownPassive(u);
         addHook(pa, 'spdBonus', () => 10);
         addHook(pa, 'dmgBonus', (x, t) => t && effSpd(x) > effSpd(t) ? 0.10 : 0); } },
-    7: { desc:'暴風の遠吠え: 効果 3→4ターン',
-      apply: u => { const a = ownSkill(u, 1); a.effects = a.effects.map(e => ({ ...e, turns: 4 })); a.desc = '4ターン、STR+30%・SPD+10'; } },
+    7: { desc:'暴風の牙: 5回 → 7回',
+      apply: u => { const a = ownSkill(u, 1); a.hits = 7; a.desc = '敵単体に威力60%×7回'; } },
     8: { desc:'HPが50%以下の敵への与ダメージ+20%',
       apply: u => addHook(ownPassive(u), 'dmgBonus', (x, t) => t && t.hp / t.maxHp <= 0.5 ? 0.20 : 0) },
     9: { desc:'敵を倒したとき、2つのスキルの残りCTが1短くなる',
@@ -17242,6 +17257,87 @@ const MONSTER_PERKS = {
         ul.bonusIf = [{ cond:'halfHp', add:1.0 }];
         ul.desc = '敵全体に威力220%。HPが50%以下の相手には威力+100%。これで敵を倒すと使ったSPの半分が戻る';
         u.ultRefund = 0.5; } },
+  },
+  /* ---- 同時ピックアップの★4(α0.3.010) ----
+     ★4は★4から始まるので、★6〜★10の5段は★5と同じ。
+     段ごとの役割は docs/提案資料/凸ボーナス案_★5キャラ.md のとおり */
+  m170: { // 牛鬼: かばう専門。背負いきる力と、守る範囲を伸ばす
+    from: EVENT_ADDON_AT,      // 公開時刻まで星刻は出さない
+    6: { desc:'誰かをかばっているあいだ、受けるダメージ-10%',
+      apply: u => addHook(ownPassive(u), 'cutBonus',
+        x => sideOf(x).some(a => a.buffs.redirect && a.buffs.redirect.source === x) ? 0.10 : 0) },
+    7: { desc:'鬼の皮が、かばっている味方にも効く(その味方の受けるダメージ-10%)',
+      apply: u => addHook(ownPassive(u), 'allyCutBonus',
+        (x, ally) => ally && ally.buffs.redirect && ally.buffs.redirect.source === x ? 0.10 : 0) },
+    8: { desc:'シールドを持っているあいだ 与ダメージ+15%',
+      apply: u => addHook(ownPassive(u), 'dmgBonus', x => shieldTotal(x) > 0 ? 0.15 : 0) },
+    9: { desc:'牛鬼の盾: 後衛の味方 → 味方全体をかばう',
+      apply: u => { const a = ownSkill(u, 0);
+        a.effects = a.effects.map(e => e.redirect ? { ...e, to:'allies' } : e);
+        a.desc = '2ターンかばう状態。味方全体が受けるダメージの50%を肩代わりし、そのあいだ自分の魔法防御+10'; } },
+    10: { desc:'鬼哭: かばっている味方全員にも最大HPの50%のシールド',
+      apply: u => { const ul = ownUlt(u);
+        ul.effects = [...(ul.effects || []), { to:'allies', shield:0.5, base:'maxHp', turns:3 }];
+        ul.desc = '敵全体に威力180%。自分と味方全体に最大HPの50%のシールド'; } },
+  },
+  m150: { // ロキ: 騙して剥がす。状態異常まわりを伸ばす
+    from: EVENT_ADDON_AT,      // 公開時刻まで星刻は出さない
+    6: { desc:'状態異常にかかっている敵への与ダメージ+10%',
+      apply: u => addHook(ownPassive(u), 'dmgBonus', (x, t) => t && Object.keys(t.statuses || {}).length ? 0.10 : 0) },
+    7: { desc:'炎の悪戯: 消すバフが1つ → 2つ',
+      apply: u => { const a = ownSkill(u, 1); a.onHit = [...(a.onHit || []), { dispel:true }];
+        a.desc = '威力210%(魔法)。相手のバフを2つ消す'; } },
+    8: { desc:'やけど状態の敵への与ダメージ+15%(★6とあわせて+25%)',
+      apply: u => addHook(ownPassive(u), 'dmgBonus', (x, t) => t && hasStatus(t, 'burn') ? 0.15 : 0) },
+    9: { desc:'姿変え: 敵単体 → 敵全体を混乱',
+      apply: u => { const a = ownSkill(u, 0); a.tgt = 'all'; a.foeOnly = true;
+        a.effects = (a.effects || []).map(e => e.st === 'confuse' ? { ...e, to:'foes' } : e);
+        a.desc = '敵全体を混乱(1ターン)。自分の回避率+30%(1ターン)'; } },
+    10: { desc:'戦闘開始時、敵全体を1ターン混乱にする',
+      apply: u => addHook(ownPassive(u), 'onBattleStart',
+        x => { foesOf(x).filter(present).forEach(t => applyStatus(t, 'confuse', x)); }) },
+  },
+  m144: { // ブロック: 盾を貯めて叩く鍛冶師
+    from: EVENT_ADDON_AT,      // 公開時刻まで星刻は出さない
+    6: { desc:'シールドを持っているあいだ 与ダメージ+10%',
+      apply: u => addHook(ownPassive(u), 'dmgBonus', x => shieldTotal(x) > 0 ? 0.10 : 0) },
+    7: { desc:'不屈の鍛冶: 1回 → 2回ぶん溜められる',
+      apply: u => { const pa = ownPassive(u);
+        pa.cutBonus = x => { if(!x.stacks.brace) return 0; x.flags.bracedUsed = true; return pv(x, 0.3); };
+        pa.onHitBy = x => {
+          if(x.flags.bracedUsed){ x.stacks.brace = Math.max(0, (x.stacks.brace || 0) - 1); x.flags.bracedUsed = false; }
+          if((x.stacks.brace || 0) < 2 && chance(0.2)) x.stacks.brace = (x.stacks.brace || 0) + 1;
+        };
+        pa.stackIcon = x => x.stacks.brace ? '🔨'.repeat(x.stacks.brace) : '';
+        pa.desc = '攻撃を受けたとき、20%で次に受けるダメージ-30%(2回ぶんまで溜まる)'; } },
+    8: { desc:'挑発しているあいだ 受けるダメージ-15%',
+      apply: u => addHook(ownPassive(u), 'cutBonus', x => hasBuff(x, 'taunt') ? 0.15 : 0) },
+    9: { desc:'鍛冶の盾: 自分だけ → 自分と後衛の味方にシールド',
+      apply: u => { const a = ownSkill(u, 0);
+        a.effects = [...a.effects, { to:'alliesBack', shield:0.25, base:'maxHp', turns:2 }];
+        a.desc = '挑発＋自分と後衛の味方に最大HPの25%のシールド(2ターン)'; } },
+    10: { desc:'神槌の一撃: 自分のシールドの量だけ威力が上がる',
+      apply: u => { const ul = ownUlt(u);
+        ul.run = ctx => dealHits(ctx, { addFlat: shieldTotal(ctx.actor) });
+        ul.desc = '威力320%＋自分のシールドの量。物理防御-4%(2ターン)'; } },
+  },
+  m53: { // スルト: 盤面を焼く
+    from: EVENT_ADDON_AT,      // 公開時刻まで星刻は出さない
+    6: { desc:'やけど状態の敵への与ダメージ+10%',
+      apply: u => addHook(ownPassive(u), 'dmgBonus', (x, t) => t && hasStatus(t, 'burn') ? 0.10 : 0) },
+    7: { desc:'ムスペルの炎: 自分が攻撃した相手も30%でやけどに',
+      apply: u => { const pa = ownPassive(u);
+        addHook(pa, 'onHitTarget', (x, t) => { if(t && t.alive && chance(0.3)) applyStatus(t, 'burn', x); });
+        pa.desc = 'やけどにかからない。攻撃してきた相手と、自分が攻撃した相手を30%でやけどにする'; } },
+    8: { desc:'やけど状態の敵が3体以上いるとき 与ダメージ+15%',
+      apply: u => addHook(ownPassive(u), 'dmgBonus',
+        x => foesOf(x).filter(t => present(t) && hasStatus(t, 'burn')).length >= 3 ? 0.15 : 0) },
+    9: { desc:'灼熱の薙ぎ: 敵前衛全体 → 敵全体',
+      apply: u => { const a = ownSkill(u, 0); a.tgt = 'all';
+        a.desc = '敵全体に威力150%。50%でやけど'; } },
+    10: { desc:'ムスペルの業火: やけど状態の敵への追加攻撃が2回になる',
+      apply: u => { const ul = ownUlt(u); ul.extraIf = { ...ul.extraIf, hits: 2 };
+        ul.desc = '敵全体に威力220%。やけど状態の相手には威力50%の追加攻撃が2回'; } },
   },
 };
 
@@ -17537,7 +17633,9 @@ function effDef(u, type){
   return Math.min(DEF_POINT_CAP, Math.max(0, base + up + passiveMod(u, 'defBonus', type)));
 }
 // damage cuts add up (max 80%); 被ダメージアップ subtracts from the total
-function cutOf(u, type, pre){ return Math.min(CUT_CAP, (u.dmgCut || 0) + buffV(u, 'cut') + buffV(u, 'statue') + passiveMod(u, 'cutBonus', type, pre) - buffV(u, 'vuln') - buffV(u, 'curse')); }
+// allyCutBonus: 味方のパッシブが配る被ダメージ軽減(allyDmgBonus と対。牛鬼の星刻が使う)
+function cutOf(u, type, pre){ return Math.min(CUT_CAP, (u.dmgCut || 0) + buffV(u, 'cut') + buffV(u, 'statue')
+  + passiveMod(u, 'cutBonus', type, pre) + allyMod(u, 'allyCutBonus', type, pre) - buffV(u, 'vuln') - buffV(u, 'curse')); }
 // 命中率ダウン・恐慌: the attacker's own chance to miss
 function missOf(u){ return buffV(u, 'accDown') + buffV(u, 'panic'); }
 function evadeOf(u){ return capRatio(buffV(u, 'evade') + passiveMod(u, 'evadeBonus')); }
@@ -17954,9 +18052,12 @@ function dealHits(ctx, opts){
     list.forEach(({ unit, mult }) => { for(let h = 0; h < hits && present(unit); h++) hitOne(unit, mult); });
   }
   (act.extraIf ? [act.extraIf] : []).forEach(x => {
+    const times = Math.max(1, x.hits || 1);     // 星刻で回数を増やせる(スルトの★10)
     results.filter(r => !r.miss && present(r.unit) && conditionMet(x.cond, actor, r.unit)).forEach(r => {
-      const e = strike(ctx, r.unit, { pow: x.pow * lvScale(kind === 'ult' ? actor.ultLv : (actor.curSkillLv || actor.skillLv)), noOnHit: true });
-      if(e){ e.unit = r.unit; ctx.hits.push(e); if(!e.miss) ctx.dealt += e.dmg; }
+      for(let i = 0; i < times && present(r.unit); i++){
+        const e = strike(ctx, r.unit, { pow: x.pow * lvScale(kind === 'ult' ? actor.ultLv : (actor.curSkillLv || actor.skillLv)), noOnHit: true });
+        if(e){ e.unit = r.unit; ctx.hits.push(e); if(!e.miss) ctx.dealt += e.dmg; }
+      }
     });
   });
   return results;
@@ -20450,7 +20551,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
-  { id: 24, date: '10/1', title: '「紅蓮の九尾」「黄金の巨神」にEXステージが来ます(10/7まで延長)', art: ['m116', 'm170', 'm150', 'm54', 'm144', 'm53'], body: '<span class="nt-h">10/7(火) 23:59 まで延長します</span>終了予定だった2イベントに<em>EXステージ</em>と<em>同時ピックアップの★4</em>を足して、開催を<em>10/7(火) 23:59</em>まで延ばします。<span class="nt-h">EXステージが開きます(ステージ3クリアで解放)</span><em>スタミナを使わず何度でも</em>挑める腕試しです。クリアすると主役のソウルが出ます(EX1 20% / EX2 50% / EX3 50%で1〜3個)。ほかの敵のソウルも出ます。<span class="nt-i">・EX1〜EX3で<em>ルールが1つずつ増えます</em>。減ることはありません。</span><span class="nt-i">・<em>狐火の祭壇</em>(九尾) 「<em>敵も味方も やけど状態の相手へ与ダメージ+50%</em>」「デーモンの味方HP+50%」「シューターの味方STR+50%」。EX2から<em>敵SPD+50%</em>、EX3から<em>敵物理防御+40</em>が加わります。</span><span class="nt-i">・<em>巨神の遺跡</em>(タイタン) 「シールドを持っているあいだ<em>与ダメージ+50%</em>」「シールドが無いあいだ<em>受けるダメージ+50%</em>」「ドワーフの味方HP・STR+50%」。EX2から<em>敵が気絶・やけど・毒にかからなくなり</em>、EX3から<em>敵のシールドが倍</em>になります。</span><span class="nt-i">・EX1〜EX3それぞれに<em>イベントミッション</em>が付きます(星結晶500 / 1,000＋召喚券5枚 / 2,000＋10連券1枚)。EX3のクリアで<em>称号</em>も手に入ります。</span><span class="nt-h">同時ピックアップの★4が登場します</span>ガチャで<em>★4が出たときの50%</em>がこの2体になります。イベントショップでもソウルを交換でき(各60メダルで20個・上限10回)、EXステージでは<em>EX3で100%</em>ソウルが出ます。<span class="nt-i">・<em>紅蓮の九尾</em> 新★4 <em>牛鬼</em>(炎/タンク) 牛の頭を持つ大鬼。<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。九尾のような後ろで戦う子を守る役です。／★4 <em>ロキ</em>(炎/トリックスター) 姿を変える詐術の神。敵全体を必ずやけどにします。</span><span class="nt-i">・<em>黄金の巨神</em> ★4 <em>ブロック</em>(土/タンク) 神々の武具を打つドワーフの鍛冶師。挑発しながら自分に盾を張ります。／★4 <em>スルト</em>(炎/アタッカー) 世界を焼く炎の巨人。やけどを撒いて全体を焼きます。</span><span class="nt-i">・編成に入れると<em>イベントボーナス+20%</em>が付きます(主役の★5は+40%)。</span><span class="nt-h">イベントショップが開きます</span>この2イベントには<em>これまでメダルがなく、イベントショップも周回回数のミッションも出ていませんでした</em>。<em>狐火の灯</em>(紅蓮の九尾)と<em>巨神の金片</em>(黄金の巨神)を追加して、ショップを開きます。<span class="nt-i">・ステージを回ると手に入り、<em>育成素材・ワザ素材BOX・召喚券・霊素核</em>などと交換できます。</span><span class="nt-i">・<em>牛鬼・ロキ・ブロック・スルトのソウル</em>も1体ずつ並びます(各60メダルで20個・上限10回)。</span><span class="nt-i">・<em>周回回数のミッション</em>(10回・30回・50回)も出るようになりました。</span><span class="nt-i">・メダルはイベントが終わると消えるので、期間中に使い切ってください。</span>' },
+  { id: 24, date: '10/1', title: '「紅蓮の九尾」「黄金の巨神」にEXステージが来ます(10/7まで延長)', art: ['m116', 'm170', 'm150', 'm54', 'm144', 'm53'], body: '<span class="nt-h">本日 10/1(水) 16:00 から・10/7(火) 23:59 まで延長します</span>終了予定だった2イベントに<em>EXステージ</em>・<em>同時ピックアップの★4</em>・<em>星刻</em>を足して、開催を<em>10/7(火) 23:59</em>まで延ばします。追加ぶんは<em>本日16:00</em>から遊べます。<span class="nt-h">EXステージが開きます(ステージ3クリアで解放)</span><em>スタミナを使わず何度でも</em>挑める腕試しです。クリアすると主役のソウルが出ます(EX1 20% / EX2 50% / EX3 50%で1〜3個)。ほかの敵のソウルも出ます。<span class="nt-i">・EX1〜EX3で<em>ルールが1つずつ増えます</em>。減ることはありません。</span><span class="nt-i">・<em>狐火の祭壇</em>(九尾) 「<em>敵も味方も やけど状態の相手へ与ダメージ+50%</em>」「デーモンの味方HP+50%」「シューターの味方STR+50%」。EX2から<em>敵SPD+50%</em>、EX3から<em>敵物理防御+40</em>が加わります。</span><span class="nt-i">・<em>巨神の遺跡</em>(タイタン) 「シールドを持っているあいだ<em>与ダメージ+50%</em>」「シールドが無いあいだ<em>受けるダメージ+50%</em>」「ドワーフの味方HP・STR+50%」。EX2から<em>敵が気絶・やけど・毒にかからなくなり</em>、EX3から<em>敵のシールドが倍</em>になります。</span><span class="nt-i">・EX1〜EX3それぞれに<em>イベントミッション</em>が付きます(星結晶500 / 1,000＋召喚券5枚 / 2,000＋10連券1枚)。EX3のクリアで<em>称号</em>も手に入ります。</span><span class="nt-h">同時ピックアップの★4が登場します</span>ガチャで<em>★4が出たときの50%</em>がこの2体になります。イベントショップでもソウルを交換でき(各60メダルで20個・上限10回)、EXステージでは<em>EX3で100%</em>ソウルが出ます。<span class="nt-i">・<em>紅蓮の九尾</em> 新★4 <em>牛鬼</em>(炎/タンク) 牛の頭を持つ大鬼。<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。九尾のような後ろで戦う子を守る役です。／★4 <em>ロキ</em>(炎/トリックスター) 姿を変える詐術の神。敵全体を必ずやけどにします。</span><span class="nt-i">・<em>黄金の巨神</em> ★4 <em>ブロック</em>(土/タンク) 神々の武具を打つドワーフの鍛冶師。挑発しながら自分に盾を張ります。／★4 <em>スルト</em>(炎/アタッカー) 世界を焼く炎の巨人。やけどを撒いて全体を焼きます。</span><span class="nt-i">・編成に入れると<em>イベントボーナス+20%</em>が付きます(主役の★5は+40%)。</span><span class="nt-h">★4にも星刻が付きます</span>★を上げると刻まれる、そのモンスターだけの効果です。<em>★6から★10まで1段ずつ</em>増えます。<span class="nt-i">・<em>牛鬼</em> かばっているあいだ受けるダメージ-10% → 守っている味方も-10% → シールド中は与ダメージ+15% → <em>かばう相手が後衛だけ→味方全体に</em> → 鬼哭が<em>かばっている味方全員にもシールド</em></span><span class="nt-i">・<em>ロキ</em> 状態異常の敵へ+10% → 炎の悪戯でバフを2つ消す → やけどの敵へさらに+15% → <em>姿変えが敵全体に</em> → <em>戦闘開始時に敵全体を混乱</em></span><span class="nt-i">・<em>ブロック</em> シールド中は与ダメージ+10% → 不屈の鍛冶が2回ぶん溜まる → 挑発中は受けるダメージ-15% → <em>鍛冶の盾が後衛の味方にも</em> → 神槌の一撃が<em>自分のシールドの量だけ強くなる</em></span><span class="nt-i">・<em>スルト</em> やけどの敵へ+10% → 自分が攻撃した相手もやけどに → やけどが3体以上で+15% → <em>灼熱の薙ぎが敵全体に</em> → ムスペルの業火の<em>追加攻撃が2回</em></span><span class="nt-h">イベントショップが開きます</span>この2イベントには<em>これまでメダルがなく、イベントショップも周回回数のミッションも出ていませんでした</em>。<em>狐火の灯</em>(紅蓮の九尾)と<em>巨神の金片</em>(黄金の巨神)を追加して、ショップを開きます。<span class="nt-i">・ステージを回ると手に入り、<em>育成素材・ワザ素材BOX・召喚券・霊素核</em>などと交換できます。</span><span class="nt-i">・<em>牛鬼・ロキ・ブロック・スルトのソウル</em>も1体ずつ並びます(各60メダルで20個・上限10回)。</span><span class="nt-i">・<em>周回回数のミッション</em>(10回・30回・50回)も出るようになりました。</span><span class="nt-i">・メダルはイベントが終わると消えるので、期間中に使い切ってください。</span>' },
   { id: 23, date: '9/29', title: 'DiscordとXを用意しました(ご意見・バグ報告の窓口)', body: '<span class="nt-h">Discord</span>小規模なコミュニティとして設置しました。<em>バグ報告や要望など</em>はこちらからしていただけます。<span class="nt-link" data-open-community="discord">Discordを開く</span><span class="nt-h">X(制作アカウント)</span>ゲーム制作のアカウントで、<em>開発の裏話</em>などを流しています。Discordアカウントのない方は、こちらのDMにもバグ報告や要望を投げていただけます。<span class="nt-link" data-open-community="x">Xを開く</span><span class="nt-h">開き方</span>どちらも<em>設定画面</em>から開けます(設定 → Discord / X)。<span class="nt-h">とくに聞きたいこと</span>いま新しい戦闘システムをテストしています。「ここが変」「前のほうがよかった」「この役割が弱い」など、遠慮なく投げてください。'
   },
   { id: 22, date: '9/29', title: '【重要】戦闘システムが大きく変わります', body: '<span class="nt-h">設定から新旧どちらでも遊べます</span>戦闘の仕組みを作り直しました。設定 → 戦闘 →<em>「新バトルシステム」</em>で、いつでも前の戦闘に戻せます。<span class="nt-h">なぜ変えるのか</span>これまでの戦闘には、作った側から見ても はっきりした問題がありました。<span class="nt-i">・タンクとサポートの奥義が、1戦闘でほぼ一度も撃てていませんでした(実測 タイタン <em>0.02回</em>/戦・ユニコーン <em>0.01回</em>/戦。アタッカーは0.8回)</span><span class="nt-i">・敵はスキル2も奥義も、一度も撃っていませんでした(実測 <em>0.00回</em>)</span><span class="nt-i">・後衛は敵の1撃で最大HPの<em>67%</em>を失っていて、2発で落ちる状態でした</span><span class="nt-i">・1ウェーブが平均2.1ラウンドで終わるため、SPDの低いタンクは手番の<em>40%</em>が回ってこないまま戦闘が終わっていました</span>つまり、モンスターごとに作り込んだワザや奥義が、ほとんど画面に出ていませんでした。ここを直します。<span class="nt-h">ご協力ください</span>新バトルシステムはまだ調整中です。遊んでみて「ここが変」「前のほうがよかった」があれば教えてください。戦闘のおもしろさを上げるために、力を貸してください。<em>Discord</em>と<em>XのDM</em>で受け付けています(設定画面から開けます)。<span class="nt-h">協力のお礼</span>新バトルシステムでステージをクリアすると、星結晶をお配りします。<span class="nt-i">・メインクエスト 1ステージにつき <em>10個</em></span><span class="nt-i">・イベント 1ステージにつき <em>20個</em></span><span class="nt-i">・EXステージ EX1 <em>100個</em>・EX2 <em>300個</em>・EX3 <em>500個</em></span>新バトルシステムでの初回クリアは、<em>スタミナを消費しません</em>。すでにクリアしたステージも、もう一度試してみてください。' },
@@ -20478,7 +20579,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 136, version: 'α0.3.010', date: '10/1', title: '九尾・タイタンのEXステージと、同時ピックアップの★4', body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」を10/7まで延長しました</span><span class="nt-i">・<em>EXステージ</em>(EX1〜EX3)を追加しました。ステージ3クリアで開きます。スタミナを使わず何度でも挑めます。</span><span class="nt-i">・<em>EXのイベントミッション</em>を3つ追加しました。EX3のクリアで称号も手に入ります。</span><span class="nt-i">・同時ピックアップの★4を追加しました。<em>紅蓮の九尾は牛鬼・ロキ</em>、<em>黄金の巨神はブロック・スルト</em>です。</span><span class="nt-h">新★4 牛鬼(炎/タンク)</span>後衛をかばうことに特化したタンクです。<span class="nt-i">・スキル1「牛鬼の盾」 2ターンかばう状態になり、<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。そのあいだ自分の魔法防御+10。</span><span class="nt-i">・パッシブ「鬼の皮」 <em>肩代わりで受けたダメージ-25%</em>。自分が直接殴られたぶんには効きません。</span><span class="nt-i">・奥義「鬼哭」 敵全体に威力180%。自分に最大HPの50%のシールド。</span><span class="nt-h">★4のピックアップが効くようになりました</span>これまで期間限定バナーの<em>★4ピックアップは表示だけで、確率に反映されていませんでした</em>。★5と同じ決まりで、<em>★4が出たときの50%</em>が同時ピックアップの★4になります。<span class="nt-h">EXのルールは段ごとに増えます</span><span class="nt-i">・EX1は味方側のルールだけ。EX2・EX3で<em>敵側の縛りが1つずつ</em>加わります(減りません)。</span><span class="nt-i">・巨神の遺跡に「<em>シールドが無いあいだ 受けるダメージ+50%</em>」を足しました。EX3が<em>21ラウンド → 10ラウンド</em>になり、★3条件(12ラウンド以内)が狙えるようになりました。</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザが配る<em>防御のバフ・デバフが48件すべて0.8ポイントに潰れていた</em>のを修正しました。タイタンの奥義は「物理・魔法防御+8%」と書いてありながら実際は+0.8でした。<em>タンクの守りのスキルが本来の効き目になります</em>。</span><span class="nt-i">・EXのウェーブに<em>前衛・後衛を指定できる</em>ようにしました。これまでロール任せだったので、前衛が1体もいないウェーブができていました。</span><span class="nt-i">・「紅蓮の九尾」「黄金の巨神」に<em>イベントメダル</em>を追加しました。メダルが無かったため、この2つだけ<em>イベントショップと周回回数のミッションが出ていませんでした</em>。</span><span class="nt-i">・ステージ10と★30の<em>称号</em>も、もう一度取れるように戻しました。</span>' },
+  { id: 136, version: 'α0.3.010', date: '10/1', title: '九尾・タイタンのEXステージと、同時ピックアップの★4', body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」を10/7まで延長しました(追加ぶんは10/1 16:00から)</span><span class="nt-i">・<em>EXステージ</em>(EX1〜EX3)を追加しました。ステージ3クリアで開きます。スタミナを使わず何度でも挑めます。</span><span class="nt-i">・<em>EXのイベントミッション</em>を3つ追加しました。EX3のクリアで称号も手に入ります。</span><span class="nt-i">・同時ピックアップの★4を追加しました。<em>紅蓮の九尾は牛鬼・ロキ</em>、<em>黄金の巨神はブロック・スルト</em>です。</span><span class="nt-h">新★4 牛鬼(炎/タンク)</span>後衛をかばうことに特化したタンクです。<span class="nt-i">・スキル1「牛鬼の盾」 2ターンかばう状態になり、<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。そのあいだ自分の魔法防御+10。</span><span class="nt-i">・パッシブ「鬼の皮」 <em>肩代わりで受けたダメージ-25%</em>。自分が直接殴られたぶんには効きません。</span><span class="nt-i">・奥義「鬼哭」 敵全体に威力180%。自分に最大HPの50%のシールド。</span><span class="nt-h">★4のピックアップが効くようになりました</span>これまで期間限定バナーの<em>★4ピックアップは表示だけで、確率に反映されていませんでした</em>。★5と同じ決まりで、<em>★4が出たときの50%</em>が同時ピックアップの★4になります。<span class="nt-h">EXのルールは段ごとに増えます</span><span class="nt-i">・EX1は味方側のルールだけ。EX2・EX3で<em>敵側の縛りが1つずつ</em>加わります(減りません)。</span><span class="nt-i">・巨神の遺跡に「<em>シールドが無いあいだ 受けるダメージ+50%</em>」を足しました。EX3が<em>21ラウンド → 10ラウンド</em>になり、★3条件(12ラウンド以内)が狙えるようになりました。</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザが配る<em>防御のバフ・デバフが48件すべて0.8ポイントに潰れていた</em>のを修正しました。タイタンの奥義は「物理・魔法防御+8%」と書いてありながら実際は+0.8でした。<em>タンクの守りのスキルが本来の効き目になります</em>。</span><span class="nt-i">・EXのウェーブに<em>前衛・後衛を指定できる</em>ようにしました。これまでロール任せだったので、前衛が1体もいないウェーブができていました。</span><span class="nt-i">・「紅蓮の九尾」「黄金の巨神」に<em>イベントメダル</em>を追加しました。メダルが無かったため、この2つだけ<em>イベントショップと周回回数のミッションが出ていませんでした</em>。</span><span class="nt-i">・ステージ10と★30の<em>称号</em>も、もう一度取れるように戻しました。</span><span class="nt-h">★4の星刻を追加しました</span>牛鬼・ロキ・ブロック・スルトに、★6〜★10の<em>星刻</em>を入れました。数値だけでなく、<em>スキルの対象やパッシブの発動条件が変わります</em>(例: ブロックの★9で鍛冶の盾が後衛の味方にも届きます)。<span class="nt-h">ワザの入れ替え</span><span class="nt-i">・<em>フェンリル</em>のスキル2を「暴風の遠吠え(自分にSTR+30%・SPD+10)」から<em>「暴風の牙」敵単体に威力60%×5回</em>に変えました。自己バフが攻撃になったぶん、はっきり強くなります(★7の星刻で7回に)。</span><span class="nt-i">・<em>グリーンマン</em>のスキル1とスキル2を入れ替えました。<em>拘束がスキル1(CT3)</em>になり、早く・何度も撃てます。</span>' },
   { id: 135, version: 'α0.3.009', date: '10/1', title: '説明文の中の「やけど」「延焼」などを押すと意味が出ます', body: '<span class="nt-h">言葉の意味がその場で読めるようになりました</span>ワザの説明に出てくる<em>やけど・毒・気絶・シールド・挑発</em>などの言葉が、<em>水色の点線</em>になりました。押すとその場で意味が出ます。<span class="nt-i">・とくに<em>延焼</em>は、どこにも説明がないのに説明文に出てくる言葉でした。「すでにやけどの相手にもう一度やけどをかけると、ターン数が戻るうえに、やけどダメージの50%をその場で与える(同じ相手に1ターン3回まで)」という意味です</span><span class="nt-i">・やけどのダメージが<em>かけた人のSTRで決まる</em>ことも書きました。強い子がかけたやけどのほうが痛いです</span><span class="nt-i">・光るのは25語です。状態異常8つ・延焼・シールド・挑発・トゲ・被ダメージ軽減・免疫・継続回復・肩代わり・呪い・恐慌・回復阻害・命中率ダウン・石像化・会心・防御貫通・SP</span><span class="nt-i">・ワザとパッシブの説明・遺物のスキル枠・<em>ステージ効果</em>・アイテムの説明で光ります</span><span class="nt-i">・説明の中から「似たもの」で別の言葉へ飛べます(やけど → 延焼)。閉じると<em>元の画面のスクロール位置まで戻ります</em></span><span class="nt-h">直したもの</span><span class="nt-i">・「奈落の王」EXの<em>「敵 魔法防御+8%」が実際には効いていなかった</em>のを直しました(防御をポイント式に変えたときの書き漏らしで、+0.4しか乗っていませんでした)。EXが少し硬くなります</span>' },
   { id: 134, version: 'α0.3.008', date: '9/30', title: 'お助けモンスターの画像が「ア」になるのを修正', body: '<span class="nt-i">・周回結果などで、フレンドから借りたお助けモンスターがMVPのとき、画像のかわりに名前の1文字目(「ア」など)の仮アイコンが出ていたのを直しました。</span>' },
   { id: 133, version: 'α0.3.007', date: '9/30', title: '周回結果にドロップを全部表示・フレンドポイントのお知らせをまとめて', body: '<span class="nt-h">周回結果</span><span class="nt-i">・1回ごとの行に、その回に落ちた<em>ドロップを全部アイコンで</em>並べるようにしました(目立つ順。当たりはピンクの枠)。</span><span class="nt-i">・1回ずつの結果は専用の枠に入り、<em>6回以上は枠の中でスクロール</em>します。順に出てくるときも、枠が一緒に下へ送られます。</span><span class="nt-i">・ピンクに光るのは、仲間入り・★4以上のソウル・遺物・TierIV・★4箱が出た回だけにしました。</span><span class="nt-h">フレンドポイント</span><span class="nt-i">・届いたお知らせを、人ごとに「〇〇さんがモンスターをN回借りました FP N」の1行にまとめ、最後に合計を出すようにしました。</span>' },

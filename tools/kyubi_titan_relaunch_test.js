@@ -4,10 +4,16 @@ const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   EVENTS, MONSTERS, MON_BY_ID, eventShopItems, eventMissions, EVENT_TITLES, TITLES, NOTICES, UPDATE_LOG,
   pickMonsterOfRarity, currentBanner, PICKUP_SHARE, RARITY_WEIGHTS, EVENT_BONUS,
+  featuredOf, exStagesOf, perksOf, addonOpen, EVENT_ADDON_AT,
   exMobSoulRate, DEFAULT_STATE, get STATE(){ return STATE }, set STATE(v){ STATE = v },
   get gachaBannerKey(){ return gachaBannerKey }, set gachaBannerKey(v){ gachaBannerKey = v },
 };`);
 const E = global.__e;
+/* 追加ぶん(EX・同時ピックアップ★4・星刻)は EVENT_ADDON_AT から開く。
+   テストは「開いたあと」の時計で回し、最後に「開く前」も1度だけ見る */
+const realNow = Date.now;
+const atTime = iso => { Date.now = () => new Date(iso).getTime(); };
+atTime('2026-10-02T12:00:00+09:00');
 let ng = 0;
 const ok = (n, c, i) => { console.log((c ? '✅' : '❌') + ' ' + n + (i !== undefined ? '  ' + JSON.stringify(i) : '')); if(!c) ng++; };
 E.STATE = E.DEFAULT_STATE();
@@ -30,8 +36,7 @@ console.log('\n--- 同時ピックアップの★4 ---');
 
 console.log('\n--- ガチャ: ★4のピックアップが確率に効く ---');
 {
-  const real = Date.now;
-  Date.now = () => new Date('2026-10-03T12:00:00+09:00').getTime();
+  // 時計は先頭で公開後に寄せてある
   ['ev_kyubi', 'ev_titan'].forEach(k => {
     E.gachaBannerKey = k;
     const b = E.currentBanner();
@@ -47,7 +52,6 @@ console.log('\n--- ガチャ: ★4のピックアップが確率に効く ---');
        others.filter(m => !got[m.id]).map(m => m.name));
   });
   E.gachaBannerKey = null;
-  Date.now = real;
 }
 
 console.log('\n--- イベントショップ ---');
@@ -94,6 +98,25 @@ console.log('\n--- お知らせ ---');
   ok('本文に牛鬼が入っている', /牛鬼/.test(n.body));
   ok('お知らせのIDが重複していない', new Set(E.NOTICES.map(x => x.id)).size === E.NOTICES.length);
   ok('アップデートのIDが重複していない', new Set(E.UPDATE_LOG.map(x => x.id)).size === E.UPDATE_LOG.length);
+}
+
+console.log('\n--- 公開時刻(10/1 16:00)まで出ない ---');
+{
+  atTime('2026-10-01T15:59:00+09:00');
+  ['ev_kyubi', 'ev_titan'].forEach(k => {
+    const e = ev(k);
+    ok(`${k}: 16時前はEXが出ない`, E.exStagesOf(e).length === 0, E.exStagesOf(e).length);
+    ok(`${k}: 16時前は抱き合わせ★4が出ない`, E.featuredOf(e).filter(id => id !== e.pickup).length === 0, E.featuredOf(e));
+    ok(`${k}: 16時前はショップのソウル枠が出ない`, E.eventShopItems(e).filter(x => /^soul_sub/.test(x.sku)).length === 0);
+    ok(`${k}: 16時前はEXミッションが出ない`, E.eventMissions(e).filter(m => m.kind === 'ex').length === 0);
+    ok(`${k}: 16時前も主役のソウルは買える`, E.eventShopItems(e).some(x => x.sku === 'soul_pick'));
+  });
+  SUBS.ev_kyubi.concat(SUBS.ev_titan).forEach(id => {
+    ok(`${E.MON_BY_ID[id].name}: 16時前は星刻が出ない`, E.perksOf(id, 10).length === 0, E.perksOf(id, 10).length);
+  });
+  atTime('2026-10-01T16:00:00+09:00');
+  ok('16時ちょうどで開く', E.exStagesOf(ev('ev_kyubi')).length === 3 && E.perksOf('m170', 10).length === 5);
+  Date.now = realNow;
 }
 
 console.log(ng ? `\n${ng}件失敗` : '\nすべて通過');
