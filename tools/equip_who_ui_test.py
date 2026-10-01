@@ -32,7 +32,7 @@ async def main():
               const who = rows.map(x => { const w = x.querySelector('.eq-who'); return w ? w.querySelector('small').textContent + (w.querySelector('img') ? '+img' : '') : ''; });
               return { who, first: rows[0].classList.contains('on'), firstId: rows[0].dataset.relicRow, mine: rel[1], text: document.querySelector('.relic-list').textContent.includes('装備中: ') }; }""")
             check('遺物: ほかの子が付けている遺物は、右端にその子の顔と名前', 'アバドン+img' in r['who'], r)
-            check('遺物: この子が付けている遺物は一番上・金色の枠・顔や「この子」は出さない', r['first'] and r['firstId'] == r['mine'] and r['who'][0] == '' and not any('この子' in w for w in r['who']), r)
+            check('遺物: この子が付けている遺物は一番上・金色の枠・顔と名前は出す(「この子」の文字は出さない)', r['first'] and r['firstId'] == r['mine'] and r['who'][0] == 'フェンリル+img' and not any('この子' in w for w in r['who']), r)
             check('遺物: 「装備中: 〇〇」の文字はもう出ない', not r['text'], r)
             await pg.screenshot(path=str(OUT / 'equip_who_relic.png'))
             r = await pg.evaluate("""() => { closeModal(); relicPicker = null;
