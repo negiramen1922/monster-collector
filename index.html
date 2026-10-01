@@ -2434,6 +2434,19 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sw-step small{ display:block; font-size:9px; opacity:.8; font-weight:700; }
 .sw-times{ text-align:center; font-size:20px; font-weight:900; color:var(--gold); }
 .sw-times small{ font-size:11px; margin-left:1px; opacity:.8; }
+.shop-qty{ display:grid; grid-template-columns:auto auto 1fr auto auto auto; align-items:center; gap:5px; margin-top:8px; }
+.shop-total{ font-size:11px; color:var(--dim); text-align:right; margin:5px 0 7px; }
+.shop-total b{ color:var(--text); }
+.spark-card{ margin-bottom:10px; }
+.spark-ic{ display:inline-flex; width:46px; height:46px; align-items:center; justify-content:center; flex:none; }
+.spark-ic .spark-img{ width:46px; height:46px; object-fit:contain; image-rendering:pixelated; }
+.spark-ic .relic-detail-ic{ width:40px; height:40px; }
+.gc-point-row{ display:flex; align-items:flex-end; gap:9px; margin-top:11px; }
+.gc-point{ flex:1; min-width:0; }
+.gc-point-row .btn{ flex:none; white-space:nowrap; }
+.gc-info{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.gc-rate-note{ font-size:11px; color:var(--dim); line-height:1.8; margin-top:10px; }
+.gc-rate-note b{ color:var(--gold); }
 .sw-speeds{ display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:5px; margin-bottom:7px; }
 .sw-speed{ padding:7px 0; border-radius:9px; font-size:11px; font-weight:800; cursor:pointer;
   background:var(--panel2); border:1px solid var(--line); color:inherit; font-family:inherit; }
@@ -3234,11 +3247,13 @@ const CURRENCY_SVG_BODY = {
   gold: '<circle cx="50" cy="50" r="40" fill="#e8b455" stroke="#8a5f16" stroke-width="7"/><circle cx="50" cy="50" r="29" fill="none" stroke="#8a5f16" stroke-width="4"/><path d="M50 32l5.5 13.5H70L58.5 54l4.5 14L50 59.5 37 68l4.5-14L30 45.5h14.5z" fill="#fff4c2"/>',
   crystal: '<path d="M50 8 L80 32 L64 92 L36 92 L20 32 Z" fill="#3aa6f2" stroke="#1c5f8a" stroke-width="6" stroke-linejoin="round"/><path d="M50 8 L64 92 L36 92 Z" fill="#bfe6ff" opacity=".6"/><path d="M20 32 L50 8 L80 32 Z" fill="#8fd8ff" opacity=".85"/>',
   universal: '<rect x="28" y="28" width="44" height="44" rx="10" fill="#b27cf2" stroke="#6a3fa0" stroke-width="6" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="12" fill="#f1e3ff"/>',
+  // 召喚ポイント(ガチャのゲージと同じ紫)
+  spark: '<circle cx="50" cy="50" r="36" fill="#7a4fd0" stroke="#3d2470" stroke-width="6"/><path d="M52 24 L34 54h14l-4 22 20-32H50z" fill="#f3e6ff"/>',
 };
-const CURRENCY_LABEL = { gold: 'ゴールド', crystal: '星結晶', universal: '無形のソウル' };
+const CURRENCY_LABEL = { gold: 'ゴールド', crystal: '星結晶', universal: '無形のソウル', spark: '召喚ポイント' };
 const CURRENCY_ICON = Object.fromEntries(Object.keys(CURRENCY_SVG_BODY).map(k =>
   [k, dataIcon(`cur_${k}`, CURRENCY_SVG_BODY[k], `ico-currency ico-${k}`, CURRENCY_LABEL[k])]));
-const GOLD_ICON = CURRENCY_ICON.gold, CRYSTAL_ICON = CURRENCY_ICON.crystal, UNIVERSAL_ICON = CURRENCY_ICON.universal;
+const GOLD_ICON = CURRENCY_ICON.gold, CRYSTAL_ICON = CURRENCY_ICON.crystal, UNIVERSAL_ICON = CURRENCY_ICON.universal, SPARK_ICON = CURRENCY_ICON.spark;
 
 // generic item icons (rewards/inventory): same pixel-art-ready fallback as currency above.
 const ITEM_SVG_BODY = {
@@ -9666,6 +9681,7 @@ function buyEventShop(evKey, sku, times){
   addItem(medal.key, -item.price * n);
   for(let i = 0; i < n; i++) item.give(ev);
   if(item.limit !== null) evShopState(evKey)[sku] = evShopBought(evKey, sku) + n;
+  shopQty[`ev:${evKey}:${sku}`] = 1;   // 買ったら個数は1に戻す
   track('shopBuy');
   playSfx('buy');
   toast(`${item.name}(${item.qty})を${n}つ交換しました`);
@@ -10703,10 +10719,13 @@ function evShopIconHtml(ev, it){
   const mon = id => `<img class="shop-mon" src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">`;
   if(it.sku === 'soul_pick') return `<span class="shop-ic">${mon(ev.pickup)}</span>`;
   if(it.sku === 'soul_sub') return `<span class="shop-ic shop-ic-pair">${subs.slice(0, 2).map(mon).join('')}</span>`;
+  // econV2 では抱き合わせ★4を1体ずつの商品に分けたので soul_sub1 / soul_sub2 になる
+  const sub = /^soul_sub([0-9]+)$/.exec(it.sku);
+  if(sub && subs[Number(sub[1]) - 1]) return `<span class="shop-ic">${mon(subs[Number(sub[1]) - 1])}</span>`;
   if(it.sku === 'relic_dupe'){ const r = RELICS[EVENT_ELEMENT_RELIC[ev.element]]; return `<span class="shop-ic shop-relic">${r ? r.icon : ''}</span>`; }
   const mt = /^mat([1-4])$/.exec(it.sku);
   if(mt){ const m = eventSkillMats(ev); return `<span class="shop-ic">${itemIcon(matKey(m.el[0], m.el[1], Number(mt[1])))}</span>`; }
-  const key = { gacha_char:'gacha_char', gacha_relic:'gacha_relic', box1:'box_sel_1', box2:'box_sel_2', box3:'box_sel_3',
+  const key = { gacha_char:'gacha_char', gacha_relic:'gacha_relic', box1:'box_sel_1', box2:'box_sel_2', box3:'box_sel_3', box4:'box_sel_4',
     pot1:'exp1', pot2:'exp2', pot3:'exp3', scrap:'relic_scrap', core1:'relic_core_1', core2:'relic_core_2', core3:'relic_core_3', stam:'stamina_60' }[it.sku];
   if(key) return `<span class="shop-ic">${itemIcon(key)}</span>`;
   if(/^gold/.test(it.sku)) return `<span class="shop-ic"><span class="item-ic">${GOLD_ICON}</span></span>`;
@@ -10724,12 +10743,17 @@ function renderEventShop(evKey){
     const rest = evShopLeft(ev, it);
     const sold = rest === 0;
     const can = !sold && have >= it.price;
+    // まとめ買いできるものは、周回の回数と同じ±で個数を選べるようにする
+    const key = `ev:${ev.key}:${it.sku}`;
+    const max = Math.min(rest === null ? 99 : rest, Math.floor(have / it.price));
+    const n = can && max > 1 ? qtyOf(key, max) : 1;
     return `
       <div class="shop-row ${sold ? 'sold' : ''}">
         <span class="shop-item">${evShopIconHtml(ev, it)}<span class="shop-item-name">${it.name}<small>${it.qty}</small></span></span>
         <span class="shop-price"><span class="ev-cost"><span class="item-ic">${ITEM_ICON[medal.icon]}</span>${it.price}</span><small class="ev-left">${it.limit === null ? '無制限' : `残り${rest}/${it.limit}`}</small></span>
-        <button class="btn btn-sm ${can ? '' : 'btn-ghost'}" data-ev-buy="${ev.key}:${it.sku}" ${can ? '' : 'disabled'}>${sold ? '売り切れ' : '交換'}</button>
-      </div>`;
+        <button class="btn btn-sm ${can ? '' : 'btn-ghost'}" data-ev-buy="${ev.key}:${it.sku}:${n}" ${can ? '' : 'disabled'}>${sold ? '売り切れ' : n > 1 ? `${n}個 交換` : '交換'}</button>
+      </div>
+      ${can && max > 1 ? shopStepperHtml(key, max, k => `<span class="item-ic">${ITEM_ICON[medal.icon]}</span><b>${(it.price * k).toLocaleString()}</b>　→ 残り ${(have - it.price * k).toLocaleString()}`) : ''}`;
   };
   return `
     <div class="screen-sub">
@@ -11862,37 +11886,18 @@ function renderRelicGacha(){
       </div>
     </div>
     <div class="panel">
-      <div class="gc-line"><span>召喚ポイント<small>(モンスターガチャと共有)</small></span><span class="purple">${STATE.summonPoints} / ${RELIC_SPARK_POINTS}</span></div>
-      <div class="gc-bar"><div class="spark" style="width:${Math.min(100, Math.round((STATE.summonPoints / RELIC_SPARK_POINTS) * 100))}%;"></div></div>
-      <button class="btn btn-block btn-sm ${STATE.summonPoints >= RELIC_SPARK_POINTS ? '' : 'btn-ghost'}" id="relic-spark-btn" ${STATE.summonPoints >= RELIC_SPARK_POINTS ? '' : 'disabled'} style="margin-top:9px;">
-        ${STATE.summonPoints >= RELIC_SPARK_POINTS ? `${RELIC_SPARK_POINTS}ポイントで「${pickupRelic.name}」と交換する` : `あと ${RELIC_SPARK_POINTS - STATE.summonPoints}ポイントで「${pickupRelic.name}」と交換できます`}
-      </button>
+      <div class="gc-point-row">
+        <div class="gc-point">
+          <div class="gc-line"><span>召喚ポイント<small>(モンスターガチャと共有)</small></span><span class="purple">${STATE.summonPoints} / ${RELIC_SPARK_POINTS}</span></div>
+          <div class="gc-bar"><div class="spark" style="width:${Math.min(100, Math.round((STATE.summonPoints / RELIC_SPARK_POINTS) * 100))}%;"></div></div>
+        </div>
+        <button class="btn btn-sm ${STATE.summonPoints >= RELIC_SPARK_POINTS ? '' : 'btn-ghost'}" data-open-spark-shop="1">交換する</button>
+      </div>
     </div>` : ''}
     <div class="panel">
       <div class="gc-soul" style="margin-top:0;">${RESONANCE_ICON} 無形の共鳴石 <b>${(STATE.resonance || 0).toLocaleString()}</b>
         <small>遺物ガチャを引くたびに貯まります(★1〜2:${RESONANCE_PER_PULL[1]}　★3:${RESONANCE_PER_PULL[3]}　★4:${RESONANCE_PER_PULL[4]}　★5:${RESONANCE_PER_PULL[5]})。好きな遺物の共鳴1回分と交換できます(★3:${RESONANCE_PER_DUPE[3]}　★4:${RESONANCE_PER_DUPE[4]}　★5:${RESONANCE_PER_DUPE[5]})</small></div>
     </div>
-    <div class="panel">
-      <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
-      <div class="gc-rates">
-        ${[5, 4, 3, 2, 1].map(r => `
-          <div class="gc-rate r${r} ${r === 5 ? 'top' : ''}">
-            <div class="gc-rate-star">★${r}</div>
-            <div class="gc-rate-pct">${RELIC_RARITY_WEIGHTS[r]}%</div>
-          </div>`).join('')}
-      </div>
-    </div>
-    ${recent.length ? `
-    <div class="panel">
-      <div class="mc-head" style="margin-bottom:8px;">最近の結果</div>
-      <div class="gc-recent">
-        ${recent.map(def => `
-          <div class="gc-recent-cell r${def.star}">
-            <div class="relic-recent-ic">${def.icon}</div>
-            <div class="gc-recent-star">★${def.star}</div>
-          </div>`).join('')}
-      </div>
-    </div>` : ''}
     <div class="gc-btns">
       <button class="btn gc-pull1" id="relic-pull1" ${(STATE.crystals || 0) < PULL_COST ? 'disabled' : ''}>
         1回<small>${CRYSTAL_ICON} ${PULL_COST}</small>
@@ -11902,13 +11907,9 @@ function renderRelicGacha(){
       </button>
     </div>
     ${ticketBtnsHtml('relic')}
-    <div class="panel panel-tight">
-      <div class="gacha-rules">
-        <b>排出率</b>　${[5, 4, 3, 2, 1].map(r => `★${r} ${RELIC_RARITY_WEIGHTS[r]}%`).join('　')}<br>
-        ${pickupRelic ? `<b>ピックアップ</b>　モンスターガチャで排出率アップ中の★5「${pickupMon.name}」の専用遺物「${pickupRelic.name}」も、★5のうち${Math.round(PICKUP_SHARE * 100)}%の確率で優先的に出ます。<br>` : ''}
-        <b>かぶり</b>　同じ遺物が出ると<b>「その遺物の共鳴石」</b>になります。共鳴(★+1)に使います。<br>
-        <b>装備</b>　モンスター詳細画面の「遺物」枠からどのモンスターにでも装備できます(1体につき1個)。
-      </div>
+    <div class="gc-info">
+      <button class="btn btn-ghost btn-sm" data-open-rates="relic">提供割合</button>
+      <button class="btn btn-ghost btn-sm" data-open-recent="relic">最近の結果</button>
     </div>
   `;
 }
@@ -12087,39 +12088,18 @@ function renderMonGacha(){
     <div class="panel">
       <div class="gc-line"><span>★4以上確定まで</span><span class="gold">あと ${pullsToHigh}回</span></div>
       <div class="gc-bar"><div style="width:${highPct}%;"></div></div>
-      <div class="gc-line" style="margin-top:11px;"><span>召喚ポイント</span><span class="purple">${STATE.summonPoints} / ${SPARK_POINTS}</span></div>
-      <div class="gc-bar"><div class="spark" style="width:${sparkPct}%;"></div></div>
-      <button class="btn btn-block btn-sm ${canSpark ? '' : 'btn-ghost'}" id="spark-btn" ${canSpark ? '' : 'disabled'} style="margin-top:9px;">
-        ${canSpark ? `${SPARK_POINTS}ポイントで「${pickup.name}」と交換する` : `あと ${SPARK_POINTS - STATE.summonPoints}ポイントで「${pickup.name}」と交換できます`}
-      </button>
+      <div class="gc-point-row">
+        <div class="gc-point">
+          <div class="gc-line"><span>召喚ポイント</span><span class="purple">${STATE.summonPoints} / ${SPARK_POINTS}</span></div>
+          <div class="gc-bar"><div class="spark" style="width:${sparkPct}%;"></div></div>
+        </div>
+        <button class="btn btn-sm ${canSpark ? '' : 'btn-ghost'}" data-open-spark-shop="1">交換する</button>
+      </div>
       <div class="gc-soul">${UNIVERSAL_ICON} 無形のソウル <b>${STATE.universalSouls.toLocaleString()}</b>
         <small>${UNIVERSAL_PER_SOUL}個で好きなモンスターのソウル1個に交換できます</small></div>
     </div>
 
     ${banner.key === 'default' ? renderSelectPickupPanel() : ''}
-
-    <div class="panel">
-      <div class="mc-head" style="margin-bottom:8px;">提供割合</div>
-      <div class="gc-rates">
-        ${[5, 4, 3, 2, 1].map(r => `
-          <div class="gc-rate r${r} ${r === 5 ? 'top' : ''}">
-            <div class="gc-rate-star">★${r}</div>
-            <div class="gc-rate-pct">${RARITY_WEIGHTS[r]}%</div>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    ${recent.length ? `
-    <div class="panel">
-      <div class="mc-head" style="margin-bottom:8px;">最近の結果</div>
-      <div class="gc-recent">
-        ${recent.map(m => `
-          <div class="gc-recent-cell r${m.rarity}">
-            <img src="${imgSrc(m.id)}" alt="${m.name}">
-            <div class="gc-recent-star">★${m.rarity}</div>
-          </div>`).join('')}
-      </div>
-    </div>` : ''}
 
     <div class="gc-btns">
       <button class="btn gc-pull1" id="pull1" ${STATE.crystals < PULL_COST ? 'disabled' : ''}>
@@ -12131,14 +12111,9 @@ function renderMonGacha(){
     </div>
     ${ticketBtnsHtml('mon')}
 
-    <div class="panel panel-tight">
-      <div class="gacha-rules">
-        <b>排出率</b>　${rates}(ピックアップ★5 ${(RARITY_WEIGHTS[5] * PICKUP_SHARE).toFixed(2)}%)<br>
-        <b>かぶり</b>　そのモンスターのソウルになります(初期★1:${DUP_SOULS[1]}　★2:${DUP_SOULS[2]}　★3:${DUP_SOULS[3]}　★4:${DUP_SOULS[4]}　★5:${DUP_SOULS[5]})。<br>
-        <b>ピックアップ</b>　ピックアップ中のモンスターを引くと、新規でも重複でもソウルが追加でもらえます(★4:+${PICKUP_BONUS_SOULS[4]}　★5:+${PICKUP_BONUS_SOULS[5]})。ソウルで★が上がります(最大★${MAX_STAR})。<br>
-        <b>無形のソウル</b>　出たモンスターの初期★に応じて毎回もらえます(★1:${UNIVERSAL_SOULS[1]}　★2:${UNIVERSAL_SOULS[2]}　★3:${UNIVERSAL_SOULS[3]}　★4:${UNIVERSAL_SOULS[4]}　★5:${UNIVERSAL_SOULS[5]})。<br>
-        <b>保証</b>　10連の10枠目は★${TEN_PULL_MIN_STAR}以上。★4以上が${HIGH_PITY_PULLS}回出なければ確定。召喚ポイントはガチャが変わっても引き継がれます。${banner.key === 'default' ? `<br><b>セレクトピックアップ</b>　常設ガチャ限定で、属性ごとに選んだ★4/★5モンスターがそのレアリティの${Math.round(PICKUP_SHARE * 100)}%を占めます(期間限定バナーには適用されません)。` : ''}
-      </div>
+    <div class="gc-info">
+      <button class="btn btn-ghost btn-sm" data-open-rates="mon">提供割合</button>
+      <button class="btn btn-ghost btn-sm" data-open-recent="mon">最近の結果</button>
     </div>
   `;
 }
@@ -12424,6 +12399,139 @@ function doFriendPull(kind, times){
   render();
 }
 
+/* 提供割合と最近の結果。画面に常駐していると縦に長くなるのでモーダルにした */
+function openRatesModal(kind){
+  const layer = document.getElementById('modal-layer');
+  const W = kind === 'relic' ? RELIC_RARITY_WEIGHTS : RARITY_WEIGHTS;
+  const b = currentBanner();
+  const subs = kind === 'relic' ? [] : (b.featured || []).map(id => MON_BY_ID[id]).filter(m => m && m.rarity === 4);
+  layer.innerHTML = `
+    <div class="result-modal" role="dialog" aria-label="提供割合">
+      <div class="term-top"><h3>提供割合</h3><button class="btn btn-ghost btn-sm" id="close-result">閉じる</button></div>
+      <div class="gc-rates">
+        ${[5, 4, 3, 2, 1].filter(r => W[r]).map(r => `
+          <div class="gc-rate r${r} ${r === 5 ? 'top' : ''}">
+            <div class="gc-rate-star">★${r}</div>
+            <div class="gc-rate-pct">${W[r]}%</div>
+          </div>`).join('')}
+      </div>
+      <div class="gc-rate-note">
+        ピックアップ★${kind === 'relic' ? b.pickup && exclusiveRelicForMon(b.pickup) ? 5 : 5 : 5}　<b>${(W[5] * PICKUP_SHARE).toFixed(2)}%</b>
+        ${subs.length ? `<br>同時ピックアップ★4　<b>各 ${(W[4] * PICKUP_SHARE / subs.length).toFixed(2)}%</b>(${subs.map(m => m.name).join('・')})` : ''}
+        <br>10連の10枠目は★${TEN_PULL_MIN_STAR}以上。★4以上が${HIGH_PITY_PULLS}回出なければ確定します。
+      </div>
+    </div>`;
+  layer.classList.add('show');
+}
+function openRecentModal(kind){
+  const layer = document.getElementById('modal-layer');
+  const list = kind === 'relic'
+    ? (STATE.recentRelicPulls || []).map(id => RELICS[id]).filter(Boolean)
+    : (STATE.recentPulls || []).map(id => MON_BY_ID[id]).filter(Boolean);
+  layer.innerHTML = `
+    <div class="result-modal" role="dialog" aria-label="最近の結果">
+      <div class="term-top"><h3>最近の結果</h3><button class="btn btn-ghost btn-sm" id="close-result">閉じる</button></div>
+      ${list.length ? `<div class="gc-recent">
+        ${list.slice(0, 20).map(m => `
+          <div class="gc-recent-cell r${m.star || m.rarity}">
+            ${m.icon ? `<span class="relic-detail-ic r${m.star}">${m.icon}</span>` : `<img src="${imgSrc(m.id)}" alt="${m.name}">`}
+            <div class="gc-recent-star">★${m.star || m.rarity}</div>
+          </div>`).join('')}
+      </div>` : '<div class="soul-none">まだ引いていません</div>'}
+    </div>`;
+  layer.classList.add('show');
+}
+/* ---- 召喚ポイントショップ ----
+   天井の交換は、ガチャ画面のワンタップのボタンだった。押し間違いが戻せないので、
+   ほかのショップと同じ「一覧から選んで交換する」流れに移した。 */
+let shopQty = {};                       // "店:商品" → 選んでいる個数
+function qtyOf(key, max){ return Math.max(1, Math.min(max, shopQty[key] || 1)); }
+function setQty(key, v, max){
+  const cur = qtyOf(key, max);
+  shopQty[key] = v === 'max' ? max : Math.max(1, Math.min(max, cur + Number(v)));
+  render();
+}
+/* 個数の選びかた(周回の回数と同じ形)。1個しか買えないときは出さない */
+function shopStepperHtml(key, max, costHtml){
+  if(max <= 1) return '';
+  const n = qtyOf(key, max);
+  return `
+    <div class="shop-qty">
+      <button class="sw-step" data-shop-qty="${key}:-10" ${n > 1 ? '' : 'disabled'}>−10</button>
+      <button class="sw-step" data-shop-qty="${key}:-1" ${n > 1 ? '' : 'disabled'}>−</button>
+      <b class="sw-times">${n}<small>個</small></b>
+      <button class="sw-step" data-shop-qty="${key}:1" ${n < max ? '' : 'disabled'}>＋</button>
+      <button class="sw-step" data-shop-qty="${key}:10" ${n < max ? '' : 'disabled'}>＋10</button>
+      <button class="sw-step max ${n === max ? 'on' : ''}" data-shop-qty="${key}:max">最大<small>${max}</small></button>
+    </div>
+    <div class="shop-total">合計 ${costHtml(n)}</div>`;
+}
+/* 並ぶのは、いまピックアップ中のモンスターと、その専用遺物の2つだけ */
+function sparkShopItems(){
+  const b = currentBanner();
+  const mon = MON_BY_ID[b.pickup];
+  const relic = exclusiveRelicForMon(b.pickup);
+  const out = [];
+  if(mon) out.push({ sku:'mon', price:SPARK_POINTS, name:mon.name,
+    sub:`★${mon.rarity}　${ELEM_LABEL[mon.element]}・${ROLE_LABEL[mon.role]}`,
+    ic:`<img class="spark-img" src="${imgSrc(mon.id)}" alt="${mon.name}">`, preview:`data-preview-mon="${mon.id}"`,
+    note:'すでに持っているときはソウルになります',
+    give: () => { const r = grantMonster(mon); return r.isNew ? `「${mon.name}」を仲間にしました!` : `「${mon.name}」のソウルを${r.souls}個`; } });
+  if(relic) out.push({ sku:'relic', price:RELIC_SPARK_POINTS, name:relic.name,
+    sub:`★${relic.star}　「${mon ? mon.name : ''}」専用遺物`,
+    ic:`<span class="relic-detail-ic r${relic.star}">${relic.icon}</span>`, preview:`data-preview-relic="${relic.id}"`,
+    note:'すでに持っているときは共鳴石になります',
+    give: () => { const r = grantRelic(relic); return r.isNew ? `「${relic.name}」を手に入れました!` : `${resoName(relic)}を手に入れました`; } });
+  return out;
+}
+function buySparkItem(sku, times){
+  const item = sparkShopItems().find(x => x.sku === sku);
+  if(!item) return;
+  const max = Math.floor(STATE.summonPoints / item.price);
+  const n = times === 'max' ? max : Math.min(max, Number(times || 1));
+  if(n <= 0){ toast('召喚ポイントが足りません'); return; }
+  STATE.summonPoints -= item.price * n;
+  let last = '';
+  for(let i = 0; i < n; i++) last = item.give();
+  shopQty[`spark:${sku}`] = 1;
+  track('shopBuy');
+  playSfx('buy');
+  toast(n > 1 ? `${item.name}を${n}つ交換しました` : last);
+  saveState();
+  render();
+}
+function renderSparkShopOverlay(){
+  const items = sparkShopItems();
+  return `
+    <div class="ov-screen">
+      ${overlayHead('召喚ポイントショップ')}
+      <div class="ov-body">
+        <div class="screen-sub">ガチャを1回引くごとに<b>召喚ポイント</b>が1たまります。ガチャが変わっても引き継がれます。</div>
+        <div class="sw-stamina"><span class="item-ic">${SPARK_ICON}</span> 召喚ポイント <b>${STATE.summonPoints.toLocaleString()}</b></div>
+        ${items.length ? items.map(it => {
+          const key = `spark:${it.sku}`;
+          const max = Math.floor(STATE.summonPoints / it.price);
+          const n = qtyOf(key, Math.max(1, max));
+          const can = max >= 1;
+          return `
+            <div class="panel spark-card">
+              <div class="shop-row">
+                <span class="shop-item">
+                  <span class="spark-ic" ${it.preview} style="cursor:pointer;">${it.ic}</span>
+                  <span class="shop-item-name">${it.name}<small>${it.sub}</small></span>
+                </span>
+                <span class="shop-price"><span class="ev-cost"><span class="item-ic">${SPARK_ICON}</span>${it.price}</span></span>
+              </div>
+              <div class="sw-note">${it.note}</div>
+              ${shopStepperHtml(key, max, k => `<span class="item-ic">${SPARK_ICON}</span><b class="purple">${(it.price * k).toLocaleString()}</b>　→ 残り ${(STATE.summonPoints - it.price * k).toLocaleString()}`)}
+              <button class="btn btn-block btn-sm ${can ? '' : 'btn-ghost'}" data-spark-buy="${it.sku}:${max > 1 ? n : 1}" ${can ? '' : 'disabled'}>
+                ${can ? `${(it.price * (max > 1 ? n : 1)).toLocaleString()}ポイントで交換する` : `あと ${(it.price - STATE.summonPoints).toLocaleString()}ポイント`}
+              </button>
+            </div>`;
+        }).join('') : '<div class="soul-none">いまは交換できるものがありません</div>'}
+      </div>
+    </div>`;
+}
 function exchangeSpark(){
   if(STATE.summonPoints < SPARK_POINTS){ toast('召喚ポイントが足りません'); return; }
   const mon = MON_BY_ID[currentBanner().pickup];
@@ -19823,7 +19931,7 @@ function handlePhoneClick(ev){
   const shopTabEl = t.closest('[data-shop-tab]');
   if(shopTabEl){ shopTab = shopTabEl.dataset.shopTab; render(); return; }
   const evBuyEl = t.closest('[data-ev-buy]');
-  if(evBuyEl){ const [k, sku] = evBuyEl.dataset.evBuy.split(':'); buyEventShop(k, sku, 1); return; }
+  if(evBuyEl){ const [k, sku, n] = evBuyEl.dataset.evBuy.split(':'); buyEventShop(k, sku, n || 1); return; }
   const openNoticesEl = t.closest('[data-open-notices]');
   if(openNoticesEl){
     const [tab, id] = openNoticesEl.dataset.openNotices.split(':');
@@ -19902,8 +20010,34 @@ function handlePhoneClick(ev){
   if(promoteEl){ promoteMonster(promoteEl.dataset.promote); return; }
   const convertEl = t.closest('[data-convert]');
   if(convertEl){ convertUniversal(convertEl.dataset.convert, Number(convertEl.dataset.count)); return; }
-  if(t.closest('#spark-btn')){ exchangeSpark(); return; }
-  if(t.closest('#relic-spark-btn')){ exchangeRelicSpark(); return; }
+  const sparkQtyEl = t.closest('[data-shop-qty]');
+  if(sparkQtyEl){
+    const raw = sparkQtyEl.dataset.shopQty;
+    const i = raw.lastIndexOf(':');
+    const key = raw.slice(0, i), v = raw.slice(i + 1);
+    let max = 99;
+    if(key.startsWith('spark:')){
+      const it = sparkShopItems().find(x => `spark:${x.sku}` === key);
+      if(it) max = Math.floor(STATE.summonPoints / it.price);
+    }else if(key.startsWith('ev:')){
+      const [, evKey, sku] = key.split(':');
+      const e = EVENTS.find(x => x.key === evKey), md = medalOf(e);
+      const it = e && eventShopItems(e).find(x => x.sku === sku);
+      if(it && md){
+        const rest = evShopLeft(e, it);
+        max = Math.min(rest === null ? 99 : rest, Math.floor(getItem(md.key) / it.price));
+      }
+    }
+    setQty(key, v, Math.max(1, max));
+    return;
+  }
+  const sparkBuyEl = t.closest('[data-spark-buy]');
+  if(sparkBuyEl){ const [sku, n] = sparkBuyEl.dataset.sparkBuy.split(':'); buySparkItem(sku, n); return; }
+  if(t.closest('[data-open-spark-shop]')){ openOverlay('spark'); playSfx('open'); return; }
+  const ratesEl = t.closest('[data-open-rates]');
+  if(ratesEl){ playSfx('open'); openRatesModal(ratesEl.dataset.openRates); return; }
+  const recentEl = t.closest('[data-open-recent]');
+  if(recentEl){ playSfx('open'); openRecentModal(recentEl.dataset.openRecent); return; }
 
   // party screen: slot action menu
   const actionEl = t.closest('[data-slot-action]');
@@ -21387,6 +21521,7 @@ function renderOverlay(){
     : overlayView === 'friends' ? renderFriendsOverlay()
     : overlayView === 'friend-profile' ? renderFriendProfileOverlay()
     : overlayView === 'gifts' ? renderGiftsOverlay()
+    : overlayView === 'spark' ? renderSparkShopOverlay()
     : renderPickOverlay();
   el.classList.add('show');
 }
