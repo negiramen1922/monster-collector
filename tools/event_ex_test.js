@@ -5,7 +5,8 @@
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   EVENTS, STAGE_BY_ID, MON_BY_ID, stageRulesOf, speciesOf, kitOf, EX_UNLOCK_TIER, EVENT_EX, EVENT_EX_RULES,
-  STAGE_RULE_WHEN, get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
+  STAGE_RULE_WHEN, MONSTER_KITS, preferredRow, shieldTotal, DEFAULT_STATE,
+  get STATE(){ return STATE }, set STATE(v){ STATE = v },
 };`);
 const E = global.__e;
 let ng = 0;
@@ -21,10 +22,11 @@ console.log('--- 1. EXのかたち ---');
   ok(`  ステージ${E.EX_UNLOCK_TIER}クリアで開く`, e.exStages.every(s => s.requires === `${k}_${E.EX_UNLOCK_TIER}`));
   ok('  スタミナを使わない', e.exStages.every(s => s.stamina === 0));
   ok('  推奨Lvは 80 / 200 / 300', e.exStages.map(s => s.rec).join() === '80,200,300', e.exStages.map(s => s.rec));
-  // ソウルが出るので、1面に出る敵の種類は10体まで(docs/design/イベントステージの作り方.md)
+  // ソウルが出るので、顔ぶれは広げすぎず絞りすぎず(docs/design/イベントステージの作り方.md)。
+  // 13枠のうち、守り役を各ウェーブに置くと自然に11〜12種になる
   e.exStages.forEach(s => {
     const u = new Set(s.waves.flat().map(x => x.ref));
-    ok(`  ${s.name}: 敵の種類は10体まで`, u.size <= 10, u.size);
+    ok(`  ${s.name}: 敵の種類は8〜13`, u.size >= 8 && u.size <= 13, u.size);
   });
   ok('  主役がEXのボス', e.exStages.every(s => s.waves.slice(-1)[0].some(x => x.boss && x.ref === e.pickup)));
 });
@@ -44,8 +46,9 @@ console.log('\n--- 2. 効果が空振りしていないこと ---');
   ok('  九尾: やけどの敵へ+50%(whenTarget)', rules.some(r => r.whenTarget === 'burned' && r.dmgDealt === 0.5));
   ok('  九尾: デーモンの味方 HP+50%', rules.some(r => r.who && r.who.species === 'demon' && r.stat && r.stat.hp === 0.5));
   ok('  九尾: シューターの味方 STR+50%', rules.some(r => r.who && r.who.role === 'shooter' && r.stat && r.stat.str === 0.5));
-  ok('  九尾: 敵の物理防御+40ポイント', rules.some(r => r.side === 'enemy' && r.stat && r.stat.pdef === 40));
-  ok('  九尾: 敵SPD+50%', rules.some(r => r.side === 'enemy' && r.stat && r.stat.spd === 0.5));
+  const kr = n => E.stageRulesOf(k.exStages[n - 1]);
+  ok('  九尾: 敵SPD+50% はEX2から', !kr(1).some(r => r.stat && r.stat.spd === 0.5) && kr(2).some(r => r.side === 'enemy' && r.stat && r.stat.spd === 0.5));
+  ok('  九尾: 敵の物理防御+40ポイントはEX3から', !kr(2).some(r => r.stat && r.stat.pdef === 40) && kr(3).some(r => r.side === 'enemy' && r.stat && r.stat.pdef === 40));
 }
 {
   // タイタン: 「敵のシールド効果量+100%」は、シールドを張る敵がいないと空振りする
@@ -59,9 +62,10 @@ console.log('\n--- 2. 効果が空振りしていないこと ---');
   const rules = E.stageRulesOf(t.exStages[0]);
   ok('  タイタン: シールド中の味方 与ダメ+50%', rules.some(r => r.when === 'shielded' && r.dmgDealt === 0.5));
   ok('  タイタン: ドワーフの味方 HP・STR+50%', rules.some(r => r.who && r.who.species === 'dwarf' && r.stat && r.stat.hp === 0.5 && r.stat.str === 0.5));
-  ok('  タイタン: 敵のシールド+100%', rules.some(r => r.side === 'enemy' && r.shield === 1));
-  ok('  タイタン: 敵が気絶にかからない', rules.some(r => r.immune && r.immune.includes('stun')));
-  ok('  タイタン: 敵がやけど・毒にかからない', rules.some(r => r.immune && r.immune.includes('burn') && r.immune.includes('poison')));
+  const tr = n => E.stageRulesOf(t.exStages[n - 1]);
+  ok('  タイタン: 状態異常が効かないのはEX2から', !tr(1).some(r => r.immune) && tr(2).some(r => r.immune && ['stun', 'burn', 'poison'].every(x => r.immune.includes(x))));
+  ok('  タイタン: 敵のシールド+100%はEX3から', !tr(2).some(r => r.shield === 1) && tr(3).some(r => r.side === 'enemy' && r.shield === 1));
+  ok('  タイタン: シールドが無い味方は被ダメ+50%', tr(1).some(r => r.when === 'unshielded' && r.dmgTaken === 0.5));
   // 敵にドワーフが多いと「ドワーフの味方+50%」が相手にも見えて紛らわしいので、味方向けだと分かること
   ok('  ドワーフの効果は味方だけ', rules.find(r => r.who && r.who.species === 'dwarf').side === 'ally');
 }
@@ -70,10 +74,14 @@ console.log('\n--- 2. 効果が空振りしていないこと ---');
 console.log('\n--- 3. EX3だけ段差がある ---');
 ['ev_kyubi', 'ev_titan'].forEach(k => {
   const e = ev(k), [ex1, ex2, ex3] = e.exStages;
-  ok(`  ${k}: EX1とEX2のルールは同じ`, JSON.stringify(ex1.rules) === JSON.stringify(ex2.rules));
-  ok(`  ${k}: EX3だけルールが1つ多い`, ex3.rules.length === ex1.rules.length + 1, [ex1.rules.length, ex3.rules.length]);
-  const extra = ex3.rules[ex3.rules.length - 1];
-  ok(`  ${k}: 追加は敵の強化で、EX3のみと書いてある`, extra.side === 'enemy' && /EX3のみ/.test(extra.label), extra.label);
+  ok(`  ${k}: EX2でルールが増える`, ex2.rules.length > ex1.rules.length, [ex1.rules.length, ex2.rules.length]);
+  ok(`  ${k}: EX3でさらに増える`, ex3.rules.length > ex2.rules.length, [ex2.rules.length, ex3.rules.length]);
+  ok(`  ${k}: 増えるぶんは全部「敵側」`,
+     ex3.rules.slice(ex1.rules.length).every(r => r.side === 'enemy'),
+     ex3.rules.slice(ex1.rules.length).map(r => r.label));
+  ok(`  ${k}: 増えたルールに「EX2から」「EX3から」と書いてある`,
+     ex3.rules.slice(ex1.rules.length).every(r => /^EX[23]から/.test(r.label || '')),
+     ex3.rules.slice(ex1.rules.length).map(r => r.label));
   // 雑魚の★もEX3だけ上がる
   const mobStar = s => Math.max(...s.waves.flat().filter(x => !x.boss).map(x => x.star));
   ok(`  ${k}: EX3の雑魚は★8`, mobStar(ex3) === 8, [mobStar(ex1), mobStar(ex2), mobStar(ex3)]);
@@ -94,3 +102,52 @@ console.log('\n--- 4. 書きかた ---');
 
 console.log(ng ? `\n${ng}件 NG` : '\ndone');
 if(ng) process.exitCode = 1;
+
+
+/* ---- 編成の決まり(α0.3.010で決めたもの) ---- */
+console.log('\n--- 編成の決まり ---');
+const SHAPE = [4, 4, 5];
+const guards = id => { const t = JSON.stringify(E.MONSTER_KITS[id]); return /"taunt"|"redirect"/.test(t); };
+['ev_kyubi', 'ev_titan'].forEach(k => {
+  const e = ev(k);
+  e.exStages.forEach((st, ti) => {
+    st.waves.forEach((w, wi) => {
+      const where = `${k} EX${ti + 1} W${wi + 1}`;
+      ok(`${where}: 4-4-5 の体数`, w.length === SHAPE[wi], w.length);
+      // 配置はデータに書いてあること(ロール任せにすると前衛ゼロのウェーブができる)
+      ok(`${where}: 全員の配置が書いてある`, w.every(x => x.row === 'front' || x.row === 'back'), w.map(x => x.row));
+      const front = w.filter(x => x.row === 'front');
+      ok(`${where}: 前衛が2体以上`, front.length >= 2, front.length);
+      ok(`${where}: 前衛に挑発かかばう持ちがいる`, front.some(x => guards(x.ref)),
+         front.map(x => E.MON_BY_ID[x.ref].name));
+    });
+    const last = st.waves[st.waves.length - 1];
+    ok(`${k} EX${ti + 1}: 最終ウェーブの先頭が主役(ボス)`, last[0].boss && last[0].ref === e.pickup,
+       E.MON_BY_ID[last[0].ref].name);
+    ok(`${k} EX${ti + 1}: ボスは1体だけ`, st.waves.flat().filter(x => x.boss).length === 1);
+  });
+});
+
+/* ---- ルールが段ごとに増える(減らない) ---- */
+console.log('\n--- ルールは段ごとに増える ---');
+['ev_kyubi', 'ev_titan'].forEach(k => {
+  const e = ev(k);
+  const labels = e.exStages.map(st => E.stageRulesOf(st).map(r => r.label));
+  ok(`${k}: EX1は味方側のルールだけ`, E.stageRulesOf(e.exStages[0]).every(r => r.side !== 'enemy'),
+     labels[0]);
+  for(let i = 1; i < 3; i++){
+    ok(`${k}: EX${i + 1}はEX${i}のルールを全部持っている`,
+       labels[i - 1].every(l => labels[i].includes(l)), { 前: labels[i - 1], 後: labels[i] });
+    ok(`${k}: EX${i + 1}でルールが増えている`, labels[i].length > labels[i - 1].length,
+       [labels[i - 1].length, labels[i].length]);
+  }
+});
+ok('シールドが無いときの判定がある', typeof E.STAGE_RULE_WHEN.unshielded === 'function');
+ok('  シールド0なら当てはまる', E.STAGE_RULE_WHEN.unshielded({ shields: [] }) === true);
+ok('巨神の遺跡に「シールドが無いあいだ 受けるダメージ+50%」がある',
+   E.stageRulesOf(ev('ev_titan').exStages[0]).some(r => r.when === 'unshielded' && r.dmgTaken === 0.5));
+ok('狐火の祭壇のやけどのルールは敵にも効く',
+   E.stageRulesOf(ev('ev_kyubi').exStages[0]).some(r => r.whenTarget === 'burned' && r.side === 'both'));
+
+console.log(ng ? `\n${ng}件失敗` : '\nすべて通過');
+process.exit(ng ? 1 : 0);
