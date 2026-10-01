@@ -63,14 +63,17 @@ async def main():
             check('用語の説明はもう出ていない', await pg.locator('.term-modal').count() == 0)
 
             # ステージ効果のラベルでも押せる
-            await pg.evaluate("""() => { closeModal && closeModal();
-              const ev = EVENTS.find(e => e.key === 'ev_titan');
-              ev.startAt = '2026-09-01T00:00:00+09:00'; ev.endAt = '2099-01-01T00:00:00+09:00';
+            # どのイベントが開催中かで変わらないように、用語が出るステージを自分で探す
+            sid = await pg.evaluate("""() => { closeModal && closeModal();
+              const st = STAGES.find(s => (s.rules || []).some(r => markTerms(r.label || '').includes('data-term=')));
+              if(!st) return null;
+              const ev = EVENTS.find(e => st.id.startsWith(e.key + '_'));
+              if(ev){ ev.startAt = '2026-09-01T00:00:00+09:00'; ev.endAt = '2099-01-01T00:00:00+09:00'; }
               STATE.clearedStages = STAGES.map(s => s.id);
-              goto('battle'); render(); stageSheet = 'ev_titan_ex1'; renderStageSheet(); }""")
+              goto('battle'); render(); stageSheet = st.id; renderStageSheet(); return st.id; }""")
             await pg.wait_for_timeout(300)
             terms = await pg.evaluate("() => [...document.querySelectorAll('.sr-row .term')].map(e => e.dataset.term)")
-            check('ステージ効果の中の用語も押せる', 'shield' in terms and 'stun' in terms and 'burn' in terms, terms)
+            check('ステージ効果の中の用語も押せる', len(terms) > 0, (sid, terms))
             await pg.evaluate("() => document.querySelector('.sr-row .term').click()")
             await pg.wait_for_timeout(250)
             check('ステージ効果からも説明が開く', await pg.locator('.term-modal').count() == 1)

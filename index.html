@@ -9839,7 +9839,7 @@ const EVENT_EX_RULES = {
     rules: [
       { side:'both',  dmgTaken:0.50, when:'lowHp30',  label:'敵も味方も HPが30%以下のとき 受けるダメージ+50%' },
       { side:'enemy', stat:{ hp:0.50 },               label:'敵 最大HP+50%' },
-      { side:'enemy', stat:{ mdef:0.40 },             label:'敵 魔法防御+8%' },
+      { side:'enemy', stat:{ mdef:8 },               label:'敵 魔法防御+8%' },
       { who:{ element:'light' }, side:'ally', dmgDealt:-0.30, label:'光属性の味方 与ダメージ-30%' },
       { who:{ element:'dark' },  side:'ally', dmgTaken:-0.20, label:'闇属性の味方 受けるダメージ-20%' },
     ],
