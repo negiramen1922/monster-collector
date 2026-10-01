@@ -3180,7 +3180,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.016';
+const GAME_VERSION = 'α0.3.017';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5776,29 +5776,38 @@ function renderSkillUpgradePreview(lines){
     ${lines.map(l => `<div class="su-preview-row"><span class="su-preview-name">${l.name}</span><span>${l.before}${l.unit || '%'} → <b class="lv-scale-val">${l.after}${l.unit || '%'}</b></span></div>`).join('')}
   </div>`;
 }
-function upgradeSkillLevel(id, field){
+// opts.stay: 強化画面を開いたままにする(キャラ詳細へ戻さない)。成功したら true
+function upgradeSkillLevel(id, field, opts){
   const owned = STATE.owned[id];
   const m = MON_BY_ID[id];
-  if(!owned || !m) return;
-  if(owned[field] >= skillCapOf(owned)){ toast(`${SKILL_KINDS[field].label}は上限です`); return; }
+  if(!owned || !m) return false;
+  if(owned[field] >= skillCapOf(owned)){ toast(`${SKILL_KINDS[field].label}は上限です`); return false; }
   const list = skillCostList(m, field, owned[field]);
   const short = list.find(c => getItem(c.key) < c.n);
-  if(short){ toast(`${itemName(short.key)}が足りません`); return; }
+  if(short){ toast(`${itemName(short.key)}が足りません`); return false; }
   list.forEach(c => addItem(c.key, -c.n));
   owned[field] += 1;
   if(field === 'skillLv' || field === 'skill2Lv') track('skillUp');
   track('upgrade');
   playSfx('skillUp');
   saveState();
-  showMonsterDetail(id);
+  if(!(opts && opts.stay)) showMonsterDetail(id);
   render();
+  return true;
 }
 
 // skill/passive/ult level-up confirm modal: the material list can run to 6-8 chips
 // (2 families × up to 4 tiers), which used to overflow the inline upgrade button.
 let skillUpgradeModal = null; // { id, field } while this modal is open
 let skillUpgradeShort = null; // which cost chip's box/quest shortcuts are expanded
+// キャラ詳細のどこを見ていたか。強化画面を閉じたときに、一番上ではなく同じ場所へ戻すため
+let detailScrollMemo = null;   // { id, top }
+function rememberDetailScroll(id){
+  const el = document.querySelector('#modal-layer .detail-modal');
+  detailScrollMemo = el && el.dataset.mon === id ? { id, top: el.scrollTop } : null;
+}
 function openSkillUpgradeModal(id, field){
+  rememberDetailScroll(id);
   skillUpgradeModal = { id, field };
   skillUpgradeShort = null;
   renderSkillUpgradeModal();
@@ -5824,7 +5833,8 @@ function renderSkillUpgradeModal(){
   layer.innerHTML = `
     <div class="result-modal skill-up-modal" role="dialog" aria-label="${SKILL_KINDS[field].label}アップ">
       <button class="fs-close" data-close-skill-up="1" aria-label="閉じる">×</button>
-      <h3>${SKILL_KINDS[field].label} Lv${lv} → Lv${lv + 1}</h3>
+      <h3>${maxed ? `${SKILL_KINDS[field].label} Lv${lv}` : `${SKILL_KINDS[field].label} Lv${lv} → Lv${lv + 1}`}</h3>
+      ${skillUpgradeModal.flash ? `<div class="rd-flash">${skillUpgradeModal.flash}</div>` : ''}
       ${maxed ? `<p class="fs-note">これ以上は上げられません。</p>` : `
       ${preview || '<p class="fs-note">このレベルアップでは効果量は変わりません(発動条件などは変わりません)</p>'}
       <p class="fs-note">消費素材(タップでショートカット)</p>
@@ -13972,7 +13982,9 @@ function showMonsterDetail(id){
 
   const layer = document.getElementById('modal-layer');
   const openNow = layer.querySelector('.detail-modal');
-  const keepScroll = openNow && openNow.dataset.mon === id ? openNow.scrollTop : 0;
+  const memo = detailScrollMemo && detailScrollMemo.id === id ? detailScrollMemo.top : 0;
+  detailScrollMemo = null;
+  const keepScroll = openNow && openNow.dataset.mon === id ? openNow.scrollTop : memo;
   layer.innerHTML = `
     <div class="result-modal detail-modal" data-mon="${id}">
       <button class="detail-close" data-close-detail="1">×</button>
@@ -19929,9 +19941,13 @@ function handlePhoneClick(ev){
   if(skillUpgradeModal){
     if(t.closest('[data-close-skill-up]')){ closeSkillUpgradeModal(); return; }
     if(t.closest('[data-confirm-skill-up]')){
+      // 強化しても画面は閉じない(続けて上げられる)。閉じるとキャラ詳細の同じ場所に戻る
       const { id, field } = skillUpgradeModal;
-      skillUpgradeModal = null;
-      upgradeSkillLevel(id, field);
+      const before = STATE.owned[id] ? STATE.owned[id][field] : 0;
+      if(upgradeSkillLevel(id, field, { stay: true })){
+        skillUpgradeModal.flash = `${SKILL_KINDS[field].label} ${before} → ${before + 1} に上がりました!`;
+        renderSkillUpgradeModal();
+      }
       return;
     }
     const costToggleEl = t.closest('[data-cost-toggle]');
@@ -20784,6 +20800,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 143, version: 'α0.3.017', date: '10/1', title: 'スキル強化の画面を閉じずに続けて上げられるように', body: '<span class="nt-i">・スキル・必殺技・パッシブの強化で「レベルアップする」を押しても、<em>強化の画面は閉じなくなりました</em>。そのまま続けて上げられます。</span><span class="nt-i">・強化の画面を閉じると、キャラ詳細の一番上ではなく、<em>開く前に見ていた場所</em>に戻ります。</span>' },
   { id: 142, version: 'α0.3.016', date: '10/1', title: 'ルーン詳細をスクロール少なめに', body: '<span class="nt-i">・ルーン詳細を「アイコン・名前・メイン効果 → サブ効果 → 合成する / 分解する」の順に並べ直し、ほとんどスクロールせずに見られるようにしました。</span><span class="nt-i">・サブ効果の各行の右に<em>🎲 振り直す</em>ボタンを置きました。</span><span class="nt-i">・ロックは右上の<em>鍵のボタン</em>をタップしてON/OFFを切り替えます(ONのときは金色)。</span><span class="nt-i">・「合成する」を押すと、持っているルーンから材料を選ぶ合成の画面に切り替わります(中身はこれまでと同じ)。「ルーン詳細に戻る」で戻れます。</span>' },
   { id: 141, version: 'α0.3.015', date: '10/1', title: 'ルーン・遺物の一覧は顔だけに', body: '<span class="nt-i">・ルーン・遺物を選ぶ一覧の右端は、装備しているキャラの<em>顔だけ</em>にしました(名前はなし)。いま付けている遺物は一番上で、顔の枠が金色です。</span>' },
   { id: 140, version: 'α0.3.014', date: '10/1', title: '遺物の一覧で、いま付けている遺物にも顔を表示', body: '<span class="nt-i">・一番上に出る「いま付けている遺物」にも、右端にその子の顔と名前を出すようにしました(顔の枠は金色)。</span>' },
