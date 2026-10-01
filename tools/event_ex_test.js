@@ -13,6 +13,10 @@ let ng = 0;
 const ok = (name, cond, info) => { console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); if(!cond) ng++; };
 api.STATE = E.DEFAULT_STATE();
 const ev = k => E.EVENTS.find(e => e.key === k);
+/* ルールは2種類ある:
+   ・ギミック … 段ごとに1つずつ増える(減らない)。EX1は味方側だけ
+   ・ステータス調整 … 敵の最大HP・STRの1行。段ごとに置き換わる(難しさのつまみ) */
+const isDial = r => /敵 最大HP/.test(r.label || '');
 
 /* ---- 1. かたち ---- */
 console.log('--- 1. EXのかたち ---');
@@ -61,27 +65,29 @@ console.log('\n--- 2. 効果が空振りしていないこと ---');
   });
   const rules = E.stageRulesOf(t.exStages[0]);
   ok('  タイタン: シールド中の味方 与ダメ+50%', rules.some(r => r.when === 'shielded' && r.dmgDealt === 0.5));
-  ok('  タイタン: ドワーフの味方 HP・STR+50%', rules.some(r => r.who && r.who.species === 'dwarf' && r.stat && r.stat.hp === 0.5 && r.stat.str === 0.5));
+  // ★3のドワーフを並べても★5編成に追いつけるように+100%にしてある(+50%だとEX3が5%しか勝てなかった)
+  ok('  タイタン: ドワーフの味方 HP・STR+100%', rules.some(r => r.who && r.who.species === 'dwarf' && r.stat && r.stat.hp === 1 && r.stat.str === 1));
   const tr = n => E.stageRulesOf(t.exStages[n - 1]);
   ok('  タイタン: 状態異常が効かないのはEX2から', !tr(1).some(r => r.immune) && tr(2).some(r => r.immune && ['stun', 'burn', 'poison'].every(x => r.immune.includes(x))));
   ok('  タイタン: 敵のシールド+100%はEX3から', !tr(2).some(r => r.shield === 1) && tr(3).some(r => r.side === 'enemy' && r.shield === 1));
   ok('  タイタン: シールドが無い味方は被ダメ+50%', tr(1).some(r => r.when === 'unshielded' && r.dmgTaken === 0.5));
   // 敵にドワーフが多いと「ドワーフの味方+50%」が相手にも見えて紛らわしいので、味方向けだと分かること
   ok('  ドワーフの効果は味方だけ', rules.find(r => r.who && r.who.species === 'dwarf').side === 'ally');
+  ok('  デーモン・シューターの効果も味方だけ',
+     E.stageRulesOf(ev('ev_kyubi').exStages[0]).filter(r => r.who).every(r => r.side === 'ally'));
 }
 
 /* ---- 3. EX3だけの追加ルール ---- */
 console.log('\n--- 3. EX3だけ段差がある ---');
 ['ev_kyubi', 'ev_titan'].forEach(k => {
   const e = ev(k), [ex1, ex2, ex3] = e.exStages;
-  ok(`  ${k}: EX2でルールが増える`, ex2.rules.length > ex1.rules.length, [ex1.rules.length, ex2.rules.length]);
-  ok(`  ${k}: EX3でさらに増える`, ex3.rules.length > ex2.rules.length, [ex2.rules.length, ex3.rules.length]);
-  ok(`  ${k}: 増えるぶんは全部「敵側」`,
-     ex3.rules.slice(ex1.rules.length).every(r => r.side === 'enemy'),
-     ex3.rules.slice(ex1.rules.length).map(r => r.label));
+  const nGim = st => E.stageRulesOf(st).filter(r => !isDial(r)).length;
+  ok(`  ${k}: EX2でギミックが増える`, nGim(ex2) > nGim(ex1), [nGim(ex1), nGim(ex2)]);
+  ok(`  ${k}: EX3でさらに増える`, nGim(ex3) > nGim(ex2), [nGim(ex2), nGim(ex3)]);
+  const added = E.stageRulesOf(ex3).filter(r => !isDial(r) && !E.stageRulesOf(ex1).some(x => x.label === r.label));
+  ok(`  ${k}: 増えるぶんは全部「敵側」`, added.every(r => r.side === 'enemy'), added.map(r => r.label));
   ok(`  ${k}: 増えたルールに「EX2から」「EX3から」と書いてある`,
-     ex3.rules.slice(ex1.rules.length).every(r => /^EX[23]から/.test(r.label || '')),
-     ex3.rules.slice(ex1.rules.length).map(r => r.label));
+     added.every(r => /^EX[23]から/.test(r.label || '')), added.map(r => r.label));
   // 雑魚の★もEX3だけ上がる
   const mobStar = s => Math.max(...s.waves.flat().filter(x => !x.boss).map(x => x.star));
   ok(`  ${k}: EX3の雑魚は★8`, mobStar(ex3) === 8, [mobStar(ex1), mobStar(ex2), mobStar(ex3)]);
@@ -132,15 +138,21 @@ const guards = id => { const t = JSON.stringify(E.MONSTER_KITS[id]); return /"ta
 console.log('\n--- ルールは段ごとに増える ---');
 ['ev_kyubi', 'ev_titan'].forEach(k => {
   const e = ev(k);
-  const labels = e.exStages.map(st => E.stageRulesOf(st).map(r => r.label));
-  ok(`${k}: EX1は味方側のルールだけ`, E.stageRulesOf(e.exStages[0]).every(r => r.side !== 'enemy'),
-     labels[0]);
+  const gim = e.exStages.map(st => E.stageRulesOf(st).filter(r => !isDial(r)).map(r => r.label));
+  ok(`${k}: EX1のギミックは味方側だけ`,
+     E.stageRulesOf(e.exStages[0]).filter(r => !isDial(r)).every(r => r.side !== 'enemy'), gim[0]);
   for(let i = 1; i < 3; i++){
-    ok(`${k}: EX${i + 1}はEX${i}のルールを全部持っている`,
-       labels[i - 1].every(l => labels[i].includes(l)), { 前: labels[i - 1], 後: labels[i] });
-    ok(`${k}: EX${i + 1}でルールが増えている`, labels[i].length > labels[i - 1].length,
-       [labels[i - 1].length, labels[i].length]);
+    ok(`${k}: EX${i + 1}はEX${i}のギミックを全部持っている`,
+       gim[i - 1].every(l => gim[i].includes(l)), { 前: gim[i - 1], 後: gim[i] });
+    ok(`${k}: EX${i + 1}でギミックが増えている`, gim[i].length > gim[i - 1].length,
+       [gim[i - 1].length, gim[i].length]);
   }
+  // どの段にも「敵の最大HP・STR」の行がちょうど1つある
+  e.exStages.forEach((st, i) => {
+    const dials = E.stageRulesOf(st).filter(isDial);
+    ok(`${k} EX${i + 1}: 敵のHP・STRの行がちょうど1つ`, dials.length === 1, dials.map(r => r.label));
+    ok(`${k} EX${i + 1}: その行は敵側`, dials[0] && dials[0].side === 'enemy');
+  });
 });
 ok('シールドが無いときの判定がある', typeof E.STAGE_RULE_WHEN.unshielded === 'function');
 ok('  シールド0なら当てはまる', E.STAGE_RULE_WHEN.unshielded({ shields: [] }) === true);
