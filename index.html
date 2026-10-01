@@ -8405,7 +8405,7 @@ const BATTLE_V2_SP_KILL    = 25;     // 撃破(旧は15)
 const BATTLE_V2_HIT_CAP    = 60;     // 被弾SPの1ラウンド上限(旧は10)
 const BATTLE_V2_ULT_ADJ    = { tank: -30, shooter: -20 };   // 奥義の必要SP
 const BATTLE_V2_ULT_MIN    = 40;
-const BATTLE_V2_MOB_LV     = 10;     // ボス以外の敵は推奨レベル-10
+const WAVE_LV_RAMP         = 1 / 6;  // 最終ウェーブ=推奨Lv、第1ウェーブはそこから比で下げる(推奨300なら-50)
 const BATTLE_V2_SHIELD_CAP = 1.0;    // シールドの上限(旧は0.5)
 const BATTLE_V2_BP_HP      = 0.3;    // BPのHPの重み(旧は0.6)。HP2倍ぶんを表示で打ち消す
 const BATTLE_V2_CLEAR_CRYSTAL = { main: 10, event: 20 };    // テスト協力のお礼
@@ -9952,8 +9952,10 @@ function abyssRng(seed){
 const ABYSS_MAX_ENEMY_LV = 999;
 // 49階でLv300。そこから先も1階ごとに+3ずつ上がり続ける(プレイヤーは遺物・シナジーの分だけ上乗せがあるため)
 function abyssEnemyLevel(floor){
-  if(floor <= 49) return 55 + 5 * floor;
-  return Math.min(ABYSS_MAX_ENEMY_LV, 300 + 3 * (floor - 49));
+  // 1ウェーブなので敵はいつも推奨レベルちょうど。ウェーブ制になる前は推奨-10で戦っていたので、
+  // 到達階が変わらないように10下げてある
+  if(floor <= 49) return 45 + 5 * floor;
+  return Math.min(ABYSS_MAX_ENEMY_LV, 290 + 3 * (floor - 49));
 }
 function abyssEnemyStar(floor){
   if(floor <= 50) return 3 + Math.floor((floor - 1) / 17);
@@ -10136,7 +10138,7 @@ function renderAbyssRewardChart(a){
     rows.push(`<li class="ab-tl-row ${cls} ${f % 25 === 0 ? 'big' : ''}">
       <span class="ab-tl-dot">${done ? '✓' : ''}</span>
       <div class="ab-tl-body">
-        <div class="ab-tl-floor">${f}階${f % 25 === 0 ? '<span class="ab-tl-tag">大報酬</span>' : ''}${f === nextMilestone && !done ? '<span class="ab-tl-tag next">次のボス</span>' : ''}<small>敵Lv${abyssEnemyLevel(f) + 2}</small></div>
+        <div class="ab-tl-floor">${f}階${f % 25 === 0 ? '<span class="ab-tl-tag">大報酬</span>' : ''}${f === nextMilestone && !done ? '<span class="ab-tl-tag next">次のボス</span>' : ''}<small>敵Lv${abyssEnemyLevel(f)}</small></div>
         <div class="ab-reward">${rewardHtml(mergeRewardList(abyssFloorReward(f).slice(2)))}</div>
       </div>
     </li>`);
@@ -14459,7 +14461,7 @@ function renderStageSheet(){
   const st = findStage(stageSheet);
   if(!st) return;
   const daily = ensureDaily();
-  const levels = st.waves.flat().map(e => e.level);
+  const levels = stageEnemyLevels(st);
   const boss = st.boss ? bossOf(st) : null;
   const enemyIds = [...new Set(st.waves.flat().filter(e => !e.boss).map(e => e.ref))];
   const enemyElems = [...new Set(st.waves.flat().map(e => MON_BY_ID[e.ref].element))].filter(e => e !== 'none');
@@ -15237,6 +15239,22 @@ function rollWaveEntries(stage, waveIndex){
   return entries;
 }
 
+/* ウェーブが進むごとに敵のレベルが上がる。最終ウェーブがちょうど推奨レベルで、
+   第1ウェーブはそこから WAVE_LV_RAMP ぶん下(推奨300なら250)。
+   「-50」のような固定値だと推奨Lv1〜28のステージが全部Lv1に潰れるので、推奨レベルに対する比で下げる。
+   ボスも最終ウェーブのレベルなので、推奨Lv = ボスのレベル = 最終ウェーブのレベル で一本になる。
+   深淵回廊は1ウェーブなので、いつも推奨レベルちょうど。
+   ステージデータの level は旧バトルシステム用にそのまま残してある */
+function waveEnemyLv(stage, waveIndex){
+  const rec = Math.max(1, stage.rec || 1), n = (stage.waves || []).length || 1;
+  const t = n <= 1 ? 1 : waveIndex / (n - 1);
+  return Math.max(1, Math.round(rec * (1 - WAVE_LV_RAMP * (1 - t))));
+}
+/* ステージ画面の「敵Lv◯〜◯」用 */
+function stageEnemyLevels(stage){
+  const waves = stage.waves || [];
+  return battleV2() ? waves.map((w, i) => waveEnemyLv(stage, i)) : waves.flat().map(e => e.level);
+}
 function spawnWave(stage, waveIndex){
   const f = waveFormationOf(stage, waveIndex);
   const entries = rollWaveEntries(stage, waveIndex);
@@ -15246,12 +15264,12 @@ function spawnWave(stage, waveIndex){
   slots.forEach((e, i) => {
     if(!e) return;
     const sk = stage.enemySkill || 1;
-    // 新バトルシステム: ボスだけが推奨レベルどおり。取り巻きはそれより下
-    const lv = battleV2() && !e.boss ? Math.max(1, (e.level || 1) - BATTLE_V2_MOB_LV) : e.level;
+    // 新バトルシステム: ウェーブごとに上がり、最終ウェーブが推奨レベル
+    const lv = battleV2() ? waveEnemyLv(stage, waveIndex) : e.level;
     const u = buildUnit(MON_BY_ID[e.ref], lv, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: sk });
     u.rare = !!e.rare;
     u.gimmick = e.gimmick || null;
-    u.levelHint = e.level;
+    u.levelHint = lv;
     u.slot = i;
     u.row = slotRowIn(f, i);
     u.x = slotX(f, i);
