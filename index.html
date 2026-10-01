@@ -2657,9 +2657,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rpk-name{ font-size:13px; font-weight:900; margin-bottom:3px; }
 .rpk-name small{ font-size:10px; color:var(--dim); font-weight:700; }
 .rpk-subs .rune-sub{ font-size:10px; margin-bottom:2px; }
-.eq-who{ flex:none; width:54px; display:flex; flex-direction:column; align-items:center; gap:1px; margin-left:auto; position:relative; }
+.eq-who{ flex:none; width:46px; display:flex; flex-direction:column; align-items:center; gap:1px; margin-left:auto; position:relative; }
 .eq-who img{ width:40px; height:40px; border-radius:9px; object-fit:cover; background:#2a2346; border:1px solid #ffb35a; }
-.eq-who small{ font-size:9.5px; font-weight:800; max-width:54px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
 .eq-who.self img{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(232,180,85,.35); }
 .eq-who.self i{ background:var(--gold); }
 .eq-who i{ position:absolute; top:-5px; left:50%; transform:translateX(-50%); font-style:normal; font-size:8px; font-weight:900;
@@ -3173,7 +3172,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.014';
+const GAME_VERSION = 'α0.3.015';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7630,13 +7629,13 @@ function renderRunePicker(){
     </div>`;
   layer.classList.add('show');
 }
-// 装備を選ぶ一覧の右端: 装備しているキャラの顔と名前。
+// 装備を選ぶ一覧の右端: 装備しているキャラの顔(名前は出さない。長押し/ホバーで名前)。
 // いま見ている子の装備は一覧の一番上に出し、顔の枠を金色にする(「この子」などの文字は出さない)
 function equipWhoHtml(monId, self){
   const m = MON_BY_ID[monId];
   if(!m) return '';
   return `<span class="eq-who ${self ? 'self' : ''}" title="${m.name}が装備中">
-    <img src="${imgSrc(monId)}" alt=""><small>${m.name}</small><i>装備中</i></span>`;
+    <img src="${imgSrc(monId)}" alt="${m.name}"><i>装備中</i></span>`;
 }
 function pickRune(uid){
   const p = runePicker;
@@ -20758,6 +20757,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 141, version: 'α0.3.015', date: '10/1', title: 'ルーン・遺物の一覧は顔だけに', body: '<span class="nt-i">・ルーン・遺物を選ぶ一覧の右端は、装備しているキャラの<em>顔だけ</em>にしました(名前はなし)。いま付けている遺物は一番上で、顔の枠が金色です。</span>' },
   { id: 140, version: 'α0.3.014', date: '10/1', title: '遺物の一覧で、いま付けている遺物にも顔を表示', body: '<span class="nt-i">・一番上に出る「いま付けている遺物」にも、右端にその子の顔と名前を出すようにしました(顔の枠は金色)。</span>' },
   { id: 139, version: 'α0.3.013', date: '10/1', title: '遺物の一覧で、いま付けている遺物を一番上に', body: '<span class="nt-i">・遺物を選ぶ一覧で、いま見ている子が付けている遺物を<em>一番上</em>に、金色の枠で出すようにしました。「この子」の表示はなくしました。</span><span class="nt-i">・ほかの子が付けている遺物・ルーンは、これまでどおり右端にその子の顔と名前が出ます。</span>' },
   { id: 138, version: 'α0.3.012', date: '10/1', title: 'ルーン・遺物の一覧で、装備している子を顔で表示', body: '<span class="nt-i">・ルーンや遺物を選ぶ一覧で、だれが装備しているかを文字ではなく、<em>右端にその子の立ち絵と名前</em>で出すようにしました。いま見ている子が付けているものは「この子」と出ます。</span>' },

@@ -29,10 +29,10 @@ async def main():
               equipRelic(rel[0], 'm139'); equipRelic(rel[1], 'm68');
               openRelicPicker('m68');
               const rows = [...document.querySelectorAll('.relic-row')];
-              const who = rows.map(x => { const w = x.querySelector('.eq-who'); return w ? w.querySelector('small').textContent + (w.querySelector('img') ? '+img' : '') : ''; });
+              const who = rows.map(x => { const w = x.querySelector('.eq-who'); return w ? (w.querySelector('img') ? w.querySelector('img').alt + '+img' : '') + (w.querySelector('small') ? '+name' : '') : ''; });
               return { who, first: rows[0].classList.contains('on'), firstId: rows[0].dataset.relicRow, mine: rel[1], text: document.querySelector('.relic-list').textContent.includes('装備中: ') }; }""")
-            check('遺物: ほかの子が付けている遺物は、右端にその子の顔と名前', 'アバドン+img' in r['who'], r)
-            check('遺物: この子が付けている遺物は一番上・金色の枠・顔と名前は出す(「この子」の文字は出さない)', r['first'] and r['firstId'] == r['mine'] and r['who'][0] == 'フェンリル+img' and not any('この子' in w for w in r['who']), r)
+            check('遺物: ほかの子が付けている遺物は、右端にその子の顔だけ(名前は出さない)', 'アバドン+img' in r['who'], r)
+            check('遺物: この子が付けている遺物は一番上・金色の枠・顔だけ出す(名前・「この子」の文字は出さない)', r['first'] and r['firstId'] == r['mine'] and r['who'][0] == 'フェンリル+img' and not any('この子' in w for w in r['who']), r)
             check('遺物: 「装備中: 〇〇」の文字はもう出ない', not r['text'], r)
             await pg.screenshot(path=str(OUT / 'equip_who_relic.png'))
             r = await pg.evaluate("""() => { closeModal(); relicPicker = null;
@@ -40,8 +40,8 @@ async def main():
               equipRune(a.uid, 'm139', 0);
               runePicker = { monId: 'm68', slot: 0, filter: 'all' }; renderRunePicker();
               const rows = [...document.querySelectorAll('.rpk-row')];
-              return { n: rows.length, who: rows.map(x => { const w = x.querySelector('.eq-who'); return w ? w.querySelector('small').textContent + (w.querySelector('img') ? '+img' : '') : ''; }) }; }""")
-            check('ルーン: ほかの子が付けているルーンは、右端にその子の顔と名前', 'アバドン+img' in r['who'], r)
+              return { n: rows.length, who: rows.map(x => { const w = x.querySelector('.eq-who'); return w ? (w.querySelector('img') ? w.querySelector('img').alt + '+img' : '') + (w.querySelector('small') ? '+name' : '') : ''; }) }; }""")
+            check('ルーン: ほかの子が付けているルーンは、右端にその子の顔だけ(名前は出さない)', 'アバドン+img' in r['who'], r)
             await pg.screenshot(path=str(OUT / 'equip_who_rune.png'))
             await b.close()
     real = [e for e in errs if 'favicon' not in e]
