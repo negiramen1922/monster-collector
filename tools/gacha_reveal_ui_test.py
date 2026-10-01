@@ -41,8 +41,14 @@ async def main():
             await pg.evaluate(SETUP)
             ph = lambda: pg.evaluate("() => gachaSeq && gachaSeq.phase")
             check('召喚の演出から始まる', await ph() == 'summon')
-            chest_cls = await pg.evaluate("() => [...document.querySelectorAll('.fly-egg')].map(e => e.className)")
-            check('飛び出す卵はどれも同じ色(レア度がバレない)', all('egg-blue' in c and 'egg-rainbow' not in c and 'egg-gold' not in c for c in chest_cls))
+            # 宝箱の色でその回のいちばん良いレア度はもう分かっているので、卵も中身の色にしてある。
+            # 「どれが虹か」を探せるのが狙い(★5が偽の予兆を出すときだけ金のまま)
+            chest_cls = await pg.evaluate("""() => [...document.querySelectorAll('.fly-egg')]
+              .map(e => (e.className.match(/egg-(blue|gold|rainbow)/) || [])[1])""")
+            want = await pg.evaluate("""() => gachaSeq.results.map((r, i) =>
+              eggColorClass(pullRarity(gachaSeq.kind, r), gachaSeq.fake && gachaSeq.fake[i]).replace('egg-', ''))""")
+            check('飛び出す卵が中身の色になっている', chest_cls == want, [chest_cls, want])
+            check('色は青・金・虹のどれか', all(c in ('blue', 'gold', 'rainbow') for c in chest_cls), chest_cls)
             await wait_reveal(pg)
             check('卵が並んだら止まる', await ph() == 'reveal')
             await pg.wait_for_timeout(1500)

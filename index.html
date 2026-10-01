@@ -12683,16 +12683,20 @@ function summonSteps(kind, results){
   }
   return SUMMON_COLORS.slice(start, target + 1);
 }
-// 卵(壺)の見た目: 閉じている間はどれも同じ色。レア度は「予兆」(★4は紫の光、★5は金の光と揺れ)でだけ見せる
+/* 卵(壺)の見た目: 宝箱の色でその回のいちばん良いレア度はもう分かっているので、
+   卵も中身の色にして「どれが虹か」を探せるようにした(★1〜2 青 / ★3〜4 金 / ★5 虹)。
+   ★5が「偽の予兆」を出すときだけは金のままにして、割るまで分からないようにしてある */
 function eggHint(rarity, fake){ return rarity >= 5 ? (fake ? 'hint4' : 'hint5') : rarity === 4 ? 'hint4' : ''; }
+function eggShownRarity(rarity, fake){ return fake && rarity >= 5 ? 4 : rarity; }
+function eggColorClass(rarity, fake){ return eggClass(eggShownRarity(rarity, fake)); }
 function eggFace(r, i, state, kind){
   // state: 'egg' (closed) | 'open'
   const rarity = pullRarity(kind, r);
   const closed = state === 'egg';
   return `
-    <div class="egg-slot egg-blue ${closed ? `closed ${eggHint(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目の${vesselName(kind)}を割る"` : ''}>
+    <div class="egg-slot ${eggColorClass(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])} ${closed ? `closed ${eggHint(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目の${vesselName(kind)}を割る"` : ''}>
       ${closed && rarity >= 4 ? '<span class="egg-aura"></span>' : ''}
-      ${kind === 'relic' ? jarSvg(1) : (eggArt(1) || eggSvg(1))}
+      ${kind === 'relic' ? jarSvg(1) : (eggArt(eggShownRarity(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])) || eggSvg(eggShownRarity(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])))}
       ${pullIconHtml(kind, r, 'egg-mon')}
       <div class="egg-star r${Math.min(5, rarity)}">${'★'.repeat(rarity)}</div>
       ${!closed && r.isNew ? '<span class="egg-new">NEW</span>' : ''}
@@ -12710,8 +12714,11 @@ function gachaChestHtml(n){
         <div class="chest-box"><span class="chest-lock"></span></div>
       </div>
       ${Array.from({ length: n }, (_, i) => {
-        const col = i % 5, row = Math.floor(i / 5);
-        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} egg-blue" style="--dx:${(col - 2) * 56}px; --dy:${-150 + row * 66}px; --k:${i}"></div>`;
+        const col2 = i % 5, row = Math.floor(i / 5);
+        // 飛び出す卵も中身の色。虹が混じっているのがここで見える
+        const r = gachaSeq.results[i];
+        const cls = r ? eggColorClass(pullRarity(gachaSeq.kind, r), gachaSeq.fake && gachaSeq.fake[i]) : 'egg-blue';
+        return `<div class="fly-egg ${gachaSeq.kind === 'relic' ? 'fly-jar' : ''} ${cls}" style="--dx:${(col2 - 2) * 56}px; --dy:${-150 + row * 66}px; --k:${i}"></div>`;
       }).join('')}
     </div>`;
 }
@@ -15149,9 +15156,11 @@ function markTerms(text){
   if(!text) return '';
   const seen = new Set();
   const safe = String(text).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-  return safe.replace(TERM_RE, (m) => {
+  return safe.replace(TERM_RE, (m, _g, at, str) => {
     const t = TERM_BY_NAME[m];
     if(!t || seen.has(t.key)) return m;
+    // 英字の用語(SP)は、前後に英数字が続いていたら別の語の一部。「SPD」の中の「SP」を光らせない
+    if(/^[A-Za-z]+$/.test(m) && (/[A-Za-z0-9]/.test(str[at - 1] || '') || /[A-Za-z0-9]/.test(str[at + m.length] || ''))) return m;
     seen.add(t.key);
     return `<b class="term" data-term="${t.key}" role="button" tabindex="0">${m}</b>`;
   });
@@ -20730,6 +20739,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 137, version: 'α0.3.011', date: '10/1', title: '宝箱から出る卵が中身の色に。召喚ポイントショップ', body: '<span class="nt-h">卵の色で中身が分かるようになりました</span>宝箱の色で<em>その回のいちばん良いレア度</em>はもう分かっているので、飛び出す卵も<em>中身の色</em>にしました。<span class="nt-i">・<em>★1〜2は青 / ★3〜4は金 / ★5は虹</em>。虹の宝箱が来たあと、どれが虹の卵かを探せます</span><span class="nt-i">・★5が<em>金の予兆で出てくることがあります</em>(そのときは金の卵のまま)。割るまで分からない楽しみは残してあります</span><span class="nt-h">召喚ポイントショップを作りました</span>ガチャ画面でワンタップだった<em>天井の交換</em>を、ほかのショップと同じ流れに移しました。<span class="nt-i">・ガチャ画面の召喚ポイントの右の<em>「交換する」</em>から開きます。ピックアップ中のモンスターと、その専用遺物が並びます</span><span class="nt-i">・<em>個数を±で選べます</em>。合計で何ポイント使うか、残りがいくつになるかをその場に出します(イベントショップでも同じように選べます)</span><span class="nt-h">ガチャ画面を整理しました</span><span class="nt-i">・並びを <em>バナー → ★4確定まで・召喚ポイント → 引くボタン → 提供割合・最近の結果</em> に変えました</span><span class="nt-i">・<em>提供割合</em>と<em>最近の結果</em>はボタンを押すと出るようにしました。最近の結果は4件から<em>20件</em>まで見えます</span><span class="nt-i">・排出率やかぶりの長い説明文を外しました</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザの説明で<em>「SPD」の「SP」だけが用語として光っていた</em>のを直しました。「SPD+10」が「SP」で切れなくなります</span><span class="nt-i">・イベント・EX・育成クエストのリザルトに<em>「次のステージへ」</em>が出るようになりました(これまでメインクエストと深淵回廊だけでした)</span><span class="nt-i">・イベントショップで<em>アイコンが出ていない品</em>が3つあったのを直しました</span>' },
   { id: 136, version: 'α0.3.010', date: '10/1', title: '九尾・タイタンのEXステージと、同時ピックアップの★4', body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」を10/7まで延長しました(追加ぶんは10/1 16:00から)</span><span class="nt-i">・<em>EXステージ</em>(EX1〜EX3)を追加しました。ステージ3クリアで開きます。スタミナを使わず何度でも挑めます。</span><span class="nt-i">・<em>EXのイベントミッション</em>を3つ追加しました。EX3のクリアで称号も手に入ります。</span><span class="nt-i">・同時ピックアップの★4を追加しました。<em>紅蓮の九尾は牛鬼・ロキ</em>、<em>黄金の巨神はブロック・スルト</em>です。</span><span class="nt-h">新★4 牛鬼(炎/タンク)</span>後衛をかばうことに特化したタンクです。<span class="nt-i">・スキル1「牛鬼の盾」 2ターンかばう状態になり、<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。そのあいだ自分の魔法防御+10。</span><span class="nt-i">・パッシブ「鬼の皮」 <em>肩代わりで受けたダメージ-25%</em>。自分が直接殴られたぶんには効きません。</span><span class="nt-i">・奥義「鬼哭」 敵全体に威力180%。自分に最大HPの50%のシールド。</span><span class="nt-h">★4のピックアップが効くようになりました</span>これまで期間限定バナーの<em>★4ピックアップは表示だけで、確率に反映されていませんでした</em>。★5と同じ決まりで、<em>★4が出たときの50%</em>が同時ピックアップの★4になります。<span class="nt-h">EXのルールは段ごとに増えます</span><span class="nt-i">・EX1は味方側のルールだけ。EX2・EX3で<em>敵側の縛りが1つずつ</em>加わります(減りません)。</span><span class="nt-i">・巨神の遺跡に「<em>シールドが無いあいだ 受けるダメージ+50%</em>」を足しました。EX3が<em>21ラウンド → 10ラウンド</em>になり、★3条件(12ラウンド以内)が狙えるようになりました。</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザが配る<em>防御のバフ・デバフが48件すべて0.8ポイントに潰れていた</em>のを修正しました。タイタンの奥義は「物理・魔法防御+8%」と書いてありながら実際は+0.8でした。<em>タンクの守りのスキルが本来の効き目になります</em>。</span><span class="nt-i">・EXのウェーブに<em>前衛・後衛を指定できる</em>ようにしました。これまでロール任せだったので、前衛が1体もいないウェーブができていました。</span><span class="nt-i">・「紅蓮の九尾」「黄金の巨神」に<em>イベントメダル</em>を追加しました。メダルが無かったため、この2つだけ<em>イベントショップと周回回数のミッションが出ていませんでした</em>。</span><span class="nt-i">・ステージ10と★30の<em>称号</em>も、もう一度取れるように戻しました。</span><span class="nt-h">★4の星刻を追加しました</span>牛鬼・ロキ・ブロック・スルトに、★6〜★10の<em>星刻</em>を入れました。数値だけでなく、<em>スキルの対象やパッシブの発動条件が変わります</em>(例: ブロックの★9で鍛冶の盾が後衛の味方にも届きます)。<span class="nt-h">ワザの入れ替え</span><span class="nt-i">・<em>フェンリル</em>のスキル2を「暴風の遠吠え(自分にSTR+30%・SPD+10)」から<em>「暴風の牙」敵単体に威力60%×5回</em>に変えました。自己バフが攻撃になったぶん、はっきり強くなります(★7の星刻で7回に)。</span><span class="nt-i">・<em>グリーンマン</em>のスキル1とスキル2を入れ替えました。<em>拘束がスキル1(CT3)</em>になり、早く・何度も撃てます。</span>' },
   { id: 135, version: 'α0.3.009', date: '10/1', title: '説明文の中の「やけど」「延焼」などを押すと意味が出ます', body: '<span class="nt-h">言葉の意味がその場で読めるようになりました</span>ワザの説明に出てくる<em>やけど・毒・気絶・シールド・挑発</em>などの言葉が、<em>水色の点線</em>になりました。押すとその場で意味が出ます。<span class="nt-i">・とくに<em>延焼</em>は、どこにも説明がないのに説明文に出てくる言葉でした。「すでにやけどの相手にもう一度やけどをかけると、ターン数が戻るうえに、やけどダメージの50%をその場で与える(同じ相手に1ターン3回まで)」という意味です</span><span class="nt-i">・やけどのダメージが<em>かけた人のSTRで決まる</em>ことも書きました。強い子がかけたやけどのほうが痛いです</span><span class="nt-i">・光るのは25語です。状態異常8つ・延焼・シールド・挑発・トゲ・被ダメージ軽減・免疫・継続回復・肩代わり・呪い・恐慌・回復阻害・命中率ダウン・石像化・会心・防御貫通・SP</span><span class="nt-i">・ワザとパッシブの説明・遺物のスキル枠・<em>ステージ効果</em>・アイテムの説明で光ります</span><span class="nt-i">・説明の中から「似たもの」で別の言葉へ飛べます(やけど → 延焼)。閉じると<em>元の画面のスクロール位置まで戻ります</em></span><span class="nt-h">直したもの</span><span class="nt-i">・「奈落の王」EXの<em>「敵 魔法防御+8%」が実際には効いていなかった</em>のを直しました(防御をポイント式に変えたときの書き漏らしで、+0.4しか乗っていませんでした)。EXが少し硬くなります</span>' },
   { id: 134, version: 'α0.3.008', date: '9/30', title: 'お助けモンスターの画像が「ア」になるのを修正', body: '<span class="nt-i">・周回結果などで、フレンドから借りたお助けモンスターがMVPのとき、画像のかわりに名前の1文字目(「ア」など)の仮アイコンが出ていたのを直しました。</span>' },
