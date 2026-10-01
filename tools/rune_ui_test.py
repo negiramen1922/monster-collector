@@ -30,7 +30,7 @@ async def main():
               saveState(); }""")
             await pg.evaluate("() => document.querySelector('.nav-btn[data-nav=\"party\"]').click()"); await pg.wait_for_timeout(200)
             tabs = await pg.evaluate("() => [...document.querySelectorAll('.group-tab')].map(b => b.textContent)")
-            check('育成のタブに「ルーン」', tabs == ['編成', 'モンスター図鑑', '遺物', 'ルーン'], tabs)
+            check('育成のタブに「ルーン」', tabs == ['編成', '図鑑', '遺物', 'ルーン'], tabs)
             await pg.evaluate("() => document.querySelector('[data-group-tab=\"runes\"]').click()"); await pg.wait_for_timeout(250)
             n = await pg.locator('#screen .rune-cell').count()
             check('ルーン一覧に全部並ぶ', await pg.evaluate("() => currentScreen") == 'runes' and n == 21, n)
@@ -41,6 +41,28 @@ async def main():
             # 詳細 → 合成(同じ効果・同じTierの3つでTier+1)
             uid = await pg.evaluate("() => { const b = addRune(makeRune(3, 4, 'mdef')); addRune(makeRune(3, 3, 'pdef')); addRune(makeRune(3, 0, 'hp')); addRune(makeRune(3, 4, 'atk')); saveState(); render(); openRuneDetail(b.uid); return b.uid; }"); await pg.wait_for_timeout(200)
             check('ルーン詳細に強化レベル(+N)はない', await pg.locator('#modal-layer .rune-detail-modal').count() == 1 and '+0' not in await pg.inner_text('#modal-layer .rd-head') and await pg.locator('[data-rune-enhance]').count() == 0)
+            # α0.3.016〜: 詳細は「アイコン・名前・メイン → サブ(右に振り直し) → 合成する/分解する(縦)」。鍵は右上
+            lay = await pg.evaluate("""() => { const m = document.querySelector('.rune-detail-modal'); const lock = m.querySelector('.rd-lock'), close = m.querySelector('.fs-close');
+              const lr = lock.getBoundingClientRect(), cr = close.getBoundingClientRect(), mr = m.getBoundingClientRect();
+              const v = [...m.querySelectorAll('.rd-vbtns .btn')].map(b => b.getBoundingClientRect());
+              return { lockTopRight: lr.top - mr.top < 30 && lr.right > mr.right - 90 && Math.abs(lr.top - cr.top) < 6,
+                rerollInRows: [...m.querySelectorAll('.rr-row')].every(r => r.querySelector('[data-rune-reroll]')),
+                rows: m.querySelectorAll('.rr-row').length, vertical: v.length === 2 && v[1].top > v[0].bottom - 1 && Math.abs(v[0].left - v[1].left) < 2,
+                labels: [...m.querySelectorAll('.rd-vbtns .btn')].map(b => b.textContent.trim().slice(0, 4)),
+                noFusePanel: !m.querySelector('.rf-cand') && !m.querySelector('[data-rune-fuse-go]'), h: m.scrollHeight }; }""")
+            check('詳細: 鍵のボタンは右上(×の隣)', lay['lockTopRight'], lay)
+            check('詳細: サブ効果の各行の右に振り直し', lay['rows'] >= 1 and lay['rerollInRows'], lay)
+            check('詳細: 合成する・分解するが縦に並ぶ', lay['vertical'] and lay['labels'][0] == '合成する' and lay['labels'][1] == '分解する', lay)
+            check('詳細: 合成の材料はまだ出ない(スクロールが短い)', lay['noFusePanel'] and lay['h'] < 700, lay)
+            await pg.screenshot(path=str(OUT / 'rune_detail_main.png'))
+            locked0 = await pg.evaluate(f"() => runeByUid('{uid}').lock")
+            await pg.evaluate("() => document.querySelector('.rd-lock').click()"); await pg.wait_for_timeout(120)
+            on = await pg.evaluate(f"() => [runeByUid('{uid}').lock, document.querySelector('.rd-lock').classList.contains('on')]")
+            await pg.evaluate("() => document.querySelector('.rd-lock').click()"); await pg.wait_for_timeout(120)
+            off = await pg.evaluate(f"() => [runeByUid('{uid}').lock, document.querySelector('.rd-lock').classList.contains('on')]")
+            check('鍵をタップするとロックのON/OFFが切り替わる', not locked0 and on == [True, True] and off == [False, False], [on, off])
+            await pg.evaluate("() => document.querySelector('[data-rune-view=\"fuse\"]').click()"); await pg.wait_for_timeout(200)
+            check('合成するを押すと、持っているルーンから材料を選ぶ画面', await pg.locator('#modal-layer .rf-cands').count() == 1 and await pg.locator('[data-rune-view="main"]').count() == 1)
             # α0.2.007〜: 下のTierも材料にできる(同じタイプだけ)
             expect = await pg.evaluate(f"() => STATE.runes.filter(r => r.uid !== '{uid}' && r.tier <= 3 && ['hp','pdef','mdef'].includes(r.main)).length")
             n = await pg.locator('#modal-layer .rf-cand').count()
@@ -52,6 +74,8 @@ async def main():
             await pg.evaluate("() => document.querySelector('[data-rune-fuse-go]').click()"); await pg.wait_for_timeout(200)
             check('合成するとTierⅣ・虹のまま、材料が消える', await pg.evaluate(f"() => runeByUid('{uid}').tier") == 4 and await pg.evaluate(f"() => runeByUid('{uid}').rarity") == 4 and await pg.evaluate(f"() => {mats}.every(u => !runeByUid(u))") and await pg.locator('.rd-flash').count() == 1)
             await pg.screenshot(path=str(OUT / 'rune_detail.png'))
+            await pg.evaluate("() => document.querySelector('[data-rune-view=\"main\"]').click()"); await pg.wait_for_timeout(150)
+            check('戻ると詳細の画面', await pg.locator('#modal-layer .rd-vbtns').count() == 1)
             # サブ効果の振り直し(粉を使う)
             d0 = await pg.evaluate("() => STATE.runeDust")
             await pg.evaluate("() => document.querySelector('[data-rune-reroll=\"0\"]').click()"); await pg.wait_for_timeout(150)

@@ -2626,8 +2626,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rf-rtext small{ display:block; font-size:11px; color:var(--dim); font-weight:700; }
 .rr-list{ display:grid; gap:4px; margin-top:6px; }
 .rr-row{ display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:8px; border:1px solid var(--line); border-left:3px solid var(--c); background:var(--panel3); color:var(--text); font-size:12px; font-weight:800; }
-.rr-row b{ font-size:11px; color:var(--gold); }
-.rr-row:disabled{ opacity:.5; }
+.rr-btn{ flex:none; font-size:11px; font-weight:800; color:var(--gold); background:rgba(232,180,85,.1); border:1px solid rgba(232,180,85,.4);
+  border-radius:999px; padding:4px 10px; font-family:inherit; cursor:pointer; }
+.rr-btn:disabled{ opacity:.45; }
+.rr-cost{ font-size:10px; color:var(--dim); margin:4px 0 0; }
+.rd-lock{ position:absolute; top:10px; right:46px; width:32px; height:28px; border-radius:9px; background:var(--panel2);
+  border:1px solid var(--line); font-size:15px; line-height:1; cursor:pointer; opacity:.75; }
+.rd-lock.on{ border-color:var(--gold); background:rgba(232,180,85,.18); opacity:1; box-shadow:0 0 10px -4px rgba(232,180,85,.8); }
+.rd-vbtns{ display:flex; flex-direction:column; gap:8px; }
+.rd-vbtns .btn small{ display:block; font-size:10px; font-weight:700; opacity:.8; }
+.rd-back{ margin:0 0 6px; }
 .shop-rune.rune-ic{ width:34px; height:34px; }
 .rune-ic.sealed .rune-svg{ filter:drop-shadow(0 0 4px rgba(180,170,230,.5)); }
 .shop-rune-sub{ display:block; font-size:10px; color:var(--dim); font-weight:700; }
@@ -3172,7 +3180,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.015';
+const GAME_VERSION = 'α0.3.016';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -7461,8 +7469,8 @@ function renderRunesScreen(){
 }
 
 /* ---- ルーン詳細(合成・ロック・分解) ---- */
-let runeDetail = null;   // { uid, back: 'picker' | null, fuse: [材料のuid], flash }
-function openRuneDetail(uid, back){ runeDetail = { uid, back: back || null, fuse: [] }; renderRuneDetail(); }
+let runeDetail = null;   // { uid, back: 'picker' | null, fuse: [材料のuid], flash, view: 'main' | 'fuse' }
+function openRuneDetail(uid, back){ runeDetail = { uid, back: back || null, fuse: [], view: 'main' }; renderRuneDetail(); }
 function closeRuneDetail(){
   const d = runeDetail;
   runeDetail = null;
@@ -7524,9 +7532,7 @@ function renderRuneDetail(){
   const flash = runeDetail.flash;
   runeDetail.flash = null;
   const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
-    <div class="result-modal rune-detail-modal" role="dialog" aria-label="ルーン詳細">
-      <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+  const head = `
       <div class="rd-head">
         ${runeIconHtml(r, { cls: 'big', used: false })}
         <div>
@@ -7534,21 +7540,40 @@ function renderRuneDetail(){
           <div class="rd-tags"><span class="rd-rar" style="--c:${rar.color}">${rar.label}</span>Tier${RUNE_ROMAN[r.tier - 1]}・${RUNE_TYPE_LABEL[runeType(r)]}</div>
           <div class="rd-main" style="--c:${RUNE_STATS[r.main].color}">${runeStatText(r.main, runeMainValue(r))}</div>
         </div>
-      </div>
-      <div class="rd-subs">${runeSubsHtml(r)}</div>
+      </div>`;
+  const lockBtn = `<button class="rd-lock ${r.lock ? 'on' : ''}" data-rune-lock="${r.uid}" aria-pressed="${r.lock ? 'true' : 'false'}" aria-label="${r.lock ? 'ロック中(タップで解除)' : 'ロックする'}" title="${r.lock ? 'ロック中' : 'ロックしていません'}">${r.lock ? '🔒' : '🔓'}</button>`;
+  // 合成の画面: 「合成する」を押すと、持っているルーンから材料を選ぶ画面に切り替わる
+  if(runeDetail.view === 'fuse'){
+    layer.innerHTML = `
+    <div class="result-modal rune-detail-modal" role="dialog" aria-label="ルーンの合成">
+      <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+      <button class="btn btn-ghost btn-sm rd-back" data-rune-view="main">‹ ルーン詳細に戻る</button>
+      ${head}
       ${flash ? `<div class="rd-flash">${flash}</div>` : ''}
-      <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
       <div class="rd-enhance">${runeFusePanelHtml(r)}</div>
-      <div class="rd-enhance">
-        <div class="rd-cost">サブ効果の振り直し<small>選んだサブ効果1つの種類と値を引き直します(メインや他のサブとはかぶりません)。1回 ✨${runeRerollCost(r)}(所持 ✨${STATE.runeDust.toLocaleString()})</small></div>
-        ${r.subs.length ? `<div class="rr-list">${r.subs.map((x, i) => `<button class="rr-row" data-rune-reroll="${i}" style="--c:${RUNE_STATS[x.stat].color}" ${STATE.runeDust >= runeRerollCost(r) ? '' : 'disabled'}><span>${runeStatText(x.stat, runeSubValue(x, r.tier))}</span><b>🎲 振り直す</b></button>`).join('')}</div>`
-          : '<div class="fs-note">白のルーンにはサブ効果がありません。</div>'}
+    </div>`;
+    layer.classList.add('show');
+    return;
+  }
+  const rerollCost = runeRerollCost(r);
+  const canReroll = STATE.runeDust >= rerollCost;
+  const maxed = r.tier >= RUNE_TIERS;
+  layer.innerHTML = `
+    <div class="result-modal rune-detail-modal" role="dialog" aria-label="ルーン詳細">
+      <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+      ${lockBtn}
+      ${head}
+      ${flash ? `<div class="rd-flash">${flash}</div>` : ''}
+      ${r.subs.length ? `<div class="rr-list">${r.subs.map((x, i) => `<div class="rr-row" style="--c:${RUNE_STATS[x.stat].color}">
+          <span>${runeStatText(x.stat, runeSubValue(x, r.tier))}</span>
+          <button class="rr-btn" data-rune-reroll="${i}" ${canReroll ? '' : 'disabled'} aria-label="${RUNE_STATS[x.stat].label}を振り直す">🎲 振り直す</button></div>`).join('')}</div>
+        <div class="rr-cost">振り直し 1回 ✨${rerollCost.toLocaleString()}(所持 ✨${STATE.runeDust.toLocaleString()})・種類と値を引き直します</div>`
+        : '<div class="fs-note">白のルーンにはサブ効果がありません。</div>'}
+      <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
+      <div class="rd-vbtns">
+        <button class="btn btn-block" data-rune-view="fuse" ${maxed ? 'disabled' : ''}>${maxed ? `Tier${RUNE_ROMAN[RUNE_TIERS - 1]}は最大です` : `合成する(Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}〜)`}</button>
+        <button class="btn btn-ghost btn-block" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解する(✨${runeDustValue(r)})${runeCanDismantle(r) ? '' : `<small>${r.lock ? 'ロック中' : '装備中'}は分解できません</small>`}</button>
       </div>
-      <div class="rd-actions">
-        <button class="btn btn-ghost btn-sm" data-rune-lock="${r.uid}">${r.lock ? '🔓 ロック解除' : '🔒 ロックする'}</button>
-        <button class="btn btn-ghost btn-sm" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解(✨${runeDustValue(r)})</button>
-      </div>
-      ${!runeCanDismantle(r) ? `<div class="fs-note">${r.lock ? 'ロック中' : '装備中'}のルーンは分解できません。</div>` : ''}
     </div>`;
   layer.classList.add('show');
 }
@@ -19723,6 +19748,8 @@ function handlePhoneClick(ev){
     if(fpEl){ toggleRuneFusePick(fpEl.dataset.runeFusePick); return; }
     if(t.closest('[data-rune-fuse-auto]')){ autoRuneFusePick(); return; }
     if(t.closest('[data-rune-fuse-go]')){ doFuseRune(); return; }
+    const rvEl = t.closest('[data-rune-view]');
+    if(rvEl){ runeDetail.view = rvEl.dataset.runeView; renderRuneDetail(); return; }
     const rrEl = t.closest('[data-rune-reroll]');
     if(rrEl){
       const res = rerollRuneSub(runeDetail.uid, Number(rrEl.dataset.runeReroll));
@@ -20757,6 +20784,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 142, version: 'α0.3.016', date: '10/1', title: 'ルーン詳細をスクロール少なめに', body: '<span class="nt-i">・ルーン詳細を「アイコン・名前・メイン効果 → サブ効果 → 合成する / 分解する」の順に並べ直し、ほとんどスクロールせずに見られるようにしました。</span><span class="nt-i">・サブ効果の各行の右に<em>🎲 振り直す</em>ボタンを置きました。</span><span class="nt-i">・ロックは右上の<em>鍵のボタン</em>をタップしてON/OFFを切り替えます(ONのときは金色)。</span><span class="nt-i">・「合成する」を押すと、持っているルーンから材料を選ぶ合成の画面に切り替わります(中身はこれまでと同じ)。「ルーン詳細に戻る」で戻れます。</span>' },
   { id: 141, version: 'α0.3.015', date: '10/1', title: 'ルーン・遺物の一覧は顔だけに', body: '<span class="nt-i">・ルーン・遺物を選ぶ一覧の右端は、装備しているキャラの<em>顔だけ</em>にしました(名前はなし)。いま付けている遺物は一番上で、顔の枠が金色です。</span>' },
   { id: 140, version: 'α0.3.014', date: '10/1', title: '遺物の一覧で、いま付けている遺物にも顔を表示', body: '<span class="nt-i">・一番上に出る「いま付けている遺物」にも、右端にその子の顔と名前を出すようにしました(顔の枠は金色)。</span>' },
   { id: 139, version: 'α0.3.013', date: '10/1', title: '遺物の一覧で、いま付けている遺物を一番上に', body: '<span class="nt-i">・遺物を選ぶ一覧で、いま見ている子が付けている遺物を<em>一番上</em>に、金色の枠で出すようにしました。「この子」の表示はなくしました。</span><span class="nt-i">・ほかの子が付けている遺物・ルーンは、これまでどおり右端にその子の顔と名前が出ます。</span>' },
