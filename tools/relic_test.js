@@ -142,7 +142,7 @@ ok('rewardHtml が遺物報酬を表示できる(クラッシュしない)', E.r
 // applyRelicCore/applyStatBonus do internally, just without needing a full battle unit.
 const capMult = E.relicSkillMult(E.RELIC_SKILL_MAX);
 // 防御のパークはポイント(値 = 上限% × 0.1)なので、くらべるときは ×5 して同じものさしに戻す
-const effScale = e => (['pdef', 'mdef', 'def'].includes(e.stat) ? 5 : 100);
+const effScale = e => (['pdef', 'mdef', 'def'].includes(e.stat) ? 2.5 : 100);   // 防御見直し(α0.4.001)でポイントが2倍になったので ×5 → ×2.5
 const sumPct = (def, mon) => Math.round((def.effects || []).filter(e => E.relicEffectMatches(e.cond, mon)).reduce((s, e) => s + e.pct * effScale(e), 0) * capMult);
 const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
 // α0.1 の遺物ルール(docs/design/遺物スキル枠のルール.json): スキル枠ごとの上限は★で決まり、
@@ -153,7 +153,7 @@ const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
    くらべるときは ×10 して同じものさしに戻す。 */
 const isPointStat = st => ['pdef', 'mdef', 'def'].includes(st);
 const slotCap = e => isPointStat(e.stat)
-  ? Math.round(e.pct * capMult * 5 * 10) / 10
+  ? Math.round(e.pct * capMult * 2.5 * 10) / 10   // 防御見直し(α0.4.001)でポイント2倍
   : Math.round(e.pct * capMult * 100);
 const CAP_BY_STAR = { 5:30, 4:25, 3:25, 2:20, 1:20 };
 // 確定データ(docs/design/新規遺物56種.json)がルール表から外れている枠。データのまま実装している

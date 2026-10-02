@@ -3183,7 +3183,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.000';
+const GAME_VERSION = 'α0.4.001';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3394,7 +3394,7 @@ const SPECIES_SYNERGY_COUNTS = [2, 3, 5];
 const SPECIES_SYNERGY = {
   hume:      [{ spGain:0.10 }, { spGain:0.20 }, { spGain:0.35 }],
   elf:       [{ spd:0.05 }, { spd:0.10 }, { spd:0.18 }],
-  dwarf:     [{ def:1 }, { def:2 }, { def:4 }],
+  dwarf:     [{ def:2 }, { def:4 }, { def:8 }],   // 防御見直し(α0.4.001)で2倍
   beast:     [{ atk:0.05 }, { atk:0.10 }, { atk:0.18 }],
   amorphous: [{ cut:0.04 }, { cut:0.08 }, { cut:0.14 }],
   machina:   [{ pierce:0.10 }, { pierce:0.20 }, { pierce:0.35 }],
@@ -3821,7 +3821,7 @@ const BACK_ROW_MELEE_PENALTY = 0.3;
 // formation bonuses: hp/atk(STR)/def(both DEFs) = +ratio, ctTurns = skill cooldown −N turns, cut = −ratio of damage taken
 const FORMATIONS = [
   { key:'f1', front:1, back:4, name:'一枚盾の陣', frontBonus:{ hp:0.20, cut:0.10 }, backBonus:{ atk:0.05 } },
-  { key:'f2', front:2, back:3, name:'双璧の陣',   frontBonus:{ def:1 }, backBonus:{ atk:0.08 } },
+  { key:'f2', front:2, back:3, name:'双璧の陣',   frontBonus:{ def:2 }, backBonus:{ atk:0.08 } },
   { key:'f3', front:3, back:2, name:'鶴翼の陣',   frontBonus:{ hp:0.05, atk:0.05 }, backBonus:{ hp:0.05, atk:0.05 } },
   { key:'f4', front:4, back:1, name:'魚鱗の陣',   frontBonus:{ atk:0.10 }, backBonus:{ ctTurns:1 } },
 ];
@@ -6267,12 +6267,12 @@ const RELICS = {
   rel_traveler_shield: { id:'rel_traveler_shield', name:'旅人の盾', star:1, icon:RELIC_ICON.rel_traveler_shield, channel:'distributed', // 誰でも(実績配布限定)
     base:{ hp:21.7, atk:1.7 },
     effects:[
-      { stat:'pdef', pct:1.5, cond:null },
+      { stat:'pdef', pct:3, cond:null },
     ] },
   rel_guard_charm: { id:'rel_guard_charm', name:'護りの護符', star:1, icon:RELIC_ICON.rel_guard_charm, channel:'distributed', // 誰でも(実績配布限定)
     base:{ hp:21.7, atk:1.7 },
     effects:[
-      { stat:'mdef', pct:1.5, cond:null },
+      { stat:'mdef', pct:3, cond:null },
     ] },
   rel_light_boots: { id:'rel_light_boots', name:'軽装のブーツ', star:1, icon:RELIC_ICON.rel_light_boots, channel:'distributed', // 誰でも(実績配布限定)
     base:{ hp:14.7, atk:3.3 },
@@ -6290,19 +6290,19 @@ const RELICS = {
   rel_heavy_shard: { id:'rel_heavy_shard', name:'重厚の盾片', star:2, icon:RELIC_ICON.rel_heavy_shard, // 誰でも + role:tank(ガチャ産)
     base:{ hp:42.1, atk:2.6 },
     effects:[
-      { stat:'pdef', pct:2, cond:null },
+      { stat:'pdef', pct:4, cond:null },
       { stat:'hp', pct:0.1, cond:{ type:'role', value:'tank' } },
     ] },
   rel_novice_armor: { id:'rel_novice_armor', name:'見習いの胸当て', star:2, icon:RELIC_ICON.rel_novice_armor, channel:'distributed', // 誰でも(実績配布限定)
     base:{ hp:42.1, atk:2.6 },
     effects:[
       { stat:'hp', pct:0.075, cond:null },
-      { stat:'pdef', pct:1.5, cond:{ type:'role', value:'tank' } },
+      { stat:'pdef', pct:3, cond:{ type:'role', value:'tank' } },
     ] },
   rel_ward_necklace: { id:'rel_ward_necklace', name:'魔除けの首飾り', star:2, icon:RELIC_ICON.rel_ward_necklace, channel:'distributed', // 誰でも(実績配布限定)
     base:{ hp:42.1, atk:2.6 },
     effects:[
-      { stat:'mdef', pct:1.5, cond:null },
+      { stat:'mdef', pct:3, cond:null },
       { stat:'spGain', pct:0.075, cond:{ type:'role', value:'support' } },
     ] },
   rel_swift_tabi: { id:'rel_swift_tabi', name:'韋駄天の足袋', star:2, icon:RELIC_ICON.rel_swift_tabi, channel:'distributed', // 誰でも(実績配布限定)
@@ -6317,7 +6317,7 @@ const RELICS = {
     base:{ hp:67.2, atk:4.9 },
     effects:[
       { stat:'hp', pct:0.125, cond:null },
-      { stat:'def', pct:2.5, cond:{ type:'role', value:'tank' } },
+      { stat:'def', pct:5, cond:{ type:'role', value:'tank' } },
     ] },
   rel_atk_spirit: { id:'rel_atk_spirit', name:'バーサーカーの血怒り', star:3, icon:RELIC_ICON.rel_atk_spirit, // role: attacker
     base:{ hp:22.4, atk:14.7 },
@@ -6359,13 +6359,13 @@ const RELICS = {
     base:{ hp:44.8, atk:9.8 },
     effects:[
       { stat:'hp', pct:0.125, cond:null },
-      { stat:'pdef', pct:2.5, cond:{ type:'element', value:'grass' } },
+      { stat:'pdef', pct:5, cond:{ type:'element', value:'grass' } },
     ] },
   rel_gnome_clod: { id:'rel_gnome_clod', name:'ノームの土塊', star:3, icon:RELIC_ICON.rel_gnome_clod, // 土属性
     base:{ hp:67.2, atk:4.9 },
     effects:[
       { stat:'hp', pct:0.125, cond:null },
-      { stat:'mdef', pct:2.5, cond:{ type:'element', value:'earth' } },
+      { stat:'mdef', pct:5, cond:{ type:'element', value:'earth' } },
     ] },
   rel_raiju_fur: { id:'rel_raiju_fur', name:'雷獣の逆毛', star:3, icon:RELIC_ICON.rel_raiju_fur, // 雷属性
     base:{ hp:22.4, atk:14.7 },
@@ -6394,13 +6394,13 @@ const RELICS = {
   rel_giant_blood: { id:'rel_giant_blood', name:'巨人族の血脈', star:3, icon:RELIC_ICON.rel_giant_blood, // role: tank(別ステータス版)
     base:{ hp:67.2, atk:4.9 },
     effects:[
-      { stat:'pdef', pct:2.5, cond:null },
+      { stat:'pdef', pct:5, cond:null },
       { stat:'hp', pct:0.125, cond:{ type:'role', value:'tank' } },
     ] },
   rel_goddess_veil: { id:'rel_goddess_veil', name:'女神の白布', star:3, icon:RELIC_ICON.rel_goddess_veil, // role: support(別ステータス版)
     base:{ hp:44.8, atk:9.8 },
     effects:[
-      { stat:'mdef', pct:2.5, cond:null },
+      { stat:'mdef', pct:5, cond:null },
       { stat:'hp', pct:0.125, cond:{ type:'role', value:'support' } },
     ] },
 
@@ -6416,8 +6416,8 @@ const RELICS = {
     base:{ hp:100.9, atk:7.4 },
     effects:[
       { stat:'hp', pct:0.125, cond:null },
-      { stat:'mdef', pct:2.5, cond:{ type:'element', value:'water' } },
-      { stat:'pdef', pct:2.5, cond:{ type:'element', value:'water' } },
+      { stat:'mdef', pct:5, cond:{ type:'element', value:'water' } },
+      { stat:'pdef', pct:5, cond:{ type:'element', value:'water' } },
     ] },
   rel_verdant_breath: { id:'rel_verdant_breath', name:'パーンの葦笛', star:4, icon:RELIC_ICON.rel_verdant_breath, // 草属性
     base:{ hp:100.9, atk:7.4 },
@@ -6430,8 +6430,8 @@ const RELICS = {
     base:{ hp:100.9, atk:7.4 },
     effects:[
       { stat:'hp', pct:0.125, cond:null },
-      { stat:'pdef', pct:2.5, cond:{ type:'element', value:'earth' } },
-      { stat:'mdef', pct:2.5, cond:{ type:'element', value:'earth' } },
+      { stat:'pdef', pct:5, cond:{ type:'element', value:'earth' } },
+      { stat:'mdef', pct:5, cond:{ type:'element', value:'earth' } },
     ] },
   rel_thunder_swift: { id:'rel_thunder_swift', name:'ペルーンの雷石', star:4, icon:RELIC_ICON.rel_thunder_swift, // 雷属性
     base:{ hp:34.4, atk:21.6 },
@@ -6486,7 +6486,7 @@ const RELICS = {
     base:{ hp:100.9, atk:7.4 },
     effects:[
       { stat:'hp', pct:0.125, cond:null },
-      { stat:'mdef', pct:2.5, cond:{ type:'species', value:'elf' } },
+      { stat:'mdef', pct:5, cond:{ type:'species', value:'elf' } },
       { stat:'spGain', pct:0.125, cond:{ type:'species', value:'elf' } },
     ] },
   rel_andvari_ring: { id:'rel_andvari_ring', name:'アンヴァリの黄金指輪', star:4, icon:RELIC_ICON.rel_andvari_ring, // ドワーフ / tank
@@ -6514,8 +6514,8 @@ const RELICS = {
     base:{ hp:100.9, atk:7.4 },
     effects:[
       { stat:'hp', pct:0.125, cond:null },
-      { stat:'mdef', pct:2.5, cond:{ type:'species', value:'machina' } },
-      { stat:'pdef', pct:2.5, cond:{ type:'species', value:'machina' } },
+      { stat:'mdef', pct:5, cond:{ type:'species', value:'machina' } },
+      { stat:'pdef', pct:5, cond:{ type:'species', value:'machina' } },
     ] },
   rel_nidhogg_scale: { id:'rel_nidhogg_scale', name:'ニーズヘッグの逆鱗', star:4, icon:RELIC_ICON.rel_nidhogg_scale, // ドラコニア / attacker
     base:{ hp:34.4, atk:21.6 },
@@ -6565,7 +6565,7 @@ const RELICS = {
     base:{ hp:43.4, atk:29.6 },
     effects:[
       { stat:'hp', pct:0.15, cond:null },
-      { stat:'pdef', pct:3, cond:{ type:'species', value:'amorphous' } },
+      { stat:'pdef', pct:6, cond:{ type:'species', value:'amorphous' } },
       { stat:'atk', pct:0.165, cond:{ type:'mon', value:'m31' } },
     ] },
   rel_titan_heart: { id:'rel_titan_heart', name:'ドヴェルグ秘蔵の重殻', star:5, icon:RELIC_ICON.rel_titan_heart, // m54 タイタン専用
@@ -6586,7 +6586,7 @@ const RELICS = {
     base:{ hp:85.4, atk:19.8 },
     effects:[
       { stat:'hp', pct:0.15, cond:null },
-      { stat:'mdef', pct:3, cond:{ type:'species', value:'draconia' } },
+      { stat:'mdef', pct:6, cond:{ type:'species', value:'draconia' } },
       { stat:'hp', pct:0.165, cond:{ type:'mon', value:'m113' } },
     ] },
   rel_kitsune_orb: { id:'rel_kitsune_orb', name:'殺生石の欠片', star:5, icon:RELIC_ICON.rel_kitsune_orb, // m116 九尾の狐専用
@@ -6615,7 +6615,7 @@ const RELICS = {
     effects:[
       { stat:'cut', pct:0.1, cond:null },
       { stat:'hp', pct:0.15, cond:{ type:'species', value:'draconia' } },
-      { stat:'pdef', pct:3.3, cond:{ type:'mon', value:'m137' } },
+      { stat:'pdef', pct:6.6, cond:{ type:'mon', value:'m137' } },
     ] },
   rel_kusanagi: { id:'rel_kusanagi', name:'草薙の剣', star:5, icon:RELIC_ICON.rel_kusanagi, // グリーンマン専用(新規★5/地・tank・エルフ/自己再生型)
     base:{ hp:85.4, atk:19.8 },
@@ -6634,9 +6634,9 @@ const RELICS = {
   rel_caladbolg: { id:'rel_caladbolg', name:'カラドボルグ', star:5, icon:RELIC_ICON.rel_caladbolg, // タロース専用(新規★5/地・tank・マキナ/自動シールド型)
     base:{ hp:127.5, atk:10.1 },
     effects:[
-      { stat:'mdef', pct:3, cond:null },
+      { stat:'mdef', pct:6, cond:null },
       { stat:'hp', pct:0.15, cond:{ type:'species', value:'machina' } },
-      { stat:'pdef', pct:3.3, cond:{ type:'mon', value:'m140' } },
+      { stat:'pdef', pct:6.6, cond:{ type:'mon', value:'m140' } },
     ] },
 };
 const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
@@ -7127,8 +7127,8 @@ const RUNE_STATS = {
   atk:      { label: 'STR', short: 'STR',    color: '#ff5a5a', pct: true,  type: 'atk', main: [5, 6.5, 8, 9.5, 11, 12.5, 14, 15.5, 17, 18.5], sub: [1.5, 3] },
   // 防御は%ではなくポイント加算(1ポイント = 1%カット)。素の防御が 2〜33 なので、
   // 割合で乗せると弱すぎる(Ⅹの22%でも+4.4ポイントにしかならない)
-  pdef:     { label: '物理防御', short: '物防', color: '#ff9d3c', pct: false, type: 'def', main: [1.5, 1.9, 2.3, 2.7, 3.1, 3.5, 3.9, 4.3, 4.7, 5], sub: [0.3, 0.6] },
-  mdef:     { label: '魔法防御', short: '魔防', color: '#5b82ff', pct: false, type: 'def', main: [1.5, 1.9, 2.3, 2.7, 3.1, 3.5, 3.9, 4.3, 4.7, 5], sub: [0.3, 0.6] },
+  pdef:     { label: '物理防御', short: '物防', color: '#ff9d3c', pct: false, type: 'def', main: [3, 3.8, 4.6, 5.4, 6.2, 7, 7.8, 8.6, 9.4, 10], sub: [0.6, 1.2] },   // 防御見直し(α0.4.001)で2倍
+  mdef:     { label: '魔法防御', short: '魔防', color: '#5b82ff', pct: false, type: 'def', main: [3, 3.8, 4.6, 5.4, 6.2, 7, 7.8, 8.6, 9.4, 10], sub: [0.6, 1.2] },   // 防御見直し(α0.4.001)で2倍
   spd:      { label: 'SPD', short: 'SPD',    color: '#39d3cf', pct: false, type: 'atk', main: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], sub: [1, 2] },
   critRate: { label: '会心率', short: '会心',  color: '#ffd93f', pct: true,  type: 'atk', main: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12], sub: [1, 2] },
   critDmg:  { label: '会心倍率', short: '会心倍', color: '#ff6fcf', pct: true,  type: 'atk', main: [5, 7, 9, 11, 13, 15, 17, 19, 21, 23], sub: [1.5, 3] },
@@ -8585,15 +8585,23 @@ function openExternal(url){
   try{ w.opener = null; }catch(e){}
 }
 
+/* 防御見直し(α0.4.001)。%カットにしたあと防御が弱すぎた(タンクの倒されにくさがアタッカーの1.5倍しかない)ので、
+   素の防御をタンク2.5倍・ほかは2倍に。ルーン・遺物・陣形・種族の防御ポイントは2倍、
+   スキルとパッシブの防御アップは2.5倍、防御ダウンは2倍にそろえた。ステージ効果の防御は狙って決めた値なのでそのまま */
+const DEF_BASE_SCALE = { tank: 2.5 };
+const DEF_BASE_SCALE_DEFAULT = 2;
+function defBaseScale(role){ return DEF_BASE_SCALE[role] || DEF_BASE_SCALE_DEFAULT; }
+const ENEMY_DEF_SCALE = 1;   // ステージの敵の素の防御(図鑑の値×これ)。ステージの難しさを変えないため
 function scaledStats(mon, star, level){
   const promotions = Math.max(0, (star || mon.rarity) - mon.rarity);
   const mult = (1 + promotions * PROMOTION_STAT_BONUS) * (1 + ((level || 1) - 1) * LEVEL_STAT_BONUS);
   return {
     hp: Math.round(mon.hp * mult * hpScale()),
     str: Math.round(mon.str * mult),
-    // 防御は「%カット」そのものなので、レベルや★では伸ばさない(DEFENSE_IS_PERCENT)
-    pdef: mon.pdef,
-    mdef: mon.mdef,
+    // 防御は「%カット」そのものなので、レベルや★では伸ばさない(DEFENSE_IS_PERCENT)。
+    // 図鑑の値(mons)に役割ごとの倍率をかける(防御見直し α0.4.001: タンクは特に固く)
+    pdef: Math.round(mon.pdef * defBaseScale(mon.role)),
+    mdef: Math.round(mon.mdef * defBaseScale(mon.role)),
     spd: mon.spd,
 
   };
@@ -15532,7 +15540,8 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     str: Math.round(s.str * mult),
     // 防御は「%カット」なので、敵のレベル補正(enemyMult)もボス補正も掛けない。
     // 掛けると高レベルのステージで全員が上限99%(= ほぼ無敵)になる
-    pdef: s.pdef, mdef: s.mdef,
+    // 防御見直し(α0.4.001)の倍率は味方(とPVPの相手)だけ。ステージの敵は図鑑の値のまま(ENEMY_DEF_SCALE)
+    pdef: isEnemy ? Math.round(mon.pdef * ENEMY_DEF_SCALE) : s.pdef, mdef: isEnemy ? Math.round(mon.mdef * ENEMY_DEF_SCALE) : s.mdef,
     spd: s.spd,
     star: curStar, level: isEnemy ? (stageLevel || 1) : (charLevel || 1),
     skillLv: up.skillLv || 1, skill2Lv: up.skill2Lv || up.skillLv || 1, ultLv: up.ultLv || 1, passiveLv: up.passiveLv || 1,
@@ -15960,8 +15969,8 @@ const ROLE_KITS = {
   tank: {
     normal: N('攻撃', 0.8),
     skill1: { name:'ガード・スタンス', ct:3, atk:'phys', tgt:'single', pow:1.3,
-      effects:[{ to:'self', buff:'pdefUp', v:6 }, { to:'self', buff:'mdefUp', v:6 }, { to:'self', taunt:2 }],
-      desc:'威力130%。自分に挑発と物理防御・魔法防御+6%(2ターン)' },
+      effects:[{ to:'self', buff:'pdefUp', v:15 }, { to:'self', buff:'mdefUp', v:15 }, { to:'self', taunt:2 }],
+      desc:'威力130%。自分に挑発と物理防御・魔法防御+15%(2ターン)' },
     passive: { name:'鉄壁', desc:'受けるダメージ-15%', cutBonus: u => pv(u, 0.15) },
     ult: { name:'不動の城塞', sp:90, atk:'phys', tgt:'single', pow:1.6,
       effects:[{ to:'self', heal:0.15, base:'maxHp' }, { to:'self', taunt:2 }],
@@ -16052,7 +16061,7 @@ const MONSTER_KITS = {
   m24: { // ワーウルフ
     normal: N('爪撃', 1.0),
     skill1: { name:'喉笛狙い', ct:3, atk:'phys', tgt:'single', pow:2.0, critBonus:0.5, desc:'威力200%。この攻撃の会心率+50%' },
-    skill2: { name:'月夜の狂乱', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.3, turns:3 }, { to:'self', buff:'pdefDown', v:3, turns:3 }], desc:'3ターン、自分のSTR+30%・物理防御-3%' },
+    skill2: { name:'月夜の狂乱', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.3, turns:3 }, { to:'self', buff:'pdefDown', v:6, turns:3 }], desc:'3ターン、自分のSTR+30%・物理防御-6%' },
     passive: { name:'狩人の本能', desc:'攻撃が会心になるたびに、自分のSP+10', onCrit: u => { u.sp = Math.min(u.spCost, u.sp + Math.round(pv(u, 10))); } },
     ult: { name:'満月の咆哮', sp:110, atk:'phys', tgt:'single', pow:1.3, hits:3, critBonus:1, desc:'威力130%×3。必ず会心。対象のSP-20',
       run: ctx => { const r = dealHits(ctx); if(r[0] && r[0].unit.alive) drainSp(r[0].unit, 20); } },
@@ -16067,7 +16076,7 @@ const MONSTER_KITS = {
   },
   m05: { // シルバーナイト
     normal: N('剣撃', 0.8),
-    skill1: { name:'騎士の誓い', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:6 }, { to:'self', buff:'mdefUp', v:3 }], desc:'挑発＋物理防御+6%・魔法防御+3%(2ターン)' },
+    skill1: { name:'騎士の誓い', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:15 }, { to:'self', buff:'mdefUp', v:8 }], desc:'挑発＋物理防御+15%・魔法防御+8%(2ターン)' },
     skill2: { name:'シールドバッシュ', ct:4, atk:'phys', tgt:'single', pow:1.3, onHit:[{ st:'stun', chance:0.3 }], desc:'威力130%。30%で気絶' },
     passive: { name:'空洞の鎧', desc:'受ける物理ダメージ-10%。HPが30%以下になったとき、1度だけ3ターン受けるダメージ-30%',
       cutBonus: (u, type) => type === 'phys' ? pv(u, 0.1) : 0,
@@ -16083,15 +16092,15 @@ const MONSTER_KITS = {
     normal: N('大枝の打撃', 0.8),
     skill1: { name:'古木の根', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'cut', v:0.2 }], desc:'挑発＋受けるダメージ-20%(2ターン)' },
     skill2: { name:'森の恵み', ct:4, tgt:'allies', effects:[{ to:'allies', heal:1.0 }], desc:'味方全体を回復(回復量100%)' },
-    passive: { name:'年輪', desc:'自分のターンが来るたびに、物理防御・魔法防御+3%(最大+30%)',
+    passive: { name:'年輪', desc:'自分のターンが来るたびに、物理防御・魔法防御+2.5%(最大+15%)',
       onTurnStart: u => { u.stacks.rings = Math.min(10, (u.stacks.rings || 0) + 1); },
-      defBonus: u => Math.min(pv(u, 6), (u.stacks.rings || 0) * pv(u, 1)),
+      defBonus: u => Math.min(pv(u, 15), (u.stacks.rings || 0) * pv(u, 2.5)),
       stackIcon: u => u.stacks.rings ? `🌳${u.stacks.rings}` : '' },
     ult: { name:'世界樹の雫', sp:100, tgt:'allies', effects:[{ to:'allies', buff:'regen', v:0.06, flat:true, turns:3 }, { to:'allies', cleanse:true }], desc:'3ターン、毎ターン最大HPの6%を回復。味方全体の状態異常を1つ解除' },
   },
   m13: { // ロックゴーレム
     normal: N('岩の拳', 0.8),
-    skill1: { name:'岩の体', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:8 }], desc:'挑発＋物理防御+8%(2ターン)' },
+    skill1: { name:'岩の体', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:20 }], desc:'挑発＋物理防御+20%(2ターン)' },
     skill2: { name:'地響き', ct:4, atk:'phys', tgt:'all', pow:1.0, onHit:[{ st:'stun', chance:0.2 }], desc:'敵全体に威力100%。20%で気絶' },
     passive: { name:'岩盤', desc:'1回で最大HPの30%以上のダメージを受けるとき、そのダメージ-30%',
       cutBonus: (u, type, pre) => pre !== undefined && pre >= u.maxHp * 0.3 ? pv(u, 0.3) : 0 },
@@ -16146,7 +16155,7 @@ const MONSTER_KITS = {
   },
   m23: { // スカーボア
     normal: N('牙', 1.0),
-    skill1: { name:'歴戦の突進', ct:3, atk:'phys', tgt:'single', pow:2.1, onHit:[{ debuff:'pdefDown', v:5 }, { debuff:'mdefDown', v:5 }], desc:'威力210%。対象の物理・魔法防御-5%(2ターン)' },
+    skill1: { name:'歴戦の突進', ct:3, atk:'phys', tgt:'single', pow:2.1, onHit:[{ debuff:'pdefDown', v:10 }, { debuff:'mdefDown', v:10 }], desc:'威力210%。対象の物理・魔法防御-10%(2ターン)' },
     skill2: { name:'古傷の意地', ct:4, tgt:'self', effects:[{ to:'self', heal:0.2, base:'maxHp' }, { to:'self', buff:'cut', v:0.2 }], desc:'HPを20%回復。受けるダメージ-20%(2ターン)' },
     passive: { name:'傷だらけの勲章', desc:'1回の戦闘で1度だけ、HPが0になってもHP1で耐え、STR+30%(2ターン)。防御が下がっている敵への与ダメージ+20%',
       dmgBonus: (u, t) => conditionMet('defDown', u, t) ? pv(u, 0.2) : 0,
@@ -16161,7 +16170,7 @@ const MONSTER_KITS = {
   },
   m27: { // ガーゴイル
     normal: N('石の爪', 0.8),
-    skill1: { name:'見張りの構え', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'mdefUp', v:6 }], desc:'挑発＋魔法防御+6%(2ターン)' },
+    skill1: { name:'見張りの構え', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'mdefUp', v:15 }], desc:'挑発＋魔法防御+15%(2ターン)' },
     skill2: { name:'石翼の舞', ct:5, tgt:'self', effects:[{ to:'self', buff:'evade', v:0.4 }], desc:'自分の回避率+40%(2ターン)。この間、受ける物理ダメージ-10%',
       run: ctx => { ctx.actor.flags.wingUntil = ctx.actor.turnCount + 2; runGeneric(ctx); } },
     passive: { name:'夜の番人', desc:'回避率+15%。攻撃を回避したとき、その相手に威力80%の反撃(物理)',
@@ -16206,7 +16215,7 @@ const MONSTER_KITS = {
   },
   m06: { // アクアスライム
     normal: N('体当たり', 0.8),
-    skill1: { ...TAUNT_DEF('ぷるぷるボディ', 6) },
+    skill1: { ...TAUNT_DEF('ぷるぷるボディ', 15) },
     skill2: { name:'水鉄砲', ct:3, atk:'mag', tgt:'single', pow:1.2, onHit:[{ debuff:'strDown', v:0.2, chance:0.5 }], desc:'威力120%(魔法)。50%でSTR-20%' },
     passive: { name:'水の体', desc:'受ける物理ダメージ-15%', cutBonus: (u, type) => type === 'phys' ? pv(u, 0.15) : 0 },
     ult: { name:'アクアバリア', sp:80, tgt:'self', effects:[{ to:'self', shield:0.3, base:'maxHp', turns:2 }, { to:'self', taunt:2 }], desc:'自分にシールド(最大HPの30%)を2ターン。挑発' },
@@ -16238,8 +16247,8 @@ const MONSTER_KITS = {
   },
   m29: { // ニードルラット (redesigned from フィールドマウス)
     normal: N('針かじり', 0.7),
-    skill1: { name:'針の鎧', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'thorns', v:0.3 }, { to:'allyGuard', buff:'pdefUp', v:3 }],
-      desc:'HPが50%以下の味方(いなければ狙われやすい味方)に、トゲ(受けた物理ダメージの30%を返す)と物理防御+3%を2ターン' },
+    skill1: { name:'針の鎧', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'thorns', v:0.3 }, { to:'allyGuard', buff:'pdefUp', v:8 }],
+      desc:'HPが50%以下の味方(いなければ狙われやすい味方)に、トゲ(受けた物理ダメージの30%を返す)と物理防御+8%を2ターン' },
     skill2: { name:'針飛ばし', ct:4, atk:'phys', tgt:'random', pow:0.4, hits:4, desc:'ランダムな敵に威力40%×4' },
     passive: { name:'トゲトゲの背中', desc:'物理攻撃を受けたとき、受けたダメージの20%を相手に返す', thornsBonus: u => pv(u, 0.2) },
     ult: { name:'針山の陣', sp:80, tgt:'allies', effects:[{ to:'allies', buff:'thorns', v:0.25 }], desc:'味方全体にトゲ(受けた物理ダメージの25%を返す)を2ターン' },
@@ -16279,7 +16288,7 @@ const MONSTER_KITS = {
   },
   m132: { // ボルトビートル
     normal: { name:'角突き', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
-    skill1: { name:'帯電の殻', desc:'物理防御+6%＋カウンター状態(受けた物理ダメージの25%を返す)(2ターン)', ct:3, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:6 }, { to:'self', buff:'thorns', v:0.25 }] },
+    skill1: { name:'帯電の殻', desc:'物理防御+15%＋カウンター状態(受けた物理ダメージの25%を返す)(2ターン)', ct:3, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:15 }, { to:'self', buff:'thorns', v:0.25 }] },
     skill2: { name:'放電ツノ', desc:'威力110%。40%で雷の追撃', ct:4, atk:'mag', tgt:'single', pow:1.1, onHit:[{ followUp:true, chance:0.4 }] },
     passive: { name:'硬い殻', desc:'受ける物理ダメージ-10%。物理攻撃を受けたとき、20%で相手を気絶',
       cutBonus: (u, type) => type === 'phys' ? pv(u, 0.1) : 0,
@@ -16347,8 +16356,8 @@ const MONSTER_KITS = {
   m45: { // オーク
     normal: { name:'斧', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
     skill1: { name:'叩き割り', desc:'威力200%', ct:3, atk:'phys', tgt:'single', pow:2.0 },
-    skill2: { name:'豚の雄叫び', desc:'STR+25%・物理防御-3%', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.25 }, { to:'self', buff:'pdefDown', v:3 }] },
-    passive: { name:'タフな体', desc:'HPが50%以下のあいだ、物理防御+4%', defBonus: (u, type) => type !== 'mag' && u.hp / u.maxHp <= 0.5 ? pv(u, 4) : 0 },
+    skill2: { name:'豚の雄叫び', desc:'STR+25%・物理防御-6%', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.25 }, { to:'self', buff:'pdefDown', v:6 }] },
+    passive: { name:'タフな体', desc:'HPが50%以下のあいだ、物理防御+10%', defBonus: (u, type) => type !== 'mag' && u.hp / u.maxHp <= 0.5 ? pv(u, 10) : 0 },
     ult: { name:'大斧旋風', desc:'威力170%', sp:90, atk:'phys', tgt:'frontAll', pow:1.7 },
   },
   m48: { // ノッカー
@@ -16361,7 +16370,7 @@ const MONSTER_KITS = {
   m49: { // リザードマン
     normal: { name:'槍', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
     skill1: { name:'水流突き', desc:'威力190%。50%でSTR-15%', ct:3, atk:'phys', tgt:'single', pow:1.9, onHit:[{ debuff:'strDown', v:0.15, chance:0.5 }] },
-    skill2: { name:'鱗の盾', desc:'物理防御+6%・魔法防御+3%', ct:4, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:6 }, { to:'self', buff:'mdefUp', v:3 }] },
+    skill2: { name:'鱗の盾', desc:'物理防御+15%・魔法防御+8%', ct:4, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:15 }, { to:'self', buff:'mdefUp', v:8 }] },
     passive: { name:'水辺の戦士', desc:'自分以外の味方に水属性が2体以上いると、STR+10%', onBattleStart: u => { u.flags.waterPals = sideOf(u).filter(a => a !== u && a.element === 'water').length >= 2; },
       strBonus: u => u.flags.waterPals ? pv(u, 0.1) : 0 },
     ult: { name:'渦槍', desc:'威力200%', sp:90, atk:'phys', tgt:'column', pow:2.0, hitMult:1 },
@@ -16382,7 +16391,7 @@ const MONSTER_KITS = {
   },
   m58: { // モスボア
     normal: { name:'牙', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
-    skill1: { name:'苔の鎧', desc:'2ターン、毎ターンHPを6%回復。物理防御+4%', ct:3, tgt:'self', effects:[{ to:'self', buff:'regen', v:0.06, flat:true }, { to:'self', buff:'pdefUp', v:4 }] },
+    skill1: { name:'苔の鎧', desc:'2ターン、毎ターンHPを6%回復。物理防御+10%', ct:3, tgt:'self', effects:[{ to:'self', buff:'regen', v:0.06, flat:true }, { to:'self', buff:'pdefUp', v:10 }] },
     skill2: { name:'苔むした突進', desc:'威力140%。与ダメージの50%を吸収', ct:3, atk:'phys', tgt:'single', pow:1.4, lifesteal:0.5 },
     passive: { name:'苔の生命力', desc:'HPが50%以下のあいだ、受ける回復量+30%。自分のターン終了時、最大HPの3%を回復',
       healRecvBonus: u => u.hp / u.maxHp <= 0.5 ? pv(u, 0.3) : 0,
@@ -16399,12 +16408,12 @@ const MONSTER_KITS = {
   },
   m71: { // セラミックゴーレム
     normal: { name:'陶器の拳', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
-    skill1: { name:'白磁の輝き', desc:'挑発＋魔法防御+8%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'mdefUp', v:8 }] },
+    skill1: { name:'白磁の輝き', desc:'挑発＋魔法防御+20%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'mdefUp', v:20 }] },
     skill2: { name:'硬化', desc:'受けるダメージ-25%', ct:4, tgt:'self', effects:[{ to:'self', buff:'cut', v:0.25 }] },
     passive: { name:'釉薬の守り', desc:'受ける魔法ダメージ-15%。自分のターン開始時、最大HPの4%のシールドを得る(重ねられる)',
       cutBonus: (u, type) => type === 'mag' ? pv(u, 0.15) : 0,
       onTurnStart: u => { addShield(u, u.maxHp * pv(u, 0.04), 99, u); } },
-    ult: { name:'陶光の壁', desc:'魔法防御+5%。自分に挑発', sp:90, tgt:'allies', effects:[{ to:'allies', buff:'mdefUp', v:5 }, { to:'self', taunt:2 }] },
+    ult: { name:'陶光の壁', desc:'魔法防御+13%。自分に挑発', sp:90, tgt:'allies', effects:[{ to:'allies', buff:'mdefUp', v:13 }, { to:'self', taunt:2 }] },
   },
   m78: { // ケルピー
     normal: { name:'蹄', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
@@ -16497,7 +16506,7 @@ const MONSTER_KITS = {
   },
   m124: { // スカラベ
     normal: { name:'角', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
-    skill1: { name:'太陽の甲殻', desc:'挑発＋魔法防御+6%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'mdefUp', v:6 }] },
+    skill1: { name:'太陽の甲殻', desc:'挑発＋魔法防御+15%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'mdefUp', v:15 }] },
     skill2: { name:'聖なる転がし', desc:'威力100%', ct:4, atk:'phys', tgt:'frontAll', pow:1.0 },
     passive: { name:'太陽の免疫', desc:'自分のターン開始時、最大HPの4%を回復', onTurnStart: u => { const g = healUnit(u, u, u.maxHp * pv(u, 0.04)); if(g) pushFx(u, g, 'heal', { fx: null }); } },
     ult: { name:'サンシールド', desc:'シールド（自分の最大HPの10%）を2ターン。自分に挑発', sp:90, tgt:'allies', effects:[{ to:'allies', shield:0.1, base:'casterMaxHp', turns:2 }, { to:'self', taunt:2 }] },
@@ -16519,7 +16528,7 @@ const MONSTER_KITS = {
   m63: { // ボルケイノタートル
     normal: { name:'甲羅の体当たり', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
     skill1: { name:'噴火弾', desc:'敵前衛全体に威力170%(魔法)。50%でやけど', ct:3, atk:'mag', tgt:'frontAll', pow:1.7, onHit:[{ st:'burn', chance:0.5 }] },
-    skill2: { name:'甲羅にこもる', desc:'受けるダメージ-30%・物理防御+6%', ct:4, tgt:'self', effects:[{ to:'self', buff:'cut', v:0.3 }, { to:'self', buff:'pdefUp', v:6 }] },
+    skill2: { name:'甲羅にこもる', desc:'受けるダメージ-30%・物理防御+15%', ct:4, tgt:'self', effects:[{ to:'self', buff:'cut', v:0.3 }, { to:'self', buff:'pdefUp', v:15 }] },
     passive: { name:'火山の甲羅', desc:'やけどにかからない。攻撃してきた相手を30%でやけどにする', immuneTo: ['burn'], onHitBy: (u, attacker) => { if(chance(0.3)) applyStatus(attacker, 'burn', u); } },
     ult: { name:'大噴火', desc:'敵全体に威力170%(魔法)。やけど状態の相手には威力50%の追加攻撃', sp:100, atk:'mag', tgt:'all', pow:1.7, extraIf:{ cond:'burned', pow:0.5 } },
   },
@@ -16534,12 +16543,12 @@ const MONSTER_KITS = {
     normal: { name:'氷の拳', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
     skill1: { name:'フロストブリーズ', desc:'威力80%。SPD-20', ct:4, atk:'mag', tgt:'all', pow:0.8, onHit:[{ debuff:'spdDown', v:20, flat:true }] },
     skill2: { name:'氷塊投げ', desc:'威力160%', ct:3, atk:'phys', tgt:'any', pow:1.6 },
-    passive: { name:'雪山の主', desc:'戦闘開始時、自分に挑発。HPが50%以下のあいだ、物理防御+4%', onBattleStart: u => addBuff(u, 'taunt', 1, 2, u), defBonus: (u, type) => type !== 'mag' && u.hp / u.maxHp <= 0.5 ? pv(u, 4) : 0 },
+    passive: { name:'雪山の主', desc:'戦闘開始時、自分に挑発。HPが50%以下のあいだ、物理防御+10%', onBattleStart: u => addBuff(u, 'taunt', 1, 2, u), defBonus: (u, type) => type !== 'mag' && u.hp / u.maxHp <= 0.5 ? pv(u, 10) : 0 },
     ult: { name:'雪崩', desc:'威力130%。必ず気絶。自分に挑発', sp:100, atk:'phys', tgt:'all', pow:1.3, onHit:[{ st:'stun' }], effects:[{ to:'self', taunt:2 }] },
   },
   m60: { // ベヒモス
     normal: { name:'巨角', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
-    skill1: { name:'背の森の城壁', desc:'挑発＋物理防御+6%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:6 }] },
+    skill1: { name:'背の森の城壁', desc:'挑発＋物理防御+15%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:15 }] },
     skill2: { name:'草原の踏み鳴らし', desc:'威力120%', ct:4, atk:'phys', tgt:'frontAll', pow:1.2 },
     passive: { name:'陸の王者', desc:'毒にかからない。挑発がかかっているあいだ、STR+30%', immuneTo: ['poison'], strBonus: u => hasBuff(u, 'taunt') ? pv(u, 0.3) : 0 },
     ult: { name:'巨獣の行進', desc:'威力150%。必ず気絶', sp:110, atk:'phys', tgt:'all', pow:1.5, onHit:[{ st:'stun' }] },
@@ -16553,7 +16562,7 @@ const MONSTER_KITS = {
   },
   m89: { // ノーム
     normal: { name:'杖', desc:'威力80%', atk:'mag', tgt:'single', pow:0.8 },
-    skill1: { name:'大地の守り', desc:'物理防御+5%', ct:3, tgt:'allies', effects:[{ to:'allies', buff:'pdefUp', v:5 }] },
+    skill1: { name:'大地の守り', desc:'物理防御+13%', ct:3, tgt:'allies', effects:[{ to:'allies', buff:'pdefUp', v:13 }] },
     skill2: { name:'岩石弾', desc:'威力160%。30%で気絶', ct:3, atk:'mag', tgt:'single', pow:1.6, onHit:[{ st:'stun', chance:0.3 }] },
     passive: { name:'大地の賢者', desc:'自分のターン開始時、自分にシールド（最大HPの8%）を2ターン', onTurnStart: u => addShield(u, u.maxHp * pv(u, 0.08), 2, u) },
     ult: { name:'地脈の咆哮', desc:'威力130%。必ず気絶。自分に挑発', sp:110, atk:'mag', tgt:'all', pow:1.3, onHit:[{ st:'stun' }], effects:[{ to:'self', taunt:2 }] },
@@ -16574,7 +16583,7 @@ const MONSTER_KITS = {
   },
   m52: { // ユミル
     normal: { name:'氷の棍棒', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
-    skill1: { name:'氷の鎧', desc:'挑発＋物理防御+6%・魔法防御+6%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:6 }, { to:'self', buff:'mdefUp', v:6 }] },
+    skill1: { name:'氷の鎧', desc:'挑発＋物理防御+15%・魔法防御+15%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:15 }, { to:'self', buff:'mdefUp', v:15 }] },
     skill2: { name:'凍てつく地響き', desc:'威力100%。SPD-10', ct:4, atk:'phys', tgt:'all', pow:1.0, onHit:[{ debuff:'spdDown', v:10, flat:true }] },
     passive: { name:'永久氷河', desc:'HPが50%以下のあいだ、受けるダメージ-20%', cutBonus: u => u.hp / u.maxHp <= 0.5 ? pv(u, 0.2) : 0 },
     ult: { name:'ニヴルヘイムの冬', desc:'威力130%。STR-20%。自分に挑発', sp:110, atk:'mag', tgt:'all', pow:1.3, onHit:[{ debuff:'strDown', v:0.2 }], effects:[{ to:'self', taunt:2 }] },
@@ -16630,7 +16639,7 @@ const MONSTER_KITS = {
   m44: { // レッドキャップ
     normal: { name:'手斧', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
     skill1: { name:'血染めの斧', desc:'威力200%。与ダメージの25%を吸収', ct:3, atk:'phys', tgt:'single', pow:2.0, lifesteal:0.25 },
-    skill2: { name:'血に飢えた狂気', desc:'STR+30%・物理防御-3%', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.3 }, { to:'self', buff:'pdefDown', v:3 }] },
+    skill2: { name:'血に飢えた狂気', desc:'STR+30%・物理防御-6%', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.3 }, { to:'self', buff:'pdefDown', v:6 }] },
     passive: { name:'赤い帽子', desc:'敵を倒すたびにSTR+10%（最大+30%）', onKill: u => { u.stacks.cap = Math.min(3, (u.stacks.cap || 0) + 1); },
       strBonus: u => (u.stacks.cap || 0) * pv(u, 0.1),
       stackIcon: u => u.stacks.cap ? `🎩${u.stacks.cap}` : '' },
@@ -16652,7 +16661,7 @@ const MONSTER_KITS = {
   },
   m74: { // ミスリルゴーレム
     normal: { name:'ミスリルの拳', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
-    skill1: { name:'魔法金属の輝き', desc:'挑発＋物理防御+6%・魔法防御+6%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:6 }, { to:'self', buff:'mdefUp', v:6 }] },
+    skill1: { name:'魔法金属の輝き', desc:'挑発＋物理防御+15%・魔法防御+15%', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'pdefUp', v:15 }, { to:'self', buff:'mdefUp', v:15 }] },
     skill2: { name:'雷撃反射', desc:'トゲ（受けた物理ダメージの40%を返す）。受けるダメージ-15%', ct:4, tgt:'self', effects:[{ to:'self', buff:'thorns', v:0.4 }, { to:'self', buff:'cut', v:0.15 }] },
     passive: { name:'魔法金属', desc:'受ける魔法ダメージ-20%', cutBonus: (u, type) => type === 'mag' ? pv(u, 0.2) : 0 },
     ult: { name:'ミスリルクラッシュ', desc:'威力250%。自分の物理防御の値をダメージに加える', sp:110, atk:'phys', tgt:'single', pow:2.5, run: ctx => dealHits(ctx, { addFlat: effDef(ctx.actor, 'phys') }) },
@@ -16689,12 +16698,12 @@ const MONSTER_KITS = {
   },
   m54: { // タイタン
     normal: N('巨腕の一撃', 0.8),
-    skill1: { ...TAUNT_DEF('大地の守護', 6) },
+    skill1: { ...TAUNT_DEF('大地の守護', 15) },
     skill2: { name:'岩盤砕き', ct:4, atk:'phys', tgt:'all', pow:1.3, onHit:[{ st:'stun', chance:0.2 }], desc:'敵全体に威力130%。20%で気絶' },
     passive: { name:'巨神の体躯', desc:'HPが50%以上のとき、受けるダメージ-15%', cutBonus: u => u.hp / u.maxHp >= 0.5 ? pv(u, 0.15) : 0 },
     ult: { name:'ティターンの城壁', sp:120, tgt:'allies',
-      effects:[{ to:'allies', redirect:0.4, turns:3 }, { to:'self', buff:'pdefUp', v:8, turns:3 }, { to:'self', buff:'mdefUp', v:8, turns:3 }, { to:'self', shield:0.4, turns:3 }],
-      desc:'3ターン、味方が受けるダメージの40%を肩代わり。自分の物理防御・魔法防御+8%。自分に最大HPの40%のシールド(切れるとき残りはHPに戻る)',
+      effects:[{ to:'allies', redirect:0.4, turns:3 }, { to:'self', buff:'pdefUp', v:20, turns:3 }, { to:'self', buff:'mdefUp', v:20, turns:3 }, { to:'self', shield:0.4, turns:3 }],
+      desc:'3ターン、味方が受けるダメージの40%を肩代わり。自分の物理防御・魔法防御+20%。自分に最大HPの40%のシールド(切れるとき残りはHPに戻る)',
       run: ctx => {
         const u = ctx.actor;
         const turns = u.wallTurns || 3, share = u.wallShare || 0.4;
@@ -16780,11 +16789,11 @@ const MONSTER_KITS = {
   },
   m46: { // オークジェネラル
     normal: N('大斧', 0.8),
-    skill1: { ...TAUNT_DEF('鉄壁の号令', 6) },
+    skill1: { ...TAUNT_DEF('鉄壁の号令', 15) },
     skill2: { name:'将軍の大斧', ct:4, atk:'phys', tgt:'single', pow:2.4, desc:'威力240%' },
-    passive: { name:'軍団の長', desc:'味方のヒューム1体につき、自分の物理防御・魔法防御+5%(最大3体)',
+    passive: { name:'軍団の長', desc:'味方のヒューム1体につき、自分の物理防御・魔法防御+2.5%(最大3体)',
       onBattleStart: u => { u.stacks.legion = Math.min(3, sideOf(u).filter(a => a !== u && a.species === 'hume').length); },
-      defBonus: u => (u.stacks.legion || 0) * pv(u, 1) },
+      defBonus: u => (u.stacks.legion || 0) * pv(u, 2.5) },
     ult: { name:'総攻撃の号令', sp:110, tgt:'allies', effects:[{ to:'allies', buff:'strUp', v:0.25 }, { to:'self', taunt:2 }], desc:'味方全体のSTR+25%(2ターン)。自分に挑発' },
   },
 
@@ -16858,7 +16867,7 @@ const MONSTER_KITS = {
     normal: N('氷の拳', 0.8),
     skill1: { name:'氷の装甲', ct:3, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', shield:0.2, base:'maxHp', turns:3 }], desc:'挑発＋シールド(自分の最大HPの20%)を3ターン' },
     skill2: { name:'凍てつく一撃', ct:4, atk:'phys', tgt:'single', pow:1.5, onHit:[{ debuff:'strDown', v:0.2, chance:0.5 }], desc:'威力150%。50%でSTR-20%' },
-    passive: { name:'永久凍土', desc:'自分にシールドが残っているあいだ、物理防御+4%', defBonus: (u, type) => type !== 'mag' && shieldTotal(u) > 0 ? pv(u, 4) : 0 },
+    passive: { name:'永久凍土', desc:'自分にシールドが残っているあいだ、物理防御+10%', defBonus: (u, type) => type !== 'mag' && shieldTotal(u) > 0 ? pv(u, 10) : 0 },
     ult: { name:'氷壁', sp:100, tgt:'allies', effects:[{ to:'allies', shield:0.15, base:'casterMaxHp', turns:2 }, { to:'self', taunt:2 }], desc:'味方全体にシールド(自分の最大HPの15%)を2ターン。自分に挑発' },
   },
 
@@ -16879,7 +16888,7 @@ const MONSTER_KITS = {
   },
   m36: { // アイアンスライム
     normal: N('体当たり', 0.8),
-    skill1: { name:'鉄の体', ct:3, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:6 }], desc:'物理防御+6%(2ターン)。この間、反撃の確率が2倍',
+    skill1: { name:'鉄の体', ct:3, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:15 }], desc:'物理防御+15%(2ターン)。この間、反撃の確率が2倍',
       run: ctx => { ctx.actor.flags.ironUntil = ctx.actor.turnCount + 2; runGeneric(ctx); } },
     skill2: { name:'放電', ct:4, atk:'mag', tgt:'single', pow:1.5, onHit:[{ followUp:true, chance:0.4 }], desc:'威力150%(魔法)。40%で追撃' },
     passive: { name:'帯電ボディ', desc:'物理攻撃を受けたとき、50%で相手に反撃(魔法・威力50%)',
@@ -16919,7 +16928,7 @@ const MONSTER_KITS = {
   },
   m84: { // トレント
     normal: N('枝打ち', 0.8),
-    skill1: { name:'根を張る', ct:3, tgt:'self', effects:[{ to:'self', buff:'regen', v:0.08, flat:true }, { to:'self', buff:'pdefUp', v:4 }], desc:'2ターン、毎ターンHPを8%回復。物理防御+4%' },
+    skill1: { name:'根を張る', ct:3, tgt:'self', effects:[{ to:'self', buff:'regen', v:0.08, flat:true }, { to:'self', buff:'pdefUp', v:10 }], desc:'2ターン、毎ターンHPを8%回復。物理防御+10%' },
     skill2: { name:'枝の鞭', ct:3, atk:'phys', tgt:'single', pow:1.5, onHit:[{ st:'stun', chance:0.3 }], desc:'威力150%。30%で気絶' },
     passive: { name:'大樹の生命力', desc:'自分のターン終了時、最大HPの3%を回復',
       onTurnEnd: u => { const g = healUnit(u, u, u.maxHp * pv(u, 0.03)); if(g) pushFx(u, g, 'heal', { fx: null }); } },
@@ -16944,7 +16953,7 @@ const MONSTER_KITS = {
   /* ---- ★1 ---- */
   m33: { // マグマスライム
     normal: N('体当たり', 0.8),
-    skill1: { name:'溶岩の膜', ct:3, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:5 }], desc:'物理防御+5%(2ターン)。この間、やけど返しの確率が2倍',
+    skill1: { name:'溶岩の膜', ct:3, tgt:'self', effects:[{ to:'self', buff:'pdefUp', v:13 }], desc:'物理防御+13%(2ターン)。この間、やけど返しの確率が2倍',
       run: ctx => { ctx.actor.flags.lavaUntil = ctx.actor.turnCount + 2; runGeneric(ctx); } },
     skill2: { name:'マグマ噴出', ct:4, atk:'mag', tgt:'single', pow:1.5, onHit:[{ st:'burn', chance:0.5 }], desc:'威力150%(魔法)。50%でやけど' },
     passive: { name:'灼熱の体', desc:'物理攻撃を受けたとき、45%で相手をやけどにする',
@@ -16960,7 +16969,7 @@ const MONSTER_KITS = {
   },
   m30: { // スケルトン戦士
     normal: N('錆びた剣', 0.8),
-    skill1: { ...TAUNT_DEF('錆びた盾', 6) },
+    skill1: { ...TAUNT_DEF('錆びた盾', 15) },
     skill2: { name:'骨の一撃', ct:3, atk:'phys', tgt:'single', pow:1.5, onHit:[{ drain:10 }], desc:'威力150%。SP-10' },
     passive: { name:'不死の骨', desc:'1回の戦闘で1度だけ、HPが0になってもHP1で耐える',
       survive: u => { if(u.flags.survived) return false; u.flags.survived = true; logLine(`${nm(u)} は踏みとどまった!`, 'skill'); return true; } },
@@ -17009,7 +17018,7 @@ const MONSTER_KITS = {
   },
   m137: { // リヴァイアサン
     normal: N('尾撃', 0.8),
-    skill1: { name:'深海の守り', ct:3, tgt:'self', effects:[{ to:'self', taunt:3 }, { to:'self', buff:'pdefUp', v:6, turns:3 }, { to:'self', buff:'mdefUp', v:6, turns:3 }], desc:'挑発＋物理・魔法防御+6%(3ターン)' },
+    skill1: { name:'深海の守り', ct:3, tgt:'self', effects:[{ to:'self', taunt:3 }, { to:'self', buff:'pdefUp', v:15, turns:3 }, { to:'self', buff:'mdefUp', v:15, turns:3 }], desc:'挑発＋物理・魔法防御+15%(3ターン)' },
     skill2: { name:'大津波', ct:4, atk:'mag', tgt:'all', pow:1.2, onHit:[{ debuff:'spdDown', v:10, flat:true }], desc:'敵全体に威力120%(魔法)。SPD-10(2ターン)' },
     passive: { name:'深海の圧', desc:'自分のターン開始時、最大HPの5%のシールドを得る(重ねられる)',
       onTurnStart: u => { addShield(u, u.maxHp * pv(u, 0.05), 99, u); } },
@@ -17027,7 +17036,7 @@ const MONSTER_KITS = {
     skill2: { name:'森の抱擁', ct:4, tgt:'self', effects:[{ to:'self', heal:0.25, base:'maxHp' }, { to:'self', buff:'regen', v:0.06, flat:true, turns:2 }], desc:'自分のHPを25%回復。2ターン、毎ターン最大HPの6%を回復' },
     passive: { name:'不滅の緑', desc:'自分のターン開始時、最大HPの4%を回復',
       onTurnStart: u => { const g = healUnit(u, u, u.maxHp * pv(u, 0.04)); if(g) pushFx(u, g, 'heal', { fx: null }); } },
-    ult: { name:'大森林の怒り', sp:120, atk:'phys', tgt:'all', pow:2.0, onHit:[{ debuff:'pdefDown', v:4 }], desc:'敵全体に威力200%。物理防御-4%(2ターン)' },
+    ult: { name:'大森林の怒り', sp:120, atk:'phys', tgt:'all', pow:2.0, onHit:[{ debuff:'pdefDown', v:8 }], desc:'敵全体に威力200%。物理防御-8%(2ターン)' },
   },
   m139: { // アバドン
     normal: N('奈落の爪', 0.9),
@@ -17102,7 +17111,7 @@ const MONSTER_KITS = {
   },
   m143: { // セルキー
     normal: N('潮撫で', 0.8, 'mag'),
-    skill1: { name:'海豹の皮', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:5 }, { to:'allyGuard', ward:2 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)の物理防御+5%＆免疫(2ターン)' },
+    skill1: { name:'海豹の皮', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:13 }, { to:'allyGuard', ward:2 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)の物理防御+13%＆免疫(2ターン)' },
     skill2: { name:'寄せ波の癒し', ct:4, tgt:'allyLowest', effects:[{ to:'allyLowest', heal:0.3, base:'maxHp' }, { to:'allyLowest', buff:'regen', v:0.08, flat:true, turns:1 }], desc:'HPの割合が一番低い味方のHPを30%回復。1ターン、毎ターン最大HPの8%を回復' },
     passive: { name:'帰る場所', desc:'味方が戦闘不能になったとき、1戦闘に1度だけ味方全体のHPを最大HPの10%回復',
       onAllyDeath: u => {
@@ -17124,7 +17133,7 @@ const MONSTER_KITS = {
         if(!u.flags.braced && chance(0.2)) u.flags.braced = true;
       },
       stackIcon: u => u.flags.braced ? '🔨' : '' },
-    ult: { name:'神槌の一撃', sp:110, atk:'phys', tgt:'single', pow:3.2, onHit:[{ debuff:'pdefDown', v:4 }], desc:'威力320%。物理防御-4%(2ターン)' },
+    ult: { name:'神槌の一撃', sp:110, atk:'phys', tgt:'single', pow:3.2, onHit:[{ debuff:'pdefDown', v:8 }], desc:'威力320%。物理防御-8%(2ターン)' },
   },
   m145: { // ヘパイストス
     normal: N('熱線', 0.85, 'mag'),
@@ -17173,7 +17182,7 @@ const MONSTER_KITS = {
   m149: { // アヌビス
     normal: N('秤の一撃', 0.8),
     skill1: { name:'死者の番人', ct:3, tgt:'all', foeOnly:true, effects:[{ to:'foes', buff:'strDown', v:0.15 }], desc:'敵全体のSTR-15%(2ターン)' },
-    skill2: { name:'心臓の計量', ct:4, tgt:'single', foeOnly:true, effects:[{ to:'foe', buff:'pdefDown', v:4 }, { to:'foe', buff:'mdefDown', v:4 }], desc:'敵単体の物理・魔法防御-4%(2ターン)' },
+    skill2: { name:'心臓の計量', ct:4, tgt:'single', foeOnly:true, effects:[{ to:'foe', buff:'pdefDown', v:8 }, { to:'foe', buff:'mdefDown', v:8 }], desc:'敵単体の物理・魔法防御-8%(2ターン)' },
     passive: { name:'冥府の裁定', desc:'自分のヘイトが味方で一番高いあいだ、受けるダメージ-15%。物理攻撃を受けたとき、25%で相手のSTR-15%(2ターン)',
       cutBonus: u => sideOf(u).filter(present).every(a => a === u || hateOf(a) <= hateOf(u)) ? pv(u, 0.15) : 0,
       onHitBy: (u, attacker, atk) => {
@@ -17193,22 +17202,22 @@ const MONSTER_KITS = {
   m151: { // アグニ
     normal: N('炎弾', 0.85, 'mag'),
     skill1: { name:'浄火の矢', ct:3, atk:'mag', tgt:'single', pow:2.0, onHit:[{ st:'burn', chance:0.5 }], desc:'威力200%(魔法)。50%でやけど' },
-    skill2: { name:'聖火の壁', ct:4, tgt:'allies', effects:[{ to:'allies', buff:'mdefUp', v:4 }], desc:'味方全体の魔法防御+4%(2ターン)' },
+    skill2: { name:'聖火の壁', ct:4, tgt:'allies', effects:[{ to:'allies', buff:'mdefUp', v:10 }], desc:'味方全体の魔法防御+10%(2ターン)' },
     passive: { name:'三重の炎', desc:'自分のターン開始時、SP+5', onTurnStart: u => gainSp(u, Math.round(pv(u, 5)), 'passive') },
     ult: { name:'アグニアストラ', sp:100, atk:'mag', tgt:'single', pow:3.2, onHit:[{ st:'burn' }], desc:'威力320%(魔法)。必ずやけど' },
   },
   m152: { // メリュジーヌ
     normal: N('水尾撃', 0.75),
     skill1: { name:'癒しの泉', ct:3, tgt:'allyLowest', effects:[{ to:'allyLowest', heal:0.25, base:'maxHp' }], desc:'HPの割合が一番低い味方のHPを25%回復' },
-    skill2: { name:'守りの鱗', ct:4, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:6 }, { to:'allyGuard', buff:'thorns', v:0.1 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)の物理防御+6%。受けた物理ダメージの10%を返す(2ターン)' },
-    passive: { name:'二つの姿', desc:'HPが50%を下回ると、それ以降は自分の魔法防御+4%',
+    skill2: { name:'守りの鱗', ct:4, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'pdefUp', v:15 }, { to:'allyGuard', buff:'thorns', v:0.1 }], desc:'HPが50%以下の味方(いなければ狙われやすい味方)の物理防御+15%。受けた物理ダメージの10%を返す(2ターン)' },
+    passive: { name:'二つの姿', desc:'HPが50%を下回ると、それ以降は自分の魔法防御+10%',
       onDamaged: u => { if(!u.flags.twoForms && u.hp / u.maxHp < 0.5){ u.flags.twoForms = true; logLine(`${nm(u)} は竜の姿を現した`, 'skill'); } },
-      defBonus: (u, type) => type === 'mag' && u.flags.twoForms ? pv(u, 4) : 0 },
+      defBonus: (u, type) => type === 'mag' && u.flags.twoForms ? pv(u, 10) : 0 },
     ult: { name:'聖水の涙', sp:90, tgt:'allies', effects:[{ to:'allies', heal:0.2, base:'maxHp' }, { to:'allies', buff:'cut', v:0.15, turns:1 }], desc:'味方全体のHPを20%回復。受けるダメージ-15%(1ターン)' },
   },
   m153: { // ドリュアス
     normal: N('蔦打ち', 0.75),
-    skill1: { name:'根の抱擁', ct:3, tgt:'single', foeOnly:true, effects:[{ to:'foe', buff:'pdefDown', v:4 }, { to:'allyLowest', heal:0.15, base:'maxHp' }], desc:'敵単体の物理防御-4%(2ターン)。HPの割合が一番低い味方のHPを15%回復' },
+    skill1: { name:'根の抱擁', ct:3, tgt:'single', foeOnly:true, effects:[{ to:'foe', buff:'pdefDown', v:8 }, { to:'allyLowest', heal:0.15, base:'maxHp' }], desc:'敵単体の物理防御-8%(2ターン)。HPの割合が一番低い味方のHPを15%回復' },
     skill2: { name:'森の恵み', ct:4, tgt:'allies', effects:[{ to:'allies', heal:0.15, base:'maxHp' }], desc:'味方全体のHPを15%回復' },
     passive: { name:'大樹の加護', desc:'自分のターン開始時、HPが70%未満なら最大HPの5%を回復',
       onTurnStart: u => { if(u.hp / u.maxHp >= 0.7) return; const g = healUnit(u, u, u.maxHp * pv(u, 0.05)); if(g) pushFx(u, g, 'heal', { fx: null }); } },
@@ -17224,7 +17233,7 @@ const MONSTER_KITS = {
   m154: { // アルヴィス
     normal: N('詭弁の一撃', 0.8),
     skill1: { name:'謎かけ', ct:3, tgt:'single', foeOnly:true, effects:[{ to:'foe', st:'confuse', turns:1 }], desc:'敵単体を混乱(1ターン)' },
-    skill2: { name:'知恵比べ', ct:4, tgt:'single', foeOnly:true, effects:[{ to:'foe', buff:'pdefDown', v:5 }, { to:'foe', buff:'mdefDown', v:5 }], desc:'敵単体の物理・魔法防御-5%(2ターン)' },
+    skill2: { name:'知恵比べ', ct:4, tgt:'single', foeOnly:true, effects:[{ to:'foe', buff:'pdefDown', v:10 }, { to:'foe', buff:'mdefDown', v:10 }], desc:'敵単体の物理・魔法防御-10%(2ターン)' },
     passive: { name:'口八丁', desc:'攻撃を回避したとき、次の攻撃の威力+30%',
       onEvade: u => { u.flags.glib = true; },
       dmgBonus: u => u.flags.glib ? pv(u, 0.3) : 0,
@@ -17370,8 +17379,8 @@ const MONSTER_KITS = {
       allyDmgBonus: (u, ally, t) => t && hasStatus(t, 'burn') ? pv(u, 0.1) : 0,
       spdBonus: u => u.flags.wolfPal ? Math.round(u.spd * pv(u, 0.1)) : 0 },
     ult: { name:'太陽を呑む', sp:100, atk:'phys', tgt:'all', pow:0.8,
-      onHit:[{ debuff:'spdDown', v:0.15, turns:2 }, { debuff:'pdefDown', v:3, turns:2 }, { st:'burn' }],
-      desc:'敵全体に威力80%。SPD-15%・物理防御-3%(2ターン)。必ずやけど' },
+      onHit:[{ debuff:'spdDown', v:0.15, turns:2 }, { debuff:'pdefDown', v:6, turns:2 }, { st:'burn' }],
+      desc:'敵全体に威力80%。SPD-15%・物理防御-6%(2ターン)。必ずやけど' },
   },
   m168: { // 黙示のアルベ(闇・サポーター・デーモン) アバドン側。味方の会心を盛る
     normal: { name:'羽音', atk:'mag', tgt:'any', pow:0.7 },
@@ -17388,8 +17397,8 @@ const MONSTER_KITS = {
       },
       desc:'味方全体の会心率+20%(3ターン)。闇属性の味方は会心倍率も+20%' },
     skill2: { name:'尾の一撃', ct:4, atk:'mag', tgt:'single', pow:2.0,
-      onHit:[{ debuff:'pdefDown', v:5, turns:3 }],
-      desc:'敵単体に威力200%。物理防御-5%(3ターン)' },
+      onHit:[{ debuff:'pdefDown', v:10, turns:3 }],
+      desc:'敵単体に威力200%。物理防御-10%(3ターン)' },
     passive: { name:'王への献身', desc:'味方が会心を出すたびに自分のSP+5(1ラウンドに20まで)',
       onAllyCrit: u => {
         if(u.flags.albeRound !== battleUI.round){ u.flags.albeRound = battleUI.round; u.flags.albeGot = 0; }
@@ -17433,8 +17442,8 @@ const MONSTER_KITS = {
     // 一緒に乗る魔防+10が「背負いきれるようにする」部品になっている。挑発は付けない
     // (挑発で単体攻撃を引き寄せたうえに肩代わりまですると、2ターン無敵に近くなる)
     skill1: { name:'牛鬼の盾', ct:3, tgt:'self',
-      effects:[{ to:'alliesBack', redirect:0.5, turns:2 }, { to:'self', buff:'mdefUp', v:10, turns:2 }],
-      desc:'2ターンかばう状態。後衛の味方が受けるダメージの50%を肩代わりし、そのあいだ自分の魔法防御+10' },
+      effects:[{ to:'alliesBack', redirect:0.5, turns:2 }, { to:'self', buff:'mdefUp', v:25, turns:2 }],
+      desc:'2ターンかばう状態。後衛の味方が受けるダメージの50%を肩代わりし、そのあいだ自分の魔法防御+25' },
     skill2: { name:'角裂き', ct:4, atk:'phys', tgt:'single', pow:2.0, onHit:[{ st:'burn', chance:0.5 }], desc:'威力200%。50%でやけど' },
     passive: { name:'鬼の皮', desc:'肩代わりで受けたダメージ-25%', redirectCut: u => pv(u, 0.25) },
     ult: { name:'鬼哭', sp:110, atk:'phys', tgt:'all', pow:1.8,
@@ -17482,7 +17491,7 @@ const MONSTER_PERKS = {
       apply: u => { u.wallTurns = 4; u.wallShare = 0.6;
         u.wallBank = { cap: 0.60, perTurn: 0.15, rate: 0.30 };
         const ul = ownUlt(u);
-        ul.desc = '4ターン、味方が受けるダメージの60%を肩代わり。自分の物理防御・魔法防御+8%と最大HPの40%のシールド。肩代わりで受けたダメージの30%をSTRに変えて蓄える(最大+60%)';
+        ul.desc = '4ターン、味方が受けるダメージの60%を肩代わり。自分の物理防御・魔法防御+20%と最大HPの40%のシールド。肩代わりで受けたダメージの30%をSTRに変えて蓄える(最大+60%)';
         addHook(ownPassive(u), 'strBonus', x => x.stacks.wall || 0); } },
   },
   m68: { // フェンリル
@@ -17546,7 +17555,7 @@ const MONSTER_PERKS = {
     9: { desc:'牛鬼の盾: 後衛の味方 → 味方全体をかばう',
       apply: u => { const a = ownSkill(u, 0);
         a.effects = a.effects.map(e => e.redirect ? { ...e, to:'allies' } : e);
-        a.desc = '2ターンかばう状態。味方全体が受けるダメージの50%を肩代わりし、そのあいだ自分の魔法防御+10'; } },
+        a.desc = '2ターンかばう状態。味方全体が受けるダメージの50%を肩代わりし、そのあいだ自分の魔法防御+25'; } },
     10: { desc:'鬼哭: かばっている味方全員にも最大HPの50%のシールド',
       apply: u => { const ul = ownUlt(u);
         ul.effects = [...(ul.effects || []), { to:'allies', shield:0.5, base:'maxHp', turns:3 }];
@@ -17591,7 +17600,7 @@ const MONSTER_PERKS = {
     10: { desc:'神槌の一撃: 自分のシールドの量だけ威力が上がる',
       apply: u => { const ul = ownUlt(u);
         ul.run = ctx => dealHits(ctx, { addFlat: shieldTotal(ctx.actor) });
-        ul.desc = '威力320%＋自分のシールドの量。物理防御-4%(2ターン)'; } },
+        ul.desc = '威力320%＋自分のシールドの量。物理防御-8%(2ターン)'; } },
   },
   m53: { // スルト: 盤面を焼く
     from: EVENT_ADDON_AT,      // 公開時刻まで星刻は出さない
@@ -20857,6 +20866,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 26, date: '10/2', title: '防御の見直し(タンクがしっかり硬く)', body: '<span class="nt-h">防御を強くしました(とくにタンク)</span><span class="nt-i">防御を「そのままダメージカット%」にしたあと、防御が弱すぎて、タンクがほかの子より少し硬いだけになっていました。役割の差がはっきり出るように見直しました。</span><span class="nt-i"><b>素の防御</b><br>タンク 9〜20% → <em>23〜50%</em>(2.5倍)<br>アタッカー・サポート・トリックスター・シューター → <em>2倍</em></span><span class="nt-i"><b>倒されにくさ(タンク÷アタッカー)</b><br>1.5倍 → <em>1.9倍</em></span><span class="nt-i"><b>スキル・パッシブの防御アップ</b><br>物理防御+6% → <em>+15%</em> など(2.5倍)</span><span class="nt-i"><b>防御ダウン</b><br>-4% → -8% など(2倍)</span><span class="nt-i"><b>ルーン・遺物・陣形・種族の防御</b><br>2倍(ルーンTierⅩのメインは +5 → <em>+10</em>)</span><span class="nt-h">ステージの難しさは変えていません</span><span class="nt-i">・ステージの敵の素の防御は今までどおりです。強くなるのは味方(とPVPの相手)だけです。</span><span class="nt-i">・EXなどの「敵 物理防御+40」のような特別ルールも、そのままです。</span>' },
   { id: 25, date: '10/2', title: '経済の見直し(星結晶・ソウル・ゴールド)', body: '<span class="nt-h">今回の方針</span><span class="nt-i">今回の更新は、<em>モンスターを完凸(★10)させるまでのバランス</em>をもとにした調整です。ピックアップ★5は本体+かぶり5体で完凸できるように、ソウルの量と天井までの日数をそろえました。</span><span class="nt-i">星結晶の配り方は、メインクエストなどの一度きりの報酬を減らし、<em>毎月の星結晶の半分以上をイベントから</em>受け取る形にしました。続けて遊ぶほど、開催されるイベントで集められます。</span><span class="nt-i">以下がその内容の詳細です。</span><span class="nt-h">月にもらえる星結晶(イベントは月4回で計算)</span><span class="nt-i"><b>デイリーミッション</b><br>月8,100石 → 月4,500石</span><span class="nt-i"><b>ログインボーナス</b><br>月2,100石 → 月2,100石</span><span class="nt-i"><b>ウィークリーミッション</b><br>月5,570石 → 月6,000石</span><span class="nt-i"><b>イベント(ステージ・EX・ミッション・召喚券・開催中のデイリー)</b><br>月55,500石 → 月16,760石</span><span class="nt-i"><b>深淵回廊</b><br>月800石 → 月800石</span><span class="nt-i"><b>合計</b><br>月72,070石 → <em>月30,160石</em></span><span class="nt-i"><b>天井(200回)</b><br>11.2日 → <em>26.9日</em></span><span class="nt-i">・総力戦・封印戦が入ると、そのぶん(月およそ10,000石)が上乗せされます。</span><span class="nt-h">一度きりの星結晶</span><span class="nt-i"><b>メインクエスト(初回クリア・★の箱)</b><br>50,210石 → 23,610石</span><span class="nt-i"><b>実績</b><br>11,000石 → <em>19,610石</em></span><span class="nt-i">・実績は全部作り直しました。<em>いまの記録で、すでに届いている段はその場で受け取れます</em>。</span><span class="nt-i">・「ルーンを合成する」「PVPで勝つ」は、今回から数えはじめます(<em>さかのぼって反映されません</em>)。</span><span class="nt-h">ソウルが集まりやすくなりました</span><span class="nt-i"><b>ガチャのかぶり(★5)</b><br>150 → <em>500</em>(ピックアップは300 → <em>1,000</em>)</span><span class="nt-i"><b>無形のソウル・無形の共鳴石(ガチャ1回あたり)</b><br>平均1.95個 → <em>6.00個</em></span><span class="nt-i"><b>★10までに必要なソウル</b><br>★2:2,100 → 2,000 / ★3:3,150 → 3,000 / ★4:3,900 → 4,000 / ★5:4,800 → 5,000</span><span class="nt-i">・★5はピックアップなら本体+かぶり5体、それ以外はかぶり10体で★10になります。</span><span class="nt-h">お返し(プレゼントボックス)</span><span class="nt-i">・星結晶 3,000 / 無形のソウル 300 / 霊素核TierI 30 をお送りします(この更新より前に遊んでいた方が対象です)。</span><span class="nt-h">そのほか</span><span class="nt-i">・ミッションのゴールドをなくし、霊素鉱やワザ素材BOXにしました。</span><span class="nt-i">・黄金の洞窟のゴールドを3割下げました。霊素工房は霊素鉱が2倍、霊素核Iが半分になります。</span><span class="nt-i">・遺物ごとの共鳴石を、持ち物の個数として持つようにしました(残っていた数はそのまま引き継ぎます)。</span>' },
   { id: 24, date: '10/1', title: '「紅蓮の九尾」「黄金の巨神」にEXステージが来ます(10/7まで延長)', hero: ['ann_ev_kyubi', 'ann_ev_titan'], art: ['m116', 'm170', 'm150', 'm54', 'm144', 'm53'], body: '<span class="nt-h">本日 10/1(水) 16:00 から・10/7(火) 23:59 まで延長します</span>終了予定だった2イベントに<em>EXステージ</em>・<em>同時ピックアップの★4</em>・<em>星刻</em>を足して、開催を<em>10/7(火) 23:59</em>まで延ばします。追加ぶんは<em>本日16:00</em>から遊べます。<span class="nt-h">EXステージが開きます(ステージ3クリアで解放)</span><em>スタミナを使わず何度でも</em>挑める腕試しです。クリアすると主役のソウルが出ます(EX1 20% / EX2 50% / EX3 50%で1〜3個)。ほかの敵のソウルも出ます。<span class="nt-i">・EX1〜EX3で<em>ルールが1つずつ増えます</em>。減ることはありません。</span><span class="nt-i">・<em>狐火の祭壇</em>(九尾) 「<em>敵も味方も やけど状態の相手へ与ダメージ+50%</em>」「デーモンの味方HP+50%」「シューターの味方STR+50%」。EX2から<em>敵SPD+50%</em>、EX3から<em>敵物理防御+40</em>が加わります。</span><span class="nt-i">・<em>巨神の遺跡</em>(タイタン) 「シールドを持っているあいだ<em>与ダメージ+50%</em>」「シールドが無いあいだ<em>受けるダメージ+50%</em>」「ドワーフの味方HP・STR+50%」。EX2から<em>敵が気絶・やけど・毒にかからなくなり</em>、EX3から<em>敵のシールドが倍</em>になります。</span><span class="nt-i">・EX1〜EX3それぞれに<em>イベントミッション</em>が付きます(星結晶500 / 1,000＋召喚券5枚 / 2,000＋10連券1枚)。EX3のクリアで<em>称号</em>も手に入ります。</span><span class="nt-h">同時ピックアップの★4が登場します</span>ガチャで<em>★4が出たときの50%</em>がこの2体になります。イベントショップでもソウルを交換でき(各60メダルで20個・上限10回)、EXステージでは<em>EX3で100%</em>ソウルが出ます。<span class="nt-i">・<em>紅蓮の九尾</em> 新★4 <em>牛鬼</em>(炎/タンク) 牛の頭を持つ大鬼。<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。九尾のような後ろで戦う子を守る役です。／★4 <em>ロキ</em>(炎/トリックスター) 姿を変える詐術の神。敵全体を必ずやけどにします。</span><span class="nt-i">・<em>黄金の巨神</em> ★4 <em>ブロック</em>(土/タンク) 神々の武具を打つドワーフの鍛冶師。挑発しながら自分に盾を張ります。／★4 <em>スルト</em>(炎/アタッカー) 世界を焼く炎の巨人。やけどを撒いて全体を焼きます。</span><span class="nt-i">・編成に入れると<em>イベントボーナス+20%</em>が付きます(主役の★5は+40%)。</span><span class="nt-h">EXは「条件に合わせると抜けられる」難しさにしました</span>敵の最大HPとSTRを上げたぶん、<em>ステージ効果に噛み合う編成かどうかで結果が大きく変わります</em>。<span class="nt-i">・<em>狐火の祭壇</em> デーモンとシューターを入れて、やけどを撒いてから殴る形。噛み合う編成なら EX1〜EX3 とも<em>9割以上</em>で抜けられますが、噛み合わない編成だと<em>2割前後</em>まで落ちます</span><span class="nt-i">・<em>巨神の遺跡</em> ドワーフを並べて、シールドを切らさない形。<em>ドワーフの味方の強化を+50%から+100%に上げました</em>(ドワーフは★3が多く、+50%では★5の編成に追いつけませんでした)</span><span class="nt-h">★4にも星刻が付きます</span>★を上げると刻まれる、そのモンスターだけの効果です。<em>★6から★10まで1段ずつ</em>増えます。<span class="nt-i">・<em>牛鬼</em> かばっているあいだ受けるダメージ-10% → 守っている味方も-10% → シールド中は与ダメージ+15% → <em>かばう相手が後衛だけ→味方全体に</em> → 鬼哭が<em>かばっている味方全員にもシールド</em></span><span class="nt-i">・<em>ロキ</em> 状態異常の敵へ+10% → 炎の悪戯でバフを2つ消す → やけどの敵へさらに+15% → <em>姿変えが敵全体に</em> → <em>戦闘開始時に敵全体を混乱</em></span><span class="nt-i">・<em>ブロック</em> シールド中は与ダメージ+10% → 不屈の鍛冶が2回ぶん溜まる → 挑発中は受けるダメージ-15% → <em>鍛冶の盾が後衛の味方にも</em> → 神槌の一撃が<em>自分のシールドの量だけ強くなる</em></span><span class="nt-i">・<em>スルト</em> やけどの敵へ+10% → 自分が攻撃した相手もやけどに → やけどが3体以上で+15% → <em>灼熱の薙ぎが敵全体に</em> → ムスペルの業火の<em>追加攻撃が2回</em></span><span class="nt-h">イベントショップが開きます</span>この2イベントには<em>これまでメダルがなく、イベントショップも周回回数のミッションも出ていませんでした</em>。<em>狐火の灯</em>(紅蓮の九尾)と<em>巨神の金片</em>(黄金の巨神)を追加して、ショップを開きます。<span class="nt-i">・ステージを回ると手に入り、<em>育成素材・ワザ素材BOX・召喚券・霊素核</em>などと交換できます。</span><span class="nt-i">・<em>牛鬼・ロキ・ブロック・スルトのソウル</em>も1体ずつ並びます(各60メダルで20個・上限10回)。</span><span class="nt-i">・<em>周回回数のミッション</em>(10回・30回・50回)も出るようになりました。</span><span class="nt-i">・メダルはイベントが終わると消えるので、期間中に使い切ってください。</span>' },
   { id: 23, date: '9/29', title: 'DiscordとXを用意しました(ご意見・バグ報告の窓口)', body: '<span class="nt-h">Discord</span>小規模なコミュニティとして設置しました。<em>バグ報告や要望など</em>はこちらからしていただけます。<span class="nt-link" data-open-community="discord">Discordを開く</span><span class="nt-h">X(制作アカウント)</span>ゲーム制作のアカウントで、<em>開発の裏話</em>などを流しています。Discordアカウントのない方は、こちらのDMにもバグ報告や要望を投げていただけます。<span class="nt-link" data-open-community="x">Xを開く</span><span class="nt-h">開き方</span>どちらも<em>設定画面</em>から開けます(設定 → Discord / X)。<span class="nt-h">とくに聞きたいこと</span>いま新しい戦闘システムをテストしています。「ここが変」「前のほうがよかった」「この役割が弱い」など、遠慮なく投げてください。'
@@ -20886,6 +20896,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 147, version: 'α0.4.001', date: '10/2', title: '防御の見直し(タンクがしっかり硬く)', body: '<span class="nt-h">防御を強くしました(とくにタンク)</span><span class="nt-i">防御を「そのままダメージカット%」にしたあと、防御が弱すぎて、タンクがほかの子より少し硬いだけになっていました。役割の差がはっきり出るように見直しました。</span><span class="nt-i"><b>素の防御</b><br>タンク 9〜20% → <em>23〜50%</em>(2.5倍)<br>アタッカー・サポート・トリックスター・シューター → <em>2倍</em></span><span class="nt-i"><b>倒されにくさ(タンク÷アタッカー)</b><br>1.5倍 → <em>1.9倍</em></span><span class="nt-i"><b>スキル・パッシブの防御アップ</b><br>物理防御+6% → <em>+15%</em> など(2.5倍)</span><span class="nt-i"><b>防御ダウン</b><br>-4% → -8% など(2倍)</span><span class="nt-i"><b>ルーン・遺物・陣形・種族の防御</b><br>2倍(ルーンTierⅩのメインは +5 → <em>+10</em>)</span><span class="nt-h">ステージの難しさは変えていません</span><span class="nt-i">・ステージの敵の素の防御は今までどおりです。強くなるのは味方(とPVPの相手)だけです。</span><span class="nt-i">・EXなどの「敵 物理防御+40」のような特別ルールも、そのままです。</span>' },
   { id: 146, version: 'α0.4.000', date: '10/2', title: '経済の見直し', body: '<span class="nt-h">今回の方針</span><span class="nt-i">今回の更新は、<em>モンスターを完凸(★10)させるまでのバランス</em>をもとにした調整です。ピックアップ★5は本体+かぶり5体で完凸できるように、ソウルの量と天井までの日数をそろえました。</span><span class="nt-i">星結晶の配り方は、メインクエストなどの一度きりの報酬を減らし、<em>毎月の星結晶の半分以上をイベントから</em>受け取る形にしました。続けて遊ぶほど、開催されるイベントで集められます。</span><span class="nt-i">以下がその内容の詳細です。</span><span class="nt-h">月にもらえる星結晶(イベントは月4回で計算)</span><span class="nt-i"><b>デイリーミッション</b><br>月8,100石 → 月4,500石</span><span class="nt-i"><b>ログインボーナス</b><br>月2,100石 → 月2,100石</span><span class="nt-i"><b>ウィークリーミッション</b><br>月5,570石 → 月6,000石</span><span class="nt-i"><b>イベント(ステージ・EX・ミッション・召喚券・開催中のデイリー)</b><br>月55,500石 → 月16,760石</span><span class="nt-i"><b>深淵回廊</b><br>月800石 → 月800石</span><span class="nt-i"><b>合計</b><br>月72,070石 → <em>月30,160石</em></span><span class="nt-i"><b>天井(200回)</b><br>11.2日 → <em>26.9日</em></span><span class="nt-i">・総力戦・封印戦が入ると、そのぶん(月およそ10,000石)が上乗せされます。</span><span class="nt-h">一度きりの星結晶</span><span class="nt-i"><b>メインクエスト(初回クリア・★の箱)</b><br>50,210石 → 23,610石</span><span class="nt-i"><b>実績</b><br>11,000石 → <em>19,610石</em></span><span class="nt-i">・実績は全部作り直しました。<em>いまの記録で、すでに届いている段はその場で受け取れます</em>。</span><span class="nt-i">・「ルーンを合成する」「PVPで勝つ」は、今回から数えはじめます(<em>さかのぼって反映されません</em>)。</span><span class="nt-h">ソウルが集まりやすくなりました</span><span class="nt-i"><b>ガチャのかぶり(★5)</b><br>150 → <em>500</em>(ピックアップは300 → <em>1,000</em>)</span><span class="nt-i"><b>無形のソウル・無形の共鳴石(ガチャ1回あたり)</b><br>平均1.95個 → <em>6.00個</em></span><span class="nt-i"><b>★10までに必要なソウル</b><br>★2:2,100 → 2,000 / ★3:3,150 → 3,000 / ★4:3,900 → 4,000 / ★5:4,800 → 5,000</span><span class="nt-i">・★5はピックアップなら本体+かぶり5体、それ以外はかぶり10体で★10になります。</span><span class="nt-h">お返し(プレゼントボックス)</span><span class="nt-i">・星結晶 3,000 / 無形のソウル 300 / 霊素核TierI 30 をお送りします(この更新より前に遊んでいた方が対象です)。</span><span class="nt-h">そのほか</span><span class="nt-i">・ミッションのゴールドをなくし、霊素鉱やワザ素材BOXにしました。</span><span class="nt-i">・黄金の洞窟のゴールドを3割下げました。霊素工房は霊素鉱が2倍、霊素核Iが半分になります。</span><span class="nt-i">・遺物ごとの共鳴石を、持ち物の個数として持つようにしました(残っていた数はそのまま引き継ぎます)。</span>' },
   { id: 145, version: 'α0.3.019', date: '10/1', title: 'ルーンの合成・振り直しで画面が一番上に戻らないように', body: '<span class="nt-i">・ルーンの合成画面で材料を選んだり、合成・振り直し・ロックをしたりしても、<em>画面が一番上に戻らなくなりました</em>。見ていた場所のまま続けられます。</span>' },
   { id: 144, version: 'α0.3.018', date: '10/1', title: '遺物の強化画面も閉じずに続けて上げられるように・遺物の★の表示', body: '<span class="nt-i">・遺物のスキル強化で「レベルアップする」を押しても、<em>確認の画面は閉じなくなりました</em>。閉じると遺物の強化画面の、見ていた場所に戻ります。</span><span class="nt-i">・遺物の強化画面で強化しても、画面の一番上に戻らなくなりました。</span><span class="nt-i">・遺物の★を<em>モンスターと同じ並べ方</em>にしました。白い★を5個まで並べ、共鳴で★6を超えたぶんは<em>左から青</em>に変わります(★5の遺物を4回共鳴すると青4個+白1個)。</span>' },
