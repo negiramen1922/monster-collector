@@ -3183,7 +3183,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.001';
+const GAME_VERSION = 'α0.4.002';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -16059,18 +16059,18 @@ const MONSTER_KITS = {
   m08: { // ハルピュイア
     normal: N('鉤爪', 1.0),
     skill1: { name:'疾風切り', ct:2, atk:'phys', tgt:'single', pow:1.7, effects:[{ to:'self', buff:'spdUp', v:10, flat:true }], desc:'威力170%。自分のSPD+10(2ターン)' },
-    skill2: { name:'羽ばたき乱舞', ct:4, atk:'phys', tgt:'random', pow:0.55, hits:5, desc:'ランダムな敵に威力55%×5' },
+    skill2: { name:'羽ばたき乱舞', ct:4, atk:'phys', tgt:'random', pow:0.35, hits:5, desc:'ランダムな敵に威力35%×5' },
     passive: { name:'風読み', desc:'回避率+10%。攻撃を回避したとき、その相手に威力50%の反撃(物理)',
       evadeBonus: u => pv(u, 0.1),
       onEvade: (u, attacker) => counterStrike(u, attacker, 0.5, 'phys', '風読みの反撃') },
-    ult: { name:'ハリケーンダンス', sp:110, atk:'mag', tgt:'all', pow:1.0, hits:2, effects:[{ to:'foes', buff:'spdDown', v:10, flat:true }], desc:'敵全体に威力100%×2(魔法)。敵全体のSPD-10(2ターン)' },
+    ult: { name:'ハリケーンダンス', sp:110, atk:'mag', tgt:'all', pow:0.8, hits:2, effects:[{ to:'foes', buff:'spdDown', v:10, flat:true }], desc:'敵全体に威力80%×2(魔法)。敵全体のSPD-10(2ターン)' },
   },
   m24: { // ワーウルフ
     normal: N('爪撃', 1.0),
     skill1: { name:'喉笛狙い', ct:3, atk:'phys', tgt:'single', pow:2.0, critBonus:0.5, desc:'威力200%。この攻撃の会心率+50%' },
     skill2: { name:'月夜の狂乱', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.3, turns:3 }, { to:'self', buff:'pdefDown', v:6, turns:3 }], desc:'3ターン、自分のSTR+30%・物理防御-6' },
     passive: { name:'狩人の本能', desc:'攻撃が会心になるたびに、自分のSP+10', onCrit: u => { u.sp = Math.min(u.spCost, u.sp + Math.round(pv(u, 10))); } },
-    ult: { name:'満月の咆哮', sp:110, atk:'phys', tgt:'single', pow:1.3, hits:3, critBonus:1, desc:'威力130%×3。必ず会心。対象のSP-20',
+    ult: { name:'満月の咆哮', sp:110, atk:'phys', tgt:'single', pow:0.95, hits:3, critBonus:1, desc:'威力95%×3。必ず会心。対象のSP-20',
       run: ctx => { const r = dealHits(ctx); if(r[0] && r[0].unit.alive) drainSp(r[0].unit, 20); } },
   },
   m01: { // マンイーター
@@ -16189,7 +16189,7 @@ const MONSTER_KITS = {
   m02: { // オオコウモリ
     normal: N('超音波', 1.0, 'mag', 'any', '威力100%(魔法・後衛も狙える)'),
     skill1: { name:'吸血', ct:2, atk:'mag', tgt:'all', pow:0.9, lifesteal:0.2, desc:'敵全体に威力90%(魔法)。与ダメージの20%を吸収' },
-    skill2: { name:'超音波の乱れ撃ち', ct:4, atk:'mag', tgt:'random', pow:0.6, hits:3, desc:'ランダムな敵に威力60%×3(魔法)' },
+    skill2: { name:'超音波の乱れ撃ち', ct:4, atk:'mag', tgt:'random', pow:0.45, hits:3, desc:'ランダムな敵に威力45%×3(魔法)' },
     passive: { name:'暗闇飛行', desc:'前衛に味方が2体以上いるとき、ヘイト-10',
       hateBonus: u => sideOf(u).filter(a => a !== u && present(a) && a.row === 'front').length >= 2 ? -10 : 0 },
     ult: { name:'ブラッドナイト', sp:80, atk:'phys', tgt:'all', pow:1.5, lifesteal:0.2, desc:'敵全体に威力150%。与ダメージの合計の20%を吸収' },
@@ -16250,13 +16250,13 @@ const MONSTER_KITS = {
     passive: { name:'群れの力', desc:'自分以外の味方のゴブリン族1体につき、STR+5%(最大3体)',
       onBattleStart: u => { u.stacks.band = Math.min(3, sideOf(u).filter(a => a !== u && a.tribe === 'ゴブリン族').length); },
       strBonus: u => (u.stacks.band || 0) * pv(u, 0.05) },
-    ult: { name:'ゴブリンラッシュ', sp:80, atk:'phys', tgt:'single', pow:0.7, hits:5, desc:'威力70%×5' },
+    ult: { name:'ゴブリンラッシュ', sp:80, atk:'phys', tgt:'single', pow:0.4, hits:5, desc:'威力40%×5' },
   },
   m29: { // ニードルラット (redesigned from フィールドマウス)
     normal: N('針かじり', 0.7),
     skill1: { name:'針の鎧', ct:3, tgt:'allyGuard', effects:[{ to:'allyGuard', buff:'thorns', v:0.3 }, { to:'allyGuard', buff:'pdefUp', v:8 }],
       desc:'HPが50%以下の味方(いなければ狙われやすい味方)に、トゲ(受けた物理ダメージの30%を返す)と物理防御+8を2ターン' },
-    skill2: { name:'針飛ばし', ct:4, atk:'phys', tgt:'random', pow:0.4, hits:4, desc:'ランダムな敵に威力40%×4' },
+    skill2: { name:'針飛ばし', ct:4, atk:'phys', tgt:'random', pow:0.35, hits:4, desc:'ランダムな敵に威力35%×4' },
     passive: { name:'トゲトゲの背中', desc:'物理攻撃を受けたとき、受けたダメージの20%を相手に返す', thornsBonus: u => pv(u, 0.2) },
     ult: { name:'針山の陣', sp:80, tgt:'allies', effects:[{ to:'allies', buff:'thorns', v:0.25 }], desc:'味方全体にトゲ(受けた物理ダメージの25%を返す)を2ターン' },
   },
@@ -16271,7 +16271,7 @@ const MONSTER_KITS = {
   },
   m129: { // ヒノコ
     normal: { name:'火の粒', desc:'威力100%', atk:'mag', tgt:'any', pow:1.0 },
-    skill1: { name:'火の粉の雨', desc:'威力60%×3。各ヒット20%でやけど', ct:3, atk:'mag', tgt:'random', pow:0.6, hits:3, onHit:[{ st:'burn', chance:0.2 }] },
+    skill1: { name:'火の粉の雨', desc:'威力50%×3。各ヒット20%でやけど', ct:3, atk:'mag', tgt:'random', pow:0.5, hits:3, onHit:[{ st:'burn', chance:0.2 }] },
     skill2: { name:'ちらつく火', desc:'回避率+20%', ct:4, tgt:'self', effects:[{ to:'self', buff:'evade', v:0.2 }] },
     passive: { name:'燃え移り', desc:'やけど状態の敵に攻撃が当たると、威力30%の追加攻撃', onHitTarget: (u, t) => {
         if(!t.statuses.burn || !t.alive) return;
@@ -16284,7 +16284,7 @@ const MONSTER_KITS = {
     skill1: { name:'急降下', desc:'威力180%。後衛を狙える', ct:3, atk:'phys', tgt:'back', pow:1.8 },
     skill2: { name:'風切り羽', desc:'威力150%。SPD-10', ct:3, atk:'phys', tgt:'single', pow:1.5, onHit:[{ debuff:'spdDown', v:10, flat:true }] },
     passive: { name:'鷹の目', desc:'会心率+10%', critBonus: u => pv(u, 0.1) },
-    ult: { name:'旋風の爪', desc:'威力90%×3', sp:80, atk:'phys', tgt:'single', pow:0.9, hits:3 },
+    ult: { name:'旋風の爪', desc:'威力70%×3', sp:80, atk:'phys', tgt:'single', pow:0.7, hits:3 },
   },
   m131: { // ポンドフロッグ
     normal: { name:'水鉄砲', desc:'威力100%', atk:'mag', tgt:'any', pow:1.0 },
@@ -16318,10 +16318,10 @@ const MONSTER_KITS = {
   },
   m135: { // カマイタチ
     normal: { name:'鎌の一閃', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
-    skill1: { name:'つむじ斬り', desc:'威力70%×3', ct:3, atk:'phys', tgt:'single', pow:0.7, hits:3 },
+    skill1: { name:'つむじ斬り', desc:'威力45%×3', ct:3, atk:'phys', tgt:'single', pow:0.45, hits:3 },
     skill2: { name:'旋風', desc:'威力110%', ct:4, atk:'phys', tgt:'column', pow:1.1, hitMult:1 },
     passive: { name:'三つ目の刃', desc:'会心が出たとき、STR+10%', onCrit: u => addBuff(u, 'strUp', capRatio(pv(u, 0.1)), 2, u) },
-    ult: { name:'鎌鼬の嵐', desc:'威力70%×2。この攻撃の会心率+20%', sp:90, atk:'phys', tgt:'all', pow:0.7, hits:2, critBonus:0.2 },
+    ult: { name:'鎌鼬の嵐', desc:'威力60%×2。この攻撃の会心率+20%', sp:90, atk:'phys', tgt:'all', pow:0.6, hits:2, critBonus:0.2 },
   },
   m32: { // モススライム
     normal: { name:'体当たり', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
@@ -16358,7 +16358,7 @@ const MONSTER_KITS = {
     skill2: { name:'羽音の高まり', desc:'SPD+10・STR+15%', ct:4, tgt:'self', effects:[{ to:'self', buff:'spdUp', v:10, flat:true }, { to:'self', buff:'strUp', v:0.15 }] },
     passive: { name:'群れの狩り', desc:'自分以外の味方のビースト1体につき、SPD+2（最大3体）', onBattleStart: u => { u.stacks.swarm = Math.min(3, sideOf(u).filter(a => a !== u && a.species === 'beast').length); },
       spdBonus: u => (u.stacks.swarm || 0) * 2 },
-    ult: { name:'千本針', effects:[{ to:'foeLastHit', st:'stun' }], desc:'威力50%×6。最後に当たった敵を必ず気絶', sp:80, atk:'phys', tgt:'random', pow:0.5, hits:6 },
+    ult: { name:'千本針', effects:[{ to:'foeLastHit', st:'stun' }], desc:'威力35%×6。最後に当たった敵を必ず気絶', sp:80, atk:'phys', tgt:'random', pow:0.35, hits:6 },
   },
   m45: { // オーク
     normal: { name:'斧', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
@@ -16411,7 +16411,7 @@ const MONSTER_KITS = {
     skill2: { name:'群れの連携', desc:'SPD+5', ct:4, tgt:'allies', effects:[{ to:'allies', buff:'spdUp', v:5, flat:true }] },
     passive: { name:'群れの狩り', desc:'自分以外の味方のイヌ族1体につき、STR+5%（最大3体）', onBattleStart: u => { u.stacks.pack = Math.min(3, sideOf(u).filter(a => a !== u && a.tribe === 'イヌ族').length); },
       strBonus: u => (u.stacks.pack || 0) * pv(u, 0.05) },
-    ult: { name:'雷狼の群襲', desc:'威力70%×4。各ヒットで雷の追撃', sp:90, atk:'phys', tgt:'random', pow:0.7, hits:4, onHit:[{ followUp:true }] },
+    ult: { name:'雷狼の群襲', desc:'威力55%×4。各ヒットで雷の追撃', sp:90, atk:'phys', tgt:'random', pow:0.55, hits:4, onHit:[{ followUp:true }] },
   },
   m71: { // セラミックゴーレム
     normal: { name:'陶器の拳', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
@@ -16541,7 +16541,7 @@ const MONSTER_KITS = {
   },
   m109: { // ワイバーン
     normal: { name:'爪', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
-    skill1: { name:'ウィンドカッター', desc:'威力70%×3', ct:3, atk:'mag', tgt:'any', pow:0.7, hits:3 },
+    skill1: { name:'ウィンドカッター', desc:'威力55%×3', ct:3, atk:'mag', tgt:'any', pow:0.55, hits:3 },
     skill2: { name:'翼の突風', desc:'威力90%。SPD-10', ct:4, atk:'mag', tgt:'all', pow:0.9, onHit:[{ debuff:'spdDown', v:10, flat:true }] },
     passive: { name:'飛竜', desc:'回避率+10%。相手よりSPDが高いとき、与ダメージ+10%', evadeBonus: u => pv(u, 0.1), dmgBonus: (u, t) => effSpd(u) > effSpd(t) ? pv(u, 0.1) : 0 },
     ult: { name:'ドラゴンダイブ', desc:'威力360%', sp:100, atk:'phys', tgt:'single', pow:3.6 },
@@ -16565,7 +16565,7 @@ const MONSTER_KITS = {
     skill1: { name:'毒糸の縛め', desc:'威力200%。50%で毒。SPD-10', ct:3, atk:'mag', tgt:'single', pow:2.0, onHit:[{ st:'poison', chance:0.5 }, { debuff:'spdDown', v:10, flat:true }] },
     skill2: { name:'蜘蛛の巣', desc:'威力90%。SPD-10', ct:4, atk:'phys', tgt:'all', pow:0.9, onHit:[{ debuff:'spdDown', v:10, flat:true }] },
     passive: { name:'巣の女王', desc:'毒状態の敵へのダメージ+20%。HPが50%以下のあいだ、SPD+15', dmgBonus: (u, t) => hasStatus(t, 'poison') ? pv(u, 0.2) : 0, spdBonus: u => u.hp / u.maxHp <= 0.5 ? 15 : 0 },
-    ult: { name:'捕食の時間', desc:'威力120%×3。毒状態の相手には威力+30%', sp:110, atk:'phys', tgt:'lowestAny', pow:1.2, hits:3, bonusIf:[{ cond:'poisoned', add:0.3 }] },
+    ult: { name:'捕食の時間', desc:'威力95%×3。毒状態の相手には威力+30%', sp:110, atk:'phys', tgt:'lowestAny', pow:0.95, hits:3, bonusIf:[{ cond:'poisoned', add:0.3 }] },
   },
   m89: { // ノーム
     normal: { name:'杖', desc:'威力80%', atk:'mag', tgt:'single', pow:0.8 },
@@ -16604,10 +16604,10 @@ const MONSTER_KITS = {
   },
   m62: { // ツインヘッドベア
     normal: { name:'二つの顎', desc:'威力50%×2', atk:'phys', tgt:'single', pow:0.5, hits:2 },
-    skill1: { name:'双頭の噛みつき', desc:'威力110%×2。各ヒット30%で雷の追撃', ct:3, atk:'phys', tgt:'single', pow:1.1, hits:2, onHit:[{ followUp:true, chance:0.3 }] },
+    skill1: { name:'双頭の噛みつき', desc:'威力85%×2。各ヒット30%で雷の追撃', ct:3, atk:'phys', tgt:'single', pow:0.85, hits:2, onHit:[{ followUp:true, chance:0.3 }] },
     skill2: { name:'二つの咆哮', desc:'STR+25%・会心率+20%', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.25 }, { to:'self', buff:'critUp', v:0.2 }] },
     passive: { name:'二つの頭', desc:'気絶にかからない', immuneTo: ['stun'] },
-    ult: { name:'ツインサンダー', desc:'威力180%×2。雷の追撃が必ず発生', sp:100, atk:'phys', tgt:'single', pow:1.8, hits:2, onHit:[{ followUp:true }] },
+    ult: { name:'ツインサンダー', desc:'威力130%×2。雷の追撃が必ず発生', sp:100, atk:'phys', tgt:'single', pow:1.3, hits:2, onHit:[{ followUp:true }] },
   },
   m50: { // サイクロプス
     normal: { name:'巨腕', desc:'威力100%', atk:'phys', tgt:'single', pow:1.0 },
@@ -16654,17 +16654,17 @@ const MONSTER_KITS = {
   },
   m67: { // ケルベロス
     normal: { name:'三つの顎', desc:'威力40%×3', atk:'phys', tgt:'single', pow:0.4, hits:3 },
-    skill1: { name:'三頭の業火', desc:'威力80%×3。各ヒット30%でやけど', ct:3, atk:'mag', tgt:'single', pow:0.8, hits:3, onHit:[{ st:'burn', chance:0.3 }] },
+    skill1: { name:'三頭の業火', desc:'威力60%×3。各ヒット30%でやけど', ct:3, atk:'mag', tgt:'single', pow:0.6, hits:3, onHit:[{ st:'burn', chance:0.3 }] },
     skill2: { name:'冥界の番犬', desc:'挑発＋受けるダメージ-20%', ct:4, tgt:'self', effects:[{ to:'self', taunt:2 }, { to:'self', buff:'cut', v:0.2 }] },
     passive: { name:'三つの頭', desc:'気絶にかからない。やけど状態の敵へのダメージ+15%', immuneTo: ['stun'], dmgBonus: (u, t) => hasStatus(t, 'burn') ? pv(u, 0.15) : 0 },
     ult: { name:'ヘルゲート', desc:'威力210%。必ずやけど', sp:110, atk:'mag', tgt:'all', pow:2.1, onHit:[{ st:'burn' }] },
   },
   m76: { // クラーケン
     normal: { name:'触手', desc:'威力50%×2', atk:'phys', tgt:'single', pow:0.5, hits:2 },
-    skill1: { name:'触手乱打', desc:'威力60%×4', ct:3, atk:'phys', tgt:'random', pow:0.6, hits:4 },
+    skill1: { name:'触手乱打', desc:'威力45%×4', ct:3, atk:'phys', tgt:'random', pow:0.45, hits:4 },
     skill2: { name:'墨吐き', desc:'威力80%。STR-15%', ct:4, atk:'mag', tgt:'all', pow:0.8, onHit:[{ debuff:'strDown', v:0.15 }] },
     passive: { name:'深海の巨体', desc:'最大HP+10%。1回で最大HPの30%以上のダメージを受けるとき、そのダメージ-25%', onBattleStart: u => { const add = Math.round(u.maxHp * 0.1); u.maxHp += add; u.hp += add; }, cutBonus: (u, type, pre) => pre !== undefined && pre >= u.maxHp * 0.3 ? pv(u, 0.25) : 0 },
-    ult: { name:'大渦', desc:'威力70%×3', sp:110, atk:'phys', tgt:'all', pow:0.7, hits:3 },
+    ult: { name:'大渦', desc:'威力55%×3', sp:110, atk:'phys', tgt:'all', pow:0.55, hits:3 },
   },
   m74: { // ミスリルゴーレム
     normal: { name:'ミスリルの拳', desc:'威力80%', atk:'phys', tgt:'single', pow:0.8 },
@@ -16741,14 +16741,14 @@ const MONSTER_KITS = {
   m68: { // フェンリル
     normal: N('牙', 1.0),
     skill1: { name:'天嵐の牙', ct:3, atk:'phys', tgt:'single', pow:2.5, bonusIf:[{ cond:'faster', add:0.3 }], desc:'威力250%。自分より素早さが低い敵には威力+30%' },
-    skill2: { name:'暴風の牙', ct:4, atk:'phys', tgt:'single', pow:0.6, hits:5, desc:'敵単体に威力60%×5回' },
+    skill2: { name:'暴風の牙', ct:4, atk:'phys', tgt:'single', pow:0.35, hits:5, desc:'敵単体に威力35%×5回' },
     passive: { name:'疾風の狩人', desc:'敵を倒すと、すぐにもう一度行動できる(1ラウンドに1回)',
       onKill: u => { if(!u.flags.extraThisRound){ u.flags.extraThisRound = true; u.flags.extraPending = true; logLine(`${nm(u)} は勢いのまま再び動く!`, 'skill'); } } },
-    ult: { name:'フィンブルの大嵐', sp:120, atk:'phys', tgt:'all', pow:1.5, hits:2, bonusIf:[{ cond:'halfHp', add:0.5 }], desc:'敵全体に威力150%×2。HPが50%以下の敵へのダメージ+50%' },
+    ult: { name:'フィンブルの大嵐', sp:120, atk:'phys', tgt:'all', pow:1, hits:2, bonusIf:[{ cond:'halfHp', add:0.5 }], desc:'敵全体に威力100%×2。HPが50%以下の敵へのダメージ+50%' },
   },
   m125: { // 雷電
     normal: N('雷撥', 1.0),
-    skill1: { name:'雷鼓連打', ct:3, atk:'phys', tgt:'single', pow:0.8, hits:3, onHit:[{ followUp:true, chance:0.3 }], desc:'威力80%×3。各ヒット30%で追撃' },
+    skill1: { name:'雷鼓連打', ct:3, atk:'phys', tgt:'single', pow:0.65, hits:3, onHit:[{ followUp:true, chance:0.3 }], desc:'威力65%×3。各ヒット30%で追撃' },
     skill2: { name:'鳴神', ct:5, atk:'mag', tgt:'all', pow:1.4, onHit:[{ followUp:true }], desc:'敵全体に威力140%(魔法)。追撃が必ず発生' },
     passive: { name:'雷鼓の鼓動', desc:'スキルを使うたびに太鼓+1(最大5)。太鼓1つにつきSTR+5%',
       onSkillUsed: u => { u.stacks.drum = Math.min(5, (u.stacks.drum || 0) + 1); },
@@ -16808,7 +16808,7 @@ const MONSTER_KITS = {
   m57: { // ケンタウロス
     normal: N('矢', 1.0, 'phys', 'any', '威力100%(後衛も狙える)'),
     skill1: { name:'疾風の矢', ct:2, atk:'phys', tgt:'back', pow:1.7, desc:'敵後衛単体に威力170%' },
-    skill2: { name:'三連射', ct:4, atk:'phys', tgt:'random', pow:0.8, hits:3, desc:'ランダムな敵に威力80%×3' },
+    skill2: { name:'三連射', ct:4, atk:'phys', tgt:'random', pow:0.5, hits:3, desc:'ランダムな敵に威力50%×3' },
     passive: { name:'駆ける弓兵', desc:'自分の素早さが相手より高いとき、与ダメージ+15%', dmgBonus: (u, t) => effSpd(u) > effSpd(t) ? pv(u, 0.15) : 0 },
     ult: { name:'流星の矢雨', sp:100, atk:'phys', tgt:'all', pow:2.0, desc:'敵全体に威力200%' },
   },
@@ -16856,9 +16856,9 @@ const MONSTER_KITS = {
   m22: { // オーガ
     normal: { ...N('大斧', 1.0), desc:'威力100%(怪力の効果で115%)' },
     skill1: { name:'大斧振り下ろし', ct:3, atk:'phys', tgt:'single', pow:2.3, desc:'威力230%' },
-    skill2: { name:'暴れ回る', ct:4, atk:'phys', tgt:'random', pow:0.9, hits:3, desc:'ランダムな敵に威力90%×3' },
+    skill2: { name:'暴れ回る', ct:4, atk:'phys', tgt:'random', pow:0.5, hits:3, desc:'ランダムな敵に威力50%×3' },
     passive: { name:'怪力', desc:'通常攻撃の威力+15%', dmgBonus: (u, t, act, kind) => kind === 'normal' ? pv(u, 0.15) : 0 },
-    ult: { name:'オーガラッシュ', sp:100, atk:'phys', tgt:'single', pow:1.4, hits:3, desc:'威力140%×3' },
+    ult: { name:'オーガラッシュ', sp:100, atk:'phys', tgt:'single', pow:0.85, hits:3, desc:'威力85%×3' },
   },
   m26: { // ブラッドローズ
     normal: N('茨の鞭', 1.0),
@@ -16944,9 +16944,9 @@ const MONSTER_KITS = {
   m70: { // ジャッカロープ
     normal: N('頭突き', 1.0),
     skill1: { name:'角突き', ct:2, atk:'phys', tgt:'single', pow:1.8, desc:'威力180%' },
-    skill2: { name:'跳ね回り', ct:4, atk:'phys', tgt:'random', pow:0.7, hits:3, onHit:[{ st:'stun', chance:0.2 }], desc:'ランダムな敵に威力70%×3。各ヒット20%で気絶' },
+    skill2: { name:'跳ね回り', ct:4, atk:'phys', tgt:'random', pow:0.4, hits:3, onHit:[{ st:'stun', chance:0.2 }], desc:'ランダムな敵に威力40%×3。各ヒット20%で気絶' },
     passive: { name:'幻の兎', desc:'回避率+10%', evadeBonus: u => pv(u, 0.1) },
-    ult: { name:'ホーンラッシュ', sp:90, atk:'phys', tgt:'single', pow:0.9, hits:4, onHit:[{ st:'stun' }], desc:'威力90%×4。当たった敵を必ず気絶' },
+    ult: { name:'ホーンラッシュ', sp:90, atk:'phys', tgt:'single', pow:0.55, hits:4, onHit:[{ st:'stun' }], desc:'威力55%×4。当たった敵を必ず気絶' },
   },
   m127: { // 鬼火
     normal: N('火の玉', 0.7, 'mag'),
@@ -17047,14 +17047,14 @@ const MONSTER_KITS = {
   },
   m139: { // アバドン
     normal: N('奈落の爪', 0.9),
-    skill1: { name:'深淵の連爪', ct:3, atk:'phys', tgt:'single', pow:0.95, hits:3, desc:'威力95%×3。相手のHPが低いほど威力が上がる(最大+50%)',
+    skill1: { name:'深淵の連爪', ct:3, atk:'phys', tgt:'single', pow:0.65, hits:3, desc:'威力65%×3。相手のHPが低いほど威力が上がる(最大+50%)',
       run: ctx => {
         const f = selectFoes(ctx.actor, 'single')[0];
         if(!f) return;
         const t = f.unit;
-        dealHits(ctx, { targets: [f], pow: 0.95 * (1 + 0.5 * (1 - t.hp / t.maxHp)) });
+        dealHits(ctx, { targets: [f], pow: ctx.act.pow * (1 + 0.5 * (1 - t.hp / t.maxHp)) });
       } },
-    skill2: { name:'奈落の乱撃', ct:4, atk:'phys', tgt:'random', pow:0.6, hits:7, critDmgBonus:0.3, desc:'ランダムな敵に威力60%×7。この攻撃の会心ダメージ+30%' },
+    skill2: { name:'奈落の乱撃', ct:4, atk:'phys', tgt:'random', pow:0.25, hits:7, critDmgBonus:0.3, desc:'ランダムな敵に威力25%×7。この攻撃の会心ダメージ+30%' },
     passive: { name:'底なしの飢え', desc:'会心率+30%。敵を倒したとき、スキルの残りCTが1短くなり、SP+20',
       critBonus: u => pv(u, 0.3),
       onKill: u => {
@@ -17258,7 +17258,7 @@ const MONSTER_KITS = {
   m156: { // 雷獣
     normal: N('雷爪', 0.85),
     skill1: { name:'疾雷撃', ct:3, atk:'phys', tgt:'single', pow:2.1, onHit:[{ st:'paralyze', chance:0.3 }], desc:'威力210%。30%で麻痺(1ターン行動できない)' },
-    skill2: { name:'連雷', ct:4, atk:'phys', tgt:'single', pow:1.1, hits:2, desc:'威力110%×2' },
+    skill2: { name:'連雷', ct:4, atk:'phys', tgt:'single', pow:0.65, hits:2, desc:'威力65%×2' },
     passive: { name:'雷光の疾走', desc:'SPDが40以上の相手への会心率+20%', critBonus: (u, t) => t && effSpd(t) >= 40 ? pv(u, 0.2) : 0 },
     ult: { name:'百雷落とし', sp:100, atk:'phys', tgt:'single', pow:3.5, onHit:[{ st:'paralyze' }], desc:'威力350%。必ず麻痺' },
   },
@@ -17507,7 +17507,7 @@ const MONSTER_PERKS = {
         addHook(pa, 'spdBonus', () => 10);
         addHook(pa, 'dmgBonus', (x, t) => t && effSpd(x) > effSpd(t) ? 0.10 : 0); } },
     7: { desc:'暴風の牙: 5回 → 7回',
-      apply: u => { const a = ownSkill(u, 1); a.hits = 7; a.desc = '敵単体に威力60%×7回'; } },
+      apply: u => { const a = ownSkill(u, 1); a.hits = 7; a.desc = `敵単体に威力${Math.round(a.pow * 100)}%×7回`; } },
     8: { desc:'HPが50%以下の敵への与ダメージ+20%',
       apply: u => addHook(ownPassive(u), 'dmgBonus', (x, t) => t && t.hp / t.maxHp <= 0.5 ? 0.20 : 0) },
     9: { desc:'敵を倒したとき、2つのスキルの残りCTが1短くなる',
@@ -20873,6 +20873,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 27, date: '10/2', title: '連続攻撃の威力の見直し', body: '<span class="nt-h">いちばん大きい変化</span><span class="nt-i">1回で何度も攻撃するスキル(連続攻撃)の威力を下げました。<em>合計の威力が、同じ★・同じ枠の1回攻撃の平均と同じか少し下</em>になります。</span><span class="nt-i"><b>例: フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em><br>同じ★5のスキル2(1回攻撃)の平均は173%</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたことで、1回あたりの威力が小さくても防御で目減りしなくなりました。そのため、連続攻撃は1回攻撃より合計で30〜160%強くなっていました。</span><span class="nt-i">・ダメージの平均は「威力×回数」で決まり、回数で増えも減りもしません。会心も1回ずつ判定されるので、回数が多いほど<em>ダメージが安定する</em>だけです。</span><span class="nt-i">・「各ヒットで○%」の効果は回数ぶん判定されるので、合計の威力は1回攻撃より少し下にしています。</span><span class="nt-h">変わるスキル(30個)</span><span class="nt-i"><b>★5 アバドン「深淵の連爪」</b><br>95%×3(合計285%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★5 アバドン「奈落の乱撃」</b><br>60%×7(合計420%) → <em>25%×7(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「フィンブルの大嵐」</b><br>150%×2(合計300%) → <em>100%×2(合計200%)</em></span><span class="nt-i"><b>★5 雷電「雷鼓連打」</b><br>80%×3(合計240%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★4 アラクネ「捕食の時間」</b><br>120%×3(合計360%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★4 クラーケン「触手乱打」</b><br>60%×4(合計240%) → <em>45%×4(合計180%)</em></span><span class="nt-i"><b>★4 クラーケン「大渦」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★4 ケルベロス「三頭の業火」</b><br>80%×3(合計240%) → <em>60%×3(合計180%)</em></span><span class="nt-i"><b>★4 ハルピュイア「羽ばたき乱舞」</b><br>55%×5(合計275%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★4 ハルピュイア「ハリケーンダンス」</b><br>100%×2(合計200%) → <em>80%×2(合計160%)</em></span><span class="nt-i"><b>★4 ワーウルフ「満月の咆哮」</b><br>130%×3(合計390%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★3 オーガ「暴れ回る」</b><br>90%×3(合計270%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 オーガ「オーガラッシュ」</b><br>140%×3(合計420%) → <em>85%×3(合計255%)</em></span><span class="nt-i"><b>★3 ケンタウロス「三連射」</b><br>80%×3(合計240%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「双頭の噛みつき」</b><br>110%×2(合計220%) → <em>85%×2(合計170%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「ツインサンダー」</b><br>180%×2(合計360%) → <em>130%×2(合計260%)</em></span><span class="nt-i"><b>★3 ワイバーン「ウィンドカッター」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★3 雷獣「連雷」</b><br>110%×2(合計220%) → <em>65%×2(合計130%)</em></span><span class="nt-i"><b>★2 カマイタチ「つむじ斬り」</b><br>70%×3(合計210%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★2 カマイタチ「鎌鼬の嵐」</b><br>70%×2(合計140%) → <em>60%×2(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「跳ね回り」</b><br>70%×3(合計210%) → <em>40%×3(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「ホーンラッシュ」</b><br>90%×4(合計360%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★2 ブラックウルフ「雷狼の群襲」</b><br>70%×4(合計280%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★1 オオコウモリ「超音波の乱れ撃ち」</b><br>60%×3(合計180%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★1 キラービー「千本針」</b><br>50%×6(合計300%) → <em>35%×6(合計210%)</em></span><span class="nt-i"><b>★1 ゴブリン「ゴブリンラッシュ」</b><br>70%×5(合計350%) → <em>40%×5(合計200%)</em></span><span class="nt-i"><b>★1 ストームホーク「旋風の爪」</b><br>90%×3(合計270%) → <em>70%×3(合計210%)</em></span><span class="nt-i"><b>★1 ニードルラット「針飛ばし」</b><br>40%×4(合計160%) → <em>35%×4(合計140%)</em></span><span class="nt-i"><b>★1 ヒノコ「火の粉の雨」</b><br>60%×3(合計180%) → <em>50%×3(合計150%)</em></span><span class="nt-i">・コボルト「すばやい突き」は、もともと1回攻撃より弱いのでそのままです。</span><span class="nt-i">・ステージの勝率はほぼ変わりません(多くの難易度で±1〜2%)。</span>' },
   { id: 26, date: '10/2', title: '防御の見直し(タンクがしっかり硬く)', body: '<span class="nt-h">いちばん大きい変化: 同じ攻撃で受けるダメージ</span><span class="nt-i">ダメージ1,000の物理攻撃を受けたとき(各ロールの平均)</span><span class="nt-i"><b>タンク</b><br>860 → <em>660</em></span><span class="nt-i"><b>アタッカー</b><br>945 → <em>890</em></span><span class="nt-i"><b>サポート</b><br>950 → <em>895</em></span><span class="nt-i"><b>トリックスター</b><br>940 → <em>880</em></span><span class="nt-i"><b>シューター</b><br>965 → <em>925</em></span><span class="nt-i">・タンクが<em>はっきり硬く</em>なりました。ほかのロールは少しだけ硬くなります。</span><span class="nt-i">・<em>敵も同じだけ硬くなる</em>ので、戦闘は平均1〜2ラウンド長くなります。</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたあと防御が弱すぎて、タンクがほかの子より少し硬いだけになっていました。役割の差がはっきり出るように見直しました。</span><span class="nt-h">防御の数字の見かた</span><span class="nt-i">・防御は<em>1ポイントで受けるダメージが1%減る</em>ポイントです(物理防御は物理、魔法防御は魔法)。</span><span class="nt-i">・スキル・パッシブ・ルーン・遺物・陣形の防御は「物理防御+15」のように<em>ポイントで足す</em>表示にそろえました(%は付けません)。</span><span class="nt-h">変わる数字</span><span class="nt-i"><b>素の防御(タンク)</b><br>図鑑の値 → <em>2.5倍(例: タイタン 物防20・魔防16 → 物防50・魔防30)</em></span><span class="nt-i"><b>素の防御(タンク以外)</b><br>図鑑の値 → <em>2倍(例: 九尾の狐 物防4・魔防5 → 物防8・魔防10)</em></span><span class="nt-i"><b>タンクの防御の合計(物防+魔防)</b><br>上限なし → <em>★5:80 / ★4:75 / ★3:65 / ★2:55 / ★1:45 まで</em></span><span class="nt-i"><b>スキル・パッシブの防御アップ</b><br>物理防御+6 → <em>物理防御+15(2.5倍)</em></span><span class="nt-i"><b>防御ダウン</b><br>物理防御-4 → <em>物理防御-8(2倍)</em></span><span class="nt-i"><b>ルーン・遺物・陣形・種族の防御</b><br>ルーンTierⅩのメイン +5 → <em>+10(2倍)</em></span><span class="nt-i">・EXなどの「敵 物理防御+40」のような特別ルールはそのままです。</span>' },
   { id: 25, date: '10/2', title: '経済の見直し(星結晶・ソウル・ゴールド)', body: '<span class="nt-h">今回の方針</span><span class="nt-i">今回の更新は、<em>モンスターを完凸(★10)させるまでのバランス</em>をもとにした調整です。ピックアップ★5は本体+かぶり5体で完凸できるように、ソウルの量と天井までの日数をそろえました。</span><span class="nt-i">星結晶の配り方は、メインクエストなどの一度きりの報酬を減らし、<em>毎月の星結晶の半分以上をイベントから</em>受け取る形にしました。続けて遊ぶほど、開催されるイベントで集められます。</span><span class="nt-i">以下がその内容の詳細です。</span><span class="nt-h">月にもらえる星結晶(イベントは月4回で計算)</span><span class="nt-i"><b>デイリーミッション</b><br>月8,100石 → 月4,500石</span><span class="nt-i"><b>ログインボーナス</b><br>月2,100石 → 月2,100石</span><span class="nt-i"><b>ウィークリーミッション</b><br>月5,570石 → 月6,000石</span><span class="nt-i"><b>イベント(ステージ・EX・ミッション・召喚券・開催中のデイリー)</b><br>月55,500石 → 月16,760石</span><span class="nt-i"><b>深淵回廊</b><br>月800石 → 月800石</span><span class="nt-i"><b>合計</b><br>月72,070石 → <em>月30,160石</em></span><span class="nt-i"><b>天井(200回)</b><br>11.2日 → <em>26.9日</em></span><span class="nt-i">・総力戦・封印戦が入ると、そのぶん(月およそ10,000石)が上乗せされます。</span><span class="nt-h">一度きりの星結晶</span><span class="nt-i"><b>メインクエスト(初回クリア・★の箱)</b><br>50,210石 → 23,610石</span><span class="nt-i"><b>実績</b><br>11,000石 → <em>19,610石</em></span><span class="nt-i">・実績は全部作り直しました。<em>いまの記録で、すでに届いている段はその場で受け取れます</em>。</span><span class="nt-i">・「ルーンを合成する」「PVPで勝つ」は、今回から数えはじめます(<em>さかのぼって反映されません</em>)。</span><span class="nt-h">ソウルが集まりやすくなりました</span><span class="nt-i"><b>ガチャのかぶり(★5)</b><br>150 → <em>500</em>(ピックアップは300 → <em>1,000</em>)</span><span class="nt-i"><b>無形のソウル・無形の共鳴石(ガチャ1回あたり)</b><br>平均1.95個 → <em>6.00個</em></span><span class="nt-i"><b>★10までに必要なソウル</b><br>★2:2,100 → 2,000 / ★3:3,150 → 3,000 / ★4:3,900 → 4,000 / ★5:4,800 → 5,000</span><span class="nt-i">・★5はピックアップなら本体+かぶり5体、それ以外はかぶり10体で★10になります。</span><span class="nt-h">お返し(プレゼントボックス)</span><span class="nt-i">・星結晶 3,000 / 無形のソウル 300 / 霊素核TierI 30 をお送りします(この更新より前に遊んでいた方が対象です)。</span><span class="nt-h">そのほか</span><span class="nt-i">・ミッションのゴールドをなくし、霊素鉱やワザ素材BOXにしました。</span><span class="nt-i">・黄金の洞窟のゴールドを3割下げました。霊素工房は霊素鉱が2倍、霊素核Iが半分になります。</span><span class="nt-i">・遺物ごとの共鳴石を、持ち物の個数として持つようにしました(残っていた数はそのまま引き継ぎます)。</span>' },
   { id: 24, date: '10/1', title: '「紅蓮の九尾」「黄金の巨神」にEXステージが来ます(10/7まで延長)', hero: ['ann_ev_kyubi', 'ann_ev_titan'], art: ['m116', 'm170', 'm150', 'm54', 'm144', 'm53'], body: '<span class="nt-h">本日 10/1(水) 16:00 から・10/7(火) 23:59 まで延長します</span>終了予定だった2イベントに<em>EXステージ</em>・<em>同時ピックアップの★4</em>・<em>星刻</em>を足して、開催を<em>10/7(火) 23:59</em>まで延ばします。追加ぶんは<em>本日16:00</em>から遊べます。<span class="nt-h">EXステージが開きます(ステージ3クリアで解放)</span><em>スタミナを使わず何度でも</em>挑める腕試しです。クリアすると主役のソウルが出ます(EX1 20% / EX2 50% / EX3 50%で1〜3個)。ほかの敵のソウルも出ます。<span class="nt-i">・EX1〜EX3で<em>ルールが1つずつ増えます</em>。減ることはありません。</span><span class="nt-i">・<em>狐火の祭壇</em>(九尾) 「<em>敵も味方も やけど状態の相手へ与ダメージ+50%</em>」「デーモンの味方HP+50%」「シューターの味方STR+50%」。EX2から<em>敵SPD+50%</em>、EX3から<em>敵物理防御+40</em>が加わります。</span><span class="nt-i">・<em>巨神の遺跡</em>(タイタン) 「シールドを持っているあいだ<em>与ダメージ+50%</em>」「シールドが無いあいだ<em>受けるダメージ+50%</em>」「ドワーフの味方HP・STR+50%」。EX2から<em>敵が気絶・やけど・毒にかからなくなり</em>、EX3から<em>敵のシールドが倍</em>になります。</span><span class="nt-i">・EX1〜EX3それぞれに<em>イベントミッション</em>が付きます(星結晶500 / 1,000＋召喚券5枚 / 2,000＋10連券1枚)。EX3のクリアで<em>称号</em>も手に入ります。</span><span class="nt-h">同時ピックアップの★4が登場します</span>ガチャで<em>★4が出たときの50%</em>がこの2体になります。イベントショップでもソウルを交換でき(各60メダルで20個・上限10回)、EXステージでは<em>EX3で100%</em>ソウルが出ます。<span class="nt-i">・<em>紅蓮の九尾</em> 新★4 <em>牛鬼</em>(炎/タンク) 牛の頭を持つ大鬼。<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。九尾のような後ろで戦う子を守る役です。／★4 <em>ロキ</em>(炎/トリックスター) 姿を変える詐術の神。敵全体を必ずやけどにします。</span><span class="nt-i">・<em>黄金の巨神</em> ★4 <em>ブロック</em>(土/タンク) 神々の武具を打つドワーフの鍛冶師。挑発しながら自分に盾を張ります。／★4 <em>スルト</em>(炎/アタッカー) 世界を焼く炎の巨人。やけどを撒いて全体を焼きます。</span><span class="nt-i">・編成に入れると<em>イベントボーナス+20%</em>が付きます(主役の★5は+40%)。</span><span class="nt-h">EXは「条件に合わせると抜けられる」難しさにしました</span>敵の最大HPとSTRを上げたぶん、<em>ステージ効果に噛み合う編成かどうかで結果が大きく変わります</em>。<span class="nt-i">・<em>狐火の祭壇</em> デーモンとシューターを入れて、やけどを撒いてから殴る形。噛み合う編成なら EX1〜EX3 とも<em>9割以上</em>で抜けられますが、噛み合わない編成だと<em>2割前後</em>まで落ちます</span><span class="nt-i">・<em>巨神の遺跡</em> ドワーフを並べて、シールドを切らさない形。<em>ドワーフの味方の強化を+50%から+100%に上げました</em>(ドワーフは★3が多く、+50%では★5の編成に追いつけませんでした)</span><span class="nt-h">★4にも星刻が付きます</span>★を上げると刻まれる、そのモンスターだけの効果です。<em>★6から★10まで1段ずつ</em>増えます。<span class="nt-i">・<em>牛鬼</em> かばっているあいだ受けるダメージ-10% → 守っている味方も-10% → シールド中は与ダメージ+15% → <em>かばう相手が後衛だけ→味方全体に</em> → 鬼哭が<em>かばっている味方全員にもシールド</em></span><span class="nt-i">・<em>ロキ</em> 状態異常の敵へ+10% → 炎の悪戯でバフを2つ消す → やけどの敵へさらに+15% → <em>姿変えが敵全体に</em> → <em>戦闘開始時に敵全体を混乱</em></span><span class="nt-i">・<em>ブロック</em> シールド中は与ダメージ+10% → 不屈の鍛冶が2回ぶん溜まる → 挑発中は受けるダメージ-15% → <em>鍛冶の盾が後衛の味方にも</em> → 神槌の一撃が<em>自分のシールドの量だけ強くなる</em></span><span class="nt-i">・<em>スルト</em> やけどの敵へ+10% → 自分が攻撃した相手もやけどに → やけどが3体以上で+15% → <em>灼熱の薙ぎが敵全体に</em> → ムスペルの業火の<em>追加攻撃が2回</em></span><span class="nt-h">イベントショップが開きます</span>この2イベントには<em>これまでメダルがなく、イベントショップも周回回数のミッションも出ていませんでした</em>。<em>狐火の灯</em>(紅蓮の九尾)と<em>巨神の金片</em>(黄金の巨神)を追加して、ショップを開きます。<span class="nt-i">・ステージを回ると手に入り、<em>育成素材・ワザ素材BOX・召喚券・霊素核</em>などと交換できます。</span><span class="nt-i">・<em>牛鬼・ロキ・ブロック・スルトのソウル</em>も1体ずつ並びます(各60メダルで20個・上限10回)。</span><span class="nt-i">・<em>周回回数のミッション</em>(10回・30回・50回)も出るようになりました。</span><span class="nt-i">・メダルはイベントが終わると消えるので、期間中に使い切ってください。</span>' },
@@ -20903,6 +20904,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 148, version: 'α0.4.002', date: '10/2', title: '連続攻撃の威力の見直し', body: '<span class="nt-h">いちばん大きい変化</span><span class="nt-i">1回で何度も攻撃するスキル(連続攻撃)の威力を下げました。<em>合計の威力が、同じ★・同じ枠の1回攻撃の平均と同じか少し下</em>になります。</span><span class="nt-i"><b>例: フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em><br>同じ★5のスキル2(1回攻撃)の平均は173%</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたことで、1回あたりの威力が小さくても防御で目減りしなくなりました。そのため、連続攻撃は1回攻撃より合計で30〜160%強くなっていました。</span><span class="nt-i">・ダメージの平均は「威力×回数」で決まり、回数で増えも減りもしません。会心も1回ずつ判定されるので、回数が多いほど<em>ダメージが安定する</em>だけです。</span><span class="nt-i">・「各ヒットで○%」の効果は回数ぶん判定されるので、合計の威力は1回攻撃より少し下にしています。</span><span class="nt-h">変わるスキル(30個)</span><span class="nt-i"><b>★5 アバドン「深淵の連爪」</b><br>95%×3(合計285%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★5 アバドン「奈落の乱撃」</b><br>60%×7(合計420%) → <em>25%×7(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「フィンブルの大嵐」</b><br>150%×2(合計300%) → <em>100%×2(合計200%)</em></span><span class="nt-i"><b>★5 雷電「雷鼓連打」</b><br>80%×3(合計240%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★4 アラクネ「捕食の時間」</b><br>120%×3(合計360%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★4 クラーケン「触手乱打」</b><br>60%×4(合計240%) → <em>45%×4(合計180%)</em></span><span class="nt-i"><b>★4 クラーケン「大渦」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★4 ケルベロス「三頭の業火」</b><br>80%×3(合計240%) → <em>60%×3(合計180%)</em></span><span class="nt-i"><b>★4 ハルピュイア「羽ばたき乱舞」</b><br>55%×5(合計275%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★4 ハルピュイア「ハリケーンダンス」</b><br>100%×2(合計200%) → <em>80%×2(合計160%)</em></span><span class="nt-i"><b>★4 ワーウルフ「満月の咆哮」</b><br>130%×3(合計390%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★3 オーガ「暴れ回る」</b><br>90%×3(合計270%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 オーガ「オーガラッシュ」</b><br>140%×3(合計420%) → <em>85%×3(合計255%)</em></span><span class="nt-i"><b>★3 ケンタウロス「三連射」</b><br>80%×3(合計240%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「双頭の噛みつき」</b><br>110%×2(合計220%) → <em>85%×2(合計170%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「ツインサンダー」</b><br>180%×2(合計360%) → <em>130%×2(合計260%)</em></span><span class="nt-i"><b>★3 ワイバーン「ウィンドカッター」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★3 雷獣「連雷」</b><br>110%×2(合計220%) → <em>65%×2(合計130%)</em></span><span class="nt-i"><b>★2 カマイタチ「つむじ斬り」</b><br>70%×3(合計210%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★2 カマイタチ「鎌鼬の嵐」</b><br>70%×2(合計140%) → <em>60%×2(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「跳ね回り」</b><br>70%×3(合計210%) → <em>40%×3(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「ホーンラッシュ」</b><br>90%×4(合計360%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★2 ブラックウルフ「雷狼の群襲」</b><br>70%×4(合計280%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★1 オオコウモリ「超音波の乱れ撃ち」</b><br>60%×3(合計180%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★1 キラービー「千本針」</b><br>50%×6(合計300%) → <em>35%×6(合計210%)</em></span><span class="nt-i"><b>★1 ゴブリン「ゴブリンラッシュ」</b><br>70%×5(合計350%) → <em>40%×5(合計200%)</em></span><span class="nt-i"><b>★1 ストームホーク「旋風の爪」</b><br>90%×3(合計270%) → <em>70%×3(合計210%)</em></span><span class="nt-i"><b>★1 ニードルラット「針飛ばし」</b><br>40%×4(合計160%) → <em>35%×4(合計140%)</em></span><span class="nt-i"><b>★1 ヒノコ「火の粉の雨」</b><br>60%×3(合計180%) → <em>50%×3(合計150%)</em></span><span class="nt-i">・コボルト「すばやい突き」は、もともと1回攻撃より弱いのでそのままです。</span><span class="nt-i">・ステージの勝率はほぼ変わりません(多くの難易度で±1〜2%)。</span>' },
   { id: 147, version: 'α0.4.001', date: '10/2', title: '防御の見直し(タンクがしっかり硬く)', body: '<span class="nt-h">いちばん大きい変化: 同じ攻撃で受けるダメージ</span><span class="nt-i">ダメージ1,000の物理攻撃を受けたとき(各ロールの平均)</span><span class="nt-i"><b>タンク</b><br>860 → <em>660</em></span><span class="nt-i"><b>アタッカー</b><br>945 → <em>890</em></span><span class="nt-i"><b>サポート</b><br>950 → <em>895</em></span><span class="nt-i"><b>トリックスター</b><br>940 → <em>880</em></span><span class="nt-i"><b>シューター</b><br>965 → <em>925</em></span><span class="nt-i">・タンクが<em>はっきり硬く</em>なりました。ほかのロールは少しだけ硬くなります。</span><span class="nt-i">・<em>敵も同じだけ硬くなる</em>ので、戦闘は平均1〜2ラウンド長くなります。</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたあと防御が弱すぎて、タンクがほかの子より少し硬いだけになっていました。役割の差がはっきり出るように見直しました。</span><span class="nt-h">防御の数字の見かた</span><span class="nt-i">・防御は<em>1ポイントで受けるダメージが1%減る</em>ポイントです(物理防御は物理、魔法防御は魔法)。</span><span class="nt-i">・スキル・パッシブ・ルーン・遺物・陣形の防御は「物理防御+15」のように<em>ポイントで足す</em>表示にそろえました(%は付けません)。</span><span class="nt-h">変わる数字</span><span class="nt-i"><b>素の防御(タンク)</b><br>図鑑の値 → <em>2.5倍(例: タイタン 物防20・魔防16 → 物防50・魔防30)</em></span><span class="nt-i"><b>素の防御(タンク以外)</b><br>図鑑の値 → <em>2倍(例: 九尾の狐 物防4・魔防5 → 物防8・魔防10)</em></span><span class="nt-i"><b>タンクの防御の合計(物防+魔防)</b><br>上限なし → <em>★5:80 / ★4:75 / ★3:65 / ★2:55 / ★1:45 まで</em></span><span class="nt-i"><b>スキル・パッシブの防御アップ</b><br>物理防御+6 → <em>物理防御+15(2.5倍)</em></span><span class="nt-i"><b>防御ダウン</b><br>物理防御-4 → <em>物理防御-8(2倍)</em></span><span class="nt-i"><b>ルーン・遺物・陣形・種族の防御</b><br>ルーンTierⅩのメイン +5 → <em>+10(2倍)</em></span><span class="nt-i">・EXなどの「敵 物理防御+40」のような特別ルールはそのままです。</span>' },
   { id: 146, version: 'α0.4.000', date: '10/2', title: '経済の見直し', body: '<span class="nt-h">今回の方針</span><span class="nt-i">今回の更新は、<em>モンスターを完凸(★10)させるまでのバランス</em>をもとにした調整です。ピックアップ★5は本体+かぶり5体で完凸できるように、ソウルの量と天井までの日数をそろえました。</span><span class="nt-i">星結晶の配り方は、メインクエストなどの一度きりの報酬を減らし、<em>毎月の星結晶の半分以上をイベントから</em>受け取る形にしました。続けて遊ぶほど、開催されるイベントで集められます。</span><span class="nt-i">以下がその内容の詳細です。</span><span class="nt-h">月にもらえる星結晶(イベントは月4回で計算)</span><span class="nt-i"><b>デイリーミッション</b><br>月8,100石 → 月4,500石</span><span class="nt-i"><b>ログインボーナス</b><br>月2,100石 → 月2,100石</span><span class="nt-i"><b>ウィークリーミッション</b><br>月5,570石 → 月6,000石</span><span class="nt-i"><b>イベント(ステージ・EX・ミッション・召喚券・開催中のデイリー)</b><br>月55,500石 → 月16,760石</span><span class="nt-i"><b>深淵回廊</b><br>月800石 → 月800石</span><span class="nt-i"><b>合計</b><br>月72,070石 → <em>月30,160石</em></span><span class="nt-i"><b>天井(200回)</b><br>11.2日 → <em>26.9日</em></span><span class="nt-i">・総力戦・封印戦が入ると、そのぶん(月およそ10,000石)が上乗せされます。</span><span class="nt-h">一度きりの星結晶</span><span class="nt-i"><b>メインクエスト(初回クリア・★の箱)</b><br>50,210石 → 23,610石</span><span class="nt-i"><b>実績</b><br>11,000石 → <em>19,610石</em></span><span class="nt-i">・実績は全部作り直しました。<em>いまの記録で、すでに届いている段はその場で受け取れます</em>。</span><span class="nt-i">・「ルーンを合成する」「PVPで勝つ」は、今回から数えはじめます(<em>さかのぼって反映されません</em>)。</span><span class="nt-h">ソウルが集まりやすくなりました</span><span class="nt-i"><b>ガチャのかぶり(★5)</b><br>150 → <em>500</em>(ピックアップは300 → <em>1,000</em>)</span><span class="nt-i"><b>無形のソウル・無形の共鳴石(ガチャ1回あたり)</b><br>平均1.95個 → <em>6.00個</em></span><span class="nt-i"><b>★10までに必要なソウル</b><br>★2:2,100 → 2,000 / ★3:3,150 → 3,000 / ★4:3,900 → 4,000 / ★5:4,800 → 5,000</span><span class="nt-i">・★5はピックアップなら本体+かぶり5体、それ以外はかぶり10体で★10になります。</span><span class="nt-h">お返し(プレゼントボックス)</span><span class="nt-i">・星結晶 3,000 / 無形のソウル 300 / 霊素核TierI 30 をお送りします(この更新より前に遊んでいた方が対象です)。</span><span class="nt-h">そのほか</span><span class="nt-i">・ミッションのゴールドをなくし、霊素鉱やワザ素材BOXにしました。</span><span class="nt-i">・黄金の洞窟のゴールドを3割下げました。霊素工房は霊素鉱が2倍、霊素核Iが半分になります。</span><span class="nt-i">・遺物ごとの共鳴石を、持ち物の個数として持つようにしました(残っていた数はそのまま引き継ぎます)。</span>' },
   { id: 145, version: 'α0.3.019', date: '10/1', title: 'ルーンの合成・振り直しで画面が一番上に戻らないように', body: '<span class="nt-i">・ルーンの合成画面で材料を選んだり、合成・振り直し・ロックをしたりしても、<em>画面が一番上に戻らなくなりました</em>。見ていた場所のまま続けられます。</span>' },
