@@ -44,8 +44,8 @@ console.log('--- フェンリル ---');
 const f10 = mk('フェンリル', 10), f5 = mk('フェンリル', 5);
 ok(T.passiveMod(f10, 'spdBonus') === 10, '★6でSPD+10', T.passiveMod(f10, 'spdBonus'));
 ok(T.passiveMod(f5, 'spdBonus') === 0, '★5は0');
-ok(f10.skills[1].effects[0].turns === 4, '★7で暴風の遠吠えが4ターン');
-ok(f5.skills[1].effects[0].turns === 3, '★5は3ターン');
+ok(f10.skills[1].hits === 7, '★7で暴風の牙が7回', f10.skills[1].hits);
+ok(f5.skills[1].hits === 5, '★5は5回', f5.skills[1].hits);
 const weak = foe(0.4); weak.spd = 1;
 ok(Math.abs(T.passiveMod(f10, 'dmgBonus', weak) - 0.30) < 0.001, '★6(遅い敵+10%)＋★8(HP50%以下+20%)= +30%', T.passiveMod(f10, 'dmgBonus', weak));
 

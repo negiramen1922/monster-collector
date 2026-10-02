@@ -74,8 +74,10 @@ ok('命中率ダウン: 攻撃側の外れる確率が上がる', miss>70 && mis
 delete e.buffs.accDown;
 const c0=F.cutOf(e,'phys'); F.addBuff(e,'curse',0.1,2,U(B,'m159'));
 ok('呪い: 受けるダメージ+10%', Math.abs(F.cutOf(e,'phys')-(c0-0.1))<1e-9);
-const d0=F.effDef(e,'mag'); e.mdef=100; const d1=F.effDef(e,'mag'); F.addBuff(e,'mdefDown',0.25,2,U(B,'m154'));
-ok('魔法防御ダウン', Math.abs(F.effDef(e,'mag')-75)<1e-9, F.effDef(e,'mag'));
+// 防御は「そのまま%カット」なので、デバフもポイント引き算(魔法防御30 に -5 で 25)
+e.mdef=30; F.addBuff(e,'mdefDown',5,2,U(B,'m154'));
+ok('魔法防御ダウン: ポイントで引かれる', Math.abs(F.effDef(e,'mag')-25)<1e-9, F.effDef(e,'mag'));
+delete e.buffs.mdefDown;
 const nop=U(B,'m161');
 ok('のっぺらぼう: 最初の攻撃は必ず回避', hit(e,nop,1).miss && !hit(e,nop,1,'phys',{sureHit:true}).miss);
 

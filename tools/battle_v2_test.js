@@ -7,7 +7,7 @@ const api = load('game.js', s => s + `;global.__e={
   ultSpCostFor, hpScale, shieldCapRatio, spFromDamage, avgBaseHp, addShield, shieldTotal,
   stageStaminaCost, grantStageRewards, grantDungeonRewards, sweepSpawned, findStage, statsWithRelic,
   RELICS, newRelicState, BATTLE_V2_SP_KILL, SP_ON_KILL, SP_HIT_CAP_PER_ROUND, BATTLE_V2_HIT_CAP,
-  BATTLE_V2_MOB_LV, spawnWave, STAGES,
+  WAVE_LV_RAMP, waveEnemyLv, spawnWave, STAGES,
 };`);
 const E = global.__e;
 let ng = 0;
@@ -92,18 +92,26 @@ check('被弾SPの上限は60', E.BATTLE_V2_HIT_CAP === 60 && E.SP_HIT_CAP_PER_R
 v2(true);  check('新のシールド上限は100%', E.shieldCapRatio() === 1.0);
 v2(false); check('旧のシールド上限は50%', E.shieldCapRatio() === 0.5);
 
-/* ---- 敵のレベル(ボスは推奨どおり、雑魚は-10) ---- */
+/* ---- 敵のレベル(ウェーブごとに上がり、最終ウェーブが推奨Lv) ---- */
 v2(true);
-const stage = E.STAGES.find(st => st.type === 'main' && (st.waves || []).some(w => w.some(e => e.boss)) && (st.waves || []).some(w => w.some(e => !e.boss)));
+const stage = E.STAGES.find(st => st.type === 'main' && (st.waves || []).length >= 3 && (st.waves || []).some(w => w.some(e => e.boss)));
 if(stage){
+  const n = stage.waves.length;
+  const lvs = stage.waves.map((w, i) => E.waveEnemyLv(stage, i));
+  check('最終ウェーブは推奨レベルちょうど', lvs[n - 1] === stage.rec, `${stage.id} 推奨${stage.rec} → ${lvs[n - 1]}`);
+  check('ウェーブが進むとレベルが上がる', lvs.every((v, i) => i === 0 || v >= lvs[i - 1]), lvs.join(','));
+  check('第1ウェーブは推奨レベルの 1-WAVE_LV_RAMP', lvs[0] === Math.max(1, Math.round(stage.rec * (1 - E.WAVE_LV_RAMP))), `${lvs[0]}`);
+  // ボスも取り巻きも最終ウェーブのレベル(推奨Lv = ボスのレベル で一本)
   const wi = stage.waves.findIndex(w => w.some(e => e.boss));
-  v2(true);  const nw = E.spawnWave(stage, wi);
-  v2(false); const ow = E.spawnWave(stage, wi);
-  const bossNew = nw.find(x => x.boss), bossOld = ow.find(x => x.boss);
-  const mobNew = nw.find(x => !x.boss), mobOld = ow.find(x => !x.boss);
-  if(bossNew && bossOld) check('ボスのレベルは新旧で同じ', bossNew.level === bossOld.level, `${bossOld.level} → ${bossNew.level}`);
-  if(mobNew && mobOld) check('雑魚のレベルは新で-10', mobOld.level - mobNew.level === E.BATTLE_V2_MOB_LV, `${mobOld.level} → ${mobNew.level}`);
+  const nw = E.spawnWave(stage, wi);
+  const bossNew = nw.find(x => x.boss), mobNew = nw.find(x => !x.boss);
+  if(bossNew && mobNew) check('同じウェーブならボスと取り巻きは同じレベル', bossNew.level === mobNew.level, `${bossNew.level} / ${mobNew.level}`);
+  if(bossNew) check('ボスのレベルは推奨レベル', bossNew.level === stage.rec, `${bossNew.level} / ${stage.rec}`);
 }
+// 1ウェーブのステージ(深淵回廊)はいつも推奨レベルちょうど
+check('1ウェーブなら推奨レベルちょうど', E.waveEnemyLv({ rec: 300, waves: [[]] }, 0) === 300);
+// 推奨Lvが低いステージでもレベル1に潰れない
+check('推奨Lv6でも第1ウェーブは1より上', E.waveEnemyLv({ rec: 6, waves: [[], [], []] }, 0) === 5, E.waveEnemyLv({ rec: 6, waves: [[], [], []] }, 0));
 
 /* ---- スタミナ0とクリア報酬 ---- */
 v2(true);

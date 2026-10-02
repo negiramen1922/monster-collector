@@ -60,9 +60,10 @@ PLAN.forEach(([tier, mag, phy, pdef, mdef]) => {
     Math.round(magShare(mag) * 100) + '%');
   ok(`${phy} は物理攻撃ステージ(魔法10%以下)`, magShare(phy) <= 0.10,
     Math.round(magShare(phy) * 100) + '%');
-  if(pdef) ok(`${pdef} は物理耐性ステージ(物防-魔防 が+4以上)`, defGap(pdef) >= 4, defGap(pdef).toFixed(1));
+  // 防御はそのまま%カット(物防-魔防 の差 = 物理と魔法で通りかたが何%変わるか)
+  if(pdef) ok(`${pdef} は物理耐性ステージ(物防-魔防 が+2.5以上)`, defGap(pdef) >= 2.5, defGap(pdef).toFixed(1));
   else console.log('   物理耐性: なし(★1〜★2のタンクでは差が作れないため)');
-  if(mdef) ok(`${mdef} は魔法耐性ステージ(物防-魔防 が-3以下)`, defGap(mdef) <= -3, defGap(mdef).toFixed(1));
+  if(mdef) ok(`${mdef} は魔法耐性ステージ(物防-魔防 が-2以下)`, defGap(mdef) <= -2, defGap(mdef).toFixed(1));
   else console.log('   魔法耐性: なし(★1に魔防が物防より高い敵がいないため)');
 });
 

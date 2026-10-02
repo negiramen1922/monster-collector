@@ -28,8 +28,10 @@ async def main():
               return activeEvents().map(e => e.key);
             }""")
             check('開催中は4つ(既存2＋新2)', len(r) == 4 and 'ev_fenrir' in r and 'ev_abaddon' in r, r)
-            m = await pg.evaluate("() => activeEvents().filter(e => medalOf(e)).map(e => medalOf(e).name)")
-            check('メダルのあるイベントは2つ', m == ['神狼の牙', '奈落の刻印'], m)
+            # メダルが無いとイベントショップも周回回数のミッションも出ないので、開催中は全部持っていること
+            m = await pg.evaluate("() => activeEvents().map(e => [e.name, medalOf(e) && medalOf(e).name])")
+            check('開催中のイベントは全部メダルを持っている', all(x[1] for x in m), m)
+            check('メダルの名前が重複していない', len({x[1] for x in m}) == len(m), m)
 
             for key in ['ev_fenrir', 'ev_abaddon']:
                 r = await pg.evaluate("""(key) => {
@@ -37,12 +39,17 @@ async def main():
                   const shop = eventShopItems(ev);
                   return { stages: ev.stages.length, ex: ev.exStages.length,
                            shopN: shop.length, shopTotal: shop.reduce((a,x)=>a+x.price*(x.limit===null?0:x.limit),0),
+                           medalPerRun: medalRunGain(10) * 2, stam10: ev.stages[9].stamina,
                            missions: eventMissions(ev).length,
                            titles: Object.keys(TITLES).filter(k => k.startsWith('ti_'+key)).map(k=>TITLES[k].name),
                            exRules: ev.exStages.map(s => (s.rules||[]).length) };
                 }""", key)
                 check(f'{key}: 10層＋EX3', r['stages'] == 10 and r['ex'] == 3, (r['stages'], r['ex']))
-                check(f'{key}: ショップ22品 上限まで11,967メダル', r['shopN'] == 22 and r['shopTotal'] == 11967, (r['shopN'], r['shopTotal']))
+                check(f'{key}: ショップ24品 上限まで14,920メダル', r['shopN'] == 24 and r['shopTotal'] == 14920, (r['shopN'], r['shopTotal']))
+                # 2週間(自然回復 288×14 = 4,032スタミナ)で買い切れる量か
+                runs = -(-r['shopTotal'] // r['medalPerRun'])
+                stam = runs * r['stam10']
+                check(f'{key}: 全買いが2週間ぶんのスタミナ(4,032)で足りる', stam <= 4032, (runs, stam))
                 check(f'{key}: ミッション14本・称号3つ', r['missions'] == 14 and len(r['titles']) == 3, (r['missions'], r['titles']))
                 check(f'{key}: EX全3面にルールがある', all(n > 0 for n in r['exRules']), r['exRules'])
 
@@ -71,10 +78,10 @@ async def main():
             r = await pg.evaluate("""() => {
               const ev = EVENTS.find(e => e.key === 'ev_abaddon');
               const before = ev.exStages.map(s => stageUnlocked(s));
-              STATE.clearedStages.push('ev_abaddon_5');
+              STATE.clearedStages.push('ev_abaddon_3');
               return { before, after: ev.exStages.map(s => stageUnlocked(s)) };
             }""")
-            check('EXは5層クリアで開く', r['before'][0] is False and r['after'][0] is True, r)
+            check('EXは3層クリアで開く', r['before'][0] is False and r['after'][0] is True, r)
 
             # ショップで交換できる
             r = await pg.evaluate("""() => {
@@ -86,12 +93,13 @@ async def main():
             }""")
             check('イベントショップで交換できる', r['paid'] == r['price'], r)
 
-            # 画面: ショップにイベントタブが2つ出る
+            # 画面: ショップのイベントタブは開催中のイベントのぶんだけ出る
             await pg.evaluate("() => { goto('shop'); shopTab = 'ev:ev_fenrir'; render(); }")
             await pg.wait_for_timeout(500)
             n = await pg.locator('[data-shop-tab^="ev:"]').count()
-            check('ショップにイベントタブが2つ', n == 2, n)
-            check('イベントショップに22行出る', await pg.locator('[data-ev-buy]').count() == 22)
+            want = await pg.evaluate("() => activeEvents().filter(e => medalOf(e)).length")
+            check('ショップのイベントタブが開催中のぶんだけ出る', n == want, [n, want])
+            check('イベントショップに24行出る', await pg.locator('[data-ev-buy]').count() == 24)
             await pg.screenshot(path=str(OUT / 'launch_shop.png'))
 
             # 画面: イベントタブが2つ、切り替えられる

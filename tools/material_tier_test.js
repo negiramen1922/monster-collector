@@ -4,15 +4,15 @@ const api = load('game.js', src => src + `;global.__e = { DEFAULT_STATE, STAGES,
 const E = global.__e;
 let fails = 0;
 const ok = (n, c, i) => { if(!c) fails++; console.log((c ? '✅' : '❌') + ' ' + n + (i !== undefined ? '  ' + JSON.stringify(i) : '')); };
-const CAP = { q1: 1, q2: 2, q3: 2, q4: 3, q5: 3, q6: 4, q7: 4 };
-// α0.1.075でq6/q7にもTierIを落とすようにした(案A)ので、下限は全ティアでTierI
-const MIN = {};
+/* ドロップは期待値で持ち、個数は毎回抽選する。初級はTierIだけ、中級はTierIIまで、
+   上級から全Tier。くわしい物価と抽選の仕組みは mat_economy_test.js を見る */
+const CAP = { q1: 1, q2: 2, q3: 4, q4: 4, q5: 4, q6: 4, q7: 4 };
 Object.entries(CAP).forEach(([t, cap]) => {
   [t, t + 'h'].forEach(tk => {
     const list = E.STAGES.filter(s => s.tier === tk && s.drops);
     const top = Math.max(...list.flatMap(s => s.drops.tiers.map((n, i) => n > 0 ? i + 1 : 0)));
     const low = Math.min(...list.flatMap(s => s.drops.tiers.map((n, i) => n > 0 ? i + 1 : 9)));
-    ok(`${tk}: いちばん上はTier${cap}(ボス・ハードも超えない)`, top === cap && low === (MIN[t] || 1), [low, top]);
+    ok(`${tk}: ドロップはTierI〜Tier${cap}(ボス・ハードは期待値が倍になるだけ)`, top === cap && low === 1, [low, top]);
   });
 });
 const bands = [['q1'], ['q2', 'q3'], ['q4', 'q5'], ['q6', 'q7']];

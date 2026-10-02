@@ -34,8 +34,27 @@ async def main():
             on = await pg.evaluate("() => document.querySelector('.sw-speed.on').textContent.trim()")
             first = await pg.evaluate("() => document.querySelector('.sw-speed').textContent.trim()")
             check('周回を開くと「結果だけ」が選ばれていて、先頭にある', on == '結果だけ' and first == '結果だけ', (on, first))
+            # 回数は −/＋ ボタンで決める。1 から ＋ を4回押して5回にする
+            n1 = await pg.evaluate("() => document.querySelector('.sw-times').textContent.trim()")
+            check('開いたときは1回', n1.startswith('1'), n1)
+            # 押すたびに開き直すので、毎回引き直す
+            n5 = await pg.evaluate("""() => { for(let i = 0; i < 4; i++) document.querySelector('[data-sweep-times="1"]').click();
+              return document.querySelector('.sw-times').textContent.trim(); }""")
+            check('＋を4回押すと5回になる', n5.startswith('5'), n5)
+            nmax = await pg.evaluate("""() => { document.querySelector('[data-sweep-times="max"]').click();
+              return [document.querySelector('.sw-times').textContent.trim(), sweepTimes,
+                      Math.floor(STATE.stamina / findStage(sweepTarget).stamina)]; }""")
+            check('「最大」で回せるだけの回数になる', nmax[1] == nmax[2], nmax)
+            back5 = await pg.evaluate("""() => { document.querySelector('[data-sweep-times="-10"]').click();
+              document.querySelector('[data-sweep-times="-10"]').click();
+              document.querySelector('[data-sweep-times="-1"]').click();
+              document.querySelector('[data-sweep-times="-1"]').click();
+              while(sweepTimes > 5) document.querySelector('[data-sweep-times="-1"]').click();
+              while(sweepTimes < 5) document.querySelector('[data-sweep-times="1"]').click();
+              return sweepTimes; }""")
+            check('−10 と − で戻せる', back5 == 5, back5)
             got = await pg.evaluate("""() => { const s0 = STATE.stamina, m0 = getItem('medal_ev_fenrir');
-              document.querySelector('[data-sweep-run="5"]').click();
+              document.querySelector('[data-sweep-run]').click();
               return { stam: s0 - STATE.stamina, medal: getItem('medal_ev_fenrir') - m0, battle: currentScreen,
                        line: (document.querySelector('.sw-medal') || {}).textContent || '' }; }""")
             await pg.wait_for_timeout(300)
@@ -46,6 +65,20 @@ async def main():
               document.querySelector('[data-sweep-speed="3"]').click(); closeModal(); renderSweepModal.seen = false; sweepSpeed = 0;
               renderSweepModal(); return document.querySelector('.sw-speed.on').textContent.trim(); }""")
             check('選んだ速さ(×3)を次に開いたときも覚えている', on == '×3', on)
+            # TierIVの1日の上限を超える回数を選んだら、先に言う
+            warn = await pg.evaluate("""() => { closeModal && closeModal();
+              STATE.clearedStages = STAGES.map(s => s.id); STAGES.forEach(s => STATE.stageStars[s.id] = 3);
+              STATE.stamina = 300; STATE.daily = null; ensureDaily();
+              sweepTarget = 'q7_10h'; sweepTimes = 1; renderSweepModal();
+              const one = !!document.querySelector('.alc-warn');
+              document.querySelector('[data-sweep-times="max"]').click();
+              const w = document.querySelector('.alc-warn');
+              return { one, many: !!w, text: w ? w.textContent.replace(/\\s+/g, ' ') : '', times: sweepTimes,
+                       rate: stageMatT4Rate(findStage('q7_10h')), left: matT4Left() }; }""")
+            check('1回なら上限の注意は出ない', not warn['one'], warn)
+            check('上限を超える回数だと「上限を超えます」が出る', warn['many'] and '上限を超えます' in warn['text'], warn)
+            check('注意には本日の残りと、その回数ぶんの見込みが出る',
+                  f"本日あと{warn['left']}個" in warn['text'] and '個ぶん' in warn['text'], warn['text'])
             check('JSエラーなし', not errs, errs)
             await b.close()
     sys.exit(1 if bad else 0)
