@@ -1377,6 +1377,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-detail-starrow.r1{ color:#a3a3b3; } .relic-detail-starrow.r2{ color:#79c96d; } .relic-detail-starrow.r3{ color:#5cb8e8; }
 .relic-detail-starrow.r4{ color:#c493ea; } .relic-detail-starrow.r5{ color:var(--gold); }
 .relic-dupe-star{ color:var(--fire); }
+.relic-stars{ color:#eeeaf6; letter-spacing:-.02em; }
+.relic-stars i{ font-style:normal; }
+.relic-stars i.blue{ color:#5fb4ff; text-shadow:0 0 6px rgba(95,180,255,.6); }
 
 .relic-effects{ margin:0 0 14px; display:flex; flex-direction:column; gap:6px; }
 .relic-eff-line{
@@ -2626,8 +2629,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rf-rtext small{ display:block; font-size:11px; color:var(--dim); font-weight:700; }
 .rr-list{ display:grid; gap:4px; margin-top:6px; }
 .rr-row{ display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:8px; border:1px solid var(--line); border-left:3px solid var(--c); background:var(--panel3); color:var(--text); font-size:12px; font-weight:800; }
-.rr-row b{ font-size:11px; color:var(--gold); }
-.rr-row:disabled{ opacity:.5; }
+.rr-btn{ flex:none; font-size:11px; font-weight:800; color:var(--gold); background:rgba(232,180,85,.1); border:1px solid rgba(232,180,85,.4);
+  border-radius:999px; padding:4px 10px; font-family:inherit; cursor:pointer; }
+.rr-btn:disabled{ opacity:.45; }
+.rr-cost{ font-size:10px; color:var(--dim); margin:4px 0 0; }
+.rd-lock{ position:absolute; top:10px; right:46px; width:32px; height:28px; border-radius:9px; background:var(--panel2);
+  border:1px solid var(--line); font-size:15px; line-height:1; cursor:pointer; opacity:.75; }
+.rd-lock.on{ border-color:var(--gold); background:rgba(232,180,85,.18); opacity:1; box-shadow:0 0 10px -4px rgba(232,180,85,.8); }
+.rd-vbtns{ display:flex; flex-direction:column; gap:8px; }
+.rd-vbtns .btn small{ display:block; font-size:10px; font-weight:700; opacity:.8; }
+.rd-back{ margin:0 0 6px; }
 .shop-rune.rune-ic{ width:34px; height:34px; }
 .rune-ic.sealed .rune-svg{ filter:drop-shadow(0 0 4px rgba(180,170,230,.5)); }
 .shop-rune-sub{ display:block; font-size:10px; color:var(--dim); font-weight:700; }
@@ -2657,6 +2668,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .rpk-name{ font-size:13px; font-weight:900; margin-bottom:3px; }
 .rpk-name small{ font-size:10px; color:var(--dim); font-weight:700; }
 .rpk-subs .rune-sub{ font-size:10px; margin-bottom:2px; }
+.eq-who{ flex:none; width:46px; display:flex; flex-direction:column; align-items:center; gap:1px; margin-left:auto; position:relative; }
+.eq-who img{ width:40px; height:40px; border-radius:9px; object-fit:cover; background:#2a2346; border:1px solid #ffb35a; }
+.eq-who.self img{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(232,180,85,.35); }
+.eq-who.self i{ background:var(--gold); }
+.eq-who i{ position:absolute; top:-5px; left:50%; transform:translateX(-50%); font-style:normal; font-size:8px; font-weight:900;
+  background:#ffb35a; color:#2a1a00; padding:0 4px; border-radius:6px; line-height:12px; white-space:nowrap; }
 .rpk-used{ font-size:10px; color:#ffb35a; font-weight:800; margin-top:2px; }
 .rpk-btns{ display:flex; flex-direction:column; gap:4px; }
 .rpk-list{ max-height:none; }
@@ -3166,7 +3183,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.008';
+const GAME_VERSION = 'α0.3.019';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5762,29 +5779,38 @@ function renderSkillUpgradePreview(lines){
     ${lines.map(l => `<div class="su-preview-row"><span class="su-preview-name">${l.name}</span><span>${l.before}${l.unit || '%'} → <b class="lv-scale-val">${l.after}${l.unit || '%'}</b></span></div>`).join('')}
   </div>`;
 }
-function upgradeSkillLevel(id, field){
+// opts.stay: 強化画面を開いたままにする(キャラ詳細へ戻さない)。成功したら true
+function upgradeSkillLevel(id, field, opts){
   const owned = STATE.owned[id];
   const m = MON_BY_ID[id];
-  if(!owned || !m) return;
-  if(owned[field] >= skillCapOf(owned)){ toast(`${SKILL_KINDS[field].label}は上限です`); return; }
+  if(!owned || !m) return false;
+  if(owned[field] >= skillCapOf(owned)){ toast(`${SKILL_KINDS[field].label}は上限です`); return false; }
   const list = skillCostList(m, field, owned[field]);
   const short = list.find(c => getItem(c.key) < c.n);
-  if(short){ toast(`${itemName(short.key)}が足りません`); return; }
+  if(short){ toast(`${itemName(short.key)}が足りません`); return false; }
   list.forEach(c => addItem(c.key, -c.n));
   owned[field] += 1;
   if(field === 'skillLv' || field === 'skill2Lv') track('skillUp');
   track('upgrade');
   playSfx('skillUp');
   saveState();
-  showMonsterDetail(id);
+  if(!(opts && opts.stay)) showMonsterDetail(id);
   render();
+  return true;
 }
 
 // skill/passive/ult level-up confirm modal: the material list can run to 6-8 chips
 // (2 families × up to 4 tiers), which used to overflow the inline upgrade button.
 let skillUpgradeModal = null; // { id, field } while this modal is open
 let skillUpgradeShort = null; // which cost chip's box/quest shortcuts are expanded
+// キャラ詳細のどこを見ていたか。強化画面を閉じたときに、一番上ではなく同じ場所へ戻すため
+let detailScrollMemo = null;   // { id, top }
+function rememberDetailScroll(id){
+  const el = document.querySelector('#modal-layer .detail-modal');
+  detailScrollMemo = el && el.dataset.mon === id ? { id, top: el.scrollTop } : null;
+}
 function openSkillUpgradeModal(id, field){
+  rememberDetailScroll(id);
   skillUpgradeModal = { id, field };
   skillUpgradeShort = null;
   renderSkillUpgradeModal();
@@ -5810,7 +5836,8 @@ function renderSkillUpgradeModal(){
   layer.innerHTML = `
     <div class="result-modal skill-up-modal" role="dialog" aria-label="${SKILL_KINDS[field].label}アップ">
       <button class="fs-close" data-close-skill-up="1" aria-label="閉じる">×</button>
-      <h3>${SKILL_KINDS[field].label} Lv${lv} → Lv${lv + 1}</h3>
+      <h3>${maxed ? `${SKILL_KINDS[field].label} Lv${lv}` : `${SKILL_KINDS[field].label} Lv${lv} → Lv${lv + 1}`}</h3>
+      ${skillUpgradeModal.flash ? `<div class="rd-flash">${skillUpgradeModal.flash}</div>` : ''}
       ${maxed ? `<p class="fs-note">これ以上は上げられません。</p>` : `
       ${preview || '<p class="fs-note">このレベルアップでは効果量は変わりません(発動条件などは変わりません)</p>'}
       <p class="fs-note">消費素材(タップでショートカット)</p>
@@ -6728,11 +6755,12 @@ function refreshRelicFilterSheet(){
   const sheet = layer.querySelector('.filter-sheet');
   if(sheet) sheet.scrollTop = scroll;
 }
-// 共鳴(凸)で★が上がっている時、基礎の★に続けて(色を変えて)追加分も表示する。
-// dupeUsedが無い(未所持 or 未共鳴)場合は基礎の★だけになる。
+// ★はモンスターと同じ並べ方: 白い★を最大5個まで。共鳴(凸)で★6を超えたぶんは、左から1つずつ青になる。
+// (★5の遺物を4回共鳴すると★9 → 白1個+青4個)
 function relicStarRowHtml(def, st){
-  const dupeUsed = st ? (st.dupeUsed || 0) : 0;
-  return `${'★'.repeat(def.star)}${dupeUsed > 0 ? `<span class="relic-dupe-star">${'★'.repeat(dupeUsed)}</span>` : ''}`;
+  const n = def.star + (st ? (st.dupeUsed || 0) : 0);
+  const blue = Math.max(0, n - 5);
+  return `<span class="relic-stars" title="★${n}">${Array.from({ length: Math.min(n, 5) }, (_, i) => `<i class="${i < blue ? 'blue' : ''}">★</i>`).join('')}</span>`;
 }
 function relicCell(id){
   const def = RELICS[id];
@@ -6946,7 +6974,10 @@ function upgradeRelicSkill(id){
 // (消費素材と、その入手方法を見てから確定させる)
 let relicSkillUpModal = null; // { relicId } while this modal is open
 let relicSkillUpShort = false; // whether the素材チップの入手方法パネルが開いているか
-function openRelicSkillUpModal(relicId){ relicSkillUpModal = { relicId }; relicSkillUpShort = false; renderRelicSkillUpModal(); }
+function openRelicSkillUpModal(relicId){
+  const up = document.querySelector('#modal-layer .relic-upgrade-modal');
+  if(relicUpgrade && up) relicUpgrade.scroll = up.scrollTop;
+  relicSkillUpModal = { relicId }; relicSkillUpShort = false; renderRelicSkillUpModal(); }
 function closeRelicSkillUpModal(){ relicSkillUpModal = null; relicSkillUpShort = false; if(relicUpgrade) renderRelicUpgrade(); }
 function renderRelicSkillUpModal(){
   const { relicId } = relicSkillUpModal;
@@ -6967,7 +6998,8 @@ function renderRelicSkillUpModal(){
   layer.innerHTML = `
     <div class="result-modal skill-up-modal" role="dialog" aria-label="スキルレベルアップ">
       <button class="fs-close" data-close-relic-skill-up="1" aria-label="閉じる">×</button>
-      <h3>スキルLv${lv} → Lv${lv + 1}</h3>
+      <h3>${maxed ? `スキルLv${lv}` : `スキルLv${lv} → Lv${lv + 1}`}</h3>
+      ${relicSkillUpModal.flash ? `<div class="rd-flash">${relicSkillUpModal.flash}</div>` : ''}
       ${maxed ? `<p class="fs-note">これ以上は上げられません。</p>` : `
       <div class="su-preview-list">
         ${def.effects.map(e => `<div class="su-preview-row"><span class="su-preview-name">${relicEffectText(e)}</span><span>${relicValText(e, e.pct * mult)}% → <b class="lv-scale-val">${relicValText(e, e.pct * nextMult)}%</b></span></div>`).join('')}
@@ -7455,8 +7487,8 @@ function renderRunesScreen(){
 }
 
 /* ---- ルーン詳細(合成・ロック・分解) ---- */
-let runeDetail = null;   // { uid, back: 'picker' | null, fuse: [材料のuid], flash }
-function openRuneDetail(uid, back){ runeDetail = { uid, back: back || null, fuse: [] }; renderRuneDetail(); }
+let runeDetail = null;   // { uid, back: 'picker' | null, fuse: [材料のuid], flash, view: 'main' | 'fuse' }
+function openRuneDetail(uid, back){ runeDetail = { uid, back: back || null, fuse: [], view: 'main' }; renderRuneDetail(); }
 function closeRuneDetail(){
   const d = runeDetail;
   runeDetail = null;
@@ -7518,9 +7550,12 @@ function renderRuneDetail(){
   const flash = runeDetail.flash;
   runeDetail.flash = null;
   const layer = document.getElementById('modal-layer');
-  layer.innerHTML = `
-    <div class="result-modal rune-detail-modal" role="dialog" aria-label="ルーン詳細">
-      <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+  // 材料を選ぶ・合成する・振り直すたびに描き直しても、見ていた場所のまま(一番上に戻さない)。
+  // 詳細 ⇄ 合成の切り替えのときだけ上から
+  const openNow = layer.querySelector('.rune-detail-modal');
+  const keepScroll = openNow && openNow.dataset.rune === r.uid && openNow.dataset.view === (runeDetail.view || 'main') ? openNow.scrollTop : 0;
+  const restoreScroll = () => { const el = layer.querySelector('.rune-detail-modal'); if(el && keepScroll) el.scrollTop = keepScroll; };
+  const head = `
       <div class="rd-head">
         ${runeIconHtml(r, { cls: 'big', used: false })}
         <div>
@@ -7528,23 +7563,44 @@ function renderRuneDetail(){
           <div class="rd-tags"><span class="rd-rar" style="--c:${rar.color}">${rar.label}</span>Tier${RUNE_ROMAN[r.tier - 1]}・${RUNE_TYPE_LABEL[runeType(r)]}</div>
           <div class="rd-main" style="--c:${RUNE_STATS[r.main].color}">${runeStatText(r.main, runeMainValue(r))}</div>
         </div>
-      </div>
-      <div class="rd-subs">${runeSubsHtml(r)}</div>
+      </div>`;
+  const lockBtn = `<button class="rd-lock ${r.lock ? 'on' : ''}" data-rune-lock="${r.uid}" aria-pressed="${r.lock ? 'true' : 'false'}" aria-label="${r.lock ? 'ロック中(タップで解除)' : 'ロックする'}" title="${r.lock ? 'ロック中' : 'ロックしていません'}">${r.lock ? '🔒' : '🔓'}</button>`;
+  // 合成の画面: 「合成する」を押すと、持っているルーンから材料を選ぶ画面に切り替わる
+  if(runeDetail.view === 'fuse'){
+    layer.innerHTML = `
+    <div class="result-modal rune-detail-modal" data-rune="${r.uid}" data-view="fuse" role="dialog" aria-label="ルーンの合成">
+      <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+      <button class="btn btn-ghost btn-sm rd-back" data-rune-view="main">‹ ルーン詳細に戻る</button>
+      ${head}
       ${flash ? `<div class="rd-flash">${flash}</div>` : ''}
-      <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
       <div class="rd-enhance">${runeFusePanelHtml(r)}</div>
-      <div class="rd-enhance">
-        <div class="rd-cost">サブ効果の振り直し<small>選んだサブ効果1つの種類と値を引き直します(メインや他のサブとはかぶりません)。1回 ✨${runeRerollCost(r)}(所持 ✨${STATE.runeDust.toLocaleString()})</small></div>
-        ${r.subs.length ? `<div class="rr-list">${r.subs.map((x, i) => `<button class="rr-row" data-rune-reroll="${i}" style="--c:${RUNE_STATS[x.stat].color}" ${STATE.runeDust >= runeRerollCost(r) ? '' : 'disabled'}><span>${runeStatText(x.stat, runeSubValue(x, r.tier))}</span><b>🎲 振り直す</b></button>`).join('')}</div>`
-          : '<div class="fs-note">白のルーンにはサブ効果がありません。</div>'}
+    </div>`;
+    layer.classList.add('show');
+    restoreScroll();
+    return;
+  }
+  const rerollCost = runeRerollCost(r);
+  const canReroll = STATE.runeDust >= rerollCost;
+  const maxed = r.tier >= RUNE_TIERS;
+  layer.innerHTML = `
+    <div class="result-modal rune-detail-modal" data-rune="${r.uid}" data-view="main" role="dialog" aria-label="ルーン詳細">
+      <button class="fs-close" data-close-rune-detail="1" aria-label="閉じる">×</button>
+      ${lockBtn}
+      ${head}
+      ${flash ? `<div class="rd-flash">${flash}</div>` : ''}
+      ${r.subs.length ? `<div class="rr-list">${r.subs.map((x, i) => `<div class="rr-row" style="--c:${RUNE_STATS[x.stat].color}">
+          <span>${runeStatText(x.stat, runeSubValue(x, r.tier))}</span>
+          <button class="rr-btn" data-rune-reroll="${i}" ${canReroll ? '' : 'disabled'} aria-label="${RUNE_STATS[x.stat].label}を振り直す">🎲 振り直す</button></div>`).join('')}</div>
+        <div class="rr-cost">振り直し 1回 ✨${rerollCost.toLocaleString()}(所持 ✨${STATE.runeDust.toLocaleString()})・種類と値を引き直します</div>`
+        : '<div class="fs-note">白のルーンにはサブ効果がありません。</div>'}
+      <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
+      <div class="rd-vbtns">
+        <button class="btn btn-block" data-rune-view="fuse" ${maxed ? 'disabled' : ''}>${maxed ? `Tier${RUNE_ROMAN[RUNE_TIERS - 1]}は最大です` : `合成する(Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}〜)`}</button>
+        <button class="btn btn-ghost btn-block" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解する(✨${runeDustValue(r)})${runeCanDismantle(r) ? '' : `<small>${r.lock ? 'ロック中' : '装備中'}は分解できません</small>`}</button>
       </div>
-      <div class="rd-actions">
-        <button class="btn btn-ghost btn-sm" data-rune-lock="${r.uid}">${r.lock ? '🔓 ロック解除' : '🔒 ロックする'}</button>
-        <button class="btn btn-ghost btn-sm" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解(✨${runeDustValue(r)})</button>
-      </div>
-      ${!runeCanDismantle(r) ? `<div class="fs-note">${r.lock ? 'ロック中' : '装備中'}のルーンは分解できません。</div>` : ''}
     </div>`;
   layer.classList.add('show');
+  restoreScroll();
 }
 function toggleRuneFusePick(uid){
   const r = runeByUid(runeDetail.uid);
@@ -7616,11 +7672,20 @@ function renderRunePicker(){
           ${runeIconHtml(r, { used: false })}
           <div class="rpk-body"><div class="rpk-name">${runeStatText(r.main, runeMainValue(r))} <small>${RUNE_RARITIES[r.rarity].label}・Tier${RUNE_ROMAN[r.tier - 1]}</small></div>
           <div class="rpk-subs">${runeSubsHtml(r)}</div>
-          ${u ? `<div class="rpk-used">この編成で ${MON_BY_ID[u.monId].name} が装備中(付け替えます)</div>` : ''}</div>
+          </div>
+          ${u ? equipWhoHtml(u.monId) : ''}
         </button>`;
       }).join('')}</div>` : `<p class="fs-note">${ensureRunes().length ? '条件に合うルーンがありません。' : 'まだルーンを持っていません。育成クエストの「ルーン採掘」で手に入ります。'}</p>`}
     </div>`;
   layer.classList.add('show');
+}
+// 装備を選ぶ一覧の右端: 装備しているキャラの顔(名前は出さない。長押し/ホバーで名前)。
+// いま見ている子の装備は一覧の一番上に出し、顔の枠を金色にする(「この子」などの文字は出さない)
+function equipWhoHtml(monId, self){
+  const m = MON_BY_ID[monId];
+  if(!m) return '';
+  return `<span class="eq-who ${self ? 'self' : ''}" title="${m.name}が装備中">
+    <img src="${imgSrc(monId)}" alt="${m.name}"><i>装備中</i></span>`;
 }
 function pickRune(uid){
   const p = runePicker;
@@ -7739,7 +7804,9 @@ function renderRelicPicker(){
   const mon = MON_BY_ID[monId];
   const ids = ownedRelicIds().slice().sort((a, b) => {
     const da = RELICS[a], db = RELICS[b];
-    return relicConditionMatchCount(db, mon) - relicConditionMatchCount(da, mon) || db.star - da.star;
+    // いまこの子が付けている遺物は一番上(枠の色と位置だけで分かるようにする)
+    const ha = STATE.relics[a] && STATE.relics[a].equippedTo === monId ? 1 : 0, hb = STATE.relics[b] && STATE.relics[b].equippedTo === monId ? 1 : 0;
+    return hb - ha || relicConditionMatchCount(db, mon) - relicConditionMatchCount(da, mon) || db.star - da.star;
   });
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
@@ -7762,8 +7829,9 @@ function renderRelicPicker(){
               <span class="relic-ic">${def.icon}</span>
               <div class="relic-row-body">
                 <div class="relic-row-name">${def.name}<span class="relic-star">${relicStarRowHtml(def, st)}</span>${matches > 0 ? `<span class="relic-match-badge">条件一致 ${matches}</span>` : ''}</div>
-                <div class="relic-row-sub">Lv${st.level} / スキルLv${st.skillLv}${here ? '・この子に装備中' : elsewhere ? `・装備中: ${elsewhere.name}` : ''}</div>
+                <div class="relic-row-sub">Lv${st.level} / スキルLv${st.skillLv}</div>
               </div>
+              ${here || elsewhere ? equipWhoHtml(st.equippedTo, here) : ''}
             </button>`;
         }).join('')}
       </div>`}
@@ -7791,8 +7859,13 @@ function renderRelicUpgrade(){
   const dupeSpare = (st.dupe || 0) - (st.dupeUsed || 0);
   const dupeMaxed = (st.dupeUsed || 0) >= RELIC_MAX_DUPE_USE;
   const layer = document.getElementById('modal-layer');
+  // 強化しても見ていた場所のまま(一番上に戻さない)。スキルアップ確認から戻ったときも同じ場所へ
+  const openNow = layer.querySelector('.relic-upgrade-modal');
+  const keepScroll = openNow && openNow.dataset.relic === relicUpgrade.relicId ? openNow.scrollTop
+    : (relicUpgrade.scroll || 0);
+  relicUpgrade.scroll = 0;
   layer.innerHTML = `
-    <div class="result-modal relic-upgrade-modal" role="dialog" aria-label="${def.name}">
+    <div class="result-modal relic-upgrade-modal" data-relic="${relicUpgrade.relicId}" role="dialog" aria-label="${def.name}">
       <button class="fs-close" data-close-relic-upgrade="1" aria-label="閉じる">×</button>
       <div class="relic-detail-head">
         <div class="relic-detail-ic r${def.star}">${def.icon}</div>
@@ -7886,6 +7959,8 @@ function renderRelicUpgrade(){
       </div>
     </div>`;
   layer.classList.add('show');
+  const nowEl = layer.querySelector('.relic-upgrade-modal');
+  if(nowEl && keepScroll) nowEl.scrollTop = keepScroll;
 }
 
 /* ---- clear rank (★1–3) and sweeping ---- */
@@ -13929,7 +14004,9 @@ function showMonsterDetail(id){
 
   const layer = document.getElementById('modal-layer');
   const openNow = layer.querySelector('.detail-modal');
-  const keepScroll = openNow && openNow.dataset.mon === id ? openNow.scrollTop : 0;
+  const memo = detailScrollMemo && detailScrollMemo.id === id ? detailScrollMemo.top : 0;
+  detailScrollMemo = null;
+  const keepScroll = openNow && openNow.dataset.mon === id ? openNow.scrollTop : memo;
   layer.innerHTML = `
     <div class="result-modal detail-modal" data-mon="${id}">
       <button class="detail-close" data-close-detail="1">×</button>
@@ -19705,6 +19782,8 @@ function handlePhoneClick(ev){
     if(fpEl){ toggleRuneFusePick(fpEl.dataset.runeFusePick); return; }
     if(t.closest('[data-rune-fuse-auto]')){ autoRuneFusePick(); return; }
     if(t.closest('[data-rune-fuse-go]')){ doFuseRune(); return; }
+    const rvEl = t.closest('[data-rune-view]');
+    if(rvEl){ runeDetail.view = rvEl.dataset.runeView; renderRuneDetail(); return; }
     const rrEl = t.closest('[data-rune-reroll]');
     if(rrEl){
       const res = rerollRuneSub(runeDetail.uid, Number(rrEl.dataset.runeReroll));
@@ -19807,9 +19886,15 @@ function handlePhoneClick(ev){
   if(relicSkillUpModal){
     if(t.closest('[data-close-relic-skill-up]')){ closeRelicSkillUpModal(); return; }
     if(t.closest('[data-confirm-relic-skill-up]')){
+      // 強化しても確認画面は閉じない(続けて上げられる)。閉じると強化画面の同じ場所に戻る
       const { relicId } = relicSkillUpModal;
-      relicSkillUpModal = null;
-      upgradeRelicSkill(relicId);
+      const before = STATE.relics[relicId] ? STATE.relics[relicId].skillLv || 1 : 1;
+      const keep = relicUpgrade && relicUpgrade.scroll;
+      if(upgradeRelicSkill(relicId)){
+        if(relicUpgrade) relicUpgrade.scroll = keep || 0;
+        relicSkillUpModal = { relicId, flash: `スキルLv ${before} → ${before + 1} に上がりました!` };
+        renderRelicSkillUpModal();
+      }
       return;
     }
     if(t.closest('[data-relic-cost-toggle]')){ relicSkillUpShort = !relicSkillUpShort; renderRelicSkillUpModal(); return; }
@@ -19884,9 +19969,13 @@ function handlePhoneClick(ev){
   if(skillUpgradeModal){
     if(t.closest('[data-close-skill-up]')){ closeSkillUpgradeModal(); return; }
     if(t.closest('[data-confirm-skill-up]')){
+      // 強化しても画面は閉じない(続けて上げられる)。閉じるとキャラ詳細の同じ場所に戻る
       const { id, field } = skillUpgradeModal;
-      skillUpgradeModal = null;
-      upgradeSkillLevel(id, field);
+      const before = STATE.owned[id] ? STATE.owned[id][field] : 0;
+      if(upgradeSkillLevel(id, field, { stay: true })){
+        skillUpgradeModal.flash = `${SKILL_KINDS[field].label} ${before} → ${before + 1} に上がりました!`;
+        renderSkillUpgradeModal();
+      }
       return;
     }
     const costToggleEl = t.closest('[data-cost-toggle]');
@@ -20739,6 +20828,14 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 145, version: 'α0.3.019', date: '10/1', title: 'ルーンの合成・振り直しで画面が一番上に戻らないように', body: '<span class="nt-i">・ルーンの合成画面で材料を選んだり、合成・振り直し・ロックをしたりしても、<em>画面が一番上に戻らなくなりました</em>。見ていた場所のまま続けられます。</span>' },
+  { id: 144, version: 'α0.3.018', date: '10/1', title: '遺物の強化画面も閉じずに続けて上げられるように・遺物の★の表示', body: '<span class="nt-i">・遺物のスキル強化で「レベルアップする」を押しても、<em>確認の画面は閉じなくなりました</em>。閉じると遺物の強化画面の、見ていた場所に戻ります。</span><span class="nt-i">・遺物の強化画面で強化しても、画面の一番上に戻らなくなりました。</span><span class="nt-i">・遺物の★を<em>モンスターと同じ並べ方</em>にしました。白い★を5個まで並べ、共鳴で★6を超えたぶんは<em>左から青</em>に変わります(★5の遺物を4回共鳴すると青4個+白1個)。</span>' },
+  { id: 143, version: 'α0.3.017', date: '10/1', title: 'スキル強化の画面を閉じずに続けて上げられるように', body: '<span class="nt-i">・スキル・必殺技・パッシブの強化で「レベルアップする」を押しても、<em>強化の画面は閉じなくなりました</em>。そのまま続けて上げられます。</span><span class="nt-i">・強化の画面を閉じると、キャラ詳細の一番上ではなく、<em>開く前に見ていた場所</em>に戻ります。</span>' },
+  { id: 142, version: 'α0.3.016', date: '10/1', title: 'ルーン詳細をスクロール少なめに', body: '<span class="nt-i">・ルーン詳細を「アイコン・名前・メイン効果 → サブ効果 → 合成する / 分解する」の順に並べ直し、ほとんどスクロールせずに見られるようにしました。</span><span class="nt-i">・サブ効果の各行の右に<em>🎲 振り直す</em>ボタンを置きました。</span><span class="nt-i">・ロックは右上の<em>鍵のボタン</em>をタップしてON/OFFを切り替えます(ONのときは金色)。</span><span class="nt-i">・「合成する」を押すと、持っているルーンから材料を選ぶ合成の画面に切り替わります(中身はこれまでと同じ)。「ルーン詳細に戻る」で戻れます。</span>' },
+  { id: 141, version: 'α0.3.015', date: '10/1', title: 'ルーン・遺物の一覧は顔だけに', body: '<span class="nt-i">・ルーン・遺物を選ぶ一覧の右端は、装備しているキャラの<em>顔だけ</em>にしました(名前はなし)。いま付けている遺物は一番上で、顔の枠が金色です。</span>' },
+  { id: 140, version: 'α0.3.014', date: '10/1', title: '遺物の一覧で、いま付けている遺物にも顔を表示', body: '<span class="nt-i">・一番上に出る「いま付けている遺物」にも、右端にその子の顔と名前を出すようにしました(顔の枠は金色)。</span>' },
+  { id: 139, version: 'α0.3.013', date: '10/1', title: '遺物の一覧で、いま付けている遺物を一番上に', body: '<span class="nt-i">・遺物を選ぶ一覧で、いま見ている子が付けている遺物を<em>一番上</em>に、金色の枠で出すようにしました。「この子」の表示はなくしました。</span><span class="nt-i">・ほかの子が付けている遺物・ルーンは、これまでどおり右端にその子の顔と名前が出ます。</span>' },
+  { id: 138, version: 'α0.3.012', date: '10/1', title: 'ルーン・遺物の一覧で、装備している子を顔で表示', body: '<span class="nt-i">・ルーンや遺物を選ぶ一覧で、だれが装備しているかを文字ではなく、<em>右端にその子の立ち絵と名前</em>で出すようにしました。いま見ている子が付けているものは「この子」と出ます。</span>' },
   { id: 137, version: 'α0.3.011', date: '10/1', title: '宝箱から出る卵が中身の色に。召喚ポイントショップ', body: '<span class="nt-h">卵の色で中身が分かるようになりました</span>宝箱の色で<em>その回のいちばん良いレア度</em>はもう分かっているので、飛び出す卵も<em>中身の色</em>にしました。<span class="nt-i">・<em>★1〜2は青 / ★3〜4は金 / ★5は虹</em>。虹の宝箱が来たあと、どれが虹の卵かを探せます</span><span class="nt-i">・★5が<em>金の予兆で出てくることがあります</em>(そのときは金の卵のまま)。割るまで分からない楽しみは残してあります</span><span class="nt-h">召喚ポイントショップを作りました</span>ガチャ画面でワンタップだった<em>天井の交換</em>を、ほかのショップと同じ流れに移しました。<span class="nt-i">・ガチャ画面の召喚ポイントの右の<em>「交換する」</em>から開きます。ピックアップ中のモンスターと、その専用遺物が並びます</span><span class="nt-i">・<em>個数を±で選べます</em>。合計で何ポイント使うか、残りがいくつになるかをその場に出します(イベントショップでも同じように選べます)</span><span class="nt-h">ガチャ画面を整理しました</span><span class="nt-i">・並びを <em>バナー → ★4確定まで・召喚ポイント → 引くボタン → 提供割合・最近の結果</em> に変えました</span><span class="nt-i">・<em>提供割合</em>と<em>最近の結果</em>はボタンを押すと出るようにしました。最近の結果は4件から<em>20件</em>まで見えます</span><span class="nt-i">・排出率やかぶりの長い説明文を外しました</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザの説明で<em>「SPD」の「SP」だけが用語として光っていた</em>のを直しました。「SPD+10」が「SP」で切れなくなります</span><span class="nt-i">・イベント・EX・育成クエストのリザルトに<em>「次のステージへ」</em>が出るようになりました(これまでメインクエストと深淵回廊だけでした)</span><span class="nt-i">・イベントショップで<em>アイコンが出ていない品</em>が3つあったのを直しました</span>' },
   { id: 136, version: 'α0.3.010', date: '10/1', title: '九尾・タイタンのEXステージと、同時ピックアップの★4', body: '<span class="nt-h">「紅蓮の九尾」「黄金の巨神」を10/7まで延長しました(追加ぶんは10/1 16:00から)</span><span class="nt-i">・<em>EXステージ</em>(EX1〜EX3)を追加しました。ステージ3クリアで開きます。スタミナを使わず何度でも挑めます。</span><span class="nt-i">・<em>EXのイベントミッション</em>を3つ追加しました。EX3のクリアで称号も手に入ります。</span><span class="nt-i">・同時ピックアップの★4を追加しました。<em>紅蓮の九尾は牛鬼・ロキ</em>、<em>黄金の巨神はブロック・スルト</em>です。</span><span class="nt-h">新★4 牛鬼(炎/タンク)</span>後衛をかばうことに特化したタンクです。<span class="nt-i">・スキル1「牛鬼の盾」 2ターンかばう状態になり、<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。そのあいだ自分の魔法防御+10。</span><span class="nt-i">・パッシブ「鬼の皮」 <em>肩代わりで受けたダメージ-25%</em>。自分が直接殴られたぶんには効きません。</span><span class="nt-i">・奥義「鬼哭」 敵全体に威力180%。自分に最大HPの50%のシールド。</span><span class="nt-h">★4のピックアップが効くようになりました</span>これまで期間限定バナーの<em>★4ピックアップは表示だけで、確率に反映されていませんでした</em>。★5と同じ決まりで、<em>★4が出たときの50%</em>が同時ピックアップの★4になります。<span class="nt-h">EXのルールは段ごとに増えます</span><span class="nt-i">・EX1は味方側のルールだけ。EX2・EX3で<em>敵側の縛りが1つずつ</em>加わります(減りません)。</span><span class="nt-i">・巨神の遺跡に「<em>シールドが無いあいだ 受けるダメージ+50%</em>」を足しました。EX3が<em>21ラウンド → 10ラウンド</em>になり、★3条件(12ラウンド以内)が狙えるようになりました。</span><span class="nt-h">直したもの</span><span class="nt-i">・ワザが配る<em>防御のバフ・デバフが48件すべて0.8ポイントに潰れていた</em>のを修正しました。タイタンの奥義は「物理・魔法防御+8%」と書いてありながら実際は+0.8でした。<em>タンクの守りのスキルが本来の効き目になります</em>。</span><span class="nt-i">・EXのウェーブに<em>前衛・後衛を指定できる</em>ようにしました。これまでロール任せだったので、前衛が1体もいないウェーブができていました。</span><span class="nt-i">・「紅蓮の九尾」「黄金の巨神」に<em>イベントメダル</em>を追加しました。メダルが無かったため、この2つだけ<em>イベントショップと周回回数のミッションが出ていませんでした</em>。</span><span class="nt-i">・ステージ10と★30の<em>称号</em>も、もう一度取れるように戻しました。</span><span class="nt-h">★4の星刻を追加しました</span>牛鬼・ロキ・ブロック・スルトに、★6〜★10の<em>星刻</em>を入れました。数値だけでなく、<em>スキルの対象やパッシブの発動条件が変わります</em>(例: ブロックの★9で鍛冶の盾が後衛の味方にも届きます)。<span class="nt-h">ワザの入れ替え</span><span class="nt-i">・<em>フェンリル</em>のスキル2を「暴風の遠吠え(自分にSTR+30%・SPD+10)」から<em>「暴風の牙」敵単体に威力60%×5回</em>に変えました。自己バフが攻撃になったぶん、はっきり強くなります(★7の星刻で7回に)。</span><span class="nt-i">・<em>グリーンマン</em>のスキル1とスキル2を入れ替えました。<em>拘束がスキル1(CT3)</em>になり、早く・何度も撃てます。</span>' },
   { id: 135, version: 'α0.3.009', date: '10/1', title: '説明文の中の「やけど」「延焼」などを押すと意味が出ます', body: '<span class="nt-h">言葉の意味がその場で読めるようになりました</span>ワザの説明に出てくる<em>やけど・毒・気絶・シールド・挑発</em>などの言葉が、<em>水色の点線</em>になりました。押すとその場で意味が出ます。<span class="nt-i">・とくに<em>延焼</em>は、どこにも説明がないのに説明文に出てくる言葉でした。「すでにやけどの相手にもう一度やけどをかけると、ターン数が戻るうえに、やけどダメージの50%をその場で与える(同じ相手に1ターン3回まで)」という意味です</span><span class="nt-i">・やけどのダメージが<em>かけた人のSTRで決まる</em>ことも書きました。強い子がかけたやけどのほうが痛いです</span><span class="nt-i">・光るのは25語です。状態異常8つ・延焼・シールド・挑発・トゲ・被ダメージ軽減・免疫・継続回復・肩代わり・呪い・恐慌・回復阻害・命中率ダウン・石像化・会心・防御貫通・SP</span><span class="nt-i">・ワザとパッシブの説明・遺物のスキル枠・<em>ステージ効果</em>・アイテムの説明で光ります</span><span class="nt-i">・説明の中から「似たもの」で別の言葉へ飛べます(やけど → 延焼)。閉じると<em>元の画面のスクロール位置まで戻ります</em></span><span class="nt-h">直したもの</span><span class="nt-i">・「奈落の王」EXの<em>「敵 魔法防御+8%」が実際には効いていなかった</em>のを直しました(防御をポイント式に変えたときの書き漏らしで、+0.4しか乗っていませんでした)。EXが少し硬くなります</span>' },
