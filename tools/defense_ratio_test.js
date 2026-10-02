@@ -10,7 +10,7 @@
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   DEF_POINT_CAP, BP_DEF_WEIGHT, RATIO_CAP, CUT_CAP, defCutOf, effDef, capRatio,
-  scaledStats, defBaseScale, ENEMY_DEF_SCALE, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
+  scaledStats, defBaseScale, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
   makeRune, runeBonusFromList, applyRuneBonusToUnit, applyStatus, hasStatus, ENEMY_POWER, LEVEL_STAT_BONUS,
   applyStatBonus, addDefPoints, BONUS_POINT_KEYS, RELICS, SPECIES_SYNERGY, FORMATIONS, bonusText, relicEffectText, STAGES,
   POINT_BUFF_KEYS, MONSTER_KITS, applyEffect, buffAmountText, get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
@@ -47,9 +47,9 @@ function unitAlly(id){
 }
 const e1 = enemy(TANK, 1, false), e300 = enemy(TANK, 300, false), eBoss = enemy(TANK, 300, true);
 ok('敵の防御もステージLvで伸びない', e1.pdef === e300.pdef, [e1.pdef, e300.pdef]);
-// 防御見直し(α0.4.001)の倍率は味方とPVPの相手だけ。ステージの敵は図鑑の値のまま
-ok('ステージの敵は図鑑の防御のまま(味方の倍率はかからない)', e1.pdef === Math.round(E.MON_BY_ID[TANK].pdef * E.ENEMY_DEF_SCALE) && E.ENEMY_DEF_SCALE === 1, [e1.pdef, E.MON_BY_ID[TANK].pdef]);
-ok('味方は倍率つき(タンク2.5倍)', unitAlly(TANK).pdef === Math.round(E.MON_BY_ID[TANK].pdef * 2.5), unitAlly(TANK).pdef);
+// 防御見直し(α0.4.001)の倍率(タンク2.5・ほか2)は、敵にも味方にも同じようにかかる
+ok('敵もタンクは図鑑の防御の2.5倍', e1.pdef === Math.round(E.MON_BY_ID[TANK].pdef * 2.5), [e1.pdef, E.MON_BY_ID[TANK].pdef]);
+ok('味方も同じ(タンク2.5倍)', unitAlly(TANK).pdef === e1.pdef, unitAlly(TANK).pdef);
 ok('ボス補正もかからない', eBoss.pdef === e1.pdef, [e1.pdef, eBoss.pdef]);
 ok('敵のHPとSTRはステージLvで伸びる', e300.maxHp > e1.maxHp * 5 && e300.str > e1.str * 5, [e1.str, e300.str]);
 
@@ -134,9 +134,9 @@ console.log('\n--- 3b. 上乗せはぜんぶポイント加算(掛け算はゼ�
     });
   });
   ok('  ワザの防御バフがポイントのまま届く(0.8に潰れない)', clamped.length === 0, clamped.slice(0, 6));
-  ok('  防御バフの表示はx100しない(+8% と出る)', E.buffAmountText('mdefUp', 8, false) === '+8%', E.buffAmountText('mdefUp', 8, false));
+  ok('  防御バフの表示はポイント(x100しない・%も付けない: +8)', E.buffAmountText('mdefUp', 8, false) === '+8', E.buffAmountText('mdefUp', 8, false));
   ok('  割合のバフは今までどおりx100する(+30%)', E.buffAmountText('strUp', 0.3, false) === '+30%', E.buffAmountText('strUp', 0.3, false));
-  ok('  陣形の説明文が「+1%」の形で出る(x100しない)', E.bonusText({ def: 1 }).endsWith('+1%'), E.bonusText({ def: 1 }));
+  ok('  陣形の説明文の防御はポイント(「防御+1」・%なし)', E.bonusText({ def: 1 }).endsWith('防御+1'), E.bonusText({ def: 1 }));
 }
 
 /* ---- 4. 防御貫通 ---- */
