@@ -7,7 +7,7 @@ const api = load('game.js', src => src + `;global.__e = {
   grantRelic, useRelicDupe, equipRelic,
   relicStarRowHtml, relicCell, matchesRelicFilter, relicFilterCount,
   openRelicPicker, renderRelicPicker, closeRelicPicker,
-  RELIC_MAX_DUPE_USE,
+  RELIC_MAX_DUPE_USE, resoHave, migrateRelicReso,
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -23,34 +23,41 @@ api.STATE = E.DEFAULT_STATE();
 const relicId = 'rel_flame_ember';
 const def = E.RELICS[relicId];
 E.grantRelic(def);
-// 覚醒(凸)を2回分使えるように、重複所持数(dupe)を確保してから使う
-api.STATE.relics[relicId].dupe = 2;
+// 覚醒(凸)を2回分使えるように、共鳴石(α0.4.000から持ち物の個数)を2個かぶりで手に入れてから使う
+E.grantRelic(def); E.grantRelic(def);
+ok('かぶると共鳴石が1個ずつ増える(持ち物の個数)', E.resoHave(relicId) === 2, E.resoHave(relicId));
 E.useRelicDupe(relicId);
 E.useRelicDupe(relicId);
 const st = api.STATE.relics[relicId];
-ok('準備: dupeUsedが2になっている', st.dupeUsed === 2, st.dupeUsed);
+ok('準備: dupeUsedが2になり、共鳴石は使ったぶん減る', st.dupeUsed === 2 && E.resoHave(relicId) === 0, [st.dupeUsed, E.resoHave(relicId)]);
+E.useRelicDupe(relicId);
+ok('共鳴石が無いと共鳴できない', st.dupeUsed === 2);
 
-// --- 1. relicStarRowHtml: 基礎★+覚醒分の★が色分けして出る ---
-const starHtml = E.relicStarRowHtml(def, st);
-const baseStars = '★'.repeat(def.star);
-const dupeStars = '★'.repeat(st.dupeUsed);
-ok('基礎の★がそのまま出る', starHtml.startsWith(baseStars));
-ok('覚醒分の★がrelic-dupe-starで色分けされて追加される', starHtml.includes(`<span class="relic-dupe-star">${dupeStars}</span>`));
-
-// 未覚醒(dupeUsedなし)の遺物は追加★が出ない
+// --- 1. relicStarRowHtml: モンスターと同じ並べ方(白い★を5個まで、★6を超えたぶんは左から青) ---
+const count = html => { const all = (html.match(/<i[^>]*>★<\/i>/g) || []); return [all.length, all.filter(x => /blue/.test(x)).length]; };
+const n = def.star + st.dupeUsed;
+ok('★の数は最大5個・★6を超えたぶんが青', JSON.stringify(count(E.relicStarRowHtml(def, st))) === JSON.stringify([Math.min(n, 5), Math.max(0, n - 5)]), [def.star, st.dupeUsed, count(E.relicStarRowHtml(def, st))]);
+const s5 = Object.values(E.RELICS).find(d => d.star === 5);
+ok('★5を4回共鳴(★9)なら青4個+白1個', JSON.stringify(count(E.relicStarRowHtml(s5, { dupeUsed: 4 }))) === '[5,4]');
 const otherId = Object.keys(E.RELICS).find(id => id !== relicId);
 const otherDef = E.RELICS[otherId];
-ok('未覚醒の遺物は基礎の★だけになる', E.relicStarRowHtml(otherDef, null) === '★'.repeat(otherDef.star));
+ok('未共鳴の遺物は白い★が元の数だけ', JSON.stringify(count(E.relicStarRowHtml(otherDef, null))) === JSON.stringify([otherDef.star, 0]));
 
-// --- 2. 遺物図鑑のセル(relicCell)にも覚醒分の★が出る ---
-const cellHtml = E.relicCell(relicId);
-ok('遺物図鑑のセルにも覚醒分の★が表示される', cellHtml.includes(`<span class="relic-dupe-star">${dupeStars}</span>`));
-
-// --- 3. キャラの装備遺物選択(relicPicker)にも覚醒分の★が出る ---
+// --- 2. 遺物図鑑のセル(relicCell)・装備遺物選択(relicPicker)にも同じ★が出る ---
+const rowHtml = E.relicStarRowHtml(def, st);
+ok('遺物図鑑のセルにも同じ★が表示される', E.relicCell(relicId).includes(rowHtml));
 api.STATE.owned['m06'] = { star: 5, souls: 0, level: 10, skillLv: 1, skill2Lv: 1, ultLv: 1, passiveLv: 1 };
 modalHtml = '';
 E.openRelicPicker('m06');
-ok('装備遺物選択の一覧にも覚醒分の★が表示される', modalHtml.includes(`<span class="relic-dupe-star">${dupeStars}</span>`));
+ok('装備遺物選択の一覧にも同じ★が表示される', modalHtml.includes(rowHtml));
+
+// --- 古いセーブ(dupe - dupeUsed)からの移しかえ ---
+api.STATE.relicResoV = 0; api.STATE.relicReso = {};
+api.STATE.relics[relicId].dupe = 5;   // かぶり5回・使ったのは2回 → 3個
+E.migrateRelicReso();
+ok('古いセーブは「かぶった数 - 使った数」を共鳴石の個数に移す', E.resoHave(relicId) === 3, E.resoHave(relicId));
+E.migrateRelicReso();
+ok('移しかえは1回だけ', E.resoHave(relicId) === 3);
 
 // --- 4. 「覚醒(凸)」フィルター: dupeUsedの値で絞り込める ---
 ok('覚醒2の遺物はdupe:["2"]フィルターに一致する', E.matchesRelicFilter(relicId, { star: [], channel: [], dupe: ['2'] }));

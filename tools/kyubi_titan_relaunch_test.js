@@ -69,12 +69,11 @@ console.log('\n--- イベントショップ ---');
 console.log('\n--- イベントミッション ---');
 ['ev_kyubi', 'ev_titan'].forEach(k => {
   const ms = E.eventMissions(ev(k)).filter(m => m.kind === 'ex');
-  ok(`${k}: EXミッションが3つ`, ms.length === 3, ms.map(m => m.id));
-  ok(`${k}: EX3に称号が付く`, !!ms.find(m => m.id === 'ex3').title, ms.find(m => m.id === 'ex3').title);
-  const cry = ms.map(m => (m.reward.find(r => r.type === 'crystal') || {}).n);
-  ok(`${k}: 星結晶は 500 / 1,000 / 2,000`, JSON.stringify(cry) === '[500,1000,2000]', cry);
-  ok(`${k}: 称号が登録されている`, !!E.TITLES[ms.find(m => m.id === 'ex3').title],
-     ms.find(m => m.id === 'ex3').title);
+  // 経済見直し(α0.4.000): EXの星結晶はステージの初回クリア(100/200/400)に移し、ミッションは「EX3を★3」の称号だけ
+  ok(`${k}: EXミッションは「EX3を★3でクリア」の1つ(称号つき)`, ms.length === 1 && ms[0].id === 'ex3star' && !!ms[0].title, ms.map(m => m.id));
+  const cry = ev(k).exStages.map(s => s.firstClear);
+  ok(`${k}: EXの初回クリアの星結晶は 100 / 200 / 400`, JSON.stringify(cry) === '[100,200,400]', cry);
+  ok(`${k}: 称号が登録されている`, !!E.TITLES[ms[0].title], ms[0].title);
   ok(`${k}: ステージ10と★30の称号も戻っている`, !!E.EVENT_TITLES[k].deep && !!E.EVENT_TITLES[k].star);
 });
 
@@ -90,8 +89,9 @@ console.log('\n--- EXで★4のソウルが出る ---');
 
 console.log('\n--- お知らせ ---');
 {
-  const n = E.NOTICES[0];
-  ok('先頭が今回のお知らせ', /EXステージ/.test(n.title), n.title);
+  // あとから別のお知らせが先頭に来ても見つけられるように、id で探す
+  const n = E.NOTICES.find(x => x.id === 24);
+  ok('九尾・タイタンEXのお知らせがある', n && /EXステージ/.test(n.title), n && n.title);
   ok('立ち絵に6体ならぶ', (n.art || []).length === 6, n.art);
   ok('立ち絵が実在する', (n.art || []).every(id => E.MON_BY_ID[id]), (n.art || []).map(id => E.MON_BY_ID[id] && E.MON_BY_ID[id].name));
   ok('本文に 10/7 が入っている', /10\/7/.test(n.body));

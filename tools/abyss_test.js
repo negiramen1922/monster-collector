@@ -79,7 +79,7 @@ E.ensureAbyss();
 ok('期が変わると1階に戻り、報酬も受け取り直せる', S.abyss.floor === 1 && Object.keys(S.abyss.claimed).length === 0 && S.abyss.checkpoint === 0);
 ok('過去の最高記録は残る', S.abyss.bestEver === 12 && Object.values(S.abyss.history).includes(12));
 ok('5階・25階の報酬は多め', E.abyssFloorReward(5).length > E.abyssFloorReward(4).length && E.abyssFloorReward(25).some(r => r.type === 'crystal' && r.n === 100));
-ok('深淵回廊の実績とウィークリーがある', E.ACHIEVEMENTS.some(a => a.id === 'a_abyss') && E.WEEKLY_MISSIONS.some(m => m.id === 'w_abyss'));
+ok('深淵回廊の実績とウィークリーがある', E.ACHIEVEMENTS.some(a => a.id === 'x_abyss') && E.WEEKLY_MISSIONS.some(m => m.id === 'w_abyss'));
 ok('タブが描ける', E.renderAbyssTab().includes('深淵回廊'));
 // --- 上級クリア前は入れない ---
 S.clearedStages = ['tu1', 'tu2', 'tu3'];

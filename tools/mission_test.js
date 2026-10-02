@@ -37,7 +37,7 @@ E.track('relicUpgrade', 1);
 ok('遺物を強化するとデイリーが受け取れる', entry('d:d_relic').state === 'claim');
 for(let i = 0; i < 10; i++) E.track('pvpBattle');
 ok('PVP 1回でデイリー、10回でウィークリーが受け取れる', entry('d:d_pvp').state === 'claim' && entry('w:w_pvp').state === 'claim');
-ok('デイリーは8個、まとめ報酬は5つ達成で受け取れる', E.DAILY_MISSIONS.length === 8 && entry('d:all').goal === 5, entry('d:all').goal);
+ok('デイリーは恒常9個(+イベント開催中だけ1個)、まとめ報酬は5つ達成で受け取れる', E.DAILY_MISSIONS.filter(m => !m.when).length === 9 && entry('d:all').goal === 5, entry('d:all').goal);
 ['d_login', 'd_clear', 'd_relic', 'd_pvp'].forEach(id => E.claimMission('d:' + id));
 ok('4つではまだ受け取れない', entry('d:all').state === 'progress');
 E.track('gachaPull'); E.claimMission('d:d_gacha');
@@ -78,7 +78,7 @@ ok('★4選択券で選んだキャラが仲間になり、券が減る', r1 && 
 ok('券が無いと使えない', E.useMonTicket('mon_sel_4', pickNew.id) === null);
 T.items.mon_sel_4 = 1; const s0 = T.owned[pickNew.id].souls;
 E.useMonTicket('mon_sel_4', pickNew.id);
-ok('持っているキャラを選ぶとソウルになる', T.owned[pickNew.id].souls === s0 + 50, T.owned[pickNew.id].souls - s0);
+ok('持っているキャラを選ぶとソウルになる(★4は200)', T.owned[pickNew.id].souls === s0 + 200, T.owned[pickNew.id].souls - s0);
 
 // --- ピックアップのソウル ---
 api.STATE = E.DEFAULT_STATE();
@@ -86,13 +86,13 @@ const U = api.STATE;
 const pu = api.MON_BY_ID[E.currentBanner().pickup];
 let pulled = null;
 for(let i = 0; i < 4000 && !pulled; i++){ U.pitySinceRare = 0; const r = E.pullOne(5); if(r.mon.id === pu.id) pulled = r; }
-ok('ピックアップの★5を新規で引くとソウル+150が付く', pulled && pulled.isNew && pulled.pickupBonus === 150 && U.owned[pu.id].souls >= 150, pulled && { souls: pulled.souls, bonus: pulled.pickupBonus });
+ok('ピックアップの★5を新規で引くとソウル+500が付く', pulled && pulled.isNew && pulled.pickupBonus === 500 && U.owned[pu.id].souls >= 500, pulled && { souls: pulled.souls, bonus: pulled.pickupBonus });
 pulled = null;
 for(let i = 0; i < 4000 && !pulled; i++){ U.pitySinceRare = 0; const r = E.pullOne(5); if(r.mon.id === pu.id) pulled = r; }
-ok('重複でも通常のソウル150に+150', pulled && !pulled.isNew && pulled.souls === 300, pulled && pulled.souls);
+ok('重複でも通常のソウル500に+500(合計1,000)', pulled && !pulled.isNew && pulled.souls === 1000, pulled && pulled.souls);
 let other = null;
 for(let i = 0; i < 4000 && !other; i++){ U.pitySinceRare = 0; const r = E.pullOne(5); if(r.mon.id !== pu.id && !r.isNew) other = r; }
-ok('ピックアップ以外の★5にはボーナスが付かない', other && !other.pickupBonus && other.souls === 150, other && other.souls);
+ok('ピックアップ以外の★5にはボーナスが付かない(重複は500)', other && !other.pickupBonus && other.souls === 500, other && other.souls);
 
 // --- イベントの遺物の配布 ---
 const ev = E.EVENTS[0];
