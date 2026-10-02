@@ -3183,7 +3183,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.3.019';
+const GAME_VERSION = 'α0.4.000';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3463,33 +3463,34 @@ const MAX_LEVEL = STAR_TABLE[MAX_STAR].lvCap;
 const PROMOTION_STAT_BONUS = 0.10; // +10% base HP/STR/DEF per promotion (SPD unaffected)
 const LEVEL_STAT_BONUS = 0.03;     // +3% per level above 1 (also scales enemy toughness by stage-recommended level)
 const SECOND_SKILL_STAR = 4;       // the 2nd skill slot opens at ★4 (current ★)
-const DUP_SOULS = { 1:1, 2:3, 3:30, 4:50, 5:150 };      // by initial ★
-const UNIVERSAL_SOULS = { 1:1, 2:1, 3:2, 4:5, 5:10 };   // every pull, new or duplicate
+const DUP_SOULS = { 1:25, 2:50, 3:150, 4:200, 5:500 };  // by initial ★(経済見直し α0.4.000: ★5は重複1体で500)
+const UNIVERSAL_SOULS = { 1:1, 2:3, 3:8, 4:15, 5:30 };  // every pull, new or duplicate(1回あたり平均6.00個)
 // ガチャでピックアップ中のモンスター(バナーの★5・セレクトピックアップで選んだ★4/★5)を引くと、
 // 新規でも重複でも、そのモンスターのソウルが追加でもらえる
-const PICKUP_BONUS_SOULS = { 4:50, 5:150 };
+// ステージで「仲間になる」が当たったのに、もう持っていたときのソウル。ガチャの重複(DUP_SOULS)とは別。
+// 経済見直しでガチャの重複だけを上げたので、周回で入るソウルは今までどおりの量にしておく
+const STAGE_DUP_SOULS = { 1:1, 2:3, 3:30, 4:50, 5:150 };
+const PICKUP_BONUS_SOULS = { 4:200, 5:500 };   // PUの重複は ★4で400・★5で1,000
 // 無形の共鳴石: 遺物版の無形のソウル。遺物ガチャを引くたびに(新規でも重複でも)★に応じて貯まり、
 // 好きな遺物の共鳴(凸)1回分と交換できる。モンスターと同じレート(★5で750)では集めるのがきついので、
-// ★5を300にして、ほかの★も同じ割合(モンスターのレートの4割)で下げている
-const RESONANCE_PER_PULL = { 1:1, 2:1, 3:2, 4:5, 5:10 };
+// ★5を300にして、ほかの★も同じ割合(モンスターのレートの4割)で下げている。1回あたりは無形のソウルと同じ
+const RESONANCE_PER_PULL = { 1:1, 2:3, 3:8, 4:15, 5:30 };
 const RESONANCE_PER_DUPE = { 1:2, 2:6, 3:60, 4:100, 5:300 };
 const UNIVERSAL_PER_SOUL = 5;                           // 5 universal → 1 soul of an owned monster
 
 function levelCapOf(owned){ return STAR_TABLE[owned.star].lvCap; }
 function skillCapOf(owned){ return STAR_TABLE[owned.star].skillCap; }
 /* 星刻に必要なソウル。「もとのレアリティ」と「いまの★」で決まる。
-   もとのレアリティが高いほど1段が重く、★10までの合計は
-   ★1:1,500 / ★2:2,100 / ★3:3,150 / ★4:3,900 / ★5:4,800。
-   最初の1段(★5→6 の 300 など)は今までと同じにして、重くなるのは後半だけにしてある。
-   以前は STAR_TABLE[いまの★] だけで決めていたので、★5の子がいちばん安い(2,800)という
-   逆転が起きていた。数字はガチャの重複でもらえるソウル(★3:30 / ★4:50 / ★5:150)の
-   倍数に揃えてあるので、「★5の1段目は重複4体ぶん」と数えられる。 */
+   ★10までの合計は ★1:1,500 / ★2:2,000 / ★3:3,000 / ★4:4,000 / ★5:5,000(経済見直し α0.4.000)。
+   ★5の段ごとは 500 / 500 / 1,000 / 1,500 / 1,500 で、重複1体(500)・PUの重複1体(1,000)で数えられる。
+   PUなら本体+重複5体、PU以外なら重複10体で完凸。
+   以前は STAR_TABLE[いまの★] だけで決めていたので、★5の子がいちばん安いという逆転が起きていた。 */
 const SOULS_TO_NEXT = {
   1: { 1:10, 2:100, 3:150, 4:200, 5:200, 6:200, 7:200,  8:200,  9:240 },
-  2: {       2:50,  3:200, 4:250, 5:300, 6:300, 7:300,  8:350,  9:350 },
-  3: {              3:90,  4:390, 5:450, 6:510, 7:540,  8:570,  9:600 },
-  4: {                     4:200, 5:600, 6:700, 7:800,  8:800,  9:800 },
-  5: {                            5:300, 6:900, 7:1050, 8:1200, 9:1350 },
+  2: {       2:50,  3:200, 4:250, 5:300, 6:300, 7:300,  8:300,  9:300 },
+  3: {              3:90,  4:370, 5:430, 6:490, 7:510,  8:540,  9:570 },
+  4: {                     4:200, 5:600, 6:700, 7:800,  8:850,  9:850 },
+  5: {                            5:500, 6:500, 7:1000, 8:1500, 9:1500 },
 };
 // base はモンスターの元レアリティ。渡されなければ owned.base → いまの★ の順に見る
 // (owned.base は newOwned で入れ、古いセーブは migrateOwnedBase で埋める)
@@ -5217,6 +5218,8 @@ const DEFAULT_STATE = () => ({
   friendPoints: 0,
   followerCount: 0,
   resonance: 0,
+  relicReso: {},    // 遺物ごとの共鳴石の個数 { [遺物id]: n }
+  relicResoV: 1,    // 新しく始めた人は移しかえ不要
   abyss: null,      // 深淵回廊 { season, floor, checkpoint, best, claimed, snap, bestEver, history }
   tamerLvSeen: 0,   // スタミナを配り終えたテイマーLv(checkTamerLevelUp)
   shareDaily: null, // { key } ガチャ結果をSNS共有した日(星結晶+10は1日1回)     // 無形の共鳴石(遺物版の無形のソウル) // 自分をフレンドに追加している人の数(フレンド画面を開いたときに取り直す)
@@ -5317,6 +5320,7 @@ function normalizeState(){
   delete STATE.formation;
   delete STATE.party;
   migrateLegacyRunes();
+  migrateRelicReso();
   // 星刻の必要ソウルが「元レアリティ × いまの★」で決まるようになったので、
   // 古いセーブにも元レアリティを入れる(図鑑から引けるので取り違えは起きない)
   Object.entries(STATE.owned || {}).forEach(([id, o]) => {
@@ -6075,6 +6079,7 @@ function buyStaminaRefill(){
   ensureDaily().counts.staminaBuy = staminaRefillUsed() + 1;
   grantStamina(STAMINA_REFILL_QTY);
   track('shopBuy');
+  track('staminaRefill');
   playSfx('buy');
   toast(price === 0 ? `スタミナ回復(+${STAMINA_REFILL_QTY})を無料で受け取りました` : `スタミナ回復(+${STAMINA_REFILL_QTY})を購入しました`);
   saveState();
@@ -6100,7 +6105,8 @@ const FACILITIES = {
   mine: { name: '鉱山', icon: '⛏️', desc: 'ゴールドを生産します', perHour: [0, 1000, 2000, 4000, 7000, 10000] },
   lab: { name: '研究所', icon: '⚗️', desc: 'EXPポットを生産します(EXP換算)', perHour: [0, 5, 15, 40, 100, 200], maxTier: [0, 1, 1, 2, 3, 3] },
   smithy: { name: '霊素工房', icon: '🔨', desc: '霊素鉱とコアを生産します',
-    perHour: [0, 4, 8, 16, 28, 45], corePerHour: [0, 1 / 3, 2 / 3, 1.25, 2, 3] },
+    // 経済見直し: 霊素鉱は2倍・霊素核Iは半分(以前は [0,4,8,16,28,45] / [0,1/3,2/3,1.25,2,3])
+    perHour: [0, 8, 16, 32, 56, 90], corePerHour: [0, 1 / 6, 1 / 3, 0.625, 1, 1.5] },
   alchemy: { name: '錬金術', icon: '🔮', desc: 'ワザ強化素材と霊素核を錬成します(下位5個 → 上位1個)。TierIII以上はここでしか作れません' },
 };
 const FACILITY_MAX_LV = 5;
@@ -6668,10 +6674,26 @@ const RELIC_FILTER_GROUPS = [
     key:String(n), icon:'💠', label: n === 0 ? '未共鳴' : `共鳴${n}${n === RELIC_MAX_DUPE_USE ? '(MAX)' : ''}`,
   })) },
 ];
-/* かぶって手に入れた同じ遺物は「〇〇の共鳴石」として見せる。データは dupe / dupeUsed のまま
-   なので、セーブの形は変わらない(モンスター側の「ソウル / 無形のソウル」と同じ関係) */
+/* かぶって手に入れた同じ遺物は「〇〇の共鳴石」になる。経済見直し(α0.4.000)から、モンスターのソウルと同じく
+   持ち物の個数として STATE.relicReso[遺物id] に持つ(イベントショップやミッションで何個でも配れるように)。
+   以前のセーブは dupe(かぶった数) - dupeUsed(使った数) を個数に移す(migrateRelicReso)。
+   1個で共鳴1回(★+1)。共鳴の回数そのものは dupeUsed のまま */
 function resoName(def){ return `${def.name}の共鳴石`; }
-function resoHave(id){ const st = STATE.relics && STATE.relics[id]; return st ? Math.max(0, (st.dupe || 0) - (st.dupeUsed || 0)) : 0; }
+function resoHave(id){ return Math.max(0, (STATE.relicReso && STATE.relicReso[id]) || 0); }
+function addRelicReso(id, n){
+  if(!STATE.relicReso) STATE.relicReso = {};
+  STATE.relicReso[id] = Math.max(0, (STATE.relicReso[id] || 0) + n);
+}
+function migrateRelicReso(){
+  // 読み込み時に DEFAULT_STATE の {} が混ざるので、移したかどうかは relicResoV で見る
+  if(STATE.relicResoV) return;
+  STATE.relicResoV = 1;
+  STATE.relicReso = {};
+  Object.entries(STATE.relics || {}).forEach(([id, st]) => {
+    const spare = Math.max(0, (st.dupe || 0) - (st.dupeUsed || 0));
+    if(spare) STATE.relicReso[id] = spare;
+  });
+}
 function matchesRelicFilter(id, f){
   const def = RELICS[id];
   const channel = def.channel === 'distributed' ? 'distributed' : 'gacha';
@@ -6910,14 +6932,15 @@ function resonateRelic(id){
   const cost = RESONANCE_PER_DUPE[def.star];
   if((STATE.resonance || 0) < cost){ toast(`無形の共鳴石が足りません(必要 ${cost})`); return; }
   STATE.resonance -= cost;
-  st.dupe = (st.dupe || 0) + 1;
+  addRelicReso(id, 1);
   useRelicDupe(id);
 }
 function useRelicDupe(id){
   const st = STATE.relics[id];
   if(!st) return;
   if((st.dupeUsed || 0) >= RELIC_MAX_DUPE_USE){ toast('凸は上限です'); return; }
-  if((st.dupe || 0) <= (st.dupeUsed || 0)){ toast('この遺物の共鳴石が足りません'); return; }
+  if(resoHave(id) <= 0){ toast('この遺物の共鳴石が足りません'); return; }
+  addRelicReso(id, -1);
   st.dupeUsed = (st.dupeUsed || 0) + 1;
   track('upgrade');
   playSfx('promote');
@@ -7313,6 +7336,7 @@ function fuseRunes(baseUid, matUids){
   base.tier += steps;
   const used = new Set(mats);
   STATE.runes = STATE.runes.filter(r => !used.has(r.uid));
+  track('runeFuse', steps);   // 1段上がるごとに1回(ウィークリー・実績「ルーンを合成する」)
   return { ok: true, rune: base, steps };
 }
 // ルーンの粉の使い道①: サブ効果1つを振り直す(効果の種類と当たり具合を引き直し。メイン・他のサブとはかぶらない)
@@ -7744,7 +7768,7 @@ function exclusiveRelicForMon(monId){
 function grantRelic(def){
   if(!STATE.relics) STATE.relics = {};
   const existing = STATE.relics[def.id];
-  if(existing){ existing.dupe = (existing.dupe || 0) + 1; return { def, isNew:false }; }
+  if(existing){ existing.dupe = (existing.dupe || 0) + 1; addRelicReso(def.id, 1); return { def, isNew:false }; }   // dupe はかぶった回数の記録として残す
   STATE.relics[def.id] = newRelicState();
   return { def, isNew:true };
 }
@@ -7856,7 +7880,7 @@ function renderRelicUpgrade(){
   const mult = relicSkillMult(st.skillLv);
   const wallGold = relicWallGold(st.level, def), wallScrap = relicWallScrap(st.level, def);
   const wallReady = (STATE.gold || 0) >= wallGold && scrapHave >= wallScrap;
-  const dupeSpare = (st.dupe || 0) - (st.dupeUsed || 0);
+  const dupeSpare = resoHave(relicId);
   const dupeMaxed = (st.dupeUsed || 0) >= RELIC_MAX_DUPE_USE;
   const layer = document.getElementById('modal-layer');
   // 強化しても見ていた場所のまま(一番上に戻さない)。スキルアップ確認から戻ったときも同じ場所へ
@@ -8417,7 +8441,7 @@ const DUNGEONS = {
   gold: {
     name: '黄金の洞窟', icon: '💰', desc: 'ゴールドが手に入ります',
     enemies: [['m21', 'm21'], ['m21', 'm40', 'm21'], ['m21', 'm40', 'm46'], ['m46', 'm21', 'm40', 'm21'], ['m46', 'm40', 'm21', 'm40']],
-    rewards: [{ gold: 3000 }, { gold: 8000 }, { gold: 15000 }, { gold: 30000 }, { gold: 50000 }],
+    rewards: [{ gold: 2100 }, { gold: 5600 }, { gold: 10500 }, { gold: 21000 }, { gold: 35000 }],   // 経済見直し: 3割カット(5段で1⚡あたり1,750G)
   },
   // 遺物の強化素材(霊素鉱・霊素核)。遺物Lv200には霊素鉱が20万個ほど要るので、
   // 工房の放置生産(最大1,080/日)だけでは足りない。ここが主な入手先になる
@@ -8642,6 +8666,8 @@ function addPresentBoxGift(label, reward){
 // it, and every save that hasn't seen that id yet gets it in their present box next launch.
 const COMPENSATION_GIFTS = [
   { id:'event_time_change_2026_09_28', label:'イベント開始時間変更のお詫び', reward:[{ type:'item', key:'gacha_char', n:3 }] },
+  // 経済見直し(α0.4.000)の補填(指示書⑦)。デイリーの下げぶん・ソウル表の改定・工房の霊素核の半減のお返し。新しく始めた人には配らない
+  { id:'econ_review_2026_10', label:'経済見直しのお返し', reward:[{ type:'crystal', n:3000 }, { type:'universal', n:300 }, { type:'item', key:'relic_core_1', n:30 }] },
   // { id:'apology_2026_09', label:'不具合お詫び', reward:[{ type:'crystal', n:500 }] },
 ];
 // newPlayer: この端末にもクラウドにもセーブがなく、今はじめた人。お詫びは既存プレイヤー向けなので
@@ -8755,77 +8781,99 @@ function giveSouls(id, n){
 // current day's / week's counters. Rewards: crystal / universal / mat / monster.
 // Reward amounts are provisional (daily ≈ 250 💎, weekly ≈ 900 💎 → a ★5 spark every ~2.5 months
 // from missions alone, before achievements and first clears).
+// 経済見直し(α0.4.000): ミッションからゴールド・無形のソウル・PVPコインを外した。
+// デイリーは 星結晶80 + まとめ報酬70 = 150/日、ウィークリーは 1,400/週(= 月6,000)。
+// when があるものは、その条件のときだけ出る(イベント開催中だけのミッションなど)
 const DAILY_MISSIONS = [
-  { id:'d_login',   label:'ログインする',                 event:'login',       goal:1,  reward:[{ type:'crystal', n:40 }] },
-  { id:'d_clear',   label:'探索を3回クリアする(周回・ダンジョンも含む)', event:'exploreClear', goal:3, reward:[{ type:'crystal', n:40 }] },
-  { id:'d_dungeon', label:'育成クエストを1回クリアする',  event:'dungeonClear', goal:1, reward:[{ type:'crystal', n:30 }, { type:'item', key:'exp2', n:5 }] },
+  { id:'d_login',   label:'ログインする',                 event:'login',       goal:1,  reward:[{ type:'item', key:'stamina_60', n:1 }] },
+  { id:'d_refill',  label:'スタミナを1回回復する',         event:'staminaRefill', goal:1, reward:[{ type:'crystal', n:10 }] },
+  { id:'d_clear',   label:'探索を3回クリアする(周回・ダンジョンも含む)', event:'exploreClear', goal:3, reward:[{ type:'crystal', n:10 }] },
+  { id:'d_dungeon', label:'育成クエストを1回クリアする',  event:'dungeonClear', goal:1, reward:[{ type:'crystal', n:10 }, { type:'item', key:'box_rnd_1', n:1 }] },
   { id:'d_upgrade', label:'モンスターを1回強化する',        event:'upgrade',     goal:1,  reward:[{ type:'stamina', n:80 }] },
-  { id:'d_gacha',   label:'ガチャを1回引く',               event:'gachaPull',   goal:1,  reward:[{ type:'crystal', n:20 }, { type:'universal', n:5 }] },
-  { id:'d_stamina', label:'スタミナを60使う',              event:'staminaUsed', goal:60, reward:[{ type:'crystal', n:40 }] },
-  { id:'d_relic',   label:'遺物を1回強化する',              event:'relicUpgrade', goal:1, reward:[{ type:'crystal', n:20 }, { type:'item', key:'relic_scrap', n:20 }] },
-  { id:'d_pvp',     label:'PVPを1回する',                  event:'pvpBattle',   goal:1,  reward:[{ type:'crystal', n:30 }, { type:'gold', n:5000 }] },
+  { id:'d_gacha',   label:'ガチャを1回引く',               event:'gachaPull',   goal:1,  reward:[{ type:'crystal', n:10 }] },
+  { id:'d_stamina', label:'スタミナを200使う',             event:'staminaUsed', goal:200, reward:[{ type:'crystal', n:20 }, { type:'item', key:'relic_scrap', n:50 }] },
+  { id:'d_relic',   label:'遺物を1回強化する',              event:'relicUpgrade', goal:1, reward:[{ type:'crystal', n:10 }, { type:'item', key:'relic_scrap', n:100 }] },
+  { id:'d_pvp',     label:'PVPを1回する',                  event:'pvpBattle',   goal:1,  reward:[{ type:'crystal', n:10 }] },
+  // イベント開催中だけ。星結晶はイベントの予算(1回4,050)の中から出す
+  { id:'d_event',   label:'イベントステージを3回クリアする', event:'eventClear', goal:3, reward:[{ type:'crystal', n:20 }], when: () => EVENTS.some(ev => isEventLive(ev)) },
 ];
-// デイリーのまとめ報酬は、8つのうち5つ受け取れば出る(PVPができない日でも取れるように)
+// デイリーのまとめ報酬は、5つ受け取れば出る(PVPができない日でも取れるように)
 const DAILY_ALL_GOAL = 5;
-const DAILY_ALL_CLEAR = [{ type:'crystal', n:50 }, { type:'gold', n:10000 }, { type:'item', key:'box_rnd_1', n:1 }];
+const DAILY_ALL_CLEAR = [{ type:'crystal', n:70 }, { type:'stamina', n:120 }, { type:'item', key:'box_rnd_1', n:2 }, { type:'item', key:'box_rnd_2', n:1 }];
 const WEEKLY_MISSIONS = [
-  { id:'w_daily',   label:'デイリーミッションのまとめ報酬を5日受け取る', event:'dailyAllClear', goal:5,  reward:[{ type:'crystal', n:250 }, { type:'item', key:'idle_3', n:1 }] },
-  { id:'w_clear',   label:'探索を30回クリアする',                event:'stageClear',    goal:30, reward:[{ type:'crystal', n:150 }, { type:'item', key:'stamina_60', n:2 }] },
-  { id:'w_stamina', label:'スタミナを600使う',                   event:'staminaUsed',   goal:600, reward:[{ type:'crystal', n:50 }, { type:'item', key:'exp2', n:30 }] },
-  { id:'w_dungeon', label:'育成クエストを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:150 }, { type:'item', key:'box_rnd_4', n:1 }] },
-  { id:'w_gacha',   label:'ガチャを10回引く',                    event:'gachaPull',     goal:10, reward:[{ type:'crystal', n:150 }, { type:'universal', n:30 }] },
-  { id:'w_level',   label:'モンスターのレベルを合計10上げる',      event:'levelUp',       goal:10, reward:[{ type:'crystal', n:150 } ] },
-  { id:'w_relic',   label:'遺物を合計10回強化する',              event:'relicUpgrade',  goal:10, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_core_1', n:5 }] },
-  { id:'w_abyss',   label:'深淵回廊を5階進む',                    event:'abyssFloor',    goal:5,  reward:[{ type:'crystal', n:100 }, { type:'item', key:'stamina_60', n:2 }] },
-  { id:'w_pvp',     label:'PVPを10回する',                      event:'pvpBattle',     goal:10, reward:[{ type:'crystal', n:150 }, { type:'gold', n:30000 }] },
+  { id:'w_daily',   label:'デイリーミッションのまとめ報酬を5日受け取る', event:'dailyAllClear', goal:5,  reward:[{ type:'crystal', n:350 }, { type:'item', key:'idle_3', n:1 }] },
+  { id:'w_clear',   label:'探索を30回クリアする',                event:'stageClear',    goal:30, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_scrap', n:200 }] },
+  { id:'w_dungeon', label:'育成クエストを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:200 }, { type:'item', key:'box_rnd_2', n:1 }] },
+  { id:'w_gacha',   label:'ガチャを10回引く',                    event:'gachaPull',     goal:10, reward:[{ type:'crystal', n:150 }] },
+  { id:'w_relic',   label:'遺物を合計10回強化する',              event:'relicUpgrade',  goal:10, reward:[{ type:'crystal', n:200 }, { type:'item', key:'relic_core_1', n:3 }] },
+  { id:'w_rune',    label:'ルーンを3回合成する',                  event:'runeFuse',      goal:3,  reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_scrap', n:300 }] },
+  { id:'w_pvp',     label:'PVPを10回する',                      event:'pvpBattle',     goal:10, reward:[{ type:'crystal', n:100 }] },
+  { id:'w_abyss',   label:'深淵回廊に5回チャレンジする',          event:'abyssTry',      goal:5,  reward:[{ type:'crystal', n:100 }, { type:'item', key:'relic_scrap', n:300 }] },
 ];
 // achievements: tiered chains. value() reads lifetime stats or the current state.
 const ownedCount = () => Object.keys(STATE.owned).length;
 const maxOwned = key => Math.max(0, ...Object.values(STATE.owned).map(o => o[key]));
 const clearedOfType = type => STAGES.filter(st => st.type === type && STATE.clearedStages.includes(st.id)).length;
 const typeCount = type => STAGES.filter(st => st.type === type).length;
+/* 実績(経済見直し α0.4.000 で全面差し替え)。
+   段ごとの星結晶は共通のはしご(n段目の石)。称号は3段目でもらえる(長い鎖の最後まで待たせないため)。
+   受け取った段数は STATE.achievements[id] に入る。以前の実績とは id を変えたので、
+   既存のプレイヤーも、すでに条件を満たしている段をその場で受け取れる。
+   総力戦・封印戦・バベルの実績は、そのコンテンツが入るときに足す。 */
+const ACH_LADDER = [50, 80, 100, 150, 200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000];
+const ACH_TITLE_TIER = 3;
+const relicMaxLevel = () => Math.max(0, ...Object.values(STATE.relics || {}).map(r => r.level || 0));
+const runeMaxTier = () => Math.max(0, ...(STATE.runes || []).map(r => r.tier || 0));
+// メインクエスト(通常)のボス: 各難易度の5本目と10本目。ステージを作る前に実績を組むので id は決め打ち
+const MAIN_BOSS_IDS = [1, 2, 3, 4, 5, 6, 7].flatMap(t => [`q${t}_05`, `q${t}_10`]);
+const mainBossIds = () => MAIN_BOSS_IDS;
+const mainStarsGot = () => STAGES.filter(st => st.type === 'main').reduce((n, st) => n + stageStars(st.id), 0);
+// イベントの記録は、イベントがコードから消えても残るように STATE に控えておく
+function eventRecord(key, test){
+  if(!STATE.eventRecords) STATE.eventRecords = {};
+  const set = new Set(STATE.eventRecords[key] || []);
+  EVENTS.forEach(ev => { if(test(ev)) set.add(ev.key); });
+  STATE.eventRecords[key] = [...set];
+  return set.size;
+}
+const eventsCompleted = () => eventRecord('complete', ev => ev.stages && ev.stages.length && evTierCleared(ev, ev.stages.length));
+const eventsEx3Star3 = () => eventRecord('ex3star3', ev => stageStars(`${ev.key}_ex3`) >= 3);
+function achChain(id, label, value, goals, opts){
+  const o = opts || {};
+  return { id, label, value, title: o.title ? `ach_${id}` : null, titleName: o.title || null,
+    tiers: goals.map((g, i) => ({ goal: g, reward: o.reward ? o.reward(i, g) : [{ type:'crystal', n: ACH_LADDER[Math.min(i, ACH_LADDER.length - 1)] }] })) };
+}
 const ACHIEVEMENTS = [
-  { id:'a_collect', label:n => `モンスターを${n}体集める`, value:() => ownedCount(),
-    tiers:[
-      { goal:5,  reward:[{ type:'crystal', n:100 }] },
-      { goal:10, reward:[{ type:'crystal', n:200 }] },
-      { goal:20, reward:[{ type:'monster', id:'m17' }] },
-      { goal:30, reward:[{ type:'crystal', n:500 }] },
-    ] },
-  // "all stages" chains measure a 0–1 share so the goal doesn't depend on load order
-  { id:'a_normal', label:() => 'クエストをすべてクリアする', value:() => clearedOfType('main') / typeCount('main'), ratio:true,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }] }] },
-  { id:'a_bossall', label:() => 'クエストのボスをすべて倒す', value:() => STAGES.filter(st => st.boss && STATE.clearedStages.includes(st.id)).length / Math.max(1, STAGES.filter(st => st.boss).length), ratio:true,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:300 }, { type:'item', key:'box_sel_4', n:2 }] }] },
-  // each tier's two boss stages pay their own reward: 💎500 for the earlier boss, 💎900 for the final one
-  { id:'a_boss_q1_05', label:() => '初級「猪王の縄張り」のボスを倒す', value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_traveler_shield' }] }] },
-  { id:'a_boss_q1_10', label:() => '初級「森の主」のボスを倒す', value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_guard_charm' }] }] },
-  { id:'a_boss_q2_05', label:() => '中級「鉱山の主」のボスを倒す', value:() => STATE.clearedStages.includes('q2_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_novice_armor' }] }] },
-  { id:'a_boss_q2_10', label:() => '中級「首なし騎士の墓所」のボスを倒す', value:() => STATE.clearedStages.includes('q2_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_ward_necklace' }] }] },
-  { id:'a_boss_q3_05', label:() => '上級「炎の巨人の玉座」のボスを倒す', value:() => STATE.clearedStages.includes('q3_05') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:500 }, { type:'relic', key:'rel_swift_tabi' }] }] },
-  { id:'a_boss_q3_10', label:() => '上級「氷の城塞」のボスを倒す', value:() => STATE.clearedStages.includes('q3_10') ? 1 : 0,
-    tiers:[{ goal:1, reward:[{ type:'crystal', n:900 }, { type:'relic', key:'rel_light_boots' }] }] },
-  { id:'a_clears', label:n => `探索を${n}回クリアする`, value:() => stat('stageClear'),
-    tiers:[10, 50, 100, 300].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[50, 100, 200, 300][i] }] })) },
-  { id:'a_dungeon', label:n => `育成クエストを${n}回クリアする`, value:() => stat('dungeonClear'),
-    tiers:[10, 50, 100].map((g, i) => ({ goal:g, reward:[{ type:'item', key:['box_sel_2', 'box_sel_3', 'box_sel_4'][i], n:1 }, { type:'gold', n:[10000, 30000, 80000][i] }] })) },
-  { id:'a_gacha', label:n => `ガチャを${n}回引く`, value:() => stat('gachaPull'),
-    tiers:[10, 50, 100, 200].map((g, i) => ({ goal:g, reward:[{ type:'universal', n:[10, 30, 50, 100][i] }] })) },
-  { id:'a_promote', label:n => `星刻を${n}回行う`, value:() => stat('promote'),
-    tiers:[1, 5, 20].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[100, 200, 300][i] }] })) },
-  { id:'a_star', label:n => `★${n}のモンスターを育てる`, value:() => maxOwned('star'),
-    tiers:[5, 6, 7].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[300, 500, 1000][i] }] })) },
-  { id:'a_level', label:n => `Lv${n}のモンスターを育てる`, value:() => maxOwned('level'),
-    tiers:[10, 30, 50, 100].map((g, i) => ({ goal:g, reward:[{ type:'item', key:'exp2', n:[10, 20, 30, 50][i] }, { type:'crystal', n:[50, 100, 200, 300][i] }] })) },
-  { id:'a_abyss', label:n => `深淵回廊で${n}階に到達する`, value:() => (STATE.abyss && STATE.abyss.bestEver) || 0,
-    tiers:[10, 25, 50, 100].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[100, 200, 300, 500][i] }] })) },
-  { id:'a_befriend', label:n => `探索でモンスターを${n}体仲間にする`, value:() => stat('befriend'),
-    tiers:[1, 5, 10].map((g, i) => ({ goal:g, reward:[{ type:'crystal', n:[100, 200, 300][i] }] })) },
+  achChain('x_collect', n => `モンスターを${n}体集める`, () => ownedCount(), [20, 50, 100, 200, 300, 500], { title:'モンスター博士' }),
+  achChain('x_star5', n => `★5モンスターを${n}体集める`, () => Object.keys(STATE.owned).filter(id => MON_BY_ID[id] && MON_BY_ID[id].rarity === 5).length, [1, 5, 10, 20, 30, 50], { title:'星の招き手' }),
+  achChain('x_befriend', n => `探索でモンスターを${n}体仲間にする`, () => stat('befriend'), [1, 5, 10, 25, 50], { title:'野の友' }),
+  achChain('x_promote', n => `星刻を${n}回行う`, () => stat('promote'), [1, 5, 20, 50, 100], { title:'星刻師' }),
+  achChain('x_star', n => `★${n}のモンスターを育てる`, () => maxOwned('star'), [6, 7, 8, 9, 10], { title:'星を極めし者', reward: i => [{ type:'crystal', n: ACH_LADDER[i + 1] }] }),   // ★6からなので、はしごの2段目から(合計830)
+  achChain('x_level', n => `Lv${n}のモンスターを育てる`, () => maxOwned('level'), [10, 30, 50, 100, 150, 200, 300], { title:'育成の達人' }),
+  achChain('x_relic', n => `Lv${n}の遺物を強化する`, () => relicMaxLevel(), [10, 30, 50, 100, 150, 200, 300], { title:'遺物の鍛え手' }),
+  achChain('x_runetier', n => `Tier${RUNE_ROMAN[n - 1] || n}のルーンをつくる`, () => runeMaxTier(), [1, 3, 5, 8, 10], { title:'ルーンの刻み手' }),
+  achChain('x_runefuse', n => `ルーンを${n}回合成する`, () => stat('runeFuse'), [10, 50, 100, 200, 500, 1000]),
+  // メインクエスト(通常)のボス14体。全段200
+  (() => {
+    const RELIC_AT = { q1_05:'rel_traveler_shield', q1_10:'rel_guard_charm', q2_05:'rel_novice_armor', q2_10:'rel_ward_necklace', q3_05:'rel_swift_tabi', q3_10:'rel_light_boots' };
+    return { id:'x_boss', title:'ach_x_boss', titleName:'クエストの覇者',
+      label: n => { const id = mainBossIds()[n - 1]; const st = id && STAGE_BY_ID[id]; return st ? `メインクエスト「${st.name}」のボスを倒す` : 'メインクエストのボスを倒す'; },
+      value: () => { const ids = mainBossIds(); let n = 0; while(n < ids.length && STATE.clearedStages.includes(ids[n])) n++; return n; },
+      tiers: mainBossIds().map((id, i) => ({ goal: i + 1, reward: [{ type:'crystal', n:200 }, ...(RELIC_AT[id] ? [{ type:'relic', key: RELIC_AT[id] }] : [])] })) };
+  })(),
+  achChain('x_mainstar', n => `メインクエストで★を${n}個獲得する`, () => mainStarsGot(), [10, 30, 100, 200, 300, 400], { title:'星集めの旅人' }),
+  achChain('x_clears', n => `探索を${n.toLocaleString()}回クリアする`, () => stat('stageClear'), [10, 50, 100, 300, 1000, 3000, 10000, 30000], { title:'歴戦の探索者' }),
+  achChain('x_dungeon', n => `育成クエストを${n.toLocaleString()}回クリアする`, () => stat('dungeonClear'), [10, 50, 100, 300, 1000, 10000, 30000],
+    { reward: i => [[{ type:'item', key:'box_rnd_1', n:2 }], [{ type:'item', key:'box_rnd_2', n:1 }], [{ type:'item', key:'box_rnd_2', n:2 }], [{ type:'item', key:'box_rnd_3', n:1 }],
+      [{ type:'item', key:'box_rnd_3', n:2 }], [{ type:'item', key:'box_rnd_4', n:1 }], [{ type:'item', key:'box_rnd_4', n:2 }]][i] }),
+  achChain('x_abyss', n => `深淵回廊で${n}階に到達する`, () => (STATE.abyss && STATE.abyss.bestEver) || 0, [10, 25, 50, 100, 150, 200], { title:'深淵を覗く者' }),
+  achChain('x_pvpwin', n => `PVPで${n}回勝つ`, () => stat('pvpWin'), [1, 10, 50, 200, 500, 1000], { title:'闘技場の星' }),
+  achChain('x_event', n => `イベントを${n}個完走する`, () => eventsCompleted(), [1, 5, 10, 20], { title:'祭りの常連' }),
+  achChain('x_ex3', n => `EX3を★3で${n}回クリアする(イベントごと)`, () => eventsEx3Star3(), [1, 3, 5, 10, 20, 30, 50, 70, 100], { title:'EXの覇者' }),
+  achChain('x_tamer', n => `テイマーランクが${n}になる`, () => tamerLevel().lv, [10, 20, 30, 40, 50]),
+  achChain('x_gacha', n => `ガチャを${n.toLocaleString()}回引く`, () => stat('gachaPull'), [10, 50, 100, 200, 500, 1000, 2000, 5000, 7000, 10000],
+    { reward: i => [{ type:'item', key:'relic_scrap', n:[100, 200, 300, 500, 800, 1000, 1500, 2000, 2500, 3000][i] }] }),
+  achChain('x_login', n => `${n}日ログインする`, () => stat('login'), [1, 5, 10, 30, 100, 150, 300], { title:'いつもの顔' }),
 ];
 // beginner missions: one step at a time, completing all of them pays a 10-pull's
 // worth of crystals (BEGINNER_ALL_CLEAR below). ordered to double as a soft
@@ -8985,7 +9033,7 @@ function rewardHtml(list){
 function missionEntries(){
   const d = ensureDaily(), w = ensureWeekly();
   const out = [];
-  DAILY_MISSIONS.forEach(m => {
+  DAILY_MISSIONS.filter(m => !m.when || m.when()).forEach(m => {
     const prog = d.counts[m.event] || 0;
     out.push({ key:`d:${m.id}`, section:'daily', label:m.label, progress:prog, goal:m.goal, reward:m.reward,
       state: d.claimed[m.id] ? 'done' : prog >= m.goal ? 'claim' : 'progress' });
@@ -8993,7 +9041,7 @@ function missionEntries(){
   const dailyClaimed = DAILY_MISSIONS.filter(m => d.claimed[m.id]).length;
   out.push({ key:'d:all', section:'daily', bonus:true, label:`デイリーミッションを${DAILY_ALL_GOAL}つ達成`, progress:Math.min(dailyClaimed, DAILY_ALL_GOAL), goal:DAILY_ALL_GOAL, reward:DAILY_ALL_CLEAR,
     state: d.claimed.all ? 'done' : dailyClaimed >= DAILY_ALL_GOAL ? 'claim' : 'progress' });
-  WEEKLY_MISSIONS.forEach(m => {
+  WEEKLY_MISSIONS.filter(m => !m.when || m.when()).forEach(m => {
     const prog = w.counts[m.event] || 0;
     out.push({ key:`w:${m.id}`, section:'weekly', label:m.label, progress:prog, goal:m.goal, reward:m.reward,
       state: w.claimed[m.id] ? 'done' : prog >= m.goal ? 'claim' : 'progress' });
@@ -9041,6 +9089,8 @@ function claimMission(key){
   }else if(kind === 'a'){
     STATE.achievements = STATE.achievements || {};
     STATE.achievements[id] = (STATE.achievements[id] || 0) + 1;
+    const ach = ACHIEVEMENTS.find(x => x.id === id);
+    if(ach && ach.title && STATE.achievements[id] >= Math.min(ACH_TITLE_TIER, ach.tiers.length)) grantTitle(ach.title);
   }else if(kind === 'b'){
     if(id === 'all') STATE.beginnerBonusClaimed = true;
     else if(id === 'all2') STATE.beginner2BonusClaimed = true;
@@ -9364,7 +9414,7 @@ function buildQuestStages(){
       const kinds = stageDropKinds(waves);
       const stage = {
         id, type: 'main', tier: t.key, no: i + 1, name: sp.name, terrain: sp.terrain, element: sp.element,
-        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 3200][i] : isBoss ? 300 : 50 + i * 5,
+        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 3200][i] : isBoss ? 100 : 30,   // 経済見直し: 1クエスト10本で440(以前は1,160)
         requires: prev, boss: isBoss, gimmick: sp.gimmick || null, tutorial: sp.tutorial || null,
         // sp.desc があればそれを使う。属性が混ざるステージは自動文が合わないため。
         desc: sp.desc || (isBoss ? `${TERRAIN[sp.terrain].label}の主「${MON_BY_ID[bossRef].name}」が待ち受ける。`
@@ -9393,7 +9443,7 @@ function tierUnlocked(key){
 }
 
 // per-tier star milestone chests: each difficulty tier is 10 stages × ★3 = ★30 max
-const TIER_STAR_CHESTS = [{ stars: 10, crystals: 300 }, { stars: 20, crystals: 500 }, { stars: 30, crystals: 800 }];
+const TIER_STAR_CHESTS = [{ stars: 10, crystals: 200 }, { stars: 20, crystals: 300 }, { stars: 30, crystals: 500 }];   // 経済見直し: 1クエスト1,000(以前は1,600)
 function tierStarsOf(key){ return STAGES.filter(st => st.tier === key).reduce((a, st) => a + stageStars(st.id), 0); }
 function tierChestClaimed(key, stars){ return !!(STATE.tierChests && STATE.tierChests[`${key}_${stars}`]); }
 function claimTierChest(key, stars){
@@ -9477,7 +9527,7 @@ function buildHardStages(){
         ...src,
         id, tier: t.key, waves, requires: prev,
         gold: Math.round(src.gold * 1.5),
-        firstClear: src.firstClear ? src.firstClear * 2 : 0,
+        firstClear: src.firstClear || 0,   // 経済見直し: ハードの初回クリアも通常と同じ(以前は2倍)
         // ハードはノーマルの1.5倍(ボスは1.6倍が乗ったままなので、ハードのボスは2.4倍)
         drops: src.drops ? { kinds: src.drops.kinds, tiers: scaleDropTiers(src.drops.tiers, { hard: true }) } : null,
         bossReward: null,   // buildBossMatRewards() が入れる(ハードは同じ素材の2倍)
@@ -9579,7 +9629,7 @@ function buildEventStages(ev){
     return {
       id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, evNo: n, name: `${ev.stageName}・ステージ${n}`,
       terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(12, 2 + n),
-      firstClear: 60 * n, boss: true,
+      firstClear: 18 * n, boss: true,   // 経済見直し: 10本で990(以前は 60×n = 3,300)
       desc: `期間限定・ステージ${n}(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。`,
       waves,
       gold: 1500 * n, pots: n >= 8 ? { exp3: n - 5 } : { exp2: Math.max(1, n) },
@@ -9794,6 +9844,7 @@ function equipTitle(key){
   render();
 }
 function equippedTitle(){ return hasTitle(STATE.title) ? TITLES[STATE.title] : null; }
+ACHIEVEMENTS.forEach(a => { if(a.title && a.titleName) registerTitle(a.title, a.titleName, '実績'); });
 
 /* ---------------- イベントミッション ----------------
    実績に混ざらない、イベント専用のミッション欄。通常とEXで分ける。
@@ -9832,14 +9883,18 @@ function trackEventClear(stage){
   if(!ev || !isEventLive(ev)) return;
   const m = evMissionState(ev.key);
   m.clears += 1;
+  track('eventClear');
   const party = (battleUI && battleUI.party) || [];
   if(eventBonusRate(ev, party) >= EVENT_BONUS.cap) m.bonusMax += 1;
   if(party.some(u => u && u.ref === ev.pickup)) m.pickClears += 1;
 }
 const EVENT_STAR_GOALS = [10, 20, 30];   // 10層×★3 = 30が満点
+const EVENT_STAR_CRYSTAL = [100, 150, 250];   // 経済見直し(以前は 400 / 800 / 1,300)
+// EXの星結晶は「EXステージの初回クリア」で出す(EX1 100 / EX2 200 / EX3 400)。ミッションは称号だけ
+const EX_FIRST_CLEAR_CRYSTAL = [100, 200, 400];
 function evStarsGot(ev){ return ev.stages.reduce((sum, st) => sum + stageStars(st.id), 0); }
 function evTierCleared(ev, n){ return STATE.clearedStages.includes(`${ev.key}_${n}`); }
-// 通常8本 + ★の3段 + EX3本
+// 通常8本 + ★の3段 + EX3の★3(称号)
 function eventMissions(ev){
   const m = evMissionState(ev.key);
   const tt = EVENT_TITLES[ev.key];
@@ -9851,23 +9906,23 @@ function eventMissions(ev){
     { id:'clear10', kind:'normal', label:`${ev.stageName}を10回クリアする`, value:m.clears, goal:10, reward:mk(100) },
     { id:'clear30', kind:'normal', label:`${ev.stageName}を30回クリアする`, value:m.clears, goal:30, reward:mk(150) },
     { id:'clear50', kind:'normal', label:`${ev.stageName}を50回クリアする`, value:m.clears, goal:50, reward:mk(250) },
-    { id:'star15',  kind:'normal', label:'★を15個獲得する', value:evStarsGot(ev), goal:15, reward:[{ type:'crystal', n:200 }] },
-    { id:'star30',  kind:'normal', label:'★を30個獲得する', value:evStarsGot(ev), goal:30, reward:[{ type:'crystal', n:300 }], title:T('star') },
-    { id:'deep',    kind:'normal', label:`ステージ${deep}をクリアする`, value:evTierCleared(ev, deep) ? 1 : 0, goal:1, reward:[{ type:'crystal', n:400 }], title:T('deep') },
-    { id:'bonus',   kind:'normal', label:'イベントボーナスを+100%にして1回クリアする', value:m.bonusMax, goal:1, reward:[{ type:'crystal', n:200 }] },
+    // 経済見直し: イベントミッションの星結晶は合計1,000(★15:50 / ★30:100 / 最深層:200 / ボーナス:50 / 主役:100 / ★の3段:100・150・250)
+    { id:'star15',  kind:'normal', label:'★を15個獲得する', value:evStarsGot(ev), goal:15, reward:[{ type:'crystal', n:50 }] },
+    { id:'star30',  kind:'normal', label:'★を30個獲得する', value:evStarsGot(ev), goal:30, reward:[{ type:'crystal', n:100 }], title:T('star') },
+    { id:'deep',    kind:'normal', label:`ステージ${deep}をクリアする`, value:evTierCleared(ev, deep) ? 1 : 0, goal:1, reward:[{ type:'crystal', n:200 }], title:T('deep') },
+    { id:'bonus',   kind:'normal', label:'イベントボーナスを+100%にして1回クリアする', value:m.bonusMax, goal:1, reward:[{ type:'crystal', n:50 }] },
     { id:'pick',    kind:'normal', label:`${MON_BY_ID[ev.pickup] ? MON_BY_ID[ev.pickup].name : 'ピックアップ'}を編成して10回クリアする`, value:m.pickClears, goal:10, reward:[{ type:'crystal', n:100 }] },
   ];
   if(!medal) out.splice(0, 3);   // メダルのないイベントでは周回回数のミッションを出さない
   EVENT_STAR_GOALS.forEach((g, i) => {
     out.push({ id:`stars${g}`, kind:'star', label:`★を${g}個集める`, value:evStarsGot(ev), goal:g,
-      reward:[...mk(EVENT_STAR_MEDAL[i]), { type:'crystal', n:[400, 800, 1300][i] }] });
+      reward:[...mk(EVENT_STAR_MEDAL[i]), { type:'crystal', n:EVENT_STAR_CRYSTAL[i] }] });
   });
   (exStagesOf(ev).map(st => st.ex)).forEach(n => {
-    const reward = n === 1 ? [{ type:'crystal', n:500 }]
-      : n === 2 ? [{ type:'crystal', n:1000 }, { type:'item', key:'gacha_char', n:5 }]
-      : [{ type:'crystal', n:2000 }, { type:'item', key:'gacha_char10', n:1 }];
-    out.push({ id:`ex${n}`, kind:'ex', label:`EX${n}をクリアする`, value:STATE.clearedStages.includes(`${ev.key}_ex${n}`) ? 1 : 0, goal:1,
-      reward, title: n === 3 && tt ? T('ex') : undefined });
+    // 経済見直し: EXの星結晶はステージの初回クリアに移した。ミッションはEX3を★3でクリアしたときの称号だけ
+    if(n !== 3 || !tt) return;
+    out.push({ id:'ex3star', kind:'ex', label:'EX3を★3でクリアする', value:stageStars(`${ev.key}_ex3`) >= 3 ? 1 : 0, goal:1,
+      reward:[], title: T('ex') });
   });
   return out.map(x => ({ ...x, state: m.claimed[x.id] ? 'done' : x.value >= x.goal ? 'claim' : 'progress' }));
 }
@@ -10022,7 +10077,7 @@ function buildEventExStages(ev){
       name: `${meta.name}・EX${t.ex}`,
       terrain: ev.terrain, element: ev.element, rec: t.lv,
       stamina: 0,                       // EXはスタミナを使わない
-      power: 1, enemySkill: t.sk, boss: true, firstClear: 0, gold: 0,
+      power: 1, enemySkill: t.sk, boss: true, firstClear: EX_FIRST_CLEAR_CRYSTAL[t.ex - 1] || 0, gold: 0,
       requires: `${ev.key}_${EX_UNLOCK_TIER}`,
       // EXのルールは3面で共通。そこに、その面だけの追加ルール(t.rules)を足せる
       // (EX3だけ敵を硬くする、のような段差を作るため)
@@ -10156,6 +10211,7 @@ function applyAbyssSnapshot(party){
 let abyssPublishTimer = null;
 function abyssOnFinish(b, win){
   const a = ensureAbyss();
+  track('abyssTry');   // 勝っても負けても1回(ウィークリー「深淵回廊に5回チャレンジする」)
   const floor = b.stage.floor;
   if(!win){
     a.floor = a.checkpoint + 1;
@@ -14785,7 +14841,7 @@ function renderStageSheet(){
             const m = MON_BY_ID[id];
             return `<span class="enemy-chip ${STATE.owned[id] ? 'have' : ''}" title="${m.name}${STATE.owned[id] ? '(所持済み: 重複はソウルに)' : ''}">
               <img src="${imgSrc(id)}" alt="">
-              <small>${STATE.owned[id] ? `◆${DUP_SOULS[m.rarity]}` : pctText(recruitChanceOf(m, false, st))}</small></span>`;
+              <small>${STATE.owned[id] ? `◆${STAGE_DUP_SOULS[m.rarity]}` : pctText(recruitChanceOf(m, false, st))}</small></span>`;
           }).join('')}
         </div>
       </div>
@@ -15735,6 +15791,7 @@ function finishPvpBattle(win){
   const points = win ? PVP_WIN_POINTS : PVP_LOSE_POINTS;
   STATE.pvpPoints = (STATE.pvpPoints || 0) + points;
   track('pvpBattle');
+  if(win) track('pvpWin');
   battleUI.pvpPointsGained = points;
   if(win){
     grantRewards(PVP_WIN_REWARD);
@@ -19325,7 +19382,7 @@ function grantStageRewards(stage, spawned, party, opts){
     const asRare = spawned.some(u => u.ref === id && u.rare);
     if(!m || Math.random() >= recruitChanceOf(m, asRare, stage)) return;
     if(STATE.owned[id]){
-      addSoul(id, DUP_SOULS[m.rarity] || 1);
+      addSoul(id, STAGE_DUP_SOULS[m.rarity] || 1);
     }else{
       // top the pending souls up to the threshold, so the usual join path takes over
       addSoul(id, Math.max(1, (UNLOCK_SOULS[m.rarity] || 20) - (STATE.pendingSouls[id] || 0)));
@@ -20800,6 +20857,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 25, date: '10/2', title: '経済の見直し(星結晶・ソウル・ゴールド)', body: '<span class="nt-h">月にもらえる星結晶(イベントは月4回で計算)</span><span class="nt-i"><b>デイリーミッション</b><br>月8,100石 → 月4,500石</span><span class="nt-i"><b>ログインボーナス</b><br>月2,100石 → 月2,100石</span><span class="nt-i"><b>ウィークリーミッション</b><br>月5,570石 → 月6,000石</span><span class="nt-i"><b>イベント(ステージ・EX・ミッション・召喚券・開催中のデイリー)</b><br>月55,500石 → 月16,760石</span><span class="nt-i"><b>深淵回廊</b><br>月800石 → 月800石</span><span class="nt-i"><b>合計</b><br>月72,070石 → <em>月30,160石</em></span><span class="nt-i"><b>天井(200回)</b><br>11.2日 → <em>26.9日</em></span><span class="nt-i">・総力戦・封印戦が入ると、そのぶん(月およそ10,000石)が上乗せされます。</span><span class="nt-h">一度きりの星結晶</span><span class="nt-i"><b>メインクエスト(初回クリア・★の箱)</b><br>50,210石 → 23,610石</span><span class="nt-i"><b>実績</b><br>11,000石 → <em>19,610石</em></span><span class="nt-i">・実績は全部作り直しました。<em>いまの記録で、すでに届いている段はその場で受け取れます</em>。</span><span class="nt-i">・「ルーンを合成する」「PVPで勝つ」は、今回から数えはじめます(<em>さかのぼって反映されません</em>)。</span><span class="nt-h">ソウルが集まりやすくなりました</span><span class="nt-i"><b>ガチャのかぶり(★5)</b><br>150 → <em>500</em>(ピックアップは300 → <em>1,000</em>)</span><span class="nt-i"><b>無形のソウル・無形の共鳴石(ガチャ1回あたり)</b><br>平均1.95個 → <em>6.00個</em></span><span class="nt-i"><b>★10までに必要なソウル</b><br>★2:2,100 → 2,000 / ★3:3,150 → 3,000 / ★4:3,900 → 4,000 / ★5:4,800 → 5,000</span><span class="nt-i">・★5はピックアップなら本体+かぶり5体、それ以外はかぶり10体で★10になります。</span><span class="nt-h">お返し(プレゼントボックス)</span><span class="nt-i">・星結晶 3,000 / 無形のソウル 300 / 霊素核TierI 30 をお送りします(この更新より前に遊んでいた方が対象です)。</span><span class="nt-h">そのほか</span><span class="nt-i">・ミッションのゴールドをなくし、霊素鉱やワザ素材BOXにしました。</span><span class="nt-i">・黄金の洞窟のゴールドを3割下げました。霊素工房は霊素鉱が2倍、霊素核Iが半分になります。</span><span class="nt-i">・遺物ごとの共鳴石を、持ち物の個数として持つようにしました(残っていた数はそのまま引き継ぎます)。</span>' },
   { id: 24, date: '10/1', title: '「紅蓮の九尾」「黄金の巨神」にEXステージが来ます(10/7まで延長)', hero: ['ann_ev_kyubi', 'ann_ev_titan'], art: ['m116', 'm170', 'm150', 'm54', 'm144', 'm53'], body: '<span class="nt-h">本日 10/1(水) 16:00 から・10/7(火) 23:59 まで延長します</span>終了予定だった2イベントに<em>EXステージ</em>・<em>同時ピックアップの★4</em>・<em>星刻</em>を足して、開催を<em>10/7(火) 23:59</em>まで延ばします。追加ぶんは<em>本日16:00</em>から遊べます。<span class="nt-h">EXステージが開きます(ステージ3クリアで解放)</span><em>スタミナを使わず何度でも</em>挑める腕試しです。クリアすると主役のソウルが出ます(EX1 20% / EX2 50% / EX3 50%で1〜3個)。ほかの敵のソウルも出ます。<span class="nt-i">・EX1〜EX3で<em>ルールが1つずつ増えます</em>。減ることはありません。</span><span class="nt-i">・<em>狐火の祭壇</em>(九尾) 「<em>敵も味方も やけど状態の相手へ与ダメージ+50%</em>」「デーモンの味方HP+50%」「シューターの味方STR+50%」。EX2から<em>敵SPD+50%</em>、EX3から<em>敵物理防御+40</em>が加わります。</span><span class="nt-i">・<em>巨神の遺跡</em>(タイタン) 「シールドを持っているあいだ<em>与ダメージ+50%</em>」「シールドが無いあいだ<em>受けるダメージ+50%</em>」「ドワーフの味方HP・STR+50%」。EX2から<em>敵が気絶・やけど・毒にかからなくなり</em>、EX3から<em>敵のシールドが倍</em>になります。</span><span class="nt-i">・EX1〜EX3それぞれに<em>イベントミッション</em>が付きます(星結晶500 / 1,000＋召喚券5枚 / 2,000＋10連券1枚)。EX3のクリアで<em>称号</em>も手に入ります。</span><span class="nt-h">同時ピックアップの★4が登場します</span>ガチャで<em>★4が出たときの50%</em>がこの2体になります。イベントショップでもソウルを交換でき(各60メダルで20個・上限10回)、EXステージでは<em>EX3で100%</em>ソウルが出ます。<span class="nt-i">・<em>紅蓮の九尾</em> 新★4 <em>牛鬼</em>(炎/タンク) 牛の頭を持つ大鬼。<em>後衛の味方が受けるダメージの50%を肩代わり</em>します。九尾のような後ろで戦う子を守る役です。／★4 <em>ロキ</em>(炎/トリックスター) 姿を変える詐術の神。敵全体を必ずやけどにします。</span><span class="nt-i">・<em>黄金の巨神</em> ★4 <em>ブロック</em>(土/タンク) 神々の武具を打つドワーフの鍛冶師。挑発しながら自分に盾を張ります。／★4 <em>スルト</em>(炎/アタッカー) 世界を焼く炎の巨人。やけどを撒いて全体を焼きます。</span><span class="nt-i">・編成に入れると<em>イベントボーナス+20%</em>が付きます(主役の★5は+40%)。</span><span class="nt-h">EXは「条件に合わせると抜けられる」難しさにしました</span>敵の最大HPとSTRを上げたぶん、<em>ステージ効果に噛み合う編成かどうかで結果が大きく変わります</em>。<span class="nt-i">・<em>狐火の祭壇</em> デーモンとシューターを入れて、やけどを撒いてから殴る形。噛み合う編成なら EX1〜EX3 とも<em>9割以上</em>で抜けられますが、噛み合わない編成だと<em>2割前後</em>まで落ちます</span><span class="nt-i">・<em>巨神の遺跡</em> ドワーフを並べて、シールドを切らさない形。<em>ドワーフの味方の強化を+50%から+100%に上げました</em>(ドワーフは★3が多く、+50%では★5の編成に追いつけませんでした)</span><span class="nt-h">★4にも星刻が付きます</span>★を上げると刻まれる、そのモンスターだけの効果です。<em>★6から★10まで1段ずつ</em>増えます。<span class="nt-i">・<em>牛鬼</em> かばっているあいだ受けるダメージ-10% → 守っている味方も-10% → シールド中は与ダメージ+15% → <em>かばう相手が後衛だけ→味方全体に</em> → 鬼哭が<em>かばっている味方全員にもシールド</em></span><span class="nt-i">・<em>ロキ</em> 状態異常の敵へ+10% → 炎の悪戯でバフを2つ消す → やけどの敵へさらに+15% → <em>姿変えが敵全体に</em> → <em>戦闘開始時に敵全体を混乱</em></span><span class="nt-i">・<em>ブロック</em> シールド中は与ダメージ+10% → 不屈の鍛冶が2回ぶん溜まる → 挑発中は受けるダメージ-15% → <em>鍛冶の盾が後衛の味方にも</em> → 神槌の一撃が<em>自分のシールドの量だけ強くなる</em></span><span class="nt-i">・<em>スルト</em> やけどの敵へ+10% → 自分が攻撃した相手もやけどに → やけどが3体以上で+15% → <em>灼熱の薙ぎが敵全体に</em> → ムスペルの業火の<em>追加攻撃が2回</em></span><span class="nt-h">イベントショップが開きます</span>この2イベントには<em>これまでメダルがなく、イベントショップも周回回数のミッションも出ていませんでした</em>。<em>狐火の灯</em>(紅蓮の九尾)と<em>巨神の金片</em>(黄金の巨神)を追加して、ショップを開きます。<span class="nt-i">・ステージを回ると手に入り、<em>育成素材・ワザ素材BOX・召喚券・霊素核</em>などと交換できます。</span><span class="nt-i">・<em>牛鬼・ロキ・ブロック・スルトのソウル</em>も1体ずつ並びます(各60メダルで20個・上限10回)。</span><span class="nt-i">・<em>周回回数のミッション</em>(10回・30回・50回)も出るようになりました。</span><span class="nt-i">・メダルはイベントが終わると消えるので、期間中に使い切ってください。</span>' },
   { id: 23, date: '9/29', title: 'DiscordとXを用意しました(ご意見・バグ報告の窓口)', body: '<span class="nt-h">Discord</span>小規模なコミュニティとして設置しました。<em>バグ報告や要望など</em>はこちらからしていただけます。<span class="nt-link" data-open-community="discord">Discordを開く</span><span class="nt-h">X(制作アカウント)</span>ゲーム制作のアカウントで、<em>開発の裏話</em>などを流しています。Discordアカウントのない方は、こちらのDMにもバグ報告や要望を投げていただけます。<span class="nt-link" data-open-community="x">Xを開く</span><span class="nt-h">開き方</span>どちらも<em>設定画面</em>から開けます(設定 → Discord / X)。<span class="nt-h">とくに聞きたいこと</span>いま新しい戦闘システムをテストしています。「ここが変」「前のほうがよかった」「この役割が弱い」など、遠慮なく投げてください。'
   },
@@ -20828,6 +20886,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 146, version: 'α0.4.000', date: '10/2', title: '経済の見直し', body: '<span class="nt-h">月にもらえる星結晶(イベントは月4回で計算)</span><span class="nt-i"><b>デイリーミッション</b><br>月8,100石 → 月4,500石</span><span class="nt-i"><b>ログインボーナス</b><br>月2,100石 → 月2,100石</span><span class="nt-i"><b>ウィークリーミッション</b><br>月5,570石 → 月6,000石</span><span class="nt-i"><b>イベント(ステージ・EX・ミッション・召喚券・開催中のデイリー)</b><br>月55,500石 → 月16,760石</span><span class="nt-i"><b>深淵回廊</b><br>月800石 → 月800石</span><span class="nt-i"><b>合計</b><br>月72,070石 → <em>月30,160石</em></span><span class="nt-i"><b>天井(200回)</b><br>11.2日 → <em>26.9日</em></span><span class="nt-i">・総力戦・封印戦が入ると、そのぶん(月およそ10,000石)が上乗せされます。</span><span class="nt-h">一度きりの星結晶</span><span class="nt-i"><b>メインクエスト(初回クリア・★の箱)</b><br>50,210石 → 23,610石</span><span class="nt-i"><b>実績</b><br>11,000石 → <em>19,610石</em></span><span class="nt-i">・実績は全部作り直しました。<em>いまの記録で、すでに届いている段はその場で受け取れます</em>。</span><span class="nt-i">・「ルーンを合成する」「PVPで勝つ」は、今回から数えはじめます(<em>さかのぼって反映されません</em>)。</span><span class="nt-h">ソウルが集まりやすくなりました</span><span class="nt-i"><b>ガチャのかぶり(★5)</b><br>150 → <em>500</em>(ピックアップは300 → <em>1,000</em>)</span><span class="nt-i"><b>無形のソウル・無形の共鳴石(ガチャ1回あたり)</b><br>平均1.95個 → <em>6.00個</em></span><span class="nt-i"><b>★10までに必要なソウル</b><br>★2:2,100 → 2,000 / ★3:3,150 → 3,000 / ★4:3,900 → 4,000 / ★5:4,800 → 5,000</span><span class="nt-i">・★5はピックアップなら本体+かぶり5体、それ以外はかぶり10体で★10になります。</span><span class="nt-h">お返し(プレゼントボックス)</span><span class="nt-i">・星結晶 3,000 / 無形のソウル 300 / 霊素核TierI 30 をお送りします(この更新より前に遊んでいた方が対象です)。</span><span class="nt-h">そのほか</span><span class="nt-i">・ミッションのゴールドをなくし、霊素鉱やワザ素材BOXにしました。</span><span class="nt-i">・黄金の洞窟のゴールドを3割下げました。霊素工房は霊素鉱が2倍、霊素核Iが半分になります。</span><span class="nt-i">・遺物ごとの共鳴石を、持ち物の個数として持つようにしました(残っていた数はそのまま引き継ぎます)。</span>' },
   { id: 145, version: 'α0.3.019', date: '10/1', title: 'ルーンの合成・振り直しで画面が一番上に戻らないように', body: '<span class="nt-i">・ルーンの合成画面で材料を選んだり、合成・振り直し・ロックをしたりしても、<em>画面が一番上に戻らなくなりました</em>。見ていた場所のまま続けられます。</span>' },
   { id: 144, version: 'α0.3.018', date: '10/1', title: '遺物の強化画面も閉じずに続けて上げられるように・遺物の★の表示', body: '<span class="nt-i">・遺物のスキル強化で「レベルアップする」を押しても、<em>確認の画面は閉じなくなりました</em>。閉じると遺物の強化画面の、見ていた場所に戻ります。</span><span class="nt-i">・遺物の強化画面で強化しても、画面の一番上に戻らなくなりました。</span><span class="nt-i">・遺物の★を<em>モンスターと同じ並べ方</em>にしました。白い★を5個まで並べ、共鳴で★6を超えたぶんは<em>左から青</em>に変わります(★5の遺物を4回共鳴すると青4個+白1個)。</span>' },
   { id: 143, version: 'α0.3.017', date: '10/1', title: 'スキル強化の画面を閉じずに続けて上げられるように', body: '<span class="nt-i">・スキル・必殺技・パッシブの強化で「レベルアップする」を押しても、<em>強化の画面は閉じなくなりました</em>。そのまま続けて上げられます。</span><span class="nt-i">・強化の画面を閉じると、キャラ詳細の一番上ではなく、<em>開く前に見ていた場所</em>に戻ります。</span>' },
