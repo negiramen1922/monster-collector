@@ -10,7 +10,7 @@
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   DEF_POINT_CAP, BP_DEF_WEIGHT, RATIO_CAP, CUT_CAP, defCutOf, effDef, capRatio,
-  scaledStats, defBaseScale, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
+  scaledStats, defBaseScale, TANK_DEF_BUDGET, MONSTERS, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
   makeRune, runeBonusFromList, applyRuneBonusToUnit, applyStatus, hasStatus, ENEMY_POWER, LEVEL_STAT_BONUS,
   applyStatBonus, addDefPoints, BONUS_POINT_KEYS, RELICS, SPECIES_SYNERGY, FORMATIONS, bonusText, relicEffectText, STAGES,
   POINT_BUFF_KEYS, MONSTER_KITS, applyEffect, buffAmountText, get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
@@ -53,6 +53,12 @@ ok('味方も同じ(タンク2.5倍)', unitAlly(TANK).pdef === e1.pdef, unitAlly
 ok('ボス補正もかからない', eBoss.pdef === e1.pdef, [e1.pdef, eBoss.pdef]);
 ok('敵のHPとSTRはステージLvで伸びる', e300.maxHp > e1.maxHp * 5 && e300.str > e1.str * 5, [e1.str, e300.str]);
 
+// タンクの防御の合計(倍率をかけたあと)は★ごとの上限以下
+{
+  const over = E.MONSTERS.filter(m => m.role === 'tank').map(m => { const st = E.scaledStats(m, m.rarity, 1); return { n: m.name, r: m.rarity, t: st.pdef + st.mdef }; })
+    .filter(x => x.t > E.TANK_DEF_BUDGET[x.r]);
+  ok('タンクの物防+魔防は ★5:80 / ★4:75 / ★3:65 / ★2:55 / ★1:45 以下', over.length === 0, over);
+}
 /* ---- 2. カットの計算 ---- */
 console.log('\n--- 2. 防御 = そのままカット% ---');
 [[0, 0], [10, 0.10], [31, 0.31], [50, 0.50], [99, 0.99]].forEach(([pt, cut]) =>
