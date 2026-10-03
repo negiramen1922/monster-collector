@@ -2966,6 +2966,74 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .title-list-modal{ text-align:left; }
 .tl-now{ font-size:12px; margin:2px 0 10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .tl-now b{ color:var(--gold); }
+
+/* ---- バベル試験場 (?lab=babel) ---- */
+.lab-mode #nav{ display:none; }
+.lab{ padding:10px 12px 40px; display:flex; flex-direction:column; gap:10px; }
+.lab-head b{ display:block; font-size:17px; font-weight:900; color:var(--gold); }
+.lab-head small{ display:block; font-size:10.5px; color:var(--dim); margin-top:3px; line-height:1.5; }
+.lab-tabs{ display:flex; gap:6px; }
+.lab-tab{ flex:1; padding:7px 4px; border-radius:11px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-weight:900; font-size:13px; cursor:pointer; }
+.lab-tab small{ display:block; font-size:9px; font-weight:700; color:var(--dim); margin-top:2px; }
+.lab-tab.on{ border-color:var(--gold); background:#3a2a1a; color:var(--gold); }
+.lab-floors{ display:grid; grid-template-columns:repeat(10, 1fr); gap:4px; }
+.lab-fl{ padding:7px 0; border-radius:9px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-weight:900; font-size:12px; cursor:pointer; line-height:1.1; }
+.lab-fl small{ display:block; font-size:8px; color:#5fd0c0; }
+.lab-fl.on{ border-color:var(--gold); color:var(--gold); background:#3a2a1a; }
+.lab-title{ font-size:15px; font-weight:900; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.lab-2p{ font-size:10px; padding:2px 7px; border-radius:7px; background:rgba(95,208,192,.18); color:#5fd0c0; }
+.lab-meta{ font-size:10.5px; color:var(--dim); margin-top:4px; }
+.lab-rules{ font-size:11.5px; color:#ffd98a; margin:8px 0; line-height:1.6; }
+.lab-half{ font-size:11.5px; font-weight:900; color:var(--gold); margin:8px 0 2px; }
+.lab-wave{ display:flex; align-items:flex-start; gap:4px; padding:5px 0; border-top:1px solid rgba(255,255,255,.06); overflow-x:auto; }
+.lab-wl{ flex:none; width:24px; font-size:10px; font-weight:900; color:var(--dim); padding-top:14px; }
+.lab-en{ flex:none; width:56px; display:flex; flex-direction:column; align-items:center; text-align:center; }
+.lab-en img{ width:38px; height:38px; object-fit:contain; image-rendering:pixelated; }
+.lab-en small{ font-size:9px; line-height:1.2; }
+.lab-en i{ font-style:normal; font-size:8.5px; color:var(--dim); }
+.lab-en.boss small{ color:var(--gold); font-weight:900; }
+.lab-hints, .lab-run{ display:flex; gap:6px; flex-wrap:wrap; }
+.lab-run .btn{ flex:1; }
+.lab-grow{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; font-size:11px; }
+.lab-grow > small{ color:var(--dim); }
+.lab-grow-note{ flex-basis:100%; font-size:9.5px; color:var(--dim); }
+.lab-chip{ padding:4px 9px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-size:11px; font-weight:800; cursor:pointer; }
+.lab-chip.on{ border-color:var(--gold); color:var(--gold); }
+.lab-slots{ display:grid; grid-template-columns:repeat(5, 1fr); gap:5px; margin-top:8px; }
+.lab-slot{ min-height:86px; padding:4px 2px; border-radius:10px; border:1px solid var(--line); background:rgba(0,0,0,.2); color:var(--text); font-family:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:1px; }
+.lab-slot img{ width:42px; height:42px; object-fit:contain; image-rendering:pixelated; }
+.lab-slot b{ font-size:9.5px; line-height:1.15; }
+.lab-slot small{ font-size:8.5px; color:var(--dim); }
+.lab-slot.on{ border-color:var(--gold); box-shadow:0 0 8px -2px rgba(232,180,85,.8); }
+.lab-slot.bad{ border-color:#ff5a6a; }
+.lab-plus{ font-size:22px; color:var(--dim); margin-top:14px; }
+.lab-err{ font-size:11px; color:#ff8a8a; margin-top:6px; }
+.lab-steps{ display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin:8px 0; }
+.lab-step{ display:flex; align-items:center; gap:4px; }
+.lab-step small{ font-size:10px; color:var(--dim); margin-right:2px; }
+.lab-step button{ width:28px; height:28px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-size:15px; font-weight:900; cursor:pointer; }
+.lab-step b{ min-width:26px; text-align:center; font-size:13px; }
+.lab-filters{ display:flex; gap:4px; overflow-x:auto; padding:3px 0; }
+.lab-filters .lab-chip{ flex:none; }
+.lab-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; max-height:320px; overflow-y:auto; margin-top:6px; }
+.lab-mon{ padding:3px 1px; border-radius:9px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; }
+.lab-mon img{ width:36px; height:36px; object-fit:contain; image-rendering:pixelated; }
+.lab-mon small{ font-size:8.5px; line-height:1.15; }
+.lab-mon i{ font-style:normal; font-size:8px; color:var(--dim); }
+.lab-mon.on{ border-color:var(--gold); }
+.lab-mon:disabled{ opacity:.28; cursor:default; }
+.lab-rate{ display:flex; align-items:baseline; gap:8px; margin:6px 0; }
+.lab-rate b{ font-size:30px; font-weight:900; }
+.lab-rate.good b{ color:#5fd07a; }
+.lab-rate.bad b{ color:#ff6a6a; }
+.lab-rate small{ color:var(--dim); font-size:11px; }
+.lab-sim-rows{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+.lab-sim-rows small{ display:block; font-size:9.5px; color:var(--dim); }
+.lab-sim-rows b{ font-size:11.5px; line-height:1.5; }
+.lab-note{ font-size:9.5px; color:var(--dim); margin-top:8px; }
+.lab-mvp{ display:flex; align-items:center; gap:10px; justify-content:center; margin:8px 0; }
+.lab-mvp img{ width:48px; height:48px; object-fit:contain; image-rendering:pixelated; }
+.lab-mvp small{ display:block; font-size:10.5px; color:var(--dim); }
 .tc-box{ border:1px solid rgba(232,180,85,.45); background:linear-gradient(180deg, #2e2340, var(--panel2)); border-radius:13px; padding:10px; margin:2px 0 10px; }
 .tc-preview-wrap{ text-align:center; margin-bottom:8px; }
 .tc-preview-wrap small{ display:block; font-size:10px; color:var(--dim); }
@@ -3262,7 +3330,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.006';
+const GAME_VERSION = 'α0.4.007';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4126,7 +4194,7 @@ function applyStageRules(u, stage, isEnemy){
 }
 // ダメージを出すときに見る。kind は dmgDealt(殴るほう) か dmgTaken(殴られるほう)。
 // target は dmgDealt のときの「殴る相手」(whenTarget を見るのに使う)
-function stageDmgMod(u, kind, target, atk){
+function stageDmgMod(u, kind, target, atk, attacker){
   const rules = stageRulesOf(battleUI && battleUI.stage);
   if(!rules.length) return 0;
   let n = 0;
@@ -4135,6 +4203,7 @@ function stageDmgMod(u, kind, target, atk){
     if(r.atk && atk && r.atk !== atk) return;
     if(r.when && !(STAGE_RULE_WHEN[r.when] || (() => true))(u)) return;
     if(r.whenTarget && !(target && (STAGE_RULE_WHEN[r.whenTarget] || (() => false))(target))) return;
+    if(r.fromElemNot && (!attacker || attacker.element === r.fromElemNot)) return;   // 受けるほう: その属性以外から殴られたときだけ
     n += r[kind];
   });
   return n;
@@ -4212,6 +4281,8 @@ const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.5/';
 const firebaseConfigured = () => !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.authDomain);
 
 const ACCOUNT_KEY = 'monster-game-account';
+// バベル試験場(index.html?lab=babel)。本番のセーブ・クラウドには一切書かない(下の「バベル試験場」)
+const LAB_MODE = typeof location !== 'undefined' && /[?&]lab=babel\b/.test(location.search || '');
 const SAVE_KEY = 'monster-game-state';           // also the key of pre-account saves
 const saveKeyFor = uid => `${SAVE_KEY}:${uid}`;
 const PROVIDER_LABEL = { google: 'Google', email: 'メールアドレス', guest: 'ゲスト' };
@@ -5429,7 +5500,7 @@ function normalizeState(){
 }
 
 function saveState(){
-  if(!STATE) return;
+  if(!STATE || LAB_MODE) return;   // 試験場は本番のセーブに書かない
   syncActiveFormation();
   checkTamerLevelUp();
   checkUnlocks();
@@ -11744,6 +11815,7 @@ let navHistory = [];
 const SCREEN_LABEL = { home: 'ホーム', gacha: 'ガチャ', dex: 'モンスター', party: '編成', battle: '探索', pvp: 'PVP', missions: 'ミッション', relics: '遺物', runes: 'ルーン', base: '拠点', shop: 'ショップ' };
 function goto(screen, opts){
   opts = opts || {};
+  if(LAB_MODE && screen !== 'battle-fight'){ labBack(); return; }   // 試験場では、戦闘から出たら試験場に戻る
   if(opts.nav) navHistory = [];
   else if(!opts.back && screen !== currentScreen && currentScreen !== 'battle-fight' && screen !== 'battle-fight' && SCREEN_LABEL[currentScreen]){
     navHistory.push({ screen: currentScreen, overlay: overlayView, stageTab });
@@ -11883,6 +11955,7 @@ function restoreHScroll(root, xs){
 function renderScreen(screen){
   switch(screen){
     case 'home': return renderHome();
+    case 'lab': return renderLab();
     case 'gacha': return renderGacha();
     case 'dex': return renderDex();
     case 'party': return renderParty();
@@ -15947,7 +16020,7 @@ function spawnWave(stage, waveIndex){
     if(!e) return;
     const sk = stage.enemySkill || 1;
     // 新バトルシステム: ウェーブごとに上がり、最終ウェーブが推奨レベル
-    const lv = battleV2() ? waveEnemyLv(stage, waveIndex) : e.level;
+    const lv = stage.flatLv ? e.level : battleV2() ? waveEnemyLv(stage, waveIndex) : e.level;   // バベルは全WAVEがLv200
     const u = buildUnit(MON_BY_ID[e.ref], lv, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: sk });
     u.rare = !!e.rare;
     u.gimmick = e.gimmick || null;
@@ -15996,7 +16069,167 @@ function buildPvpEnemyParty(defense){
 function speedFactor(){ return STATE.battleSpeed || 1; }
 
 const DUNGEON_ID_RE = new RegExp('^dg_(' + Object.keys(DUNGEONS).join('|') + ')_(\\d+)$');
+/* ---------------- バベル(試作。いまは試験場 ?lab=babel だけで遊べる) ----------------
+   企画: docs/提案資料/バベル案.md。レベルは味方も敵も200に固定し、★・スキルLv・ルーンなどは育てたぶんを使う。
+   塔は3つ(天=全員 / 陽=火・風・雷・光・無 / 陰=水・土・闇・草)。5階と10階は2パーティ戦(前半・後半、重複なし)。
+   敵は名前で書いて、読み込み時に id に直す(名前を間違えると console に出す)。
+   hint は試験場の「想定の編成を入れる」用: [育ち(0初心者/1中級/2上級), [名前×5]]。2パーティ戦は {a:[…], b:[…]} */
+const BABEL_LV = 200;
+const BABEL_TOWERS = [
+  { key: 'ten', name: '天の塔', allow: null, note: '全員使える' },
+  { key: 'yo',  name: '陽の塔', allow: ['fire', 'wind', 'thunder', 'light', 'none'], note: '火・風・雷・光・無だけ' },
+  { key: 'in',  name: '陰の塔', allow: ['water', 'earth', 'dark', 'grass'], note: '水・土・闇・草だけ' },
+];
+// 階ごとの敵の強さ [雑魚の★, ボスの★, スキルLv]
+const BABEL_STRENGTH = [[3, 4, 3], [3, 4, 4], [3, 5, 4], [4, 5, 5], [4, 5, 6], [4, 6, 7], [5, 6, 8], [5, 6, 8], [5, 7, 9], [6, 7, 10]];
+const BABEL_GROW = [
+  { key: 0, name: '初心者', star: 0, sk: 1, rune: 0 },
+  { key: 1, name: '中級', star: 2, sk: 6, rune: 3 },
+  { key: 2, name: '上級', star: 5, sk: 10, rune: 7 },
+];
+const BB_DEBUFFS = ['burn', 'poison', 'stun', 'paralyze', 'bind', 'confuse', 'petrify', 'charm'];
+const bbElem = (el, k, v, label) => ({ who: { element: el }, side: 'ally', [k]: v, label });
+const BABEL_FLOORS = {
+  ten: [
+    { name: '塔の入口', rules: [],
+      waves: ['ゴブリン・コボルト・スケルトン弓兵', 'オーク・フレイムボア・ケルピー・ドルイド', 'ミノタウロス・ワイルドボア・リザードマン'],
+      win: [0, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・ブルーウィスプ'], lose: [0, 'ゴブリン・コボルト・ワイルドボア・スケルトン戦士・ピクシー'] },
+    { name: '燃える草原', rules: [bbElem('fire', 'dmgDealt', 0.3, '火属性の味方 与ダメージ+30%')],
+      waves: ['モススライム・ゴブリン弓兵・マイコニド', 'トレント・モスボア・マンドラゴラ・ドルイド', 'ベヒモス・マンイーター・ブラッドローズ・ハノコ'],
+      win: [0, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・ブルーウィスプ'], lose: [1, 'クラーケン・イエティ・アイスゴーレム・セイレーン・メリュジーヌ'] },
+    { name: '鋼の番兵', rules: [{ side: 'enemy', stat: { pdef: 20 }, label: '敵 物理防御+20' }, { who: { role: 'shooter' }, side: 'ally', dmgDealt: 0.4, label: 'シューターの味方 与ダメージ+40%' }],
+      waves: ['アイアンスライム・スケルトン戦士・セラミックゴーレム', 'ロックゴーレム・ガーゴイル・ボルトビートル・ノッカー', 'ミスリルゴーレム・シルバーナイト・アイスゴーレム'],
+      win: [0, 'ケンタウロス・アグニ・ダークメカロイド・シームルグ・シルバーナイト'], lose: [1, 'グリズリー・オーガ・サイクロプス・スカーボア・ヘルハウンド'] },
+    { name: '焦熱の間', rules: [{ side: 'both', dmgDealt: 0.5, whenTarget: 'burned', label: '敵も味方も やけど状態の相手へ 与ダメージ+50%' }],
+      waves: ['ヒノコ・鬼火・フレイムリザード', 'ヘルハウンド・ボルケイノタートル・アグニ', 'スルト・キマイラ・サラマンダー'],
+      win: [0, 'ヘルハウンド・キマイラ・ボルケイノタートル・アグニ・マグマゴーレム'], lose: [1, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・ブルーウィスプ'] },
+    { name: '双子の門', halves: [
+        { label: '前半(闇)', waves: ['スケルトン戦士・マミー・ヴェノムスライム・猫又', 'デュラハン・レッドキャップ・バンシー'] },
+        { label: '後半(光)', waves: ['スカラベ・ウィスプ・ピクシー・ホーリースライム', 'ユニコーン・ムーンラビット・エオス'] }],
+      win: [1, { a: 'エオス・ファラオ・ムーンラビット・シルバーナイト・ケンタウロス', b: 'バンシー・のっぺらぼう・サキュバス・スカーボア・レッドキャップ' }],
+      lose: [1, { a: 'バンシー・のっぺらぼう・サキュバス・スカーボア・レッドキャップ', b: 'エオス・ファラオ・ムーンラビット・シルバーナイト・ケンタウロス' }] },
+    { name: '盾の遺跡', rules: [{ side: 'ally', dmgDealt: 0.5, when: 'shielded', label: '味方 シールドを持っているあいだ 与ダメージ+50%' }, { side: 'ally', dmgTaken: 0.5, when: 'unshielded', label: '味方 シールドが無いあいだ 受けるダメージ+50%' }],
+      waves: ['オーク・ヒルジャイアント・ノッカー', 'ミノタウロス・土蜘蛛・アルヴィス', 'タイタン・ブロック・ドリュアス'],
+      win: [1, 'アイスゴーレム・ダークメカロイド・ノーム・カーバンクル・ブロック'], lose: [2, 'グリズリー・オーガ・サイクロプス・スカーボア・ヘルハウンド'] },
+    { name: '毒の霧', rules: [{ side: 'enemy', stat: { hp: 1.0 }, label: '敵 最大HP+100%' }, { side: 'ally', dmgDealt: 0.5, whenTarget: 'poisoned', label: '味方 毒状態の敵へ 与ダメージ+50%' }],
+      waves: ['トレント・モスボア・スカラベ', 'エルダートレント・コカトリス・ゴブリンシャーマン・ノッカー', 'グリーンマン・アヌビス・ガーゴイル'],
+      win: [1, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・アラクネ'], lose: [2, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・ブルーウィスプ'] },
+    { name: '守りの陣', rules: [{ side: 'enemy', stat: { str: 0.8 }, label: '敵 STR+80%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.3, label: 'タンクの味方 受けるダメージ-30%' }],
+      waves: ['カマイタチ・ブラックウルフ・リザードマン', 'ワーウルフ・ドラウグル・ケルベロス', '死神・ハルピュイア・クラーケン'],
+      win: [1, 'シルバーナイト・イエティ・エルダートレント・ブルーウィスプ・セイレーン'], lose: [2, 'グリズリー・オーガ・サイクロプス・スカーボア・ヘルハウンド'] },
+    { name: '静寂の間', rules: [{ side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' }, { side: 'enemy', stat: { hp: 0.5 }, label: '敵 最大HP+50%' }],
+      waves: ['河童・ホーリースライム・ケットシー・ゴースト', 'ウンディーネ・ユニコーン・オルペウス・セルキー', 'ホーリードラゴン・カーバンクル・天狗'],
+      win: [1, 'ケンタウロス・ヘルハウンド・ゼピュロス・バンシー・天狗'], lose: [2, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・アラクネ'] },
+    { name: '天の頂', halves: [
+        { label: '前半(全体攻撃)', waves: ['ゼピュロス・アグニ・バンシー・メリュジーヌ', 'バハムート・ヘパイストス・スコル・アイオロス'] },
+        { label: '後半(ボス1体)', waves: ['ノーム・カーバンクル・ブロック', 'タロース'] }],
+      win: [1, { a: 'エルダートレント・ブルーウィスプ・セイレーン・シルバーナイト・ヘルハウンド', b: 'オーガ・サイクロプス・ワイバーン・ペガサス・カーバンクル' }],
+      lose: [2, { a: 'オーガ・サイクロプス・ワイバーン・ペガサス・カーバンクル', b: 'エルダートレント・ブルーウィスプ・セイレーン・シルバーナイト・ヘルハウンド' }] },
+  ],
+  yo: [
+    { name: '草の庭', rules: [{ side: 'enemy', dmgTaken: -0.3, fromElemNot: 'fire', label: '敵 火属性以外から受けるダメージ-30%' }],
+      waves: ['モススライム・マイコニド・ゴブリン弓兵', 'トレント・ハノコ・マンドラゴラ', 'エルダートレント・マンイーター・ドルイド'],
+      win: [0, 'ヘルハウンド・キマイラ・ボルケイノタートル・アグニ・マグマゴーレム'], lose: [0, '雷獣・ツインヘッドベア・ダークメカロイド・エオス・ファラオ'] },
+    { name: '岩の谷', rules: [bbElem('wind', 'dmgDealt', 0.3, '風属性の味方 与ダメージ+30%')],
+      waves: ['コボルト・マッドモール・ノッカー', 'オーク・ジャッカロープ・ヒルジャイアント・アルヴィス', 'ミノタウロス・デススコーピオン・ロックゴーレム'],
+      win: [0, 'ペガサス・ワイバーン・ゼピュロス・シームルグ・天狗'], lose: [1, '雷獣・サイクロプス・ダークメカロイド・ツインヘッドベア・エオス'] },
+    { name: '影の洞', rules: [bbElem('light', 'stat', { hp: 0.5 }, '光属性の味方 最大HP+50%')],
+      waves: ['スケルトン弓兵・スケルトン戦士・ゾンビ', 'ヴェノムスライム・ジャイアントスパイダー・猫又・マミー', 'ワーウルフ・スカーボア・サキュバス'],
+      win: [0, 'エオス・ファラオ・ムーンラビット・シルバーナイト・ケンタウロス'], lose: [1, 'ヘルハウンド・キマイラ・ボルケイノタートル・スルト・ケルベロス'] },
+    { name: '水の神殿', rules: [bbElem('none', 'stat', { str: 0.5 }, '無属性の味方 STR+50%')],
+      waves: ['ポンドフロッグ・アクアスライム・河童', 'リザードマン・ケルピー・マーメイド・メリュジーヌ', 'クラーケン・イエティ・セイレーン'],
+      win: [1, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・オークジェネラル'], lose: [1, 'ヘルハウンド・キマイラ・ボルケイノタートル・アグニ・マグマゴーレム'] },
+    { name: '陰陽の門', halves: [
+        { label: '前半(草・土)', waves: ['モスボア・ドルイド・ジャッカロープ・ノッカー', 'アラクネ・ブラッドローズ・土蜘蛛'] },
+        { label: '後半(闇・水)', waves: ['マミー・ゴブリンシャーマン・マーメイド・ケルピー', 'メデューサ・バンシー・アイスゴーレム'] }],
+      win: [1, { a: 'ヘルハウンド・キマイラ・ペガサス・ワイバーン・ファラオ', b: 'エオス・ムーンラビット・シルバーナイト・オーガ・ケンタウロス' }],
+      lose: [1, { a: 'エオス・ムーンラビット・シルバーナイト・オーガ・ケンタウロス', b: 'ヘルハウンド・キマイラ・ペガサス・ワイバーン・ファラオ' }] },
+    { name: '疾風の間', rules: [{ side: 'enemy', stat: { spd: 0.5 }, label: '敵 SPD+50%' }, bbElem('thunder', 'stat', { spd: 0.3 }, '雷属性の味方 SPD+30%')],
+      waves: ['猫又・ジャッカロープ・ケルピー', 'レッドキャップ・のっぺらぼう・サキュバス', 'デュラハン・ドラウグル・セルキー'],
+      win: [1, '雷獣・サイクロプス・ダークメカロイド・ツインヘッドベア・ミスリルゴーレム'], lose: [2, 'シルバーナイト・マグマゴーレム・ミスリルゴーレム・オークジェネラル・ファラオ'] },
+    { name: '消えない火', rules: [{ side: 'enemy', immune: ['burn'], label: '敵 やけどにかからない' }, bbElem('fire', 'dmgDealt', -0.3, '火属性の味方 与ダメージ-30%')],
+      waves: ['トレント・マンドラゴラ・モススライム', 'コカトリス・ブラッドローズ・ハノコ・ドルイド', 'ベヒモス・エルダートレント・マンイーター'],
+      win: [1, 'ペガサス・ゼピュロス・グリフォン・ペルセウス・ユニコーン'], lose: [2, 'ヘルハウンド・キマイラ・アグニ・スルト・ケルベロス'] },
+    { name: '嵐の回廊', rules: [{ who: { role: 'support' }, side: 'ally', stat: { hp: 0.5 }, label: 'サポートの味方 最大HP+50%' }],
+      waves: ['ヴェノムスライム・マーメイド・ゴブリン弓兵・マッドモール', 'バンシー・メリュジーヌ・ドリュアス・のっぺらぼう', 'シースライム・黙示のアルベ・ゲヘナの騎士'],
+      win: [1, 'ファラオ・ムーンラビット・シームルグ・シルバーナイト・マグマゴーレム'], lose: [2, 'ヘルハウンド・キマイラ・ペガサス・ワイバーン・雷獣'] },
+    { name: '鉄の壁', rules: [{ side: 'enemy', stat: { pdef: 20 }, label: '敵 物理防御+20' }],
+      waves: ['アクアスライム・ヒルジャイアント・モスボア', 'ロックゴーレム・土蜘蛛・イエティ・ガーゴイル', 'ブロック・ユミル・アヌビス'],
+      win: [1, 'ケンタウロス・アグニ・ダークメカロイド・サラマンダー・ハティ'], lose: [2, 'グリズリー・オーガ・サイクロプス・ヘルハウンド・ペガサス'] },
+    { name: '陽の頂', halves: [
+        { label: '前半(水のボス)', waves: ['セイレーン・ウンディーネ・クラーケン・イエティ', 'リヴァイアサン・セルキー・ユミル'] },
+        { label: '後半(闇のボス)', waves: ['デュラハン・メデューサ・ドラウグル・アヌビス', 'アバドン・黙示のアルベ・ゲヘナの騎士'] }],
+      win: [2, { a: 'シルバーナイト・グリズリー・オーガ・ケンタウロス・オークジェネラル', b: 'エオス・ファラオ・ムーンラビット・ペルセウス・ユニコーン' }],
+      lose: [2, { a: 'エオス・ファラオ・ムーンラビット・ペルセウス・ユニコーン', b: 'シルバーナイト・グリズリー・オーガ・ケンタウロス・オークジェネラル' }] },
+  ],
+  in: [
+    { name: '炎の祠', rules: [bbElem('water', 'stat', { str: 0.5 }, '水属性の味方 STR+50%')],
+      waves: ['ヒノコ・フレイムリザード・マグマスライム', 'フレイムボア・鬼火・ヘルハウンド', 'ケルベロス・アグニ・ボルケイノタートル'],
+      win: [0, 'イエティ・アイスゴーレム・セイレーン・メリュジーヌ・ブルーウィスプ'], lose: [1, 'マンイーター・エルダートレント・コカトリス・ブラッドローズ・アラクネ'] },
+    { name: '雷の丘', rules: [bbElem('earth', 'dmgDealt', 0.3, '土属性の味方 与ダメージ+30%')],
+      waves: ['シルバーウルフ・ボルトビートル・ケットシー', 'ブラックウルフ・アイアンスライム・キョンシー・雷獣', 'ミスリルゴーレム・ツインヘッドベア・ダークメカロイド'],
+      win: [0, 'デススコーピオン・ロックゴーレム・土蜘蛛・ガーゴイル・ドリュアス'], lose: [1, 'イエティ・アイスゴーレム・セイレーン・メリュジーヌ・クラーケン'] },
+    { name: '光の聖堂', rules: [bbElem('dark', 'dmgDealt', 0.3, '闇属性の味方 与ダメージ+30%')],
+      waves: ['ホーンラビット・ピクシー・ウィスプ', 'ホーリースライム・スカラベ・セラミックゴーレム・エオス', 'ペルセウス・ファラオ・ムーンラビット'],
+      win: [0, 'スカーボア・レッドキャップ・バンシー・サキュバス・のっぺらぼう'], lose: [1, 'デススコーピオン・ロックゴーレム・土蜘蛛・ガーゴイル・ミノタウロス'] },
+    { name: '風の塔', rules: [{ who: { role: 'tank' }, side: 'ally', stat: { str: 1.0 }, label: 'タンクの味方 STR+100%' }],
+      waves: ['ストームホーク・オオコウモリ・キラービー', 'カマイタチ・ゴースト・ペガサス・天狗', 'グリフォン・ワイバーン・ゼピュロス'],
+      win: [1, 'イエティ・ロックゴーレム・エルダートレント・土蜘蛛・アイスゴーレム'], lose: [1, 'デススコーピオン・ミノタウロス・アルヴィス・土蜘蛛・ドリュアス'] },
+    { name: '陰陽の門', halves: [
+        { label: '前半(火・雷)', waves: ['フレイムボア・ブラックウルフ・鬼火・ケットシー', 'サラマンダー・キマイラ・ダークメカロイド'] },
+        { label: '後半(光・風)', waves: ['ウィスプ・カマイタチ・ピクシー・ゴースト', 'ハルピュイア・シームルグ・ファラオ'] }],
+      win: [1, { a: 'イエティ・クラーケン・デススコーピオン・ロックゴーレム・セイレーン', b: 'スカーボア・デュラハン・アヌビス・ユミル・ドリュアス' }],
+      lose: [1, { a: 'スカーボア・デュラハン・アヌビス・ユミル・ドリュアス', b: 'イエティ・クラーケン・デススコーピオン・ロックゴーレム・セイレーン' }] },
+    { name: '長い戦い', rules: [{ side: 'enemy', stat: { hp: 1.5 }, label: '敵 最大HP+150%' }, { side: 'ally', dmgDealt: 0.5, whenTarget: 'poisoned', label: '味方 毒状態の敵へ 与ダメージ+50%' }],
+      waves: ['マグマスライム・セラミックゴーレム・アイアンスライム', 'マグマゴーレム・シルバーナイト・オークジェネラル', '牛鬼・ミスリルゴーレム・カーバンクル'],
+      win: [1, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・メデューサ'], lose: [2, 'スカーボア・レッドキャップ・デュラハン・クラーケン・ミノタウロス'] },
+    { name: '呪いの淵', rules: [{ side: 'both', dmgTaken: 0.5, when: 'lowHp30', label: '敵も味方も HPが30%以下のとき 受けるダメージ+50%' }, bbElem('dark', 'dmgTaken', -0.2, '闇属性の味方 受けるダメージ-20%')],
+      waves: ['フレイムリザード・ストームホーク・ホーンラビット', 'スルト・グリズリー・オーガ', '雷電・ケルベロス・ハルピュイア'],
+      win: [1, 'スカーボア・デュラハン・アヌビス・セイレーン・ドリュアス'], lose: [2, 'スカーボア・レッドキャップ・デュラハン・ドラウグル・ワーウルフ'] },
+    { name: '先手の間', rules: [{ side: 'enemy', stat: { spd: 0.5 }, label: '敵 SPD+50%' }, bbElem('water', 'dmgTaken', -0.3, '水属性の味方 受けるダメージ-30%')],
+      waves: ['シルバーウルフ・ストームホーク・キラービー', '雷獣・ペガサス・ゼピュロス', 'ハティ・グリフォン・ロキ'],
+      win: [1, 'ユミル・イエティ・ウンディーネ・セルキー・クラーケン'], lose: [2, 'デススコーピオン・ロックゴーレム・土蜘蛛・ガーゴイル・ミノタウロス'] },
+    { name: '不動の陣', rules: [{ side: 'enemy', stat: { str: 1.0 }, label: '敵 STR+100%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.3, label: 'タンクの味方 受けるダメージ-30%' }],
+      waves: ['ゴブリン・ワイルドボア・フレイムボア', 'ヘルハウンド・ツインヘッドベア・オーガ・グリズリー', 'バハムート・スルト・ペルセウス'],
+      win: [1, 'イエティ・土蜘蛛・セイレーン・ドリュアス・デュラハン'], lose: [2, 'スカーボア・レッドキャップ・デュラハン・クラーケン・ミノタウロス'] },
+    { name: '陰の頂', halves: [
+        { label: '前半(風のボス)', waves: ['アイオロス・ハティ・グリフォン・天狗', 'フェンリル・ハルピュイア・ゼピュロス'] },
+        { label: '後半(火のボス)', waves: ['ヘパイストス・スコル・ロキ・フェニクス', '九尾の狐・牛鬼・サラマンダー'] }],
+      win: [2, { a: 'イエティ・アイスゴーレム・エルダートレント・アヌビス・ユミル', b: 'クラーケン・ウンディーネ・セルキー・メリュジーヌ・セイレーン' }],
+      lose: [2, { a: 'クラーケン・ウンディーネ・セルキー・メリュジーヌ・セイレーン', b: 'イエティ・アイスゴーレム・エルダートレント・アヌビス・ユミル' }] },
+  ],
+};
+const MON_BY_NAME = Object.fromEntries(MONSTERS.map(m => [m.name, m.id]));
+function bbIds(text){
+  return String(text).split('・').map(n => { const id = MON_BY_NAME[n]; if(!id) console.warn('babel: unknown monster', n); return id; }).filter(Boolean);
+}
+// 階(と2パーティ戦の前半 0 / 後半 1)のステージ。各WAVEの1体目は最終WAVEだとボス
+function babelStage(towerKey, floorNo, half){
+  const fl = BABEL_FLOORS[towerKey] && BABEL_FLOORS[towerKey][floorNo - 1];
+  if(!fl) return null;
+  const part = fl.halves ? fl.halves[half || 0] : fl;
+  if(!part) return null;
+  const [mob, boss, sk] = BABEL_STRENGTH[floorNo - 1];
+  const tower = BABEL_TOWERS.find(t => t.key === towerKey);
+  const waves = part.waves.map((text, wi) => bbIds(text).map((ref, i) => {
+    const isBoss = wi === part.waves.length - 1 && i === 0;
+    return { ref, level: BABEL_LV, star: Math.min(ENEMY_STAR_CAP, Math.max(MON_BY_ID[ref].rarity, isBoss ? boss : mob)), boss: isBoss || undefined };
+  }));
+  return {
+    id: `bb_${towerKey}_${floorNo}${fl.halves ? `_${half || 0}` : ''}`, type: 'babel', tier: 'babel', babel: { tower: towerKey, floor: floorNo, half: fl.halves ? (half || 0) : null },
+    name: `${tower.name} ${floorNo}階「${fl.name}」${fl.halves ? `・${part.label}` : ''}`,
+    rec: BABEL_LV, flatLv: true, stamina: 0, power: 1, enemySkill: sk, boss: true, gold: 0,
+    rules: fl.rules || [], waves,
+  };
+}
+function babelAllowed(towerKey, monId){
+  const t = BABEL_TOWERS.find(x => x.key === towerKey), m = MON_BY_ID[monId];
+  return !!m && (!t || !t.allow || t.allow.includes(m.element));
+}
+
 function findStage(id){
+  const bb = /^bb_(ten|yo|in)_(\d+)(?:_(\d))?$/.exec(id || '');
+  if(bb) return babelStage(bb[1], Number(bb[2]), bb[3] ? Number(bb[3]) : 0);
   const d = DUNGEON_ID_RE.exec(id || '');
   if(d) return DUNGEONS[d[1]].rewards[Number(d[2])] ? dungeonStage(d[1], Number(d[2])) : null;
   const ab = /^ab_(\d+)$/.exec(id || '');
@@ -16231,6 +16464,13 @@ function startBattle(stageId, opts){
   }
   stageTab = stageTabOf(stage);
 
+  launchBattle(stage, formation, party, synergies, {
+    staminaSpent: cost,
+    helperOwnerUid: (STATE.slots.includes(HELP_SLOT_ID) && STATE.borrowed) ? STATE.borrowed.uid : null,
+  });
+}
+// 編成を組み終えたあとの、戦闘の始まり(ふつうのステージとバベル試験場で共通)
+function launchBattle(stage, formation, party, synergies, extra){
   battleUI = {
     stage, party,
     waveIndex: 0,
@@ -16249,12 +16489,13 @@ function startBattle(stageId, opts){
     waveResults: [],
     waveStartRound: 1,
     spawned: [],
-    staminaSpent: cost,
+    staminaSpent: extra.staminaSpent || 0,
     deathCounter: 0,
     firstStrike: null,
     // お助けモンスター(借りたフレンドの支援モンスター)がこの編成にいれば、クリア/敗北問わず
     // クエスト終了時に貸した側(uid)へFPを送る対象として覚えておく - see creditHelperOwner
-    helperOwnerUid: (STATE.slots.includes(HELP_SLOT_ID) && STATE.borrowed) ? STATE.borrowed.uid : null,
+    helperOwnerUid: extra.helperOwnerUid || null,
+    lab: extra.lab || null,   // バベル試験場の戦闘(報酬なし。終わったら試験場に戻る)
   };
   battleUI.enemies = spawnWave(stage, 0);
   if(stage.tutorial === 'ult') party.forEach(u => { u.sp = Math.round(u.spCost * 0.6); });
@@ -18508,7 +18749,7 @@ function strike(ctx, target, o){
   }
   const crit = o.raw === undefined && !o.noCrit && (stone || chance(BASE_CRIT_RATE + passiveMod(actor, 'critBonus', target) + buffV(actor, 'critUp') + (actor.bonusCrit || 0) + (act.critBonus || 0) - passiveMod(target, 'critTakenCut')));
   let bonus = passiveMod(actor, 'dmgBonus', target, act, kind) + allyMod(actor, 'allyDmgBonus', target, act, kind)
-    + stageDmgMod(actor, 'dmgDealt', target, atk) + stageDmgMod(target, 'dmgTaken', null, atk) + (actor.flags.fireBoost || 0) + (kind === 'normal' ? (actor.normalDmgBonus || 0) : 0)
+    + stageDmgMod(actor, 'dmgDealt', target, atk) + stageDmgMod(target, 'dmgTaken', null, atk, actor) + (actor.flags.fireBoost || 0) + (kind === 'normal' ? (actor.normalDmgBonus || 0) : 0)
     + (actor.gimmick === 'scorch' && hasStatus(target, 'burn') ? 0.2 : 0)
     + (kind === 'skill' ? (actor.skillDmgBonus || 0) : 0) + (kind === 'ult' ? (actor.ultDmgBonus || 0) : 0);
   (act.bonusIf || []).forEach(b => { if(conditionMet(b.cond, actor, target)) bonus += b.add; });
@@ -19357,6 +19598,7 @@ function advanceWave(){
 
 function finishBattle(win){
   if(battleUI.pvp) return finishPvpBattle(win);
+  if(battleUI.lab) return finishLabBattle(win);
   battleUI.finished = true;
   battleUI.win = win;
   clearTimeout(battleUI.tickTimer);
@@ -20812,6 +21054,8 @@ function handlePhoneClick(ev){
   const evtEl = t.closest('[data-event-tier]');
   if(evtEl){ eventKey = evtEl.dataset.eventTier; eventView = 'menu'; render(); return; }
   if(t.closest('[data-stamina-refill]')){ buyStaminaRefill(); return; }
+  const labEl = LAB_MODE && t.closest('[data-lab]');
+  if(labEl){ labAction(labEl.dataset.lab); return; }
   if(t.closest('[data-open-titles]')){ openTitleList(); playSfx('open'); return; }
   if(titleList){
     if(t.closest('[data-close-title-list]')){ closeTitleList(); return; }
@@ -21244,6 +21488,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 153, version: 'α0.4.007', date: '10/3', title: 'バベル試験場(開発用)', body: '<span class="nt-i">・開発用に「バベル試験場」(index.html?lab=babel)を追加しました。ふつうに遊ぶ画面には出ません。全モンスターを好きな★・スキルLv・ルーンで組み、バベル案の各階と戦えます(観戦・連続テスト)。本番のセーブには書きません。</span>' },
   { id: 152, version: 'α0.4.006', date: '10/3', title: '称号パーツの名前を変更', body: '<span class="nt-i">・称号パーツの名前を、組み合わせやすい短い名前に変えました(例: 星刻見習い / 星刻技師 / 星刻師)。イベントのパーツも同じように短くしました。持っているパーツはそのまま、名前だけ変わります。</span>' },
   { id: 151, version: 'α0.4.005', date: '10/3', title: '称号のパーツ化・フレームの作り直し', body: '<span class="nt-i">・称号を<em>パーツ2つ+間の1文字</em>で自由に組み立てる形にしました。実績19種類×3段のパーツ、イベントの12パーツ、はじめからの2パーツ。</span><span class="nt-i">・前の称号は受け取った実績の段に応じたパーツに置き換え。星刻・遺物・ルーンTier・モンスター収集の実績の段を組み直し(受け取った段は目標の値で数え直し)。</span><span class="nt-i">・フレームをランクの枠5・極みの枠5・イベントの枠4の14種類に作り直し。</span><span class="nt-i">・フレンド・PVPの相手にも組み立てた称号が出ます。</span>' },
   { id: 150, version: 'α0.4.004', date: '10/3', title: 'イベントのフレームにピックアップ★5', body: '<span class="nt-i">・各イベントのEX3を★3でクリアしてもらえるフレームに、そのイベントの<em>ピックアップ★5が右下に小さく</em>いるようにしました(九尾の狐・タイタン・フェンリル・アバドン)。枠の色はイベントの色です。</span>' },
@@ -22497,10 +22742,324 @@ function cancelSwipeGesture(){
   resetSwipeGesture();
 }
 
+/* ---------------- バベル試験場 (index.html?lab=babel) ----------------
+   本番のセーブ・クラウド・アカウントには触れない別の画面。全モンスターを好きな★・スキルLv・ルーンで組んで、
+   バベルの各階と戦う(観戦)か、まとめて何回も戦わせて勝率を見る(連続テスト)。
+   ここで組んだ編成は、この端末にだけ覚える(LAB_KEY)。遺物はまだ反映しない */
+const LAB_KEY = 'monster-game-lab-babel';
+const LAB_PARTY = 5;
+let lab = null;   // { tower, floor, parties:[[slot×5],[slot×5]], pick:{p,i}|null, fEl, fRole, sim }
+function labSlot(id, g){
+  const m = MON_BY_ID[id], gr = BABEL_GROW[g] || BABEL_GROW[0];
+  const star = Math.min(MAX_STAR, m.rarity + gr.star);
+  return { id, star, sk: Math.min(STAR_TABLE[star].skillCap, gr.sk), rune: gr.rune };
+}
+function labFill(names, g){ const ids = bbIds(names).slice(0, LAB_PARTY); return [...Array(LAB_PARTY).keys()].map(i => ids[i] ? labSlot(ids[i], g) : null); }
+function labFloor(){ return BABEL_FLOORS[lab.tower][lab.floor - 1]; }
+function labHint(kind){
+  const h = labFloor()[kind];
+  if(!h) return;
+  const [g, v] = h;
+  lab.parties = typeof v === 'string' ? [labFill(v, g), lab.parties[1]] : [labFill(v.a, g), labFill(v.b, g)];
+  lab.sim = null; lab.pick = null;
+}
+function labLoad(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(LAB_KEY) || 'null'); }catch(e){}
+  lab = { tower: 'ten', floor: 1, parties: [Array(LAB_PARTY).fill(null), Array(LAB_PARTY).fill(null)], pick: null, fEl: '', fRole: '', sim: null };
+  if(saved && BABEL_FLOORS[saved.tower] && saved.floor >= 1 && saved.floor <= 10){
+    lab.tower = saved.tower; lab.floor = saved.floor;
+    const ok = s => s && MON_BY_ID[s.id] ? labClamp({ ...s }) : null;
+    if(Array.isArray(saved.parties)) lab.parties = [0, 1].map(p => [...Array(LAB_PARTY).keys()].map(i => ok(saved.parties[p] && saved.parties[p][i])));
+  }else labHint('win');
+}
+function labSave(){ try{ localStorage.setItem(LAB_KEY, JSON.stringify({ tower: lab.tower, floor: lab.floor, parties: lab.parties })); }catch(e){} }
+function labClamp(s){
+  const m = MON_BY_ID[s.id];
+  s.star = Math.max(m.rarity, Math.min(MAX_STAR, s.star | 0));
+  s.sk = Math.max(1, Math.min(STAR_TABLE[s.star].skillCap, s.sk | 0));
+  s.rune = Math.max(0, Math.min(RUNE_TIERS, s.rune | 0));
+  return s;
+}
+// ルーンは4つとも同じTier。メイン効果はロールで決める(サブ効果は乗せない)
+const LAB_RUNE_MAINS = { attacker: ['atk', 'atk', 'critRate', 'critDmg'], shooter: ['atk', 'atk', 'critRate', 'critDmg'], trickster: ['atk', 'spd', 'critRate', 'hp'],
+  tank: ['hp', 'hp', 'pdef', 'mdef'], support: ['hp', 'hp', 'spd', 'atk'] };
+function labRuneBonus(role, tier){
+  if(!tier) return null;
+  const b = {};
+  (LAB_RUNE_MAINS[role] || LAB_RUNE_MAINS.attacker).forEach(k => { b[k] = (b[k] || 0) + RUNE_STATS[k].main[tier - 1]; });
+  return b;
+}
+function labIsTwo(){ return !!labFloor().halves; }
+function labPartyOf(half){ return lab.parties[labIsTwo() ? half : 0]; }
+// 戦えるかどうか(だめなら理由)
+function labProblem(half){
+  const slots = labPartyOf(half).filter(Boolean);
+  if(!slots.length) return '編成が空です';
+  if(slots.some(s => !babelAllowed(lab.tower, s.id))) return 'この塔で使えないモンスターがいます';
+  if(labIsTwo()){
+    const other = new Set(labPartyOf(1 - half).filter(Boolean).map(s => s.id));
+    if(slots.some(s => other.has(s.id))) return '前半と後半に同じモンスターがいます';
+  }
+  return '';
+}
+function labBuildParty(stage, slotsIn){
+  const slots = slotsIn.filter(Boolean);
+  const ids = slots.map(s => s.id);
+  const fk = formationForFrontCount(Math.max(1, ids.filter(id => isMeleeRole(MON_BY_ID[id].role)).length)).key;
+  const formation = getFormation(fk);
+  const party = [];
+  lineupFromList(ids, fk).forEach((id, i) => {
+    if(!id) return;
+    const c = slots.find(s => s.id === id), m = MON_BY_ID[id];
+    const u = buildUnit(m, 1, false, c.star, false, BABEL_LV, { skillLv: c.sk, skill2Lv: c.sk, ultLv: c.sk, passiveLv: c.sk });
+    u.slot = i; u.row = slotRowIn(formation, i); u.x = slotX(formation, i);
+    u.penalty = u.row === 'back' && isMeleeRole(u.role);
+    applyRuneBonusToUnit(u, labRuneBonus(m.role, c.rune));
+    applyStageRules(u, stage, false);
+    applyFormationBonus(u, formation);
+    party.push(u);
+  });
+  return { formation, party, synergies: applySynergies(party) };
+}
+function labStart(half, sim){
+  const stage = babelStage(lab.tower, lab.floor, half);
+  if(battleUI) clearTimeout(battleUI.tickTimer);
+  if(!sim){ clearStageFx(); closeLogSheet(); closeModal(); }
+  const { formation, party, synergies } = labBuildParty(stage, labPartyOf(half));
+  launchBattle(stage, formation, party, synergies, { lab: { half, sim: !!sim } });
+}
+function labWatch(half){
+  const why = labProblem(half);
+  if(why){ toast(why); return; }
+  labSave();
+  labStart(half, false);
+}
+let labSimming = false;
+function finishLabBattle(win){
+  const b = battleUI;
+  b.finished = true; b.win = win;
+  clearTimeout(b.tickTimer);
+  if(b.lab.sim) return;
+  renderBattleScreenOnly();
+  setTimeout(() => {
+    if(battleUI !== b || currentScreen !== 'battle-fight') return;
+    playSfx(win ? 'win' : 'lose');
+    playStageFx({ kind: win ? 'clear' : 'lose', eyebrow: 'バベル試験場', title: win ? '勝利!' : '敗北…', sub: `WAVE ${b.waveIndex + 1}・${b.round}ラウンド`, duration: 1100 }, () => {
+      if(battleUI !== b || currentScreen !== 'battle-fight') return;
+      labShowResult(b);
+    });
+  }, 450);
+}
+function labMvp(b){
+  const top = b.party.slice().sort((x, y) => ((y.report && y.report.dealt) || 0) - ((x.report && x.report.dealt) || 0))[0];
+  return top ? { ref: top.ref, dealt: (top.report && top.report.dealt) || 0 } : null;
+}
+function labShowResult(b){
+  const mvp = labMvp(b), two = labIsTwo(), half = b.lab.half;
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal lab-result" role="dialog" aria-label="結果">
+      <h3>${b.win ? '勝利!' : '敗北…'}</h3>
+      <p>${escapeHtml(b.stage.name)}<br>WAVE ${b.waveIndex + 1} / ${b.stage.waves.length}・${b.round}ラウンド・生き残り ${b.party.filter(u => u.alive).length}体</p>
+      ${mvp ? `<div class="lab-mvp"><img src="${imgSrc(mvp.ref)}" alt=""><div><b>MVP ${MON_BY_ID[mvp.ref].name}</b><small>与ダメージ ${mvp.dealt.toLocaleString()}</small></div></div>` : ''}
+      <div class="br-actions">
+        ${two && half === 0 && b.win ? '<button class="btn btn-block" data-lab="watch:1">後半へ</button>' : ''}
+        <button class="btn ${two && half === 0 && b.win ? 'btn-ghost' : ''} btn-block" data-lab="watch:${half}">もう一度</button>
+        <button class="btn btn-ghost btn-block" data-lab="back">試験場に戻る</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
+}
+function labBack(){
+  if(battleUI) clearTimeout(battleUI.tickTimer);
+  battleUI = null;
+  closeModal(); clearStageFx(); closeLogSheet();
+  currentScreen = 'lab';
+  render();
+}
+/* 連続テスト: 画面を描かずに戦闘をまわす。setTimeout をこの中だけ順番待ちの列に差し替えて、すぐに消化する */
+function labSimOne(half){
+  const realST = window.setTimeout, realCT = window.clearTimeout;
+  const keep = { render, renderBattleScreenOnly, playSfx, playStageFx, saveState, toast };
+  let q = [];
+  window.setTimeout = f => { const t = { f }; q.push(t); return t; };
+  window.clearTimeout = t => { if(t && typeof t === 'object') t.f = null; else realCT(t); };
+  render = () => {}; renderBattleScreenOnly = () => {}; playSfx = () => {}; playStageFx = (o, done) => { if(done) done(); }; toast = () => {};
+  let out = null;
+  try{
+    labStart(half, true);
+    const b = battleUI;
+    let n = 0;
+    while(q.length && n < 20000 && !b.finished){ const t = q.shift(); if(t.f){ t.f(); n++; } }
+    const mvp = labMvp(b);
+    out = { win: !!b.win, wave: b.waveIndex + 1, waves: b.stage.waves.length, round: b.round, alive: b.party.filter(u => u.alive).length, mvp: mvp && mvp.ref };
+  }catch(e){ console.error('lab sim', e); out = { win: false, wave: 0, waves: 0, round: 0, alive: 0, error: String(e && e.message || e) }; }
+  finally{
+    window.setTimeout = realST; window.clearTimeout = realCT;
+    render = keep.render; renderBattleScreenOnly = keep.renderBattleScreenOnly; playSfx = keep.playSfx; playStageFx = keep.playStageFx; toast = keep.toast;
+    battleUI = null;
+    currentScreen = 'lab';
+  }
+  return out;
+}
+async function labRunSim(n){
+  if(labSimming) return;
+  const halves = labIsTwo() ? [0, 1] : [0];
+  const why = halves.map(labProblem).find(Boolean);
+  if(why){ toast(why); return; }
+  labSave();
+  labSimming = true;
+  lab.sim = { n, done: 0, rows: [], key: `${lab.tower}_${lab.floor}` };
+  render();
+  for(let k = 0; k < n; k++){
+    const row = { win: true, parts: [] };
+    for(const h of halves){ const r = labSimOne(h); row.parts.push(r); if(!r.win){ row.win = false; break; } }
+    lab.sim.rows.push(row); lab.sim.done = k + 1;
+    if(k % 2 === 1 || k === n - 1){ render(); await new Promise(r => setTimeout(r, 0)); }
+  }
+  labSimming = false;
+  render();
+}
+function labSimHtml(){
+  const s = lab.sim;
+  if(!s || s.key !== `${lab.tower}_${lab.floor}`) return '';
+  const wins = s.rows.filter(r => r.win).length, pct = s.done ? Math.round(wins / s.done * 100) : 0;
+  const winRounds = s.rows.filter(r => r.win).map(r => r.parts.reduce((a, p) => a + p.round, 0));
+  const avgR = winRounds.length ? Math.round(winRounds.reduce((a, b) => a + b, 0) / winRounds.length) : 0;
+  const lost = {};
+  s.rows.filter(r => !r.win).forEach(r => { const p = r.parts[r.parts.length - 1], k = `${labIsTwo() ? (r.parts.length === 1 ? '前半' : '後半') : ''}WAVE${p.wave}${p.round >= MAX_ROUNDS ? '(時間切れ)' : ''}`; lost[k] = (lost[k] || 0) + 1; });
+  const mvp = {};
+  s.rows.forEach(r => r.parts.forEach(p => { if(p.mvp) mvp[p.mvp] = (mvp[p.mvp] || 0) + 1; }));
+  const mvpTop = Object.entries(mvp).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const err = s.rows.flatMap(r => r.parts).find(p => p.error);
+  return `<div class="panel lab-sim">
+    <div class="mc-head">連続テストの結果 ${s.done < s.n ? `<small>(${s.done} / ${s.n} 戦目…)</small>` : ''}</div>
+    <div class="lab-rate ${pct >= 80 ? 'good' : pct <= 20 ? 'bad' : ''}"><b>${pct}%</b><small>勝ち ${wins} / ${s.done}</small></div>
+    <div class="lab-sim-rows">
+      <div><small>勝ったときの平均</small><b>${avgR ? `${avgR}ラウンド` : '―'}</b></div>
+      <div><small>負けたところ</small><b>${Object.keys(lost).length ? Object.entries(lost).map(([k, v]) => `${k} ×${v}`).join('<br>') : '―'}</b></div>
+      <div><small>MVPが多かった子</small><b>${mvpTop.length ? mvpTop.map(([id, v]) => `${MON_BY_ID[id].name} ×${v}`).join('<br>') : '―'}</b></div>
+    </div>
+    ${err ? `<div class="lab-err">エラー: ${escapeHtml(err.error)}</div>` : ''}
+    <div class="lab-note">目安: 勝てる想定は80%以上、勝てない想定は20%以下</div>
+  </div>`;
+}
+function labEnemyHtml(part){
+  const st = babelStage(lab.tower, lab.floor, part);
+  return st.waves.map((w, wi) => `<div class="lab-wave"><span class="lab-wl">W${wi + 1}</span>${w.map(e => {
+    const m = MON_BY_ID[e.ref];
+    return `<span class="lab-en ${e.boss ? 'boss' : ''}"><img src="${imgSrc(e.ref)}" alt=""><small>${e.boss ? '👑' : ''}${m.name}</small><i>${ELEM_LABEL[m.element]}・★${e.star}</i></span>`;
+  }).join('')}</div>`).join('');
+}
+function labSlotHtml(p, i){
+  const s = lab.parties[p][i], on = lab.pick && lab.pick.p === p && lab.pick.i === i;
+  const bad = s && !babelAllowed(lab.tower, s.id);
+  return `<button class="lab-slot ${on ? 'on' : ''} ${bad ? 'bad' : ''}" data-lab="pick:${p}:${i}">${s
+    ? `<img src="${imgSrc(s.id)}" alt=""><b>${MON_BY_ID[s.id].name}</b><small>★${s.star}・Lv${s.sk}${s.rune ? `・R${RUNE_ROMAN[s.rune - 1]}` : ''}</small>`
+    : '<span class="lab-plus">+</span><small>空き</small>'}</button>`;
+}
+function labEditorHtml(){
+  if(!lab.pick) return '';
+  const { p, i } = lab.pick, s = lab.parties[p][i];
+  const used = new Set(lab.parties.flatMap((list, pi) => list.map((x, xi) => (x && !(pi === p && xi === i) && (labIsTwo() || pi === 0)) ? x.id : null)).filter(Boolean));
+  const list = MONSTERS.filter(m => (!lab.fEl || m.element === lab.fEl) && (!lab.fRole || m.role === lab.fRole))
+    .sort((a, b) => (babelAllowed(lab.tower, b.id) - babelAllowed(lab.tower, a.id)) || b.rarity - a.rarity || a.id.localeCompare(b.id, 'en', { numeric: true }));
+  const step = (k, label, val) => `<div class="lab-step"><small>${label}</small><button data-lab="adj:${k}:-1">−</button><b>${val}</b><button data-lab="adj:${k}:1">＋</button></div>`;
+  return `<div class="panel lab-editor">
+    <div class="row-between"><div class="mc-head">${labIsTwo() ? (p === 0 ? '前半' : '後半') : ''} ${i + 1}番目</div><button class="btn btn-ghost btn-sm" data-lab="close">閉じる</button></div>
+    ${s ? `<div class="lab-steps">${step('star', '★', s.star)}${step('sk', 'スキルLv', s.sk)}${step('rune', 'ルーンTier', s.rune ? RUNE_ROMAN[s.rune - 1] : 'なし')}
+      <button class="btn btn-ghost btn-sm" data-lab="remove">外す</button></div>` : ''}
+    <div class="lab-filters">${['', ...ELEM_ORDER].map(e => `<button class="lab-chip ${lab.fEl === e ? 'on' : ''}" data-lab="fel:${e}">${e ? ELEM_LABEL[e] : '全属性'}</button>`).join('')}</div>
+    <div class="lab-filters">${['', ...Object.keys(ROLE_LABEL)].map(r => `<button class="lab-chip ${lab.fRole === r ? 'on' : ''}" data-lab="frole:${r}">${r ? ROLE_LABEL[r] : '全ロール'}</button>`).join('')}</div>
+    <div class="lab-grid">${list.map(m => {
+      const ok = babelAllowed(lab.tower, m.id), dup = used.has(m.id);
+      return `<button class="lab-mon ${s && s.id === m.id ? 'on' : ''}" data-lab="set:${m.id}" ${!ok || dup ? 'disabled' : ''} title="${m.name}">
+        <img src="${imgSrc(m.id)}" alt=""><small>${m.name}</small><i>★${m.rarity}</i></button>`;
+    }).join('')}</div>
+  </div>`;
+}
+function renderLab(){
+  const fl = labFloor(), tower = BABEL_TOWERS.find(t => t.key === lab.tower), two = labIsTwo();
+  const st0 = babelStage(lab.tower, lab.floor, 0);
+  const [mob, boss, sk] = BABEL_STRENGTH[lab.floor - 1];
+  const hintText = kind => { const h = fl[kind]; return h ? `${BABEL_GROW[h[0]].name}` : ''; };
+  const parts = two ? [0, 1] : [0];
+  return `<div class="lab">
+    <div class="lab-head"><b>🗼 バベル試験場</b><small>試作。本番のデータは使いません。全モンスターを好きな育ちで試せます(レベルは全員200)。組んだ編成はこの端末にだけ覚えます。</small></div>
+    <div class="lab-tabs">${BABEL_TOWERS.map(t => `<button class="lab-tab ${t.key === lab.tower ? 'on' : ''}" data-lab="tower:${t.key}">${t.name}<small>${t.note}</small></button>`).join('')}</div>
+    <div class="lab-floors">${[...Array(10).keys()].map(i => `<button class="lab-fl ${lab.floor === i + 1 ? 'on' : ''}" data-lab="floor:${i + 1}">${i + 1}${BABEL_FLOORS[lab.tower][i].halves ? '<small>2P</small>' : ''}</button>`).join('')}</div>
+    <div class="panel lab-card">
+      <div class="lab-title">${lab.floor}階「${fl.name}」${two ? '<span class="lab-2p">2パーティ戦・重複なし</span>' : ''}</div>
+      <div class="lab-meta">敵 Lv${BABEL_LV}・雑魚★${mob} / ボス★${boss}・スキルLv${sk}・使える: ${tower.note}</div>
+      ${(fl.rules || []).length ? `<div class="lab-rules">${fl.rules.map(r => `<div>・${r.label}</div>`).join('')}</div>` : '<div class="lab-rules"><div>・ステージ効果なし</div></div>'}
+      ${parts.map(h => `${two ? `<div class="lab-half">${fl.halves[h].label}</div>` : ''}${labEnemyHtml(h)}`).join('')}
+    </div>
+    <div class="lab-hints">
+      <button class="btn btn-sm" data-lab="hint:win">勝てる想定を入れる(${hintText('win')})</button>
+      <button class="btn btn-ghost btn-sm" data-lab="hint:lose">勝てない想定を入れる(${hintText('lose')})</button>
+    </div>
+    <div class="lab-grow"><small>全員の育ちをそろえる:</small>${BABEL_GROW.map(g => `<button class="lab-chip" data-lab="grow:${g.key}">${g.name}</button>`).join('')}
+      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし / 中級=★+2・Lv6・ルーンⅢ / 上級=★+5・Lv10・ルーンⅦ</span></div>
+    ${parts.map(p => `<div class="panel lab-party">
+      <div class="row-between"><div class="mc-head">${two ? (p === 0 ? '前半の編成' : '後半の編成') : '編成'}</div><button class="btn btn-sm" data-lab="watch:${p}">観戦する</button></div>
+      <div class="lab-slots">${[...Array(LAB_PARTY).keys()].map(i => labSlotHtml(p, i)).join('')}</div>
+      ${labProblem(p) && labPartyOf(p).some(Boolean) ? `<div class="lab-err">${labProblem(p)}</div>` : ''}
+    </div>`).join('')}
+    ${labEditorHtml()}
+    <div class="lab-run">
+      <button class="btn" data-lab="sim:20" ${labSimming ? 'disabled' : ''}>20回まわす</button>
+      <button class="btn btn-ghost" data-lab="sim:50" ${labSimming ? 'disabled' : ''}>50回まわす</button>
+    </div>
+    ${labSimHtml()}
+  </div>`;
+}
+function labAction(a){
+  const [cmd, x, y] = a.split(':');
+  if(cmd === 'back'){ labBack(); return; }
+  if(cmd === 'watch'){ labWatch(Number(x) || 0); return; }
+  if(cmd === 'sim'){ labRunSim(Number(x) || 20); return; }
+  if(labSimming) return;
+  if(cmd === 'tower'){ lab.tower = x; lab.pick = null; }
+  else if(cmd === 'floor'){ lab.floor = Number(x); lab.pick = null; }
+  else if(cmd === 'hint') labHint(x);
+  else if(cmd === 'grow') lab.parties = lab.parties.map(list => list.map(s => s ? labSlot(s.id, Number(x)) : null));
+  else if(cmd === 'pick') lab.pick = (lab.pick && lab.pick.p === Number(x) && lab.pick.i === Number(y)) ? null : { p: Number(x), i: Number(y) };
+  else if(cmd === 'close') lab.pick = null;
+  else if(cmd === 'fel') lab.fEl = x || '';
+  else if(cmd === 'frole') lab.fRole = x || '';
+  else if(cmd === 'set' && lab.pick){
+    const cur = lab.parties[lab.pick.p][lab.pick.i];
+    const g = cur ? null : 0;
+    lab.parties[lab.pick.p][lab.pick.i] = cur ? labClamp({ ...cur, id: x }) : labSlot(x, g);
+  }
+  else if(cmd === 'remove' && lab.pick) lab.parties[lab.pick.p][lab.pick.i] = null;
+  else if(cmd === 'adj' && lab.pick){
+    const s = lab.parties[lab.pick.p][lab.pick.i];
+    if(s){ s[x] = (s[x] | 0) + Number(y); labClamp(s); }
+  }
+  labSave();
+  render();
+}
+async function bootLab(){
+  appPhase = 'game';
+  document.body.classList.add('lab-mode');
+  STATE = DEFAULT_STATE();
+  STATE.clearedStages = STAGES.map(s => s.id);
+  STATE.autoUlt = true;
+  STATE.guidesSeen = Object.fromEntries(Object.keys(GUIDE_CONTENT).map(k => [k, true]));
+  MONSTERS.forEach(m => { STATE.owned[m.id] = { star: m.rarity, souls: 0, level: BABEL_LV, skillLv: 1, ultLv: 1, passiveLv: 1 }; });
+  labLoad();
+  buildShell();
+  currentScreen = 'lab';
+  render();
+}
+
 /* ---------------- boot ---------------- */
 
 async function boot(){
   wireGlobalEvents();
+  if(LAB_MODE) return bootLab();   // バベル試験場: アカウントもセーブも使わない
   appPhase = 'boot';
   renderTitle();                       // splash while the saved session is restored
   let acct = null;
