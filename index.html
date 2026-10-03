@@ -4162,6 +4162,7 @@ function ruleHits(r, u, isEnemy){
   if(w.species && u.species !== w.species) return false;
   if(w.element && u.element !== w.element) return false;
   if(w.role && u.role !== w.role) return false;
+  if(w.roles && !w.roles.includes(u.role)) return false;   // いずれかのロール
   if(w.family && u.family !== w.family) return false;
   if(w.ref && u.ref !== w.ref) return false;
   return true;
@@ -16123,9 +16124,9 @@ const BABEL_FLOORS = {
     { name: '静寂の間', boost: { hp: 0.7, str: 0.42 }, rules: [{ side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' }, { side: 'enemy', stat: { hp: 0.5 }, label: '敵 最大HP+50%' }, { side: 'ally', atk: 'mag', dmgDealt: 2.0, label: '味方の魔法攻撃 与ダメージ+200%' }, { side: 'enemy', stat: { pdef: 25 }, label: '敵 物理防御+25' }],
       waves: ['河童・ホーリースライム・ケットシー・ゴースト', 'ウンディーネ・ユニコーン・オルペウス・セルキー', 'ホーリードラゴン・カーバンクル・天狗'],
       win: [1, 'バンシー・アグニ・シームルグ・ブラッドローズ・セイレーン'], lose: [2, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・アラクネ'] },
-    { name: '天の頂', halves: [
-        { label: '前半(全体攻撃)', rules: [{ who: { role: 'support' }, side: 'ally', stat: { hp: 2.5 }, dmgTaken: -0.5, label: 'サポートの味方 最大HP+250%・受けるダメージ-50%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 0.8, label: 'アタッカーの味方 受けるダメージ+80%' }], waves: ['ゼピュロス・アグニ・バンシー・メリュジーヌ', 'バハムート・ヘパイストス・スコル・アイオロス'] },
-        { label: '後半(ボス1体)', rules: [{ who: { role: 'attacker' }, side: 'ally', stat: { str: 2.0 }, label: 'アタッカーの味方 STR+200%' }], waves: ['ノーム・カーバンクル・ブロック', 'タロース'] }],
+    { name: '天の頂', boost: { hp: 0.3, str: 0.18 }, halves: [
+        { label: '前半(全体攻撃)', rules: [{ who: { role: 'support' }, side: 'ally', stat: { hp: 2.5 }, dmgTaken: -0.5, label: 'サポートの味方 最大HP+250%・受けるダメージ-50%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 0.8, label: 'アタッカーの味方 受けるダメージ+80%' }, { who: { role: 'shooter' }, side: 'ally', dmgDealt: 1.0, label: 'シューターの味方 与ダメージ+100%' }], waves: ['ゼピュロス・アグニ・バンシー・メリュジーヌ', 'バハムート・ヘパイストス・スコル・アイオロス'] },
+        { label: '後半(ボス1体)', rules: [{ who: { role: 'attacker' }, side: 'ally', stat: { str: 2.0 }, label: 'アタッカーの味方 STR+200%' }, { who: { roles: ['tank', 'support', 'shooter', 'trickster'] }, side: 'ally', dmgDealt: -0.6, label: 'アタッカー以外の味方 与ダメージ-60%' }], waves: ['ノーム・カーバンクル・ブロック', 'タロース'] }],
       win: [1, { a: 'ブルーウィスプ・セイレーン・シルバーナイト・アグニ・バンシー', b: 'オーガ・サイクロプス・ワイバーン・ペガサス・カーバンクル' }],
       lose: [2, { a: 'オーガ・サイクロプス・ワイバーン・ペガサス・カーバンクル', b: 'ブルーウィスプ・セイレーン・シルバーナイト・アグニ・バンシー' }] },
   ],
