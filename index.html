@@ -786,7 +786,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 }
 /* 中身が変わる画面(持ち物・錬金術・アイテム詳細・スキル強化・モンスター詳細・遺物・ステージ詳細など)は上揃いで固定する。
    真ん中揃えだと中身の高さが変わるたびに上の位置がずれて、押そうとした所が動いてしまうため */
-#modal-layer:has(> .bag-modal, > .item-detail, > .skill-up-modal, > .detail-modal, > .relic-picker-modal, > .relic-upgrade-modal, > .relic-detail-modal, > .rune-picker-modal, > .rune-detail-modal, > .rune-bulk-modal, > .stage-sheet, > .sweep-modal, > .unit-modal){ align-items:flex-start; }
+#modal-layer:has(> .title-list-modal, > .bag-modal, > .item-detail, > .skill-up-modal, > .detail-modal, > .relic-picker-modal, > .relic-upgrade-modal, > .relic-detail-modal, > .rune-picker-modal, > .rune-detail-modal, > .rune-bulk-modal, > .stage-sheet, > .sweep-modal, > .unit-modal){ align-items:flex-start; }
 #modal-layer > .bag-modal{ height:100%; }
 #modal-layer.show{ display:flex; }
 .result-modal{
@@ -2961,6 +2961,31 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gc-ticket{ flex:1; display:flex; align-items:center; justify-content:center; gap:5px; }
 .gc-ticket small{ opacity:.75; font-weight:700; }
 .pf-titles{ display:flex; flex-wrap:wrap; gap:6px; }
+.pf-title-now{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pf-title-now small{ font-size:10.5px; color:var(--dim); }
+.title-list-modal{ text-align:left; }
+.tl-now{ font-size:12px; margin:2px 0 10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.tl-now b{ color:var(--gold); }
+.tl-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+.tl-tab{ flex:1; padding:7px 0; border-radius:10px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+.tl-tab.on{ border-color:var(--gold); color:var(--gold); background:#3a2a1a; }
+.tl-list{ display:flex; flex-direction:column; gap:6px; max-height:60vh; overflow-y:auto; }
+.tl-group{ font-size:11.5px; font-weight:900; color:var(--gold); margin:6px 0 0; display:flex; align-items:center; gap:6px; }
+.tl-live{ font-size:9.5px; padding:1px 6px; border-radius:6px; background:rgba(95,208,192,.18); color:#5fd0c0; }
+.tl-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:11px; border:1px solid var(--line); background:var(--panel2); }
+.tl-row.own{ border-color:rgba(232,180,85,.45); }
+.tl-row.on{ border-color:var(--gold); box-shadow:0 0 10px -5px rgba(232,180,85,.8); }
+.tl-row.ended{ opacity:.45; }
+.tl-row:not(.own) b{ color:var(--dim); }
+.tl-body{ flex:1; min-width:0; }
+.tl-body b{ display:block; font-size:13px; font-weight:900; }
+.tl-body small{ display:block; font-size:10.5px; color:var(--dim); margin-top:1px; }
+.tl-bar{ display:block; height:5px; border-radius:3px; background:rgba(255,255,255,.08); margin-top:5px; overflow:hidden; }
+.tl-bar i{ display:block; height:100%; background:var(--gold); }
+.tl-prog{ font-size:9.5px; color:var(--dim); }
+.tl-side{ flex:none; }
+.tl-on{ font-size:10.5px; font-weight:900; color:var(--gold); }
+.tl-ended, .tl-lock{ font-size:10px; color:var(--dim); }
 .pf-title{ font-size:11px; font-weight:800; padding:5px 9px; border-radius:9px; background:var(--panel2);
   border:1px solid var(--line); color:var(--dim); }
 .pf-title.on{ background:#3a2a1a; border-color:var(--gold); color:var(--gold); }
@@ -9839,9 +9864,59 @@ function clearEndedEventMedals(){
 }
 /* ---------------- 称号 ----------------
    受け取ると STATE.titles に残り、プロフィールで1つだけ名前の上に出せる。
-   イベントの称号はイベントが終わっても消えない(そのとき遊んでいた証) */
+   イベントの称号はイベントが終わっても消えない(そのとき遊んでいた証)。
+   登録はここ1か所(registerTitle)。実績は ACHIEVEMENTS、イベントは EVENT_TITLES から作る。
+   TITLES[key] = { key, name, cat:'achieve'|'event', how:取り方, from:(= how 互換),
+                   progress:() => [いま, 目標] | null, status:() => 'open'|'soon'|'ended' } */
 const TITLES = {};
-function registerTitle(key, name, from){ TITLES[key] = { key, name, from }; }
+const TITLE_CATS = { achieve: '実績', event: 'イベント' };
+function registerTitle(key, name, how, extra){ TITLES[key] = { key, name, how, from: how, cat: 'achieve', status: () => 'open', ...(extra || {}) }; }
+function titleStatus(t){ return t && t.status ? t.status() : 'open'; }
+// 一覧に出す称号: 開催前のイベントの称号は出さない(持っていれば出す)
+function shownTitles(){ return Object.values(TITLES).filter(t => hasTitle(t.key) || titleStatus(t) !== 'soon'); }
+/* ---- 称号一覧(プロフィールから開く) ----
+   持っている称号はタップで付け替え、持っていない称号は取り方と進みぐあい、終わったイベントのものは「もう取れません」 */
+let titleList = null;   // { tab: 'achieve' | 'event' }
+function openTitleList(){ titleList = { tab: titleList ? titleList.tab : 'achieve' }; renderTitleList(); }
+function closeTitleList(){ titleList = null; closeModal(); render(); }
+function titleRowHtml(t){
+  const own = hasTitle(t.key), on = STATE.title === t.key, st = titleStatus(t);
+  const pr = !own && t.progress ? t.progress() : null;
+  const pct = pr ? Math.round(Math.min(1, pr[0] / Math.max(1, pr[1])) * 100) : 0;
+  return `<div class="tl-row ${own ? 'own' : ''} ${on ? 'on' : ''} ${!own && st === 'ended' ? 'ended' : ''}">
+    <div class="tl-body"><b>${t.name}</b><small>${t.how}</small>
+      ${pr && st !== 'ended' ? `<span class="tl-bar"><i style="width:${pct}%"></i></span><span class="tl-prog">${pr[0].toLocaleString()} / ${pr[1].toLocaleString()}</span>` : ''}</div>
+    <div class="tl-side">${own ? (on ? '<span class="tl-on">付けている</span>' : `<button class="btn btn-sm" data-set-title="${t.key}">付ける</button>`)
+      : st === 'ended' ? '<span class="tl-ended">もう取れません</span>' : '<span class="tl-lock">未獲得</span>'}</div>
+  </div>`;
+}
+function renderTitleList(){
+  const tab = titleList.tab;
+  const list = shownTitles().filter(t => t.cat === tab);
+  const order = t => (hasTitle(t.key) ? 0 : titleStatus(t) === 'ended' ? 2 : 1);
+  const body = tab === 'event'
+    ? Object.entries(EVENT_TITLES).map(([evKey, tt]) => {
+        const rows = list.filter(t => t.evKey === evKey);
+        if(!rows.length) return '';
+        const ev = EVENTS.find(e => e.key === evKey);
+        const live = ev && isEventLive(ev);
+        return `<div class="tl-group">${ev ? ev.name : tt.evName}${live ? '<span class="tl-live">開催中</span>' : ''}</div>${rows.map(titleRowHtml).join('')}`;
+      }).join('')
+    : list.slice().sort((a, b) => order(a) - order(b)).map(titleRowHtml).join('');
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal title-list-modal" role="dialog" aria-label="称号一覧">
+      <button class="fs-close" data-close-title-list="1" aria-label="閉じる">×</button>
+      <h3>称号一覧</h3>
+      <div class="tl-now">${equippedTitle() ? `いまの称号: <b>${equippedTitle().name}</b> <button class="btn btn-ghost btn-sm" data-set-title="">外す</button>` : 'いまは称号を付けていません'}</div>
+      <div class="tl-tabs">${Object.entries(TITLE_CATS).map(([k, label]) => {
+        const all = shownTitles().filter(t => t.cat === k);
+        return `<button class="tl-tab ${tab === k ? 'on' : ''}" data-title-tab="${k}" role="tab">${label} ${all.filter(t => hasTitle(t.key)).length}/${all.length}</button>`;
+      }).join('')}</div>
+      <div class="tl-list">${body || '<div class="ui-none">まだありません</div>'}</div>
+    </div>`;
+  layer.classList.add('show');
+}
 function ownedTitles(){ return (STATE.titles || []).filter(k => TITLES[k]); }
 function hasTitle(key){ return (STATE.titles || []).includes(key); }
 function grantTitle(key){
@@ -9857,30 +9932,36 @@ function equipTitle(key){
   render();
 }
 function equippedTitle(){ return hasTitle(STATE.title) ? TITLES[STATE.title] : null; }
-ACHIEVEMENTS.forEach(a => { if(a.title && a.titleName) registerTitle(a.title, a.titleName, '実績'); });
+// 実績の称号: ACH_TITLE_TIER 段目を受け取るともらえる。取り方はその段の目標で書く
+ACHIEVEMENTS.forEach(a => {
+  if(!a.title || !a.titleName) return;
+  const tier = a.tiers[Math.min(ACH_TITLE_TIER, a.tiers.length) - 1];
+  registerTitle(a.title, a.titleName, a.label(tier.goal), { cat: 'achieve', progress: () => [Math.min(a.value(), tier.goal), tier.goal] });
+});
 
 /* ---------------- イベントミッション ----------------
    実績に混ざらない、イベント専用のミッション欄。通常とEXで分ける。
    イベントが終わると進みぐあいは消えるが、受け取った称号は残る */
+// evName はイベントがコード(EVENTS)から消えたあとも称号の説明に名前を出すため
 const EVENT_TITLES = {
-  ev_fenrir:  { deep:'神狼を狩る者', star:'嵐を継ぐ者',   ex:'黄昏を超えし者' },
-  ev_abaddon: { deep:'奈落に立つ者', star:'深淵を覗く者', ex:'底なしを踏破せし者' },
-  // α0.2.009 で一度しまった2つ。EXを足して開催し直すので、もう一度取れるように戻した
-  // (EXの称号はEXが無かったころには誰も取れていない)
-  ev_kyubi:   { deep:'狐火を鎮めし者', star:'紅蓮を統べる者', ex:'宴を制せし者' },
-  ev_titan:   { deep:'巨神を砕く者',   star:'黄金を掘る者',   ex:'試練を越えし者' },
+  ev_fenrir:  { evName:'嵐呼ぶ神狼', deep:'神狼を狩る者', star:'嵐を継ぐ者',   ex:'黄昏を超えし者' },
+  ev_abaddon: { evName:'奈落の王',   deep:'奈落に立つ者', star:'深淵を覗く者', ex:'底なしを踏破せし者' },
+  ev_kyubi:   { evName:'紅蓮の九尾', deep:'狐火を鎮めし者', star:'紅蓮を統べる者', ex:'宴を制せし者' },
+  ev_titan:   { evName:'黄金の巨神', deep:'巨神を砕く者',   star:'黄金を掘る者',   ex:'試練を越えし者' },
 };
-/* 称号の名前と説明。EVENT_TITLES に戻したぶんもここで登録しておく
-   (受け取った人のプロフィールから名前が消えないように) */
-const RETIRED_TITLES = {
-  ti_ev_kyubi_deep: ['狐火を鎮めし者', '「紅蓮の九尾」ステージ10クリア'],
-  ti_ev_kyubi_star: ['紅蓮を統べる者', '「紅蓮の九尾」★30個獲得'],
-  ti_ev_kyubi_ex:   ['宴を制せし者',   '「紅蓮の九尾」EX3クリア'],
-  ti_ev_titan_deep: ['巨神を砕く者',   '「黄金の巨神」ステージ10クリア'],
-  ti_ev_titan_star: ['黄金を掘る者',   '「黄金の巨神」★30個獲得'],
-  ti_ev_titan_ex:   ['試練を越えし者', '「黄金の巨神」EX3クリア'],
-};
-Object.entries(RETIRED_TITLES).forEach(([k, [name, from]]) => registerTitle(k, name, from));
+// イベントの称号。イベントが開催前なら一覧に出さない('soon')、終わったら「もう取れません」('ended')
+function registerEventTitles(){
+  Object.entries(EVENT_TITLES).forEach(([evKey, tt]) => {
+    const ev = EVENTS.find(e => e.key === evKey);
+    const nm = ev ? ev.name : tt.evName;
+    const deep = ev ? ev.tiers.length : 10;
+    const status = () => !ev || Date.now() > new Date(ev.endAt).getTime() ? 'ended' : Date.now() < new Date(ev.startAt).getTime() ? 'soon' : 'open';
+    const x = (prog) => ({ cat: 'event', status, progress: ev ? prog : null, evKey });
+    registerTitle(evTitleKey(evKey, 'deep'), tt.deep, `「${nm}」ステージ${deep}をクリアする`, x(() => [evTierCleared(ev, deep) ? 1 : 0, 1]));
+    registerTitle(evTitleKey(evKey, 'star'), tt.star, `「${nm}」で★を30個獲得する`, x(() => [Math.min(30, evStarsGot(ev)), 30]));
+    registerTitle(evTitleKey(evKey, 'ex'),   tt.ex,   `「${nm}」EX3を★3でクリアする`, x(() => [stageStars(`${evKey}_ex3`) >= 3 ? 1 : 0, 1]));
+  });
+}
 function evTitleKey(evKey, slot){ return `ti_${evKey}_${slot}`; }
 function evMissionState(evKey){
   if(!STATE.evMission) STATE.evMission = {};
@@ -10109,13 +10190,8 @@ EVENTS.forEach(ev => {
   ev.exStages.forEach(st => { STAGES.push(st); STAGE_BY_ID[st.id] = st; });
   // ★の集めぐあいとクリア回数はイベントミッション(eventMissions)で受け取る。
   // 実績に混ぜると「イベント中に何をすればいいか」が見えなくなるので、専用の欄に移した
-  const tt = EVENT_TITLES[ev.key];
-  if(tt){
-    registerTitle(evTitleKey(ev.key, 'deep'), tt.deep, `「${ev.name}」ステージ${ev.tiers.length}クリア`);
-    registerTitle(evTitleKey(ev.key, 'star'), tt.star, `「${ev.name}」★30個獲得`);
-    registerTitle(evTitleKey(ev.key, 'ex'),   tt.ex,   `「${ev.name}」EX3クリア`);
-  }
 });
+registerEventTitles();
 
 
 /* ---------------- 深淵回廊(無限ダンジョン) ----------------
@@ -20487,8 +20563,14 @@ function handlePhoneClick(ev){
   const evtEl = t.closest('[data-event-tier]');
   if(evtEl){ eventKey = evtEl.dataset.eventTier; eventView = 'menu'; render(); return; }
   if(t.closest('[data-stamina-refill]')){ buyStaminaRefill(); return; }
+  if(t.closest('[data-open-titles]')){ openTitleList(); playSfx('open'); return; }
+  if(titleList){
+    if(t.closest('[data-close-title-list]')){ closeTitleList(); return; }
+    const ttab = t.closest('[data-title-tab]');
+    if(ttab){ titleList.tab = ttab.dataset.titleTab; renderTitleList(); return; }
+  }
   const titleEl = t.closest('[data-set-title]');
-  if(titleEl){ equipTitle(titleEl.dataset.setTitle || null); return; }
+  if(titleEl){ equipTitle(titleEl.dataset.setTitle || null); if(titleList) renderTitleList(); return; }
   const evViewEl = t.closest('[data-event-view]');
   if(evViewEl){ const v = evViewEl.dataset.eventView; if(v){ eventView = v; render(); window.scrollTo(0, 0); } return; }
   const evShopGoto = t.closest('[data-ev-shop-goto]');
@@ -21178,11 +21260,6 @@ function profileAvatar(){
   return (p.avatar && STATE.owned[p.avatar]) ? p.avatar : (STATE.slots.find(id => id && id !== HELP_SLOT_ID) || Object.keys(STATE.owned)[0] || null);
 }
 // 称号: 受け取り済みの実績から
-function earnedTitles(){
-  const claimed = STATE.achievements || {};
-  return ACHIEVEMENTS.filter(a => (claimed[a.id] || 0) > 0)
-    .map(a => a.label(a.tiers[Math.min(claimed[a.id], a.tiers.length) - 1].goal));
-}
 
 function openOverlay(view){
   overlayView = view;
@@ -21299,16 +21376,8 @@ function renderProfileOverlay(){
             <div class="mc-head">称号</div>
             <div class="mc-reset">名前の上に1つだけ出せます</div>
           </div>
-          ${ownedTitles().length ? `
-            <div class="pf-titles">
-              <button class="pf-title pick ${STATE.title ? '' : 'on'}" data-set-title="">なし</button>
-              ${ownedTitles().map(k => `<button class="pf-title pick ${STATE.title === k ? 'on' : ''}" data-set-title="${k}" title="${TITLES[k].from}">${TITLES[k].name}</button>`).join('')}
-            </div>
-            <div class="ui-none" style="margin-top:7px;">${ownedTitles().map(k => `${TITLES[k].name}… ${TITLES[k].from}`).join(' / ')}</div>
-          ` : '<div class="ui-none">イベントのミッションなどで称号が手に入ります</div>'}
-          ${earnedTitles().length ? `
-            <div class="mc-head" style="margin:13px 0 7px;">実績</div>
-            <div class="pf-titles">${earnedTitles().map(x => `<span class="pf-title">${x}</span>`).join('')}</div>` : ''}
+          <div class="pf-title-now">${equippedTitle() ? `<span class="pf-title on">${equippedTitle().name}</span><small>${equippedTitle().how}</small>` : '<span class="ui-none">いまは称号を付けていません</span>'}</div>
+          <button class="btn btn-ghost btn-block btn-sm" data-open-titles="1" style="margin-top:8px;">称号一覧(${ownedTitles().length} / ${shownTitles().length})・付け替え</button>
         </div>
 
         <div class="ov-links">
