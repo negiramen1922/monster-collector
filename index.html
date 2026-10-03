@@ -16117,7 +16117,7 @@ const BABEL_FLOORS = {
     { name: '毒の霧', boost: { hp: -0.4, str: -0.24 }, rules: [{ side: 'enemy', stat: { hp: 1.0 }, label: '敵 最大HP+100%' }, { side: 'ally', dmgDealt: 1.5, whenTarget: 'poisoned', label: '味方 毒状態の敵へ 与ダメージ+150%' }],
       waves: ['トレント・モスボア・スカラベ', 'エルダートレント・コカトリス・ゴブリンシャーマン・ノッカー', 'グリーンマン・アヌビス・ガーゴイル'],
       win: [1, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・アラクネ'], lose: [2, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・ブルーウィスプ'] },
-    { name: '守りの陣', rules: [{ side: 'enemy', stat: { str: 0.8 }, label: '敵 STR+80%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.8, stat: { hp: 1.0 }, label: 'タンクの味方 受けるダメージ-80%・最大HP+100%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 0.8, label: 'アタッカーの味方 受けるダメージ+80%' }],
+    { name: '守りの陣', boost: { hp: -0.2, str: -0.12 }, rules: [{ side: 'enemy', stat: { str: 0.8 }, label: '敵 STR+80%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.8, stat: { hp: 1.0 }, label: 'タンクの味方 受けるダメージ-80%・最大HP+100%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 0.8, label: 'アタッカーの味方 受けるダメージ+80%' }],
       waves: ['カマイタチ・ブラックウルフ・リザードマン', 'ワーウルフ・ドラウグル・ケルベロス', '死神・ハルピュイア・クラーケン'],
       win: [1, 'シルバーナイト・イエティ・エルダートレント・ブルーウィスプ・セイレーン'], lose: [2, 'グリズリー・オーガ・サイクロプス・スカーボア・ヘルハウンド'] },
     { name: '静寂の間', boost: { hp: 0.7, str: 0.42 }, rules: [{ side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' }, { side: 'enemy', stat: { hp: 0.5 }, label: '敵 最大HP+50%' }, { side: 'ally', atk: 'mag', dmgDealt: 2.0, label: '味方の魔法攻撃 与ダメージ+200%' }, { side: 'enemy', stat: { pdef: 25 }, label: '敵 物理防御+25' }],
@@ -16136,7 +16136,7 @@ const BABEL_FLOORS = {
     { name: '岩の谷', boost: { hp: 0.8, str: 0.48 }, rules: [bbElem('wind', 'dmgDealt', 1.0, '風属性の味方 与ダメージ+100%')],
       waves: ['コボルト・マッドモール・ノッカー', 'オーク・ジャッカロープ・ヒルジャイアント・アルヴィス', 'ミノタウロス・デススコーピオン・ロックゴーレム'],
       win: [0, 'ペガサス・ワイバーン・ゼピュロス・シームルグ・天狗'], lose: [1, '雷獣・サイクロプス・ダークメカロイド・ツインヘッドベア・エオス'] },
-    { name: '影の洞', rules: [bbElem('light', 'stat', { hp: 2.0, str: 1.5 }, '光属性の味方 最大HP+200%・STR+150%'), { side: 'enemy', dmgTaken: -0.7, fromElemNot: 'light', label: '敵 光属性以外から受けるダメージ-70%' }],
+    { name: '影の洞', boost: { hp: 0.9, str: 0.54 }, rules: [bbElem('light', 'stat', { hp: 2.0, str: 1.5 }, '光属性の味方 最大HP+200%・STR+150%'), { side: 'enemy', dmgTaken: -0.7, fromElemNot: 'light', label: '敵 光属性以外から受けるダメージ-70%' }],
       waves: ['スケルトン弓兵・スケルトン戦士・ゾンビ', 'ヴェノムスライム・ジャイアントスパイダー・猫又・マミー', 'ワーウルフ・スカーボア・サキュバス'],
       win: [0, 'エオス・ファラオ・ムーンラビット・シルバーナイト・ケンタウロス'], lose: [1, 'ヘルハウンド・キマイラ・ボルケイノタートル・スルト・ケルベロス'] },
     { name: '水の神殿', boost: { hp: 1.5, str: 0.9 }, rules: [bbElem('none', 'stat', { str: 1.0, hp: 0.5 }, '無属性の味方 STR+100%・最大HP+50%')],
@@ -16156,7 +16156,7 @@ const BABEL_FLOORS = {
     { name: '嵐の回廊', rules: [{ who: { role: 'support' }, side: 'ally', stat: { hp: 2.5 }, dmgTaken: -0.5, label: 'サポートの味方 最大HP+250%・受けるダメージ-50%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 1.5, label: 'アタッカーの味方 受けるダメージ+150%' }],
       waves: ['ヴェノムスライム・マーメイド・ゴブリン弓兵・マッドモール', 'バンシー・メリュジーヌ・ドリュアス・のっぺらぼう', 'シースライム・黙示のアルベ・ゲヘナの騎士'],
       win: [1, 'ファラオ・ムーンラビット・シームルグ・シルバーナイト・マグマゴーレム'], lose: [2, 'ヘルハウンド・キマイラ・ペガサス・ワイバーン・雷獣'] },
-    { name: '鉄の壁', rules: [{ side: 'enemy', stat: { pdef: 35 }, label: '敵 物理防御+35' }, { who: { role: 'shooter' }, side: 'ally', dmgDealt: 3.0, label: 'シューターの味方 与ダメージ+300%' }],
+    { name: '鉄の壁', boost: { hp: 0.5, str: 0.3 }, rules: [{ side: 'enemy', stat: { pdef: 35 }, label: '敵 物理防御+35' }, { who: { role: 'shooter' }, side: 'ally', dmgDealt: 3.0, label: 'シューターの味方 与ダメージ+300%' }],
       waves: ['アクアスライム・ヒルジャイアント・モスボア', 'ロックゴーレム・土蜘蛛・イエティ・ガーゴイル', 'ブロック・ユミル・アヌビス'],
       win: [1, 'ケンタウロス・アグニ・ダークメカロイド・サラマンダー・ハティ'], lose: [2, 'グリズリー・オーガ・サイクロプス・ヘルハウンド・ペガサス'] },
     { name: '陽の頂', boost: { hp: 0.1, str: 0.06 }, halves: [
@@ -16186,7 +16186,7 @@ const BABEL_FLOORS = {
     { name: '長い戦い', rules: [{ side: 'enemy', stat: { hp: 1.5 }, label: '敵 最大HP+150%' }, { side: 'ally', dmgDealt: 3.0, whenTarget: 'poisoned', label: '味方 毒状態の敵へ 与ダメージ+300%' }, { side: 'enemy', dmgTaken: -0.6, when: 'unpoisoned', label: '敵 毒状態でないあいだ 受けるダメージ-60%' }],
       waves: ['マグマスライム・セラミックゴーレム・アイアンスライム', 'マグマゴーレム・シルバーナイト・オークジェネラル', '牛鬼・ミスリルゴーレム・カーバンクル'],
       win: [1, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・メデューサ'], lose: [2, 'スカーボア・レッドキャップ・デュラハン・クラーケン・ミノタウロス'] },
-    { name: '呪いの淵', rules: [{ side: 'both', dmgTaken: 0.5, when: 'lowHp30', label: '敵も味方も HPが30%以下のとき 受けるダメージ+50%' }, bbElem('dark', 'dmgTaken', -0.7, '闇属性の味方 受けるダメージ-70%'), bbElem('dark', 'stat', { str: 1.0 }, '闇属性の味方 STR+100%')],
+    { name: '呪いの淵', boost: { hp: 1.8, str: 1.08 }, rules: [{ side: 'both', dmgTaken: 0.5, when: 'lowHp30', label: '敵も味方も HPが30%以下のとき 受けるダメージ+50%' }, bbElem('dark', 'dmgTaken', -0.7, '闇属性の味方 受けるダメージ-70%'), bbElem('dark', 'stat', { str: 1.0 }, '闇属性の味方 STR+100%')],
       waves: ['フレイムリザード・ストームホーク・ホーンラビット', 'スルト・グリズリー・オーガ', '雷電・ケルベロス・ハルピュイア'],
       win: [1, 'スカーボア・デュラハン・アヌビス・セイレーン・ドリュアス'], lose: [2, 'デススコーピオン・ミノタウロス・クラーケン・アラクネ・マンイーター'] },
     { name: '先手の間', boost: { hp: 1.9, str: 1.14 }, rules: [{ side: 'enemy', stat: { spd: 0.5 }, label: '敵 SPD+50%' }, bbElem('water', 'dmgTaken', -0.6, '水属性の味方 受けるダメージ-60%')],
@@ -18460,7 +18460,7 @@ function absorbShields(u, dmg, attacker, byAttack){
     if(sh.amt <= 0 && byAttack && attacker && attacker.alive && sh.caster && sh.caster.passive.reflectOnBreak){
       const r = Math.round(take * pv(sh.caster, sh.caster.passive.reflectOnBreak));
       const got = magicFixed(attacker, r);
-      hitHp(attacker, got, sh.caster, { direct: false });
+      hitHp(attacker, got, sh.caster, { direct: false, reflected: true });
       pushFx(attacker, got, 'hit', { fx: 'strike' });
       logLine(`${nm(sh.caster)} の宝石の反射! ${nm(attacker)} に ${got} ダメージ`, 'skill');
     }
@@ -18618,7 +18618,7 @@ function selectAllies(actor, tgt, buffKey){
 
 function hitHp(u, dmg, source, opts){
   const o = opts || {};
-  let left = o.direct ? dmg : absorbShields(u, dmg, source, !o.dot);
+  let left = o.direct ? dmg : absorbShields(u, dmg, source, !o.dot && !o.reflected);   // 反射のダメージで、また反射しない(カーバンクルどうしで止まらなくなる)
   if(left > 0){
     if(u.hp - left <= 0 && runPassive(u, 'survive')){ left = u.hp - 1; }
     u.hp = Math.max(0, u.hp - left);
