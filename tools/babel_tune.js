@@ -12,7 +12,7 @@ B.labLoad();
 const STR = +(process.env.STR || 0.6);
 function rate(f, kind, x, n){
   const fl = B.BABEL_FLOORS[tower][f - 1];
-  fl.boost = { hp: x, str: x * STR };
+  fl.boost = { hp: x, str: +(x * STR).toFixed(2) };
   B.lab.tower = tower; B.lab.floor = f; B.labHint(kind);
   let w = 0;
   for(let k = 0; k < n; k++){
