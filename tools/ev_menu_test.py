@@ -86,8 +86,11 @@ async def main():
 
             # 称号: プロフィールで選べる
             await pg.evaluate("() => openOverlay('profile')"); await pg.wait_for_timeout(500)
-            c = await pg.locator('[data-set-title]').count()
-            check('プロフィールで称号を選べる(なし＋3つ)', c == 4, c)
+            # α0.4.003〜: 称号はプロフィールの「称号・フレームを見る」の一覧で付け替える(持っている3つに「付ける/付けている」)
+            await pg.evaluate("() => { openTitleList(); titleList.tab = 'event'; renderTitleList(); }"); await pg.wait_for_timeout(200)
+            c = await pg.locator('.tl-row.own').count()
+            check('称号一覧で、手に入れた3つを付け替えられる', c == 3, c)
+            await pg.evaluate("() => closeTitleList()"); await pg.wait_for_timeout(200)
             check('名前の上に称号が出る', await pg.locator('.pf-name-title').count() == 1)
             await pg.screenshot(path=str(OUT / 'ev_title.png'))
 

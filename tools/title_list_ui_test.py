@@ -33,7 +33,7 @@ async def main():
             await pg.evaluate("""() => { grantTitle('ti_ev_kyubi_deep'); grantTitle('ach_x_login'); STATE.title = 'ti_ev_kyubi_deep'; saveState(); openOverlay('profile'); }""")
             await pg.wait_for_timeout(400)
             txt = await pg.evaluate("() => (document.querySelector('[data-open-titles]') || {}).textContent || ''")
-            check('プロフィールに「称号一覧(持っている/全部)」のボタン', '称号一覧(2 /' in txt, txt)
+            check('プロフィールに「称号(持っている/全部)・フレーム」のボタン', '称号(2/' in txt and 'フレーム(' in txt, txt)
             await pg.click('[data-open-titles]'); await pg.wait_for_timeout(300)
             r = await pg.evaluate("() => ({ rows: document.querySelectorAll('.tl-row').length, own: document.querySelectorAll('.tl-row.own').length, prog: document.querySelectorAll('.tl-row .tl-bar').length, tabs: [...document.querySelectorAll('.tl-tab')].map(x => x.textContent) })")
             check('実績タブ: 持っている称号と、持っていない称号(進みぐあいつき)が並ぶ', r['rows'] >= 16 and r['own'] == 1 and r['prog'] >= 10, r)
@@ -50,6 +50,22 @@ async def main():
             await pg.screenshot(path=str(OUT / 'title_list_event.png'))
             await pg.click('[data-close-title-list]'); await pg.wait_for_timeout(200)
             check('閉じるとプロフィールに戻り、いまの称号が出ている', await pg.locator('.pf-title-now .pf-title.on').count() == 1)
+            # フレーム: 条件を満たすと自動でもらえて、フレームのタブで付け替え
+            await pg.evaluate("() => { STATE.stageStars['ev_kyubi_ex3'] = 3; openTitleList(); titleList.tab = 'frame'; renderTitleList(); }")
+            await pg.wait_for_timeout(200)
+            r = await pg.evaluate("() => ({ got: STATE.frames || [], rows: document.querySelectorAll('.tl-row').length, own: document.querySelectorAll('.tl-row.own').length, n: Object.keys(FRAMES).length })")
+            check('EX3を★3にすると、そのイベントのフレームが自動でもらえる', 'fr_ev_kyubi' in r['got'] and r['own'] >= 1, r)
+            check('フレームは12種類で、タブに全部並ぶ', r['n'] == 12 and r['rows'] == 12, r)
+            await pg.click('[data-set-frame="fr_ev_kyubi"]'); await pg.wait_for_timeout(300)
+            r = await pg.evaluate("() => ({ frame: STATE.frame, top: document.querySelector('.tb-avatar').className })")
+            check('付けると上のバーのアイコンにも枠が付く', r['frame'] == 'fr_ev_kyubi' and 'fr-kyubi' in r['top'], r)
+            await pg.screenshot(path=str(OUT / 'title_frames.png'))
+            await pg.click('[data-close-title-list]'); await pg.wait_for_timeout(200)
+            check('プロフィールのアイコンにも枠が付く', await pg.locator('.pf-avatar.fr-kyubi').count() == 1)
+            await pg.screenshot(path=str(OUT / 'title_profile.png'))
+            pubf = await pg.evaluate("() => { const c = JSON.parse(localStorage.getItem('__mockCloud') || '{}'); const me = ACCOUNT && c.players && c.players[ACCOUNT.uid]; return me ? me.frame : null; }")
+            check('公開プロフィールにフレームが載る', pubf == 'fr_ev_kyubi', pubf)
+            check('知らないフレームは使わない', await pg.evaluate("() => sanitizeFrame('fr_zzz') === '' && sanitizeFrame(3) === '' && sanitizeFrame('fr_gold') === 'fr_gold'"))
             # 他の人に見せる: 公開プロフィールに称号が載る
             await pg.evaluate("() => { closeOverlay && closeOverlay(); equipTitle('ti_ev_kyubi_deep'); }")
             await pg.wait_for_timeout(600)
@@ -59,14 +75,14 @@ async def main():
             check('相手の称号: 知っている称号はこちらの名前、知らない称号は20文字まで、変な値は空', r['known'] == 'いつもの顔' and len(r['unknown']) == 20 and r['bad'] == '', r)
             r = await pg.evaluate("""() => {
               const be = authBackend(); be.lookupPlayer = be.lookupPlayer || (async () => null); be.fetchPvpOpponents = be.fetchPvpOpponents || (async () => []);   // モックにはフレンド・PVPが無いので仮に足す
-              STATE.friends = [{ uid: 'f1', playerId: 'P1', name: 'アリス', level: 12, support: null, avatar: null, title: '狐火を鎮めし者', bio: '', lastActive: Date.now() }];
+              STATE.friends = [{ uid: 'f1', playerId: 'P1', name: 'アリス', level: 12, support: null, avatar: null, title: '狐火を鎮めし者', frame: 'fr_gold', bio: '', lastActive: Date.now() }];
               openOverlay('friends'); render();
               const row = document.querySelector('[data-view-friend="f1"]');
-              const inList = row ? row.textContent.includes('狐火を鎮めし者') : false;
+              const inList = row ? row.textContent.includes('狐火を鎮めし者') && !!row.querySelector('.fc-ic.fr-gold') : false;
               friendProfileUid = 'f1'; overlayView = 'friend-profile'; render();
-              const inProfile = !!document.querySelector('.pf-name-title') && document.querySelector('.pf-name-title').textContent === '狐火を鎮めし者';
+              const inProfile = !!document.querySelector('.pf-name-title') && document.querySelector('.pf-name-title').textContent === '狐火を鎮めし者' && !!document.querySelector('.pf-avatar.fr-gold');
               return { inList, inProfile }; }""")
-            check('フレンド一覧とフレンドのプロフィールに相手の称号が出る', r['inList'] and r['inProfile'], r)
+            check('フレンド一覧とフレンドのプロフィールに相手の称号・フレームが出る', r['inList'] and r['inProfile'], r)
             await pg.screenshot(path=str(OUT / 'title_friend.png'))
             r = await pg.evaluate("""() => { closeOverlay && closeOverlay();
               pvpOpponents = [{ uid: 'o1', name: '<b>悪い名前</b>', title: '試練を越えし者', level: 30, defense: { slots: ['m54', null, null, null, null] } }];
