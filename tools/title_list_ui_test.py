@@ -43,7 +43,7 @@ async def main():
             await pg.click('[data-open-titles]'); await pg.wait_for_timeout(300)
             r = await pg.evaluate("() => ({ rows: document.querySelectorAll('.tl-row').length, own: document.querySelectorAll('.tl-row.own').length, prog: document.querySelectorAll('.tl-row .tl-bar').length, groups: document.querySelectorAll('.tl-group').length, preview: document.getElementById('tc-preview').textContent })")
             check('実績タブ: 実績ごとに3段のパーツが並ぶ(持っていないものは進みぐあいつき)', r['rows'] == 59 and r['own'] == 3 and r['groups'] == 20 and r['prog'] >= 40, r)
-            check('上の欄にいまの称号が出る', r['preview'] == '狐火を鎮めし者', r)
+            check('上の欄にいまの称号が出る', r['preview'] == '狐火鎮め', r)
             # 組み立て: 前に「新人」、後ろに「テイマー」、間に「の」
             await pg.click('[data-title-part="a:tp_base_new"]'); await pg.wait_for_timeout(150)
             await pg.click('[data-title-part="b:tp_base_tamer"]'); await pg.wait_for_timeout(150)
@@ -72,7 +72,7 @@ async def main():
             await pg.screenshot(path=str(OUT / 'title_list_event.png'))
             await pg.click('[data-close-title-list]'); await pg.wait_for_timeout(200)
             r = await pg.evaluate("() => ({ now: (document.querySelector('.pf-title-now .pf-title.on') || {}).textContent, top: (document.querySelector('.pf-name-title') || {}).textContent })")
-            check('閉じるとプロフィールに戻り、組み立てた称号が名前の上にも出ている', r['now'] == '狐火を鎮めし者の星刻見習い' and r['top'] == r['now'], r)
+            check('閉じるとプロフィールに戻り、組み立てた称号が名前の上にも出ている', r['now'] == '狐火鎮めの星刻見習い' and r['top'] == r['now'], r)
             # フレーム: 条件を満たすと自動でもらえて、フレームのタブで付け替え
             await pg.evaluate("() => { STATE.stageStars['ev_kyubi_ex3'] = 3; openTitleList(); titleList.tab = 'frame'; renderTitleList(); }")
             await pg.wait_for_timeout(200)
@@ -101,11 +101,11 @@ async def main():
             await pg.evaluate("() => { closeOverlay && closeOverlay(); STATE.titleParts.sep = '☆'; setTitlePart('a', 'tp_base_new'); setTitlePart('b', 'ti_ev_kyubi_deep'); }")
             await pg.wait_for_timeout(600)
             pub = await pg.evaluate("() => { const c = JSON.parse(localStorage.getItem('__mockCloud') || '{}'); const me = ACCOUNT && c.players && c.players[ACCOUNT.uid]; return me ? me.title : 'no-account'; }")
-            check('称号を組み替えると、公開プロフィールにパーツ2つと間の文字が載る', isinstance(pub, dict) and pub.get('key') == 'tp_base_new' and pub.get('key2') == 'ti_ev_kyubi_deep' and pub.get('sep') == '☆' and pub.get('name') == '新人☆狐火を鎮めし者', pub)
+            check('称号を組み替えると、公開プロフィールにパーツ2つと間の文字が載る', isinstance(pub, dict) and pub.get('key') == 'tp_base_new' and pub.get('key2') == 'ti_ev_kyubi_deep' and pub.get('sep') == '☆' and pub.get('name') == '新人☆狐火鎮め', pub)
             r = await pg.evaluate("""() => ({ known: sanitizeTitle({ key: 'tp_x_login_1', key2: 'tp_base_tamer', sep: 'の\\u200bあ', name: 'ちがう名前' }), one: sanitizeTitle({ key: 'tp_x_login_1', name: 'ちがう' }),
               unknown: sanitizeTitle({ key: 'zzz', name: 'あたらしい称号のながいなまえあいうえおかきくけこ' }), half: sanitizeTitle({ key: 'tp_base_new', key2: 'zzz', name: '新人ふしぎ' }), bad: sanitizeTitle('x') })""")
             check('相手の称号: 知っているパーツはこちらの名前で組み直し(間は1文字)、知らないものは20文字まで、変な値は空',
-                  r['known'] == 'いつもの顔のテイマー' and r['one'] == 'いつもの顔' and len(r['unknown']) == 20 and r['half'] == '新人ふしぎ' and r['bad'] == '', r)
+                  r['known'] == '顔なじみのテイマー' and r['one'] == '顔なじみ' and len(r['unknown']) == 20 and r['half'] == '新人ふしぎ' and r['bad'] == '', r)
             # 前の版からの引っ越し: 実績の称号は受け取った段のパーツに置き換わり、付けていた称号は前に置かれる
             r = await pg.evaluate("""() => { const keep = JSON.stringify(STATE);
               STATE.titleV = 0; STATE.achievements = { x_promote: 3, x_runetier: 4, x_login: 4 }; STATE.titles = ['ach_x_promote', 'ach_x_login', 'ti_ev_kyubi_deep']; STATE.title = 'ach_x_login';
