@@ -63,5 +63,6 @@ const g = E.COMPENSATION_GIFTS.find(x => x.id === 'econ_review_2026_10');
 ok('補填: 星結晶3,000・無形のソウル300・霊素核TierI 30', g && cr(g.reward) === 3000 && g.reward.some(r => r.type === 'universal' && r.n === 300) && g.reward.some(r => r.key === 'relic_core_1' && r.n === 30));
 // ④ 実績
 const ach = E.ACHIEVEMENTS.reduce((a, x) => a + x.tiers.reduce((b, t) => b + cr(t.reward), 0), 0);
-ok('実績は19,610石(総力戦・封印戦・バベルの3,940は未実装)', ach === 19610, ach);
+// α0.4.005: 星刻の段を1つ増やし(+300)、遺物のLv300の段を外した(-400)ので 19,610 → 19,510
+ok('実績は19,510石(総力戦・封印戦・バベルの3,940は未実装)', ach === 19510, ach);
 console.log(bad ? `${bad}件 失敗` : 'すべて通過');
