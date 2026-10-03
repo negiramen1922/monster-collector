@@ -2966,10 +2966,27 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .title-list-modal{ text-align:left; }
 .tl-now{ font-size:12px; margin:2px 0 10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .tl-now b{ color:var(--gold); }
+.tc-box{ border:1px solid rgba(232,180,85,.45); background:linear-gradient(180deg, #2e2340, var(--panel2)); border-radius:13px; padding:10px; margin:2px 0 10px; }
+.tc-preview-wrap{ text-align:center; margin-bottom:8px; }
+.tc-preview-wrap small{ display:block; font-size:10px; color:var(--dim); }
+.tc-preview{ font-size:16px; font-weight:900; color:var(--gold); letter-spacing:.04em; min-height:22px; word-break:break-all; }
+.tc-slots{ display:flex; gap:6px; align-items:stretch; }
+.tc-slot{ flex:1; min-width:0; padding:6px 4px; border-radius:10px; border:1px dashed var(--line); background:rgba(0,0,0,.18); color:var(--dim); font-family:inherit; cursor:pointer; }
+.tc-slot.set{ border-style:solid; border-color:var(--gold); color:var(--text); }
+.tc-slot small, .tc-sep small{ display:block; font-size:9.5px; color:var(--dim); }
+.tc-slot b{ display:block; font-size:12px; font-weight:900; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tc-sep{ flex:none; width:64px; text-align:center; }
+.tc-sep input{ width:100%; box-sizing:border-box; margin-top:2px; padding:5px 0; text-align:center; font-family:inherit; font-size:15px; font-weight:900; color:var(--gold); background:rgba(0,0,0,.25); border:1px solid var(--line); border-radius:9px; }
+.tc-sep input:focus{ outline:none; border-color:var(--gold); }
+.tc-acts{ display:flex; gap:6px; justify-content:center; margin-top:8px; }
+.tc-note{ font-size:10px; color:var(--dim); text-align:center; margin-top:6px; }
+.tl-put{ display:flex; gap:4px; }
+.tl-pb{ width:34px; padding:6px 0; border-radius:9px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-family:inherit; font-size:11.5px; font-weight:900; cursor:pointer; }
+.tl-pb.on{ border-color:var(--gold); background:#3a2a1a; color:var(--gold); }
 .tl-tabs{ display:flex; gap:6px; margin-bottom:10px; }
 .tl-tab{ flex:1; padding:7px 0; border-radius:10px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; }
 .tl-tab.on{ border-color:var(--gold); color:var(--gold); background:#3a2a1a; }
-.tl-list{ display:flex; flex-direction:column; gap:6px; max-height:60vh; overflow-y:auto; }
+.tl-list{ display:flex; flex-direction:column; gap:6px; max-height:46vh; overflow-y:auto; }
 .tl-group{ font-size:11.5px; font-weight:900; color:var(--gold); margin:6px 0 0; display:flex; align-items:center; gap:6px; }
 .tl-live{ font-size:9.5px; padding:1px 6px; border-radius:6px; background:rgba(95,208,192,.18); color:#5fd0c0; }
 .tl-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:11px; border:1px solid var(--line); background:var(--panel2); }
@@ -2998,6 +3015,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .fr-star{ --f1:#fff6c8; --f2:#e8b455; }
 .fr-sky{ --f1:#7fc8ff; --f2:#1f4f80; }
 .fr-abyss{ --f1:#8a5cff; --f2:#1a0f3a; }
+.fr-plat{ --f1:#d6f2ff; --f2:#5a86a8; box-shadow:0 0 0 2.5px var(--f1), 0 0 0 4.5px var(--f2), 0 0 12px 2px #9fdcff; }
+.fr-crimson{ --f1:#ff4a5a; --f2:#4a0a14; }
+.fr-orn{ position:absolute; width:40%; height:40%; z-index:2; pointer-events:none; filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.8)); }
+.fr-orn svg{ display:block; width:100% !important; height:100% !important; }
+.fr-orn-tl{ left:-12%; top:-12%; transform:rotate(-20deg); }
+.fr-orn-br{ right:-12%; bottom:-12%; transform:rotate(160deg) scaleX(-1); }
+.fr-orn.hue-purple{ filter:hue-rotate(235deg) saturate(1.4) brightness(.85) drop-shadow(0 1px 1.5px rgba(0,0,0,.8)); }
+.tb-avatar .fr-orn{ width:46%; height:46%; }
 .fr-kyubi{ --f1:#ff6a3a; --f2:#ffd36a; }
 .fr-titan{ --f1:#e8b04a; --f2:#6b4a1a; }
 .fr-fenrir{ --f1:#5fe0c8; --f2:#e0f8ff; }
@@ -3237,7 +3262,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.004';
+const GAME_VERSION = 'α0.4.005';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4688,7 +4713,9 @@ async function publishProfile(){
       defense: buildDefenseSnapshot(),
       bio: STATE ? profileBio() : '',
       // 名前の上に出している称号。フレンド一覧・フレンドのプロフィール・PVPの相手に見せる
-      title: STATE && equippedTitle() ? { key: STATE.title, name: equippedTitle().name } : null,
+      // パーツ式: key(前)・key2(後ろ)・sep(間の1文字)・name(組み立てた文字。知らないパーツのときに相手が使う)
+      title: STATE && myTitleText() ? (() => { const tp = titleParts(), k1 = tp.a || tp.b, k2 = tp.a && tp.b ? tp.b : '';
+        return { key: k1, key2: k2, sep: k2 ? sanitizeTitleSep(tp.sep) : '', name: myTitleText() }; })() : null,
       frame: STATE && hasFrame(STATE.frame) ? STATE.frame : null,
       following: STATE ? STATE.friends.length : 0,
       followers: STATE ? (STATE.followerCount || 0) : 0,
@@ -4794,10 +4821,12 @@ function friendEntryFromProfile(p, fallbackPlayerId){
     abyssBest: p.abyss && Number(p.abyss.season) === abyssSeasonIndex() ? clampInt(p.abyss.best, 0, 9999, 0) : 0,
   };
 }
-// 他人の称号: 知っている称号ならこちらの名前を使い、知らない称号(新しい版で増えたもの)は送られてきた名前を短く切って使う(表示は escapeHtml)
+// 他人の称号: 知っているパーツならこちらの名前で組み立て直し(間の1文字も通し直す)、
+// 知らないパーツ(新しい版で増えたもの・前の版の称号)は送られてきた名前を短く切って使う(表示は escapeHtml)
 function sanitizeTitle(raw){
   if(!raw || typeof raw !== 'object') return '';
-  if(typeof raw.key === 'string' && TITLES[raw.key]) return TITLES[raw.key].name;
+  const t1 = typeof raw.key === 'string' && TITLES[raw.key], t2 = raw.key2 ? typeof raw.key2 === 'string' && TITLES[raw.key2] : null;
+  if(t1 && (t2 || !raw.key2)) return composeTitle(t1.name, t2 ? t2.name : '', t2 ? sanitizeTitleSep(raw.sep) : '');
   return typeof raw.name === 'string' ? raw.name.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 20) : '';
 }
 function otherTitleHtml(title, cls){ return title ? `<div class="${cls || 'fc-title'}">${escapeHtml(title)}</div>` : ''; }
@@ -5387,6 +5416,7 @@ function normalizeState(){
   delete STATE.party;
   migrateLegacyRunes();
   migrateRelicReso();
+  migrateTitleParts();
   // 星刻の必要ソウルが「元レアリティ × いまの★」で決まるようになったので、
   // 古いセーブにも元レアリティを入れる(図鑑から引けるので取り違えは起きない)
   Object.entries(STATE.owned || {}).forEach(([id, o]) => {
@@ -8895,12 +8925,12 @@ const maxOwned = key => Math.max(0, ...Object.values(STATE.owned).map(o => o[key
 const clearedOfType = type => STAGES.filter(st => st.type === type && STATE.clearedStages.includes(st.id)).length;
 const typeCount = type => STAGES.filter(st => st.type === type).length;
 /* 実績(経済見直し α0.4.000 で全面差し替え)。
-   段ごとの星結晶は共通のはしご(n段目の石)。称号は3段目でもらえる(長い鎖の最後まで待たせないため)。
+   段ごとの星結晶は共通のはしご(n段目の石)。
+   称号のパーツ(α0.4.005〜): 1つの実績に3段。parts:[[目標, 名前], …] の目標の段を受け取るともらえる。
    受け取った段数は STATE.achievements[id] に入る。以前の実績とは id を変えたので、
    既存のプレイヤーも、すでに条件を満たしている段をその場で受け取れる。
    総力戦・封印戦・バベルの実績は、そのコンテンツが入るときに足す。 */
 const ACH_LADDER = [50, 80, 100, 150, 200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000];
-const ACH_TITLE_TIER = 3;
 const relicMaxLevel = () => Math.max(0, ...Object.values(STATE.relics || {}).map(r => r.level || 0));
 const runeMaxTier = () => Math.max(0, ...(STATE.runes || []).map(r => r.tier || 0));
 // メインクエスト(通常)のボス: 各難易度の5本目と10本目。ステージを作る前に実績を組むので id は決め打ち
@@ -8919,40 +8949,40 @@ const eventsCompleted = () => eventRecord('complete', ev => ev.stages && ev.stag
 const eventsEx3Star3 = () => eventRecord('ex3star3', ev => stageStars(`${ev.key}_ex3`) >= 3);
 function achChain(id, label, value, goals, opts){
   const o = opts || {};
-  return { id, label, value, title: o.title ? `ach_${id}` : null, titleName: o.title || null,
+  return { id, label, value, group: o.group || null, parts: o.parts || [],
     tiers: goals.map((g, i) => ({ goal: g, reward: o.reward ? o.reward(i, g) : [{ type:'crystal', n: ACH_LADDER[Math.min(i, ACH_LADDER.length - 1)] }] })) };
 }
 const ACHIEVEMENTS = [
-  achChain('x_collect', n => `モンスターを${n}体集める`, () => ownedCount(), [20, 50, 100, 200, 300, 500], { title:'モンスター博士' }),
-  achChain('x_star5', n => `★5モンスターを${n}体集める`, () => Object.keys(STATE.owned).filter(id => MON_BY_ID[id] && MON_BY_ID[id].rarity === 5).length, [1, 5, 10, 20, 30, 50], { title:'星の招き手' }),
-  achChain('x_befriend', n => `探索でモンスターを${n}体仲間にする`, () => stat('befriend'), [1, 5, 10, 25, 50], { title:'野の友' }),
-  achChain('x_promote', n => `星刻を${n}回行う`, () => stat('promote'), [1, 5, 20, 50, 100], { title:'星刻師' }),
-  achChain('x_star', n => `★${n}のモンスターを育てる`, () => maxOwned('star'), [6, 7, 8, 9, 10], { title:'星を極めし者', reward: i => [{ type:'crystal', n: ACH_LADDER[i + 1] }] }),   // ★6からなので、はしごの2段目から(合計830)
-  achChain('x_level', n => `Lv${n}のモンスターを育てる`, () => maxOwned('level'), [10, 30, 50, 100, 150, 200, 300], { title:'育成の達人' }),
-  achChain('x_relic', n => `Lv${n}の遺物を強化する`, () => relicMaxLevel(), [10, 30, 50, 100, 150, 200, 300], { title:'遺物の鍛え手' }),
-  achChain('x_runetier', n => `Tier${RUNE_ROMAN[n - 1] || n}のルーンをつくる`, () => runeMaxTier(), [1, 3, 5, 8, 10], { title:'ルーンの刻み手' }),
-  achChain('x_runefuse', n => `ルーンを${n}回合成する`, () => stat('runeFuse'), [10, 50, 100, 200, 500, 1000]),
+  achChain('x_collect', n => `モンスターを${n}体集める`, () => ownedCount(), [10, 30, 50, 80, 100, 130], { group:'コレクション', parts:[[30, '駆け出しコレクター'], [80, 'モンスター博士'], [130, '図鑑の主']] }),
+  achChain('x_star5', n => `★5モンスターを${n}体集める`, () => Object.keys(STATE.owned).filter(id => MON_BY_ID[id] && MON_BY_ID[id].rarity === 5).length, [1, 5, 10, 20, 30, 50], { group:'★5', parts:[[1, '星を招く者'], [10, '星の招き手'], [30, '星々の主']] }),
+  achChain('x_befriend', n => `探索でモンスターを${n}体仲間にする`, () => stat('befriend'), [1, 5, 10, 25, 50], { group:'仲間', parts:[[1, '野の友'], [10, '獣たちの友'], [50, '群れの長']] }),
+  achChain('x_promote', n => `星刻を${n}回行う`, () => stat('promote'), [1, 10, 50, 100, 300, 500], { group:'星刻', parts:[[10, '星刻見習い'], [100, '星刻職人'], [500, '星刻の大師']] }),
+  achChain('x_star', n => `★${n}のモンスターを育てる`, () => maxOwned('star'), [6, 7, 8, 9, 10], { group:'★', parts:[[6, '星の芽吹き'], [8, '星を磨く者'], [10, '星を極めし者']], reward: i => [{ type:'crystal', n: ACH_LADDER[i + 1] }] }),   // ★6からなので、はしごの2段目から(合計830)
+  achChain('x_level', n => `Lv${n}のモンスターを育てる`, () => maxOwned('level'), [10, 30, 50, 100, 150, 200, 300], { group:'レベル', parts:[[50, '育成見習い'], [150, '育成の達人'], [300, '育成の極み']] }),
+  achChain('x_relic', n => `Lv${n}の遺物を強化する`, () => relicMaxLevel(), [10, 30, 50, 100, 150, 200], { group:'遺物', parts:[[50, '遺物の手入れ係'], [100, '遺物の鍛え手'], [200, '遺物の名匠']] }),
+  achChain('x_runetier', n => `Tier${RUNE_ROMAN[n - 1] || n}のルーンをつくる`, () => runeMaxTier(), [1, 3, 5, 7, 10], { group:'ルーン', parts:[[3, 'ルーン見習い'], [7, 'ルーンの刻み手'], [10, 'ルーンの賢者']] }),
+  achChain('x_runefuse', n => `ルーンを${n}回合成する`, () => stat('runeFuse'), [10, 50, 100, 200, 500, 1000], { group:'ルーン合成', parts:[[50, '合成見習い'], [200, '錬ルーン師'], [1000, '合成の鬼']] }),
   // メインクエスト(通常)のボス14体。全段200
   (() => {
     const RELIC_AT = { q1_05:'rel_traveler_shield', q1_10:'rel_guard_charm', q2_05:'rel_novice_armor', q2_10:'rel_ward_necklace', q3_05:'rel_swift_tabi', q3_10:'rel_light_boots' };
-    return { id:'x_boss', title:'ach_x_boss', titleName:'クエストの覇者',
+    return { id:'x_boss', group:'ボス', parts: [[2, '新米冒険者'], [6, '歴戦の冒険者'], [14, 'クエストの覇者']],   // 初級・上級・7つ目の森の主
       label: n => { const id = mainBossIds()[n - 1]; const st = id && STAGE_BY_ID[id]; return st ? `メインクエスト「${st.name}」のボスを倒す` : 'メインクエストのボスを倒す'; },
       value: () => { const ids = mainBossIds(); let n = 0; while(n < ids.length && STATE.clearedStages.includes(ids[n])) n++; return n; },
       tiers: mainBossIds().map((id, i) => ({ goal: i + 1, reward: [{ type:'crystal', n:200 }, ...(RELIC_AT[id] ? [{ type:'relic', key: RELIC_AT[id] }] : [])] })) };
   })(),
-  achChain('x_mainstar', n => `メインクエストで★を${n}個獲得する`, () => mainStarsGot(), [10, 30, 100, 200, 300, 400], { title:'星集めの旅人' }),
-  achChain('x_clears', n => `探索を${n.toLocaleString()}回クリアする`, () => stat('stageClear'), [10, 50, 100, 300, 1000, 3000, 10000, 30000], { title:'歴戦の探索者' }),
+  achChain('x_mainstar', n => `メインクエストで★を${n}個獲得する`, () => mainStarsGot(), [10, 30, 100, 200, 300, 400], { group:'メインの★', parts:[[30, '星集めの旅人'], [200, '星の巡礼者'], [400, '星を統べる者']] }),
+  achChain('x_clears', n => `探索を${n.toLocaleString()}回クリアする`, () => stat('stageClear'), [10, 50, 100, 300, 1000, 3000, 10000, 30000], { group:'探索', parts:[[100, '探索者'], [1000, '歴戦の探索者'], [10000, '探索の生き字引']] }),
   achChain('x_dungeon', n => `育成クエストを${n.toLocaleString()}回クリアする`, () => stat('dungeonClear'), [10, 50, 100, 300, 1000, 10000, 30000],
-    { reward: i => [[{ type:'item', key:'box_rnd_1', n:2 }], [{ type:'item', key:'box_rnd_2', n:1 }], [{ type:'item', key:'box_rnd_2', n:2 }], [{ type:'item', key:'box_rnd_3', n:1 }],
+    { group:'育成クエスト', parts:[[100, '修行者'], [1000, '鍛錬の人'], [10000, '修行の鬼']], reward: i => [[{ type:'item', key:'box_rnd_1', n:2 }], [{ type:'item', key:'box_rnd_2', n:1 }], [{ type:'item', key:'box_rnd_2', n:2 }], [{ type:'item', key:'box_rnd_3', n:1 }],
       [{ type:'item', key:'box_rnd_3', n:2 }], [{ type:'item', key:'box_rnd_4', n:1 }], [{ type:'item', key:'box_rnd_4', n:2 }]][i] }),
-  achChain('x_abyss', n => `深淵回廊で${n}階に到達する`, () => (STATE.abyss && STATE.abyss.bestEver) || 0, [10, 25, 50, 100, 150, 200], { title:'深淵の踏破者' }),
-  achChain('x_pvpwin', n => `PVPで${n}回勝つ`, () => stat('pvpWin'), [1, 10, 50, 200, 500, 1000], { title:'闘技場の星' }),
-  achChain('x_event', n => `イベントを${n}個完走する`, () => eventsCompleted(), [1, 5, 10, 20], { title:'祭りの常連' }),
-  achChain('x_ex3', n => `EX3を★3で${n}回クリアする(イベントごと)`, () => eventsEx3Star3(), [1, 3, 5, 10, 20, 30, 50, 70, 100], { title:'EXの覇者' }),
+  achChain('x_abyss', n => `深淵回廊で${n}階に到達する`, () => (STATE.abyss && STATE.abyss.bestEver) || 0, [10, 25, 50, 100, 150, 200], { group:'深淵回廊', parts:[[25, '深淵の挑戦者'], [100, '深淵の踏破者'], [200, '深淵の主']] }),
+  achChain('x_pvpwin', n => `PVPで${n}回勝つ`, () => stat('pvpWin'), [1, 10, 50, 200, 500, 1000], { group:'PVP', parts:[[10, '闘技場の新星'], [200, '闘技場の星'], [1000, '闘技場の覇王']] }),
+  achChain('x_event', n => `イベントを${n}個完走する`, () => eventsCompleted(), [1, 5, 10, 20], { group:'イベント', parts:[[1, '祭りの客'], [10, '祭りの常連'], [20, '祭りの主']] }),
+  achChain('x_ex3', n => `EX3を★3で${n}回クリアする(イベントごと)`, () => eventsEx3Star3(), [1, 3, 5, 10, 20, 30, 50, 70, 100], { group:'EX', parts:[[1, 'EXの挑戦者'], [10, 'EXの覇者'], [50, 'EXの伝説']] }),
   achChain('x_tamer', n => `テイマーランクが${n}になる`, () => tamerLevel().lv, [10, 20, 30, 40, 50]),
   achChain('x_gacha', n => `ガチャを${n.toLocaleString()}回引く`, () => stat('gachaPull'), [10, 50, 100, 200, 500, 1000, 2000, 5000, 7000, 10000],
-    { reward: i => [{ type:'item', key:'relic_scrap', n:[100, 200, 300, 500, 800, 1000, 1500, 2000, 2500, 3000][i] }] }),
-  achChain('x_login', n => `${n}日ログインする`, () => stat('login'), [1, 5, 10, 30, 100, 150, 300], { title:'いつもの顔' }),
+    { group:'ガチャ', parts:[[100, '召喚見習い'], [1000, '召喚士'], [10000, '召喚の申し子']], reward: i => [{ type:'item', key:'relic_scrap', n:[100, 200, 300, 500, 800, 1000, 1500, 2000, 2500, 3000][i] }] }),
+  achChain('x_login', n => `${n}日ログインする`, () => stat('login'), [1, 5, 10, 30, 100, 150, 300], { group:'ログイン', parts:[[10, 'いつもの顔'], [100, '常連テイマー'], [300, '生涯テイマー']] }),
 ];
 // beginner missions: one step at a time, completing all of them pays a 10-pull's
 // worth of crystals (BEGINNER_ALL_CLEAR below). ordered to double as a soft
@@ -9169,7 +9199,7 @@ function claimMission(key){
     STATE.achievements = STATE.achievements || {};
     STATE.achievements[id] = (STATE.achievements[id] || 0) + 1;
     const ach = ACHIEVEMENTS.find(x => x.id === id);
-    if(ach && ach.title && STATE.achievements[id] >= Math.min(ACH_TITLE_TIER, ach.tiers.length)) grantTitle(ach.title);
+    if(ach) grantAchParts(ach);
   }else if(kind === 'b'){
     if(id === 'all') STATE.beginnerBonusClaimed = true;
     else if(id === 'all2') STATE.beginner2BonusClaimed = true;
@@ -9903,31 +9933,88 @@ function clearEndedEventMedals(){
     if(STATE.evMission && STATE.evMission[ev.key]) delete STATE.evMission[ev.key];
   });
 }
-/* ---------------- 称号 ----------------
-   受け取ると STATE.titles に残り、プロフィールで1つだけ名前の上に出せる。
-   イベントの称号はイベントが終わっても消えない(そのとき遊んでいた証)。
-   登録はここ1か所(registerTitle)。実績は ACHIEVEMENTS、イベントは EVENT_TITLES から作る。
-   TITLES[key] = { key, name, cat:'achieve'|'event', how:取り方, from:(= how 互換),
-                   progress:() => [いま, 目標] | null, status:() => 'open'|'soon'|'ended' } */
+/* ---------------- 称号(パーツ式 α0.4.005〜) ----------------
+   称号は「パーツ」を2つまで組み合わせて作る。前・後ろどちらにどのパーツを置いてもよく、
+   間に好きな1文字を入れられる(なくてもよい)。1つだけでもよい。
+   パーツは受け取ると STATE.titles に残る。組み合わせは STATE.titleParts = { a:前, b:後ろ, sep:間の1文字 }。
+   イベントのパーツはイベントが終わっても消えない(そのとき遊んでいた証)。
+   登録はここ1か所(registerTitle)。実績は ACHIEVEMENTS の parts、イベントは EVENT_TITLES から作る。
+   TITLES[key] = { key, name, cat:'achieve'|'event', how:取り方(文字か関数), group:まとまりの名前,
+                   progress:() => [いま, 目標] | null, status:() => 'open'|'soon'|'ended', base:はじめから持っている } */
 const TITLES = {};
 const TITLE_CATS = { achieve: '実績', event: 'イベント' };
-function registerTitle(key, name, how, extra){ TITLES[key] = { key, name, how, from: how, cat: 'achieve', status: () => 'open', ...(extra || {}) }; }
+function registerTitle(key, name, how, extra){ TITLES[key] = { key, name, how, cat: 'achieve', status: () => 'open', ...(extra || {}) }; }
+function titleHow(t){ return typeof t.how === 'function' ? t.how() : t.how; }
 function titleStatus(t){ return t && t.status ? t.status() : 'open'; }
 // 一覧に出す称号: 開催前のイベントの称号は出さない(持っていれば出す)
 function shownTitles(){ return Object.values(TITLES).filter(t => hasTitle(t.key) || titleStatus(t) !== 'soon'); }
+// はじめから持っているパーツ(「新人テイマー」が作れる)
+registerTitle('tp_base_new', '新人', 'はじめから持っている', { base: true, group: 'はじめから' });
+registerTitle('tp_base_tamer', 'テイマー', 'はじめから持っている', { base: true, group: 'はじめから' });
+// 実績のパーツ: parts の目標の段を受け取るともらえる
+const achPartKey = (achId, i) => `tp_${achId}_${i + 1}`;
+ACHIEVEMENTS.forEach(a => (a.parts || []).forEach(([goal, name], i) => {
+  registerTitle(achPartKey(a.id, i), name, () => a.label(goal), { cat: 'achieve', group: a.group, achId: a.id, tierNo: i + 1,
+    progress: () => [Math.min(a.value(), goal), goal] });
+}));
+function grantAchParts(ach){
+  const claimed = (STATE.achievements && STATE.achievements[ach.id]) || 0;
+  const reached = claimed ? ach.tiers[Math.min(claimed, ach.tiers.length) - 1].goal : 0;
+  (ach.parts || []).forEach(([goal], i) => { if(goal <= reached) grantTitle(achPartKey(ach.id, i)); });
+}
+/* ---- 組み立て ----
+   間の1文字: 1文字(コードポイント1つ)だけ。制御文字・見えない文字は落とす。相手から来たものも同じように通す */
+function sanitizeTitleSep(raw){
+  if(typeof raw !== 'string') return '';
+  const s = raw.replace(/[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff]/g, '');
+  return [...s][0] || '';
+}
+function composeTitle(a, b, sep){ return a && b ? a + (sep || '') + b : (a || b || ''); }
+function titleParts(){
+  if(!STATE.titleParts) STATE.titleParts = { a: null, b: null, sep: '' };
+  const p = STATE.titleParts;
+  if(p.a && !hasTitle(p.a)) p.a = null;
+  if(p.b && !hasTitle(p.b)) p.b = null;
+  return p;
+}
+// いまの称号(組み立てた文字)。付けていなければ ''
+function myTitleText(){
+  if(!STATE) return '';
+  const p = titleParts();
+  return composeTitle(p.a && TITLES[p.a].name, p.b && TITLES[p.b].name, p.b && p.a ? sanitizeTitleSep(p.sep) : '');
+}
+function titleChanged(){ saveState(); render(); if(titleList) renderTitleList(); publishProfile(); }   // フレンド・PVPの相手から見える称号も変える
+// slot に key を置く。同じパーツが反対側にあれば反対側は空ける。すでに置いてあるものを押すと外す
+function setTitlePart(slot, key){
+  if(slot !== 'a' && slot !== 'b') return;
+  if(key && !hasTitle(key)) return;
+  const p = titleParts(), other = slot === 'a' ? 'b' : 'a';
+  if(key && p[slot] === key) p[slot] = null;
+  else { p[slot] = key || null; if(key && p[other] === key) p[other] = null; }
+  titleChanged();
+}
+function swapTitleParts(){ const p = titleParts(); [p.a, p.b] = [p.b, p.a]; titleChanged(); }
+function clearTitle(){ const p = titleParts(); p.a = p.b = null; titleChanged(); }
+function setTitleSep(raw, quiet){
+  titleParts().sep = sanitizeTitleSep(raw);
+  if(quiet){ saveState(); const el = document.getElementById('tc-preview'); if(el) el.textContent = myTitleText() || 'いまは称号を付けていません'; return; }
+  titleChanged();
+}
 /* ---- 称号一覧(プロフィールから開く) ----
-   持っている称号はタップで付け替え、持っていない称号は取り方と進みぐあい、終わったイベントのものは「もう取れません」 */
-let titleList = null;   // { tab: 'achieve' | 'event' }
+   上で組み立て、下の一覧から持っているパーツを「前」「後」に置く。
+   持っていないパーツは取り方と進みぐあい、終わったイベントのものは「もう取れません」 */
+let titleList = null;   // { tab: 'achieve' | 'event' | 'frame' }
 function openTitleList(){ titleList = { tab: titleList ? titleList.tab : 'achieve' }; renderTitleList(); }
 function closeTitleList(){ titleList = null; closeModal(); render(); }
 function titleRowHtml(t){
-  const own = hasTitle(t.key), on = STATE.title === t.key, st = titleStatus(t);
+  const own = hasTitle(t.key), p = titleParts(), st = titleStatus(t);
+  const inA = p.a === t.key, inB = p.b === t.key;
   const pr = !own && t.progress ? t.progress() : null;
   const pct = pr ? Math.round(Math.min(1, pr[0] / Math.max(1, pr[1])) * 100) : 0;
-  return `<div class="tl-row ${own ? 'own' : ''} ${on ? 'on' : ''} ${!own && st === 'ended' ? 'ended' : ''}">
-    <div class="tl-body"><b>${t.name}</b><small>${t.how}</small>
+  return `<div class="tl-row ${own ? 'own' : ''} ${inA || inB ? 'on' : ''} ${!own && st === 'ended' ? 'ended' : ''}" data-title-key="${t.key}">
+    <div class="tl-body"><b>${t.name}</b><small>${titleHow(t)}</small>
       ${pr && st !== 'ended' ? `<span class="tl-bar"><i style="width:${pct}%"></i></span><span class="tl-prog">${pr[0].toLocaleString()} / ${pr[1].toLocaleString()}</span>` : ''}</div>
-    <div class="tl-side">${own ? (on ? '<span class="tl-on">付けている</span>' : `<button class="btn btn-sm" data-set-title="${t.key}">付ける</button>`)
+    <div class="tl-side">${own ? `<span class="tl-put"><button class="tl-pb ${inA ? 'on' : ''}" data-title-part="a:${t.key}">前</button><button class="tl-pb ${inB ? 'on' : ''}" data-title-part="b:${t.key}">後</button></span>`
       : st === 'ended' ? '<span class="tl-ended">もう取れません</span>' : '<span class="tl-lock">未獲得</span>'}</div>
   </div>`;
 }
@@ -9944,60 +10031,97 @@ function frameRowHtml(f){
       : st === 'ended' ? '<span class="tl-ended">もう取れません</span>' : '<span class="tl-lock">未獲得</span>'}</div>
   </div>`;
 }
+// 組み立ての欄: いまの称号・前と後ろのパーツ・間の1文字
+function titleComposerHtml(){
+  const p = titleParts(), txt = myTitleText();
+  const slot = (k, label) => `<button class="tc-slot ${p[k] ? 'set' : ''}" data-title-slot="${k}"><small>${label}</small><b>${p[k] ? TITLES[p[k]].name : '―'}</b></button>`;
+  return `<div class="tc-box">
+    <div class="tc-preview-wrap"><small>いまの称号</small><div class="tc-preview" id="tc-preview">${escapeHtml(txt || 'いまは称号を付けていません')}</div></div>
+    <div class="tc-slots">${slot('a', '前')}
+      <label class="tc-sep"><small>間の1文字</small><input id="title-sep" maxlength="2" value="${escapeHtml(sanitizeTitleSep(p.sep))}" placeholder="なし" autocomplete="off"></label>
+      ${slot('b', '後')}</div>
+    <div class="tc-acts"><button class="btn btn-ghost btn-sm" data-title-swap="1">前後を入れかえ</button><button class="btn btn-ghost btn-sm" data-title-clear="1">外す</button></div>
+    <div class="tc-note">下の一覧の「前」「後」で、持っているパーツを好きな順番に置けます</div>
+  </div>`;
+}
 function renderTitleList(){
   checkFrames();
   const tab = titleList.tab;
   const list = shownTitles().filter(t => t.cat === tab);
-  const order = t => (hasTitle(t.key) ? 0 : titleStatus(t) === 'ended' ? 2 : 1);
+  const groupHtml = (label, rows, extra) => rows.length ? `<div class="tl-group">${label}${extra || ''}</div>${rows.map(titleRowHtml).join('')}` : '';
   const body = tab === 'frame'
-    ? shownFrames().slice().sort((a, b) => (hasFrame(a.key) ? 0 : titleStatus(a) === 'ended' ? 2 : 1) - (hasFrame(b.key) ? 0 : titleStatus(b) === 'ended' ? 2 : 1)).map(frameRowHtml).join('')
+    ? ['rank', 'master', 'event'].map(g => {
+        const rows = shownFrames().filter(f => f.group === g);
+        return rows.length ? `<div class="tl-group">${FRAME_GROUPS[g]}</div>${rows.map(frameRowHtml).join('')}` : '';
+      }).join('')
     : tab === 'event'
     ? Object.entries(EVENT_TITLES).map(([evKey, tt]) => {
-        const rows = list.filter(t => t.evKey === evKey);
-        if(!rows.length) return '';
         const ev = EVENTS.find(e => e.key === evKey);
-        const live = ev && isEventLive(ev);
-        return `<div class="tl-group">${ev ? ev.name : tt.evName}${live ? '<span class="tl-live">開催中</span>' : ''}</div>${rows.map(titleRowHtml).join('')}`;
+        return groupHtml(ev ? ev.name : tt.evName, list.filter(t => t.evKey === evKey), ev && isEventLive(ev) ? '<span class="tl-live">開催中</span>' : '');
       }).join('')
-    : list.slice().sort((a, b) => order(a) - order(b)).map(titleRowHtml).join('');
+    : [...new Set(list.map(t => t.group))].map(g => groupHtml(g, list.filter(t => t.group === g))).join('');
   const layer = document.getElementById('modal-layer');
+  const oldList = layer.querySelector('.tl-list');   // 同じタブで描き直すときだけ、一覧のスクロール位置を残す
+  const keepScroll = oldList && oldList.dataset.tab === tab ? oldList.scrollTop : 0;
   layer.innerHTML = `
     <div class="result-modal title-list-modal" role="dialog" aria-label="称号一覧">
       <button class="fs-close" data-close-title-list="1" aria-label="閉じる">×</button>
       <h3>称号とフレーム</h3>
       ${tab === 'frame'
         ? `<div class="tl-now">${hasFrame(STATE.frame) ? `いまのフレーム: <b>${FRAMES[STATE.frame].name}</b> <button class="btn btn-ghost btn-sm" data-set-frame="">外す</button>` : 'いまはフレームを付けていません'}</div>`
-        : `<div class="tl-now">${equippedTitle() ? `いまの称号: <b>${equippedTitle().name}</b> <button class="btn btn-ghost btn-sm" data-set-title="">外す</button>` : 'いまは称号を付けていません'}</div>`}
+        : titleComposerHtml()}
       <div class="tl-tabs">${Object.entries(TITLE_CATS).map(([k, label]) => {
         const all = shownTitles().filter(t => t.cat === k);
         return `<button class="tl-tab ${tab === k ? 'on' : ''}" data-title-tab="${k}" role="tab">${label} ${all.filter(t => hasTitle(t.key)).length}/${all.length}</button>`;
       }).join('')}<button class="tl-tab ${tab === 'frame' ? 'on' : ''}" data-title-tab="frame" role="tab">フレーム ${ownedFrames().length}/${shownFrames().length}</button></div>
-      <div class="tl-list">${body || '<div class="ui-none">まだありません</div>'}</div>
+      <div class="tl-list" data-tab="${tab}">${body || '<div class="ui-none">まだありません</div>'}</div>
     </div>`;
   layer.classList.add('show');
+  const nl = layer.querySelector('.tl-list');
+  if(nl && keepScroll) nl.scrollTop = keepScroll;
 }
-function ownedTitles(){ return (STATE.titles || []).filter(k => TITLES[k]); }
-function hasTitle(key){ return (STATE.titles || []).includes(key); }
+function ownedTitles(){ return Object.keys(TITLES).filter(hasTitle); }
+function hasTitle(key){ return !!TITLES[key] && (TITLES[key].base || (STATE.titles || []).includes(key)); }
 function grantTitle(key){
-  if(!TITLES[key]) return;
+  if(!TITLES[key] || TITLES[key].base) return;
   if(!STATE.titles) STATE.titles = [];
-  if(!STATE.titles.includes(key)) STATE.titles.push(key);
-  if(!STATE.title) STATE.title = key;   // 最初の1つは自動でつける
+  if(STATE.titles.includes(key)) return;
+  STATE.titles.push(key);
+  const p = titleParts();
+  if(!p.a && !p.b) p.a = key;   // 最初の1つは自動でつける
 }
-function equipTitle(key){
-  if(key && !hasTitle(key)) return;
-  STATE.title = key || null;
-  saveState();
-  render();
-  publishProfile();   // フレンド・PVPの相手から見える称号も変える
+/* 前の版(称号を1つ選ぶ形)からの引っ越し。1回だけ(titleV)。
+   ・ルーンのTierなど目標を組み直した実績は、受け取った段を「目標の値」で数え直す(同じ報酬を2回もらわないように)
+   ・前の実績の称号(ach_*)は消して、受け取った段に応じたパーツを配り直す
+   ・付けていた称号は、イベントの称号ならそのまま前に、実績の称号ならその実績のいちばん上のパーツを前に置く
+   ・なくなったフレームは外す */
+const ACH_OLD_GOALS = { x_collect: [20, 50, 100, 200, 300, 500], x_promote: [1, 5, 20, 50, 100], x_relic: [10, 30, 50, 100, 150, 200, 300], x_runetier: [1, 3, 5, 8, 10] };
+function migrateTitleParts(){
+  if(STATE.titleV >= 2) return;
+  STATE.titleV = 2;
+  STATE.achievements = STATE.achievements || {};
+  Object.entries(ACH_OLD_GOALS).forEach(([id, old]) => {
+    const c = STATE.achievements[id] || 0, ach = ACHIEVEMENTS.find(a => a.id === id);
+    if(!c || !ach) return;
+    const reached = old[Math.min(c, old.length) - 1];
+    STATE.achievements[id] = ach.tiers.filter(t => t.goal <= reached).length;
+  });
+  const oldTitle = STATE.title;
+  STATE.titles = (STATE.titles || []).filter(k => TITLES[k] && !k.startsWith('ach_'));
+  STATE.titleParts = { a: null, b: null, sep: '' };
+  ACHIEVEMENTS.forEach(grantAchParts);
+  const p = STATE.titleParts;
+  if(typeof oldTitle === 'string' && hasTitle(oldTitle)) p.a = oldTitle;
+  else if(typeof oldTitle === 'string' && oldTitle.startsWith('ach_')){
+    const ach = ACHIEVEMENTS.find(a => a.id === oldTitle.slice(4));
+    const top = ach ? (ach.parts || []).map((_, i) => achPartKey(ach.id, i)).filter(hasTitle).pop() : null;
+    p.a = top || null;
+  }else p.a = null;   // grantAchParts が自動で置いたものも、付けていなかった人は外しておく
+  p.b = null;
+  delete STATE.title;
+  STATE.frames = (STATE.frames || []).filter(k => FRAMES[k]);
+  if(STATE.frame && !FRAMES[STATE.frame]) STATE.frame = null;
 }
-function equippedTitle(){ return hasTitle(STATE.title) ? TITLES[STATE.title] : null; }
-// 実績の称号: ACH_TITLE_TIER 段目を受け取るともらえる。取り方はその段の目標で書く
-ACHIEVEMENTS.forEach(a => {
-  if(!a.title || !a.titleName) return;
-  const tier = a.tiers[Math.min(ACH_TITLE_TIER, a.tiers.length) - 1];
-  registerTitle(a.title, a.titleName, a.label(tier.goal), { cat: 'achieve', progress: () => [Math.min(a.value(), tier.goal), tier.goal] });
-});
 
 /* ---------------- イベントミッション ----------------
    実績に混ざらない、イベント専用のミッション欄。通常とEXで分ける。
@@ -10014,24 +10138,29 @@ const EVENT_TITLES = {
    付けているのは STATE.frame。自分の上のバー・プロフィール・フレンド一覧・フレンドのプロフィールに出る。
    絵はCSSの枠(.fr-<style>)。専用の絵ができたら style ごとに差し替える */
 const FRAMES = {};
-function registerFrame(key, name, style, how, test, extra){ FRAMES[key] = { key, name, style, how, test, cat: 'frame', status: () => 'open', ...(extra || {}) }; }
+const FRAME_GROUPS = { rank: 'ランクの枠', master: '極みの枠', event: 'イベントの枠' };
+function registerFrame(key, name, style, how, test, extra){ FRAMES[key] = { key, name, style, how, test, cat: 'frame', group: 'rank', status: () => 'open', ...(extra || {}) }; }
 function registerFrames(){
   const lv = () => tamerLevel().lv;
-  registerFrame('fr_bronze', '銅のフレーム', 'bronze', 'テイマーランクが10になる', () => lv() >= 10, { progress: () => [Math.min(lv(), 10), 10] });
-  registerFrame('fr_silver', '銀のフレーム', 'silver', 'テイマーランクが30になる', () => lv() >= 30, { progress: () => [Math.min(lv(), 30), 30] });
-  registerFrame('fr_gold',   '金のフレーム', 'gold',   'テイマーランクが50になる', () => lv() >= 50, { progress: () => [Math.min(lv(), 50), 50] });
-  registerFrame('fr_collect', 'コレクターのフレーム', 'green', 'モンスターを100体集める', () => ownedCount() >= 100, { progress: () => [Math.min(ownedCount(), 100), 100] });
-  registerFrame('fr_star10', '星のフレーム', 'star', '★10のモンスターを育てる', () => maxOwned('star') >= 10, { progress: () => [Math.min(maxOwned('star'), 10), 10] });
-  registerFrame('fr_mainstar', '旅人のフレーム', 'sky', 'メインクエストで★を300個獲得する', () => mainStarsGot() >= 300, { progress: () => [Math.min(mainStarsGot(), 300), 300] });
-  registerFrame('fr_abyss', '深淵のフレーム', 'abyss', '深淵回廊で100階に到達する', () => ((STATE.abyss && STATE.abyss.bestEver) || 0) >= 100,
-    { progress: () => [Math.min((STATE.abyss && STATE.abyss.bestEver) || 0, 100), 100] });
-  registerFrame('fr_ex3', '虹のフレーム', 'rainbow', 'EX3を★3で10回クリアする(イベントごと)', () => eventsEx3Star3() >= 10, { progress: () => [Math.min(eventsEx3Star3(), 10), 10] });
+  // ランクの枠: テイマーランクで色が上がっていく
+  [[10, 'bronze', '銅'], [30, 'silver', '銀'], [50, 'gold', '金'], [80, 'plat', '白金'], [100, 'rainbow', '虹']].forEach(([n, style, nm]) =>
+    registerFrame(`fr_${style}`, `${nm}のフレーム`, style, `テイマーランクが${n}になる`, () => lv() >= n, { progress: () => [Math.min(lv(), n), n] }));
+  // 極みの枠: やりこみの頂点。四すみに飾りが付く(orn: 飾りの絵文字・hue: 色を回す)
+  const abyss = () => (STATE.abyss && STATE.abyss.bestEver) || 0;
+  [['fr_m_dex', '葉冠のフレーム', 'green', 'モンスターを130体集める', () => ownedCount(), 130, '🍃'],
+   ['fr_m_star', '星冠のフレーム', 'star', '★10のモンスターを育てる', () => maxOwned('star'), 10, '⭐'],
+   ['fr_m_main', '羅針のフレーム', 'sky', 'メインクエストで★を400個獲得する', () => mainStarsGot(), 400, '🧭'],
+   ['fr_m_abyss', '黒炎のフレーム', 'abyss', '深淵回廊で200階に到達する', abyss, 200, '🔥', 'purple'],
+   ['fr_m_pvp', '覇剣のフレーム', 'crimson', 'PVPで1,000回勝つ', () => stat('pvpWin'), 1000, '⚔️'],
+  ].forEach(([key, name, style, how, val, n, orn, hue]) =>
+    registerFrame(key, name, style, how, () => val() >= n, { group: 'master', orn, hue, progress: () => [Math.min(val(), n), n] }));
+  // イベントの枠: イベントの色で、右下にそのイベントのピックアップ★5が小さくいる
   Object.entries(EVENT_TITLES).forEach(([evKey, tt]) => {
     const ev = EVENTS.find(e => e.key === evKey);
     const nm = ev ? ev.name : tt.evName;
     const status = () => !ev || Date.now() > new Date(ev.endAt).getTime() ? 'ended' : Date.now() < new Date(ev.startAt).getTime() ? 'soon' : 'open';
     registerFrame(`fr_${evKey}`, `${nm}のフレーム`, evKey.replace('ev_', ''), `「${nm}」EX3を★3でクリアする`, () => stageStars(`${evKey}_ex3`) >= 3,
-      { status, evKey, badge: (ev && ev.pickup) || tt.pickup, progress: ev ? () => [stageStars(`${evKey}_ex3`) >= 3 ? 1 : 0, 1] : null });
+      { group: 'event', status, evKey, badge: (ev && ev.pickup) || tt.pickup, progress: ev ? () => [stageStars(`${evKey}_ex3`) >= 3 ? 1 : 0, 1] : null });
   });
 }
 function checkFrames(){
@@ -10051,10 +10180,19 @@ function equipFrame(key){
   saveState(); render(); publishProfile();
 }
 // 付けているフレームのクラス(相手のフレームは sanitizeFrame をとおしたキー)
-function frameClass(key){ const f = key && FRAMES[key]; return f ? ` frame fr-${f.style}${f.badge ? ' has-badge' : ''}` : ''; }
+function frameClass(key){ const f = key && FRAMES[key]; return f ? ` frame fr-${f.style}${f.badge || f.orn ? ' has-badge' : ''}` : ''; }
 function myFrameClass(){ return STATE && hasFrame(STATE.frame) ? frameClass(STATE.frame) : ''; }
-// イベントのフレームは、そのイベントのピックアップ★5が右下に小さくいる
-function frameBadgeHtml(key){ const f = key && FRAMES[key]; return f && f.badge && MON_BY_ID[f.badge] ? `<span class="fr-badge"><img src="${imgSrc(f.badge)}" alt=""></span>` : ''; }
+// イベントのフレームは、そのイベントのピックアップ★5が右下に小さくいる。極みのフレームは左上と右下に飾り
+// 飾りは SVG の文字にして、アイコンの大きさに合わせて伸び縮みさせる
+function frameBadgeHtml(key){
+  const f = key && FRAMES[key];
+  if(f && f.badge && MON_BY_ID[f.badge]) return `<span class="fr-badge"><img src="${imgSrc(f.badge)}" alt=""></span>`;
+  if(f && f.orn){
+    const svg = `<svg viewBox="0 0 10 10" aria-hidden="true"><text x="5" y="8.4" font-size="8.4" text-anchor="middle">${f.orn}</text></svg>`;
+    return ['tl', 'br'].map(c => `<span class="fr-orn fr-orn-${c}${f.hue ? ` hue-${f.hue}` : ''}">${svg}</span>`).join('');
+  }
+  return '';
+}
 function myFrameBadge(){ return STATE && hasFrame(STATE.frame) ? frameBadgeHtml(STATE.frame) : ''; }
 function sanitizeFrame(raw){ return typeof raw === 'string' && FRAMES[raw] ? raw : ''; }
 // イベントの称号。イベントが開催前なら一覧に出さない('soon')、終わったら「もう取れません」('ended')
@@ -20680,8 +20818,12 @@ function handlePhoneClick(ev){
     const ttab = t.closest('[data-title-tab]');
     if(ttab){ titleList.tab = ttab.dataset.titleTab; renderTitleList(); return; }
   }
-  const titleEl = t.closest('[data-set-title]');
-  if(titleEl){ equipTitle(titleEl.dataset.setTitle || null); if(titleList) renderTitleList(); return; }
+  const tpEl = t.closest('[data-title-part]');
+  if(tpEl){ const [slot, key] = tpEl.dataset.titlePart.split(':'); setTitlePart(slot, key); return; }
+  const tsEl = t.closest('[data-title-slot]');
+  if(tsEl){ setTitlePart(tsEl.dataset.titleSlot, null); return; }
+  if(t.closest('[data-title-swap]')){ swapTitleParts(); return; }
+  if(t.closest('[data-title-clear]')){ clearTitle(); return; }
   const frameEl = t.closest('[data-set-frame]');
   if(frameEl){ equipFrame(frameEl.dataset.setFrame || null); if(titleList) renderTitleList(); return; }
   const evViewEl = t.closest('[data-event-view]');
@@ -21068,6 +21210,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 29, date: '10/3', title: '称号が組み立て式に・フレームの作り直し', body: '<span class="nt-h">称号はパーツを組み合わせて作る形に</span><span class="nt-i">・称号は<em>パーツ2つ</em>を組み合わせて作れるようになりました。どのパーツを前・後ろに置いてもOKです。1つだけでも付けられます。</span><span class="nt-i">・間に<em>好きな1文字</em>を入れられます(なくてもOK)。</span><span class="nt-i"><b>例</b><br>星刻職人 + の + テイマー → 「星刻職人のテイマー」<br>深淵の主 + ・ + 祭りの常連 → 「深淵の主・祭りの常連」</span><span class="nt-i">・はじめから「新人」「テイマー」の2つを持っています。</span><span class="nt-h">パーツの取り方</span><span class="nt-i">・実績ごとに<em>3段</em>のパーツがあります(19種類×3段)。例: 星刻を10回 → 星刻見習い / 100回 → 星刻職人 / 500回 → 星刻の大師</span><span class="nt-i">・イベントの称号(12種類)もそのままパーツとして使えます。</span><span class="nt-i">・称号一覧で、持っていないパーツの<em>取り方と進みぐあい</em>が見られます。</span><span class="nt-h">いま持っている称号について</span><span class="nt-i">・前の実績の称号は、<em>受け取った実績の段に応じたパーツ</em>に置き換えました。付けていた称号は、その実績のいちばん上のパーツを「前」に置いています。</span><span class="nt-i">・イベントの称号はそのまま残ります。</span><span class="nt-i">・実績の段を一部組み直しました(受け取った段は目標の値で数え直したので、同じ報酬を2回もらうことはありません)。</span><span class="nt-i"><b>星刻</b> 1/5/20/50/100回 → 1/10/50/100/300/500回<br><b>遺物</b> Lv10〜300 → Lv10〜200(遺物の上限に合わせました)<br><b>ルーンのTier</b> Ⅰ/Ⅲ/Ⅴ/Ⅷ/Ⅹ → Ⅰ/Ⅲ/Ⅴ/Ⅶ/Ⅹ<br><b>モンスターを集める</b> 20〜500体 → 10/30/50/80/100/130体</span><span class="nt-h">フレームの作り直し(全14種類)</span><span class="nt-i"><b>ランクの枠</b>(テイマーランク)<br>銅 10 / 銀 30 / 金 50 / 白金 80 / 虹 100</span><span class="nt-i"><b>極みの枠</b>(四すみに飾り)<br>葉冠 モンスター130体 / 星冠 ★10を育てる / 羅針 メインの★400個 / 黒炎 深淵回廊200階 / 覇剣 PVP1,000勝</span><span class="nt-i"><b>イベントの枠</b><br>各イベントのEX3を★3(そのままです)</span><span class="nt-i">・なくなったフレーム(コレクター・旅人・深淵・EX3の虹)を付けていた場合は外れています。</span>' },
   { id: 28, date: '10/3', title: '称号とアイコンフレーム', body: '<span class="nt-h">称号とフレームの一覧</span><span class="nt-i">・プロフィールの「称号・フレームを見る」から、<em>全部の称号とフレーム</em>を見られるようになりました(実績 / イベント / フレーム)。</span><span class="nt-i">・持っていないものには<em>取り方と進みぐあい</em>が出ます。終わったイベントのものは「もう取れません」と出ます。</span><span class="nt-i">・持っているものはタップで付け替えられます。</span><span class="nt-h">アイコンフレーム(新しく追加)</span><span class="nt-i">・アイコンの周りに付ける枠です。条件を満たすと<em>自動でもらえます</em>(全12種類)。</span><span class="nt-i"><b>テイマーランク</b><br>銅(ランク10) / 銀(ランク30) / 金(ランク50)</span><span class="nt-i"><b>実績</b><br>モンスター100体 / ★10を育てる / メインの★300個 / 深淵回廊100階 / EX3の★3を10回(虹)</span><span class="nt-i"><b>イベント</b><br>各イベントのEX3を★3でクリアすると、そのイベントの色のフレーム</span><span class="nt-h">フレンドやPVPでも見える</span><span class="nt-i">・付けている称号とフレームが、<em>フレンド一覧・フレンドのプロフィール</em>に出ます。PVPの相手には称号が出ます。</span><span class="nt-i">・イベントのEXの称号の説明を、実際の条件(EX3を★3でクリア)に合わせました。</span>' },
   { id: 27, date: '10/2', title: '連続攻撃の威力の見直し', body: '<span class="nt-h">いちばん大きい変化</span><span class="nt-i">1回で何度も攻撃するスキル(連続攻撃)の威力を下げました。<em>合計の威力が、同じ★・同じ枠の1回攻撃の平均と同じか少し下</em>になります。</span><span class="nt-i"><b>例: フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em><br>同じ★5のスキル2(1回攻撃)の平均は173%</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたことで、1回あたりの威力が小さくても防御で目減りしなくなりました。そのため、連続攻撃は1回攻撃より合計で30〜160%強くなっていました。</span><span class="nt-i">・ダメージの平均は「威力×回数」で決まり、回数で増えも減りもしません。会心も1回ずつ判定されるので、回数が多いほど<em>ダメージが安定する</em>だけです。</span><span class="nt-i">・「各ヒットで○%」の効果は回数ぶん判定されるので、合計の威力は1回攻撃より少し下にしています。</span><span class="nt-h">変わるスキル(30個)</span><span class="nt-i"><b>★5 アバドン「深淵の連爪」</b><br>95%×3(合計285%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★5 アバドン「奈落の乱撃」</b><br>60%×7(合計420%) → <em>25%×7(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「フィンブルの大嵐」</b><br>150%×2(合計300%) → <em>100%×2(合計200%)</em></span><span class="nt-i"><b>★5 雷電「雷鼓連打」</b><br>80%×3(合計240%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★4 アラクネ「捕食の時間」</b><br>120%×3(合計360%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★4 クラーケン「触手乱打」</b><br>60%×4(合計240%) → <em>45%×4(合計180%)</em></span><span class="nt-i"><b>★4 クラーケン「大渦」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★4 ケルベロス「三頭の業火」</b><br>80%×3(合計240%) → <em>60%×3(合計180%)</em></span><span class="nt-i"><b>★4 ハルピュイア「羽ばたき乱舞」</b><br>55%×5(合計275%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★4 ハルピュイア「ハリケーンダンス」</b><br>100%×2(合計200%) → <em>80%×2(合計160%)</em></span><span class="nt-i"><b>★4 ワーウルフ「満月の咆哮」</b><br>130%×3(合計390%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★3 オーガ「暴れ回る」</b><br>90%×3(合計270%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 オーガ「オーガラッシュ」</b><br>140%×3(合計420%) → <em>85%×3(合計255%)</em></span><span class="nt-i"><b>★3 ケンタウロス「三連射」</b><br>80%×3(合計240%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「双頭の噛みつき」</b><br>110%×2(合計220%) → <em>85%×2(合計170%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「ツインサンダー」</b><br>180%×2(合計360%) → <em>130%×2(合計260%)</em></span><span class="nt-i"><b>★3 ワイバーン「ウィンドカッター」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★3 雷獣「連雷」</b><br>110%×2(合計220%) → <em>65%×2(合計130%)</em></span><span class="nt-i"><b>★2 カマイタチ「つむじ斬り」</b><br>70%×3(合計210%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★2 カマイタチ「鎌鼬の嵐」</b><br>70%×2(合計140%) → <em>60%×2(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「跳ね回り」</b><br>70%×3(合計210%) → <em>40%×3(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「ホーンラッシュ」</b><br>90%×4(合計360%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★2 ブラックウルフ「雷狼の群襲」</b><br>70%×4(合計280%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★1 オオコウモリ「超音波の乱れ撃ち」</b><br>60%×3(合計180%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★1 キラービー「千本針」</b><br>50%×6(合計300%) → <em>35%×6(合計210%)</em></span><span class="nt-i"><b>★1 ゴブリン「ゴブリンラッシュ」</b><br>70%×5(合計350%) → <em>40%×5(合計200%)</em></span><span class="nt-i"><b>★1 ストームホーク「旋風の爪」</b><br>90%×3(合計270%) → <em>70%×3(合計210%)</em></span><span class="nt-i"><b>★1 ニードルラット「針飛ばし」</b><br>40%×4(合計160%) → <em>35%×4(合計140%)</em></span><span class="nt-i"><b>★1 ヒノコ「火の粉の雨」</b><br>60%×3(合計180%) → <em>50%×3(合計150%)</em></span><span class="nt-i">・コボルト「すばやい突き」は、もともと1回攻撃より弱いのでそのままです。</span><span class="nt-i">・ステージの勝率はほぼ変わりません(多くの難易度で±1〜2%)。</span>' },
   { id: 26, date: '10/2', title: '防御の見直し(タンクがしっかり硬く)', body: '<span class="nt-h">いちばん大きい変化: 同じ攻撃で受けるダメージ</span><span class="nt-i">ダメージ1,000の物理攻撃を受けたとき(各ロールの平均)</span><span class="nt-i"><b>タンク</b><br>860 → <em>660</em></span><span class="nt-i"><b>アタッカー</b><br>945 → <em>890</em></span><span class="nt-i"><b>サポート</b><br>950 → <em>895</em></span><span class="nt-i"><b>トリックスター</b><br>940 → <em>880</em></span><span class="nt-i"><b>シューター</b><br>965 → <em>925</em></span><span class="nt-i">・タンクが<em>はっきり硬く</em>なりました。ほかのロールは少しだけ硬くなります。</span><span class="nt-i">・<em>敵も同じだけ硬くなる</em>ので、戦闘は平均1〜2ラウンド長くなります。</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたあと防御が弱すぎて、タンクがほかの子より少し硬いだけになっていました。役割の差がはっきり出るように見直しました。</span><span class="nt-h">防御の数字の見かた</span><span class="nt-i">・防御は<em>1ポイントで受けるダメージが1%減る</em>ポイントです(物理防御は物理、魔法防御は魔法)。</span><span class="nt-i">・スキル・パッシブ・ルーン・遺物・陣形の防御は「物理防御+15」のように<em>ポイントで足す</em>表示にそろえました(%は付けません)。</span><span class="nt-h">変わる数字</span><span class="nt-i"><b>素の防御(タンク)</b><br>図鑑の値 → <em>2.5倍(例: タイタン 物防20・魔防16 → 物防50・魔防30)</em></span><span class="nt-i"><b>素の防御(タンク以外)</b><br>図鑑の値 → <em>2倍(例: 九尾の狐 物防4・魔防5 → 物防8・魔防10)</em></span><span class="nt-i"><b>タンクの防御の合計(物防+魔防)</b><br>上限なし → <em>★5:80 / ★4:75 / ★3:65 / ★2:55 / ★1:45 まで</em></span><span class="nt-i"><b>スキル・パッシブの防御アップ</b><br>物理防御+6 → <em>物理防御+15(2.5倍)</em></span><span class="nt-i"><b>防御ダウン</b><br>物理防御-4 → <em>物理防御-8(2倍)</em></span><span class="nt-i"><b>ルーン・遺物・陣形・種族の防御</b><br>ルーンTierⅩのメイン +5 → <em>+10(2倍)</em></span><span class="nt-i">・EXなどの「敵 物理防御+40」のような特別ルールはそのままです。</span>' },
@@ -21100,6 +21243,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 151, version: 'α0.4.005', date: '10/3', title: '称号のパーツ化・フレームの作り直し', body: '<span class="nt-i">・称号を<em>パーツ2つ+間の1文字</em>で自由に組み立てる形にしました。実績19種類×3段のパーツ、イベントの12パーツ、はじめからの2パーツ。</span><span class="nt-i">・前の称号は受け取った実績の段に応じたパーツに置き換え。星刻・遺物・ルーンTier・モンスター収集の実績の段を組み直し(受け取った段は目標の値で数え直し)。</span><span class="nt-i">・フレームをランクの枠5・極みの枠5・イベントの枠4の14種類に作り直し。</span><span class="nt-i">・フレンド・PVPの相手にも組み立てた称号が出ます。</span>' },
   { id: 150, version: 'α0.4.004', date: '10/3', title: 'イベントのフレームにピックアップ★5', body: '<span class="nt-i">・各イベントのEX3を★3でクリアしてもらえるフレームに、そのイベントの<em>ピックアップ★5が右下に小さく</em>いるようにしました(九尾の狐・タイタン・フェンリル・アバドン)。枠の色はイベントの色です。</span>' },
   { id: 149, version: 'α0.4.003', date: '10/3', title: '称号とアイコンフレーム', body: '<span class="nt-h">称号とフレームの一覧</span><span class="nt-i">・プロフィールの「称号・フレームを見る」から、<em>全部の称号とフレーム</em>を見られるようになりました(実績 / イベント / フレーム)。</span><span class="nt-i">・持っていないものには<em>取り方と進みぐあい</em>が出ます。終わったイベントのものは「もう取れません」と出ます。</span><span class="nt-i">・持っているものはタップで付け替えられます。</span><span class="nt-h">アイコンフレーム(新しく追加)</span><span class="nt-i">・アイコンの周りに付ける枠です。条件を満たすと<em>自動でもらえます</em>(全12種類)。</span><span class="nt-i"><b>テイマーランク</b><br>銅(ランク10) / 銀(ランク30) / 金(ランク50)</span><span class="nt-i"><b>実績</b><br>モンスター100体 / ★10を育てる / メインの★300個 / 深淵回廊100階 / EX3の★3を10回(虹)</span><span class="nt-i"><b>イベント</b><br>各イベントのEX3を★3でクリアすると、そのイベントの色のフレーム</span><span class="nt-h">フレンドやPVPでも見える</span><span class="nt-i">・付けている称号とフレームが、<em>フレンド一覧・フレンドのプロフィール</em>に出ます。PVPの相手には称号が出ます。</span><span class="nt-i">・イベントのEXの称号の説明を、実際の条件(EX3を★3でクリア)に合わせました。</span>' },
   { id: 148, version: 'α0.4.002', date: '10/2', title: '連続攻撃の威力の見直し', body: '<span class="nt-h">いちばん大きい変化</span><span class="nt-i">1回で何度も攻撃するスキル(連続攻撃)の威力を下げました。<em>合計の威力が、同じ★・同じ枠の1回攻撃の平均と同じか少し下</em>になります。</span><span class="nt-i"><b>例: フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em><br>同じ★5のスキル2(1回攻撃)の平均は173%</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたことで、1回あたりの威力が小さくても防御で目減りしなくなりました。そのため、連続攻撃は1回攻撃より合計で30〜160%強くなっていました。</span><span class="nt-i">・ダメージの平均は「威力×回数」で決まり、回数で増えも減りもしません。会心も1回ずつ判定されるので、回数が多いほど<em>ダメージが安定する</em>だけです。</span><span class="nt-i">・「各ヒットで○%」の効果は回数ぶん判定されるので、合計の威力は1回攻撃より少し下にしています。</span><span class="nt-h">変わるスキル(30個)</span><span class="nt-i"><b>★5 アバドン「深淵の連爪」</b><br>95%×3(合計285%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★5 アバドン「奈落の乱撃」</b><br>60%×7(合計420%) → <em>25%×7(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「フィンブルの大嵐」</b><br>150%×2(合計300%) → <em>100%×2(合計200%)</em></span><span class="nt-i"><b>★5 雷電「雷鼓連打」</b><br>80%×3(合計240%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★4 アラクネ「捕食の時間」</b><br>120%×3(合計360%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★4 クラーケン「触手乱打」</b><br>60%×4(合計240%) → <em>45%×4(合計180%)</em></span><span class="nt-i"><b>★4 クラーケン「大渦」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★4 ケルベロス「三頭の業火」</b><br>80%×3(合計240%) → <em>60%×3(合計180%)</em></span><span class="nt-i"><b>★4 ハルピュイア「羽ばたき乱舞」</b><br>55%×5(合計275%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★4 ハルピュイア「ハリケーンダンス」</b><br>100%×2(合計200%) → <em>80%×2(合計160%)</em></span><span class="nt-i"><b>★4 ワーウルフ「満月の咆哮」</b><br>130%×3(合計390%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★3 オーガ「暴れ回る」</b><br>90%×3(合計270%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 オーガ「オーガラッシュ」</b><br>140%×3(合計420%) → <em>85%×3(合計255%)</em></span><span class="nt-i"><b>★3 ケンタウロス「三連射」</b><br>80%×3(合計240%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「双頭の噛みつき」</b><br>110%×2(合計220%) → <em>85%×2(合計170%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「ツインサンダー」</b><br>180%×2(合計360%) → <em>130%×2(合計260%)</em></span><span class="nt-i"><b>★3 ワイバーン「ウィンドカッター」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★3 雷獣「連雷」</b><br>110%×2(合計220%) → <em>65%×2(合計130%)</em></span><span class="nt-i"><b>★2 カマイタチ「つむじ斬り」</b><br>70%×3(合計210%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★2 カマイタチ「鎌鼬の嵐」</b><br>70%×2(合計140%) → <em>60%×2(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「跳ね回り」</b><br>70%×3(合計210%) → <em>40%×3(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「ホーンラッシュ」</b><br>90%×4(合計360%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★2 ブラックウルフ「雷狼の群襲」</b><br>70%×4(合計280%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★1 オオコウモリ「超音波の乱れ撃ち」</b><br>60%×3(合計180%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★1 キラービー「千本針」</b><br>50%×6(合計300%) → <em>35%×6(合計210%)</em></span><span class="nt-i"><b>★1 ゴブリン「ゴブリンラッシュ」</b><br>70%×5(合計350%) → <em>40%×5(合計200%)</em></span><span class="nt-i"><b>★1 ストームホーク「旋風の爪」</b><br>90%×3(合計270%) → <em>70%×3(合計210%)</em></span><span class="nt-i"><b>★1 ニードルラット「針飛ばし」</b><br>40%×4(合計160%) → <em>35%×4(合計140%)</em></span><span class="nt-i"><b>★1 ヒノコ「火の粉の雨」</b><br>60%×3(合計180%) → <em>50%×3(合計150%)</em></span><span class="nt-i">・コボルト「すばやい突き」は、もともと1回攻撃より弱いのでそのままです。</span><span class="nt-i">・ステージの勝率はほぼ変わりません(多くの難易度で±1〜2%)。</span>' },
@@ -21437,7 +21581,7 @@ function renderProfileOverlay(){
             <span class="pf-avatar-tag">変更</span>
           </button>
           <div class="pf-main">
-            ${equippedTitle() ? `<div class="pf-name-title">${equippedTitle().name}</div>` : ''}
+            ${myTitleText() ? `<div class="pf-name-title">${escapeHtml(myTitleText())}</div>` : ''}
             <div class="pf-name-row">
               <div class="pf-name">${escapeHtml(a.name || 'テイマー')}</div>
               <button class="pf-rename" data-open-account="1">名前変更</button>
@@ -21491,10 +21635,10 @@ function renderProfileOverlay(){
         <div class="panel">
           <div class="row-between" style="margin-bottom:9px;">
             <div class="mc-head">称号</div>
-            <div class="mc-reset">名前の上に1つだけ出せます</div>
+            <div class="mc-reset">パーツ2つと間の1文字で作れます</div>
           </div>
-          <div class="pf-title-now">${equippedTitle() ? `<span class="pf-title on">${equippedTitle().name}</span><small>${equippedTitle().how}</small>` : '<span class="ui-none">いまは称号を付けていません</span>'}</div>
-          <button class="btn btn-ghost btn-block btn-sm" data-open-titles="1" style="margin-top:8px;">称号(${ownedTitles().length}/${shownTitles().length})・フレーム(${checkFrames() && ownedFrames().length}/${shownFrames().length})を見る・付け替える</button>
+          <div class="pf-title-now">${myTitleText() ? `<span class="pf-title on">${escapeHtml(myTitleText())}</span>` : '<span class="ui-none">いまは称号を付けていません</span>'}</div>
+          <button class="btn btn-ghost btn-block btn-sm" data-open-titles="1" style="margin-top:8px;">称号パーツ(${ownedTitles().length}/${shownTitles().length})・フレーム(${checkFrames() && ownedFrames().length}/${shownFrames().length})を見る・組み立てる</button>
         </div>
 
         <div class="ov-links">
@@ -22600,13 +22744,16 @@ function wireGlobalEvents(){
   document.addEventListener('change', ev => {
     if(ev.target.id === 'sfx-volume'){ saveState(); playSfx('tap'); }
     if(ev.target.id === 'bgm-volume') saveState();
+    if(ev.target.id === 'title-sep') setTitleSep(ev.target.value);   // 決めたとき(Enter・ほかをタップ)に1文字へそろえて公開する
   });
+  document.addEventListener('compositionend', ev => { if(ev.target && ev.target.id === 'title-sep') setTitleSep(ev.target.value, true); });
   // space / P toggles pause during a battle; leaving the app pauses automatically
   // フレンド検索: Enter でも検索する / 自己紹介: 文字数を出す
   document.addEventListener('keydown', ev => {
     if(ev.key === 'Enter' && ev.target && ev.target.id === 'friend-search-input'){ ev.preventDefault(); searchFriendCandidates(ev.target.value); }
   });
   document.addEventListener('input', ev => {
+    if(ev.target && ev.target.id === 'title-sep' && !ev.isComposing){ setTitleSep(ev.target.value, true); }
     if(ev.target && ev.target.id === 'bio-input'){ const c = document.getElementById('bio-count'); if(c) c.textContent = ev.target.value.length; }
   });
   document.addEventListener('keydown', ev => {

@@ -47,7 +47,7 @@ async def main():
               const c0 = STATE.crystals;
               claimEventMissionsAll('ev_fenrir');
               return { crystal: STATE.crystals - c0, medal: getItem('medal_ev_fenrir'),
-                       titles: (STATE.titles || []).map(k => TITLES[k].name), title: STATE.title,
+                       titles: (STATE.titles || []).map(k => TITLES[k].name), title: myTitleText(),
                        gc: getItem('gacha_char'), gc10: getItem('gacha_char10'),
                        left: eventMissions(EVENTS.find(e => e.key === 'ev_fenrir')).filter(x => x.state === 'claim').length };
             }""")
