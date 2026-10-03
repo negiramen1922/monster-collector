@@ -15,6 +15,8 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | crash19.js | 全モンスターで630戦のクラッシュテスト |
 | babel_sim.js | バベル各階の「勝てる想定」「勝てない想定」の勝率(`N=20 node babel_sim.js [ten yo in]`) |
 | babel_lab_ui_test.py | バベル試験場(index.html?lab=babel)の画面テスト |
+| babel_tune.js | バベル各階の「塔の敵の底上げ」を二分探索で決める(`N=10 node babel_tune.js ten [階...]`) |
+| reflect_loop_test.js | シールド反射どうしが往復して止まらないこと |
 | mech19.js / mech22.js / mech54.js | 戦闘の仕組みの検証(70項目) |
 | econ26.js | 育成の検証(32項目) |
 | sweep27.js | クリアランクと周回の検証(14項目) |
