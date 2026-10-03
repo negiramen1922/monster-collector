@@ -50,6 +50,30 @@ async def main():
             await pg.screenshot(path=str(OUT / 'title_list_event.png'))
             await pg.click('[data-close-title-list]'); await pg.wait_for_timeout(200)
             check('閉じるとプロフィールに戻り、いまの称号が出ている', await pg.locator('.pf-title-now .pf-title.on').count() == 1)
+            # 他の人に見せる: 公開プロフィールに称号が載る
+            await pg.evaluate("() => { closeOverlay && closeOverlay(); equipTitle('ti_ev_kyubi_deep'); }")
+            await pg.wait_for_timeout(600)
+            pub = await pg.evaluate("() => { const c = JSON.parse(localStorage.getItem('__mockCloud') || '{}'); const me = ACCOUNT && c.players && c.players[ACCOUNT.uid]; return me ? me.title : 'no-account'; }")
+            check('称号を付け替えると、公開プロフィールに称号が載る', isinstance(pub, dict) and pub.get('key') == 'ti_ev_kyubi_deep', pub)
+            r = await pg.evaluate("""() => ({ known: sanitizeTitle({ key: 'ach_x_login', name: 'ちがう名前' }), unknown: sanitizeTitle({ key: 'zzz', name: 'あたらしい称号のながいなまえあいうえおかきくけこ' }), bad: sanitizeTitle('x') })""")
+            check('相手の称号: 知っている称号はこちらの名前、知らない称号は20文字まで、変な値は空', r['known'] == 'いつもの顔' and len(r['unknown']) == 20 and r['bad'] == '', r)
+            r = await pg.evaluate("""() => {
+              const be = authBackend(); be.lookupPlayer = be.lookupPlayer || (async () => null); be.fetchPvpOpponents = be.fetchPvpOpponents || (async () => []);   // モックにはフレンド・PVPが無いので仮に足す
+              STATE.friends = [{ uid: 'f1', playerId: 'P1', name: 'アリス', level: 12, support: null, avatar: null, title: '狐火を鎮めし者', bio: '', lastActive: Date.now() }];
+              openOverlay('friends'); render();
+              const row = document.querySelector('[data-view-friend="f1"]');
+              const inList = row ? row.textContent.includes('狐火を鎮めし者') : false;
+              friendProfileUid = 'f1'; overlayView = 'friend-profile'; render();
+              const inProfile = !!document.querySelector('.pf-name-title') && document.querySelector('.pf-name-title').textContent === '狐火を鎮めし者';
+              return { inList, inProfile }; }""")
+            check('フレンド一覧とフレンドのプロフィールに相手の称号が出る', r['inList'] and r['inProfile'], r)
+            await pg.screenshot(path=str(OUT / 'title_friend.png'))
+            r = await pg.evaluate("""() => { closeOverlay && closeOverlay();
+              pvpOpponents = [{ uid: 'o1', name: '<b>悪い名前</b>', title: '試練を越えし者', level: 30, defense: { slots: ['m54', null, null, null, null] } }];
+              goto('pvp'); render();
+              const row = document.querySelector('.pvp-opp-row');
+              return { title: row ? row.textContent.includes('試練を越えし者') : false, escaped: row ? !row.querySelector('.pvp-opp-name b') && row.textContent.includes('<b>悪い名前</b>') : false }; }""")
+            check('PVPの相手にも称号が出る(名前はそのまま文字として出す)', r['title'] and r['escaped'], r)
             await b.close()
     real = [e for e in errs if 'favicon' not in e]
     check('JSエラーなし', not real, real[:3])

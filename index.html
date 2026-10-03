@@ -2991,6 +2991,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .pf-title.on{ background:#3a2a1a; border-color:var(--gold); color:var(--gold); }
 .pf-title.pick{ cursor:pointer; font-family:inherit; }
 .pf-name-title{ font-size:11px; font-weight:800; color:var(--gold); margin-bottom:1px; }
+.fc-title{ font-size:9.5px; font-weight:800; color:var(--gold); line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* notices + settings rows */
 .notice-card.compact{ min-width:0; overflow:hidden; }
@@ -4658,6 +4659,8 @@ async function publishProfile(){
       support,
       defense: buildDefenseSnapshot(),
       bio: STATE ? profileBio() : '',
+      // 名前の上に出している称号。フレンド一覧・フレンドのプロフィール・PVPの相手に見せる
+      title: STATE && equippedTitle() ? { key: STATE.title, name: equippedTitle().name } : null,
       following: STATE ? STATE.friends.length : 0,
       followers: STATE ? (STATE.followerCount || 0) : 0,
       abyss: STATE && STATE.abyss ? { season: STATE.abyss.season, best: STATE.abyss.best || 0 } : null,
@@ -4754,12 +4757,20 @@ function friendEntryFromProfile(p, fallbackPlayerId){
     cleared: clampInt(p.cleared, 0, STAGES.length, 0),
     lastActive: sanitizeLastActive(p.updatedAt),
     bio: sanitizeBio(p.bio),
+    title: sanitizeTitle(p.title),
     following: clampInt(p.following, 0, 9999, 0),
     followers: clampInt(p.followers, 0, 999999, 0),
     // 深淵回廊の今期の到達階(前の期の記録は出さない)
     abyssBest: p.abyss && Number(p.abyss.season) === abyssSeasonIndex() ? clampInt(p.abyss.best, 0, 9999, 0) : 0,
   };
 }
+// 他人の称号: 知っている称号ならこちらの名前を使い、知らない称号(新しい版で増えたもの)は送られてきた名前を短く切って使う(表示は escapeHtml)
+function sanitizeTitle(raw){
+  if(!raw || typeof raw !== 'object') return '';
+  if(typeof raw.key === 'string' && TITLES[raw.key]) return TITLES[raw.key].name;
+  return typeof raw.name === 'string' ? raw.name.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 20) : '';
+}
+function otherTitleHtml(title, cls){ return title ? `<div class="${cls || 'fc-title'}">${escapeHtml(title)}</div>` : ''; }
 // 自己紹介文: 他人の公開プロフィールから来るので長さと制御文字を必ず落とす(表示は escapeHtml)
 const BIO_MAX = 100;
 function sanitizeBio(raw){
@@ -9930,6 +9941,7 @@ function equipTitle(key){
   STATE.title = key || null;
   saveState();
   render();
+  publishProfile();   // フレンド・PVPの相手から見える称号も変える
 }
 function equippedTitle(){ return hasTitle(STATE.title) ? TITLES[STATE.title] : null; }
 // 実績の称号: ACH_TITLE_TIER 段目を受け取るともらえる。取り方はその段の目標で書く
@@ -10682,6 +10694,7 @@ async function searchPvpOpponents(){
     pvpOpponents = list.map(p => ({
       uid: p.uid,
       name: String(p.name || 'テイマー').slice(0, 20),
+      title: sanitizeTitle(p.title),
       level: Math.max(1, Math.min(999, Number(p.level) || 1)),
       defense: sanitizeDefense(p.defense),
     })).filter(p => p.defense);
@@ -10738,7 +10751,8 @@ function renderPvp(){
         ${pvpOpponents.map(o => `
           <div class="pvp-opp-row">
             <div class="pvp-opp-body">
-              <div class="pvp-opp-name">${o.name}</div>
+              ${otherTitleHtml(o.title)}
+              <div class="pvp-opp-name">${escapeHtml(o.name)}</div>
               <div class="pvp-opp-sub">Lv${o.level}・${o.defense.slots.filter(Boolean).length}体編成</div>
             </div>
             <button class="btn btn-sm ${left > 0 ? '' : 'btn-ghost'}" data-pvp-fight="${o.uid}" ${left > 0 ? '' : 'disabled'}>挑戦する</button>
@@ -21616,6 +21630,7 @@ function socialRowHtml(f, mode){
       <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer; align-items:center;">
         <div class="fc-ic">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
         <div class="fc-body">
+          ${otherTitleHtml(f.title)}
           <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
           ${f.bio ? `<div class="fc-line soc-bio">${escapeHtml(f.bio.split('\n')[0])}</div>` : ''}
           <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
@@ -21702,6 +21717,7 @@ function renderFriendsOverlay(){
               <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer;">
                 <div class="fc-ic">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
                 <div class="fc-body">
+                  ${otherTitleHtml(f.title)}
                   <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
                   <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けモンスター未設定'}</div>
                   <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
@@ -21734,6 +21750,7 @@ function renderFriendProfileOverlay(){
         <div class="pf-card">
           <div class="pf-avatar">${icon ? `<img src="${imgSrc(icon)}" alt="">` : '<span>👤</span>'}</div>
           <div class="pf-main">
+            ${otherTitleHtml(f.title, 'pf-name-title')}
             <div class="pf-name-row"><div class="pf-name">${escapeHtml(f.name)}</div></div>
             <div class="pf-id">ID ${escapeHtml(f.playerId || '----')}</div>
             <div class="pf-lv"><span class="pf-lv-num">Lv.${f.level || 1}</span></div>
