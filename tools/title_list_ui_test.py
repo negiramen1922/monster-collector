@@ -62,6 +62,12 @@ async def main():
             await pg.screenshot(path=str(OUT / 'title_frames.png'))
             await pg.click('[data-close-title-list]'); await pg.wait_for_timeout(200)
             check('プロフィールのアイコンにも枠が付く', await pg.locator('.pf-avatar.fr-kyubi').count() == 1)
+            r = await pg.evaluate("""() => { const b = document.querySelector('.pf-avatar .fr-badge img'), t = document.querySelector('.tb-avatar .fr-badge img');
+              const r1 = document.querySelector('.pf-avatar').getBoundingClientRect(), r2 = b ? b.parentElement.getBoundingClientRect() : null;
+              return { pf: !!b && b.getAttribute('src') === imgSrc('m116'), top: !!t, rightBottom: !!r2 && r2.right > r1.right - r1.width * 0.3 && r2.bottom > r1.bottom - r1.height * 0.3,
+                none: frameBadgeHtml('fr_gold') === '' }; }""")
+            check('イベントのフレームは右下にピックアップ★5(九尾の狐)が小さくいる(上のバーにも)', r['pf'] and r['top'] and r['rightBottom'], r)
+            check('イベント以外のフレームには付かない', r['none'], r)
             await pg.screenshot(path=str(OUT / 'title_profile.png'))
             pubf = await pg.evaluate("() => { const c = JSON.parse(localStorage.getItem('__mockCloud') || '{}'); const me = ACCOUNT && c.players && c.players[ACCOUNT.uid]; return me ? me.frame : null; }")
             check('公開プロフィールにフレームが載る', pubf == 'fr_ev_kyubi', pubf)

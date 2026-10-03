@@ -3005,6 +3005,13 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .fr-rainbow{ animation:frRainbow 4s linear infinite; }
 @keyframes frRainbow{
   0%{ --f1:#ff5a6a; } 17%{ --f1:#ffb84a; } 33%{ --f1:#f2f25a; } 50%{ --f1:#5fe07a; } 67%{ --f1:#5ab4ff; } 83%{ --f1:#b07cff; } 100%{ --f1:#ff5a6a; } }
+.frame.has-badge{ position:relative; overflow:visible; }
+.fr-badge{ position:absolute; right:-6%; bottom:-6%; width:44%; height:44%; border-radius:50%;
+  background:radial-gradient(circle at 50% 45%, rgba(255,255,255,.55), var(--f1) 70%);
+  box-shadow:0 0 0 1.5px var(--f1), 0 1px 4px rgba(0,0,0,.6); overflow:hidden; display:flex; align-items:center; justify-content:center; z-index:2; pointer-events:none; }
+.fr-badge img{ width:100% !important; height:100% !important; object-fit:cover; image-rendering:pixelated; }
+.tb-avatar .fr-badge{ width:52%; height:52%; }
+.pf-avatar.has-badge .pf-avatar-tag{ right:38%; border-radius:0 0 0 18px; }   /* 右下のキャラに「変更」がかぶらないように */
 @property --f1{ syntax:'<color>'; inherits:true; initial-value:#888; }
 @media (prefers-reduced-motion: reduce){ .fr-rainbow{ animation:none; --f1:#ff9de2; --f2:#5ab4ff; } }
 .pf-title{ font-size:11px; font-weight:800; padding:5px 9px; border-radius:9px; background:var(--panel2);
@@ -3230,7 +3237,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.003';
+const GAME_VERSION = 'α0.4.004';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -9930,7 +9937,7 @@ function frameRowHtml(f){
   const pct = pr ? Math.round(Math.min(1, pr[0] / Math.max(1, pr[1])) * 100) : 0;
   const av = profileAvatar();
   return `<div class="tl-row ${own ? 'own' : ''} ${on ? 'on' : ''} ${!own && st === 'ended' ? 'ended' : ''}">
-    <span class="tl-frame${frameClass(f.key)}">${av ? `<img src="${imgSrc(av)}" alt="">` : '👤'}</span>
+    <span class="tl-frame${frameClass(f.key)}">${av ? `<img src="${imgSrc(av)}" alt="">` : '👤'}${frameBadgeHtml(f.key)}</span>
     <div class="tl-body"><b>${f.name}</b><small>${f.how}</small>
       ${pr && st !== 'ended' ? `<span class="tl-bar"><i style="width:${pct}%"></i></span><span class="tl-prog">${pr[0].toLocaleString()} / ${pr[1].toLocaleString()}</span>` : ''}</div>
     <div class="tl-side">${own ? (on ? '<span class="tl-on">付けている</span>' : `<button class="btn btn-sm" data-set-frame="${f.key}">付ける</button>`)
@@ -9995,12 +10002,12 @@ ACHIEVEMENTS.forEach(a => {
 /* ---------------- イベントミッション ----------------
    実績に混ざらない、イベント専用のミッション欄。通常とEXで分ける。
    イベントが終わると進みぐあいは消えるが、受け取った称号は残る */
-// evName はイベントがコード(EVENTS)から消えたあとも称号の説明に名前を出すため
+// evName / pickup はイベントがコード(EVENTS)から消えたあとも、称号の説明・フレームの絵に使うため
 const EVENT_TITLES = {
-  ev_fenrir:  { evName:'嵐呼ぶ神狼', deep:'神狼を狩る者', star:'嵐を継ぐ者',   ex:'黄昏を超えし者' },
-  ev_abaddon: { evName:'奈落の王',   deep:'奈落に立つ者', star:'深淵を覗く者', ex:'底なしを踏破せし者' },
-  ev_kyubi:   { evName:'紅蓮の九尾', deep:'狐火を鎮めし者', star:'紅蓮を統べる者', ex:'宴を制せし者' },
-  ev_titan:   { evName:'黄金の巨神', deep:'巨神を砕く者',   star:'黄金を掘る者',   ex:'試練を越えし者' },
+  ev_fenrir:  { evName:'嵐呼ぶ神狼', pickup:'m68', deep:'神狼を狩る者', star:'嵐を継ぐ者',   ex:'黄昏を超えし者' },
+  ev_abaddon: { evName:'奈落の王',   pickup:'m139', deep:'奈落に立つ者', star:'深淵を覗く者', ex:'底なしを踏破せし者' },
+  ev_kyubi:   { evName:'紅蓮の九尾', pickup:'m116', deep:'狐火を鎮めし者', star:'紅蓮を統べる者', ex:'宴を制せし者' },
+  ev_titan:   { evName:'黄金の巨神', pickup:'m54', deep:'巨神を砕く者',   star:'黄金を掘る者',   ex:'試練を越えし者' },
 };
 /* ---- アイコンフレーム ----
    プロフィールのアイコンの周りの枠。条件を満たすと自動でもらえて(checkFrames)、STATE.frames に残る。
@@ -10024,7 +10031,7 @@ function registerFrames(){
     const nm = ev ? ev.name : tt.evName;
     const status = () => !ev || Date.now() > new Date(ev.endAt).getTime() ? 'ended' : Date.now() < new Date(ev.startAt).getTime() ? 'soon' : 'open';
     registerFrame(`fr_${evKey}`, `${nm}のフレーム`, evKey.replace('ev_', ''), `「${nm}」EX3を★3でクリアする`, () => stageStars(`${evKey}_ex3`) >= 3,
-      { status, evKey, progress: ev ? () => [stageStars(`${evKey}_ex3`) >= 3 ? 1 : 0, 1] : null });
+      { status, evKey, badge: (ev && ev.pickup) || tt.pickup, progress: ev ? () => [stageStars(`${evKey}_ex3`) >= 3 ? 1 : 0, 1] : null });
   });
 }
 function checkFrames(){
@@ -10044,8 +10051,11 @@ function equipFrame(key){
   saveState(); render(); publishProfile();
 }
 // 付けているフレームのクラス(相手のフレームは sanitizeFrame をとおしたキー)
-function frameClass(key){ const f = key && FRAMES[key]; return f ? ` frame fr-${f.style}` : ''; }
+function frameClass(key){ const f = key && FRAMES[key]; return f ? ` frame fr-${f.style}${f.badge ? ' has-badge' : ''}` : ''; }
 function myFrameClass(){ return STATE && hasFrame(STATE.frame) ? frameClass(STATE.frame) : ''; }
+// イベントのフレームは、そのイベントのピックアップ★5が右下に小さくいる
+function frameBadgeHtml(key){ const f = key && FRAMES[key]; return f && f.badge && MON_BY_ID[f.badge] ? `<span class="fr-badge"><img src="${imgSrc(f.badge)}" alt=""></span>` : ''; }
+function myFrameBadge(){ return STATE && hasFrame(STATE.frame) ? frameBadgeHtml(STATE.frame) : ''; }
 function sanitizeFrame(raw){ return typeof raw === 'string' && FRAMES[raw] ? raw : ''; }
 // イベントの称号。イベントが開催前なら一覧に出さない('soon')、終わったら「もう取れません」('ended')
 function registerEventTitles(){
@@ -20863,7 +20873,7 @@ function renderTopBar(){
   const goldText2 = shortNum(g);
   return `
     <button class="tb-profile" data-overlay="profile" aria-label="プロフィール">
-      <span class="tb-avatar${myFrameClass()}">${profileAvatar() ? `<img src="${imgSrc(profileAvatar())}" alt="">` : '👤'}</span>
+      <span class="tb-avatar${myFrameClass()}">${profileAvatar() ? `<img src="${imgSrc(profileAvatar())}" alt="">` : '👤'}${myFrameBadge()}</span>
       <span class="tb-name">${escapeHtml(ACCOUNT ? ACCOUNT.name : 'テイマー')}
         <small>Lv.${tamerLevel().lv}・所持 ${Object.keys(STATE.owned).length}体</small></span>
     </button>
@@ -21090,6 +21100,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 150, version: 'α0.4.004', date: '10/3', title: 'イベントのフレームにピックアップ★5', body: '<span class="nt-i">・各イベントのEX3を★3でクリアしてもらえるフレームに、そのイベントの<em>ピックアップ★5が右下に小さく</em>いるようにしました(九尾の狐・タイタン・フェンリル・アバドン)。枠の色はイベントの色です。</span>' },
   { id: 149, version: 'α0.4.003', date: '10/3', title: '称号とアイコンフレーム', body: '<span class="nt-h">称号とフレームの一覧</span><span class="nt-i">・プロフィールの「称号・フレームを見る」から、<em>全部の称号とフレーム</em>を見られるようになりました(実績 / イベント / フレーム)。</span><span class="nt-i">・持っていないものには<em>取り方と進みぐあい</em>が出ます。終わったイベントのものは「もう取れません」と出ます。</span><span class="nt-i">・持っているものはタップで付け替えられます。</span><span class="nt-h">アイコンフレーム(新しく追加)</span><span class="nt-i">・アイコンの周りに付ける枠です。条件を満たすと<em>自動でもらえます</em>(全12種類)。</span><span class="nt-i"><b>テイマーランク</b><br>銅(ランク10) / 銀(ランク30) / 金(ランク50)</span><span class="nt-i"><b>実績</b><br>モンスター100体 / ★10を育てる / メインの★300個 / 深淵回廊100階 / EX3の★3を10回(虹)</span><span class="nt-i"><b>イベント</b><br>各イベントのEX3を★3でクリアすると、そのイベントの色のフレーム</span><span class="nt-h">フレンドやPVPでも見える</span><span class="nt-i">・付けている称号とフレームが、<em>フレンド一覧・フレンドのプロフィール</em>に出ます。PVPの相手には称号が出ます。</span><span class="nt-i">・イベントのEXの称号の説明を、実際の条件(EX3を★3でクリア)に合わせました。</span>' },
   { id: 148, version: 'α0.4.002', date: '10/2', title: '連続攻撃の威力の見直し', body: '<span class="nt-h">いちばん大きい変化</span><span class="nt-i">1回で何度も攻撃するスキル(連続攻撃)の威力を下げました。<em>合計の威力が、同じ★・同じ枠の1回攻撃の平均と同じか少し下</em>になります。</span><span class="nt-i"><b>例: フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em><br>同じ★5のスキル2(1回攻撃)の平均は173%</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたことで、1回あたりの威力が小さくても防御で目減りしなくなりました。そのため、連続攻撃は1回攻撃より合計で30〜160%強くなっていました。</span><span class="nt-i">・ダメージの平均は「威力×回数」で決まり、回数で増えも減りもしません。会心も1回ずつ判定されるので、回数が多いほど<em>ダメージが安定する</em>だけです。</span><span class="nt-i">・「各ヒットで○%」の効果は回数ぶん判定されるので、合計の威力は1回攻撃より少し下にしています。</span><span class="nt-h">変わるスキル(30個)</span><span class="nt-i"><b>★5 アバドン「深淵の連爪」</b><br>95%×3(合計285%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★5 アバドン「奈落の乱撃」</b><br>60%×7(合計420%) → <em>25%×7(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「暴風の牙」</b><br>60%×5(合計300%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★5 フェンリル「フィンブルの大嵐」</b><br>150%×2(合計300%) → <em>100%×2(合計200%)</em></span><span class="nt-i"><b>★5 雷電「雷鼓連打」</b><br>80%×3(合計240%) → <em>65%×3(合計195%)</em></span><span class="nt-i"><b>★4 アラクネ「捕食の時間」</b><br>120%×3(合計360%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★4 クラーケン「触手乱打」</b><br>60%×4(合計240%) → <em>45%×4(合計180%)</em></span><span class="nt-i"><b>★4 クラーケン「大渦」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★4 ケルベロス「三頭の業火」</b><br>80%×3(合計240%) → <em>60%×3(合計180%)</em></span><span class="nt-i"><b>★4 ハルピュイア「羽ばたき乱舞」</b><br>55%×5(合計275%) → <em>35%×5(合計175%)</em></span><span class="nt-i"><b>★4 ハルピュイア「ハリケーンダンス」</b><br>100%×2(合計200%) → <em>80%×2(合計160%)</em></span><span class="nt-i"><b>★4 ワーウルフ「満月の咆哮」</b><br>130%×3(合計390%) → <em>95%×3(合計285%)</em></span><span class="nt-i"><b>★3 オーガ「暴れ回る」</b><br>90%×3(合計270%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 オーガ「オーガラッシュ」</b><br>140%×3(合計420%) → <em>85%×3(合計255%)</em></span><span class="nt-i"><b>★3 ケンタウロス「三連射」</b><br>80%×3(合計240%) → <em>50%×3(合計150%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「双頭の噛みつき」</b><br>110%×2(合計220%) → <em>85%×2(合計170%)</em></span><span class="nt-i"><b>★3 ツインヘッドベア「ツインサンダー」</b><br>180%×2(合計360%) → <em>130%×2(合計260%)</em></span><span class="nt-i"><b>★3 ワイバーン「ウィンドカッター」</b><br>70%×3(合計210%) → <em>55%×3(合計165%)</em></span><span class="nt-i"><b>★3 雷獣「連雷」</b><br>110%×2(合計220%) → <em>65%×2(合計130%)</em></span><span class="nt-i"><b>★2 カマイタチ「つむじ斬り」</b><br>70%×3(合計210%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★2 カマイタチ「鎌鼬の嵐」</b><br>70%×2(合計140%) → <em>60%×2(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「跳ね回り」</b><br>70%×3(合計210%) → <em>40%×3(合計120%)</em></span><span class="nt-i"><b>★2 ジャッカロープ「ホーンラッシュ」</b><br>90%×4(合計360%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★2 ブラックウルフ「雷狼の群襲」</b><br>70%×4(合計280%) → <em>55%×4(合計220%)</em></span><span class="nt-i"><b>★1 オオコウモリ「超音波の乱れ撃ち」</b><br>60%×3(合計180%) → <em>45%×3(合計135%)</em></span><span class="nt-i"><b>★1 キラービー「千本針」</b><br>50%×6(合計300%) → <em>35%×6(合計210%)</em></span><span class="nt-i"><b>★1 ゴブリン「ゴブリンラッシュ」</b><br>70%×5(合計350%) → <em>40%×5(合計200%)</em></span><span class="nt-i"><b>★1 ストームホーク「旋風の爪」</b><br>90%×3(合計270%) → <em>70%×3(合計210%)</em></span><span class="nt-i"><b>★1 ニードルラット「針飛ばし」</b><br>40%×4(合計160%) → <em>35%×4(合計140%)</em></span><span class="nt-i"><b>★1 ヒノコ「火の粉の雨」</b><br>60%×3(合計180%) → <em>50%×3(合計150%)</em></span><span class="nt-i">・コボルト「すばやい突き」は、もともと1回攻撃より弱いのでそのままです。</span><span class="nt-i">・ステージの勝率はほぼ変わりません(多くの難易度で±1〜2%)。</span>' },
   { id: 147, version: 'α0.4.001', date: '10/2', title: '防御の見直し(タンクがしっかり硬く)', body: '<span class="nt-h">いちばん大きい変化: 同じ攻撃で受けるダメージ</span><span class="nt-i">ダメージ1,000の物理攻撃を受けたとき(各ロールの平均)</span><span class="nt-i"><b>タンク</b><br>860 → <em>660</em></span><span class="nt-i"><b>アタッカー</b><br>945 → <em>890</em></span><span class="nt-i"><b>サポート</b><br>950 → <em>895</em></span><span class="nt-i"><b>トリックスター</b><br>940 → <em>880</em></span><span class="nt-i"><b>シューター</b><br>965 → <em>925</em></span><span class="nt-i">・タンクが<em>はっきり硬く</em>なりました。ほかのロールは少しだけ硬くなります。</span><span class="nt-i">・<em>敵も同じだけ硬くなる</em>ので、戦闘は平均1〜2ラウンド長くなります。</span><span class="nt-h">なぜ変えたか</span><span class="nt-i">防御を「そのままダメージカット」にしたあと防御が弱すぎて、タンクがほかの子より少し硬いだけになっていました。役割の差がはっきり出るように見直しました。</span><span class="nt-h">防御の数字の見かた</span><span class="nt-i">・防御は<em>1ポイントで受けるダメージが1%減る</em>ポイントです(物理防御は物理、魔法防御は魔法)。</span><span class="nt-i">・スキル・パッシブ・ルーン・遺物・陣形の防御は「物理防御+15」のように<em>ポイントで足す</em>表示にそろえました(%は付けません)。</span><span class="nt-h">変わる数字</span><span class="nt-i"><b>素の防御(タンク)</b><br>図鑑の値 → <em>2.5倍(例: タイタン 物防20・魔防16 → 物防50・魔防30)</em></span><span class="nt-i"><b>素の防御(タンク以外)</b><br>図鑑の値 → <em>2倍(例: 九尾の狐 物防4・魔防5 → 物防8・魔防10)</em></span><span class="nt-i"><b>タンクの防御の合計(物防+魔防)</b><br>上限なし → <em>★5:80 / ★4:75 / ★3:65 / ★2:55 / ★1:45 まで</em></span><span class="nt-i"><b>スキル・パッシブの防御アップ</b><br>物理防御+6 → <em>物理防御+15(2.5倍)</em></span><span class="nt-i"><b>防御ダウン</b><br>物理防御-4 → <em>物理防御-8(2倍)</em></span><span class="nt-i"><b>ルーン・遺物・陣形・種族の防御</b><br>ルーンTierⅩのメイン +5 → <em>+10(2倍)</em></span><span class="nt-i">・EXなどの「敵 物理防御+40」のような特別ルールはそのままです。</span>' },
@@ -21422,6 +21433,7 @@ function renderProfileOverlay(){
         <div class="pf-card">
           <button class="pf-avatar${myFrameClass()}" data-pick="avatar" aria-label="アバターを変える">
             ${av ? `<img src="${imgSrc(av)}" alt="">` : '<span>👤</span>'}
+            ${myFrameBadge()}
             <span class="pf-avatar-tag">変更</span>
           </button>
           <div class="pf-main">
@@ -21719,7 +21731,7 @@ function socialRowHtml(f, mode){
   return `
     <div class="soc-row">
       <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer; align-items:center;">
-        <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
+        <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}${frameBadgeHtml(f.frame)}</div>
         <div class="fc-body">
           ${otherTitleHtml(f.title)}
           <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
@@ -21806,7 +21818,7 @@ function renderFriendsOverlay(){
           <div class="panel facility" style="margin-bottom:8px;">
             <div class="fc-head">
               <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer;">
-                <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}</div>
+                <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}${frameBadgeHtml(f.frame)}</div>
                 <div class="fc-body">
                   ${otherTitleHtml(f.title)}
                   <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
@@ -21839,7 +21851,7 @@ function renderFriendProfileOverlay(){
       ${overlayHead(friend ? 'フレンドのプロフィール' : 'プロフィール')}
       <div class="ov-body">
         <div class="pf-card">
-          <div class="pf-avatar${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="">` : '<span>👤</span>'}</div>
+          <div class="pf-avatar${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="">` : '<span>👤</span>'}${frameBadgeHtml(f.frame)}</div>
           <div class="pf-main">
             ${otherTitleHtml(f.title, 'pf-name-title')}
             <div class="pf-name-row"><div class="pf-name">${escapeHtml(f.name)}</div></div>
