@@ -52,6 +52,8 @@ async def main():
                        left: eventMissions(EVENTS.find(e => e.key === 'ev_fenrir')).filter(x => x.state === 'claim').length };
             }""")
             # 通常500 ＋ ★500 = 1,000(経済見直し)
+            mi = await pg.evaluate("() => ({ icon: itemIcon('medal_ev_fenrir'), name: itemName('medal_ev_fenrir') })")
+            check('報酬に出るメダルに絵と名前がある(数字だけの「謎のアイテム」にならない)', mi['icon'] != '' and mi['name'] == '神狼の牙', mi)
             check('結晶は1,000もらえる', got['crystal'] == 1000, got['crystal'])
             # 通常500 ＋ ★1,800 = 2,300
             check('メダルは2,300もらえる', got['medal'] == 2300, got['medal'])

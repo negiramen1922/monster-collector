@@ -3335,7 +3335,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.013';
+const GAME_VERSION = 'α0.4.014';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5736,6 +5736,8 @@ function itemName(key){
   if(b) return `ワザ素材BOX(${b[1] === 'sel' ? '選択' : 'ランダム'}) Tier${TIER_LABEL[b[2]]}`;
   const m = parseMat(key);
   if(m) return `${MAT_FAMILIES[m.fam].name(m.kind)} Tier${TIER_LABEL[m.tier]}`;
+  const md = medalByKey(key);
+  if(md) return md.name;
   return key;
 }
 function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</span>`; }
@@ -5756,8 +5758,11 @@ function itemIcon(key){
   if(b) return `<span class="item-ic">${b[1] === 'sel' ? ITEM_ICON.box_sel : ITEM_ICON.box_rnd}${tierBadge(Number(b[2]))}</span>`;
   const m = parseMat(key);
   if(m) return `<span class="item-ic">${MAT_FAMILIES[m.fam].icon(m.kind)}${tierBadge(m.tier)}</span>`;
+  const md = medalByKey(key);   // イベントのメダル(報酬の一覧で絵が出ず、数字だけになっていた)
+  if(md && ITEM_ICON[md.icon]) return `<span class="item-ic">${ITEM_ICON[md.icon]}</span>`;
   return '';
 }
+function medalByKey(key){ return typeof key === 'string' && key.startsWith('medal_') ? Object.values(EVENT_MEDAL).find(m => m.key === key) || null : null; }
 function goldText(n){ return `${GOLD_ICON}${Number(n).toLocaleString()}`; }
 function addGold(n){ STATE.gold = Math.max(0, (STATE.gold || 0) + n); }
 
@@ -21518,6 +21523,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 160, version: 'α0.4.014', date: '10/4', title: '報酬のメダルの表示', body: '<span class="nt-i">・イベントミッションなどの報酬で、イベントのメダル(狐火の灯・巨神の金片など)が絵のない数字だけで出ていたのを直しました。もらえる数はそのままです。</span>' },
   { id: 159, version: 'α0.4.013', date: '10/4', title: '霊素の鉱脈の霊素核を確率に', body: '<span class="nt-i">・霊素の鉱脈の霊素核を、必ず出る形からメインクエストの素材と同じ確率で出る形に変えました(5段: 霊素核I 4個→60%、霊素核II 2個→30%)。</span>' },
   { id: 158, version: 'α0.4.012', date: '10/4', title: 'バベル試験場の遺物', body: '<span class="nt-i">・開発用のバベル試験場で、中級・上級にも遺物を付けるようにしました(中級=★3遺物Lv50・遺物スキルLv3 / 上級=★4遺物Lv150・遺物スキルLv7・2凸)。遺物スキルLvと凸も個別に変えられます。</span><span class="nt-i">・ルーンの数を本番と同じく★で開く数にしました。そのうえで30階すべての強さを合わせ直しました。</span>' },
   { id: 157, version: 'α0.4.011', date: '10/4', title: 'バベル試験場に「超上級」', body: '<span class="nt-i">・開発用のバベル試験場に、育ちの「超上級」(★10・スキルLv12・ルーンⅩ・遺物カンスト)を足しました。遺物はモンスターに合うものを自動で選び、編集欄で付け替え・強化度の変更もできます。</span>' },
