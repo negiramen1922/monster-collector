@@ -2275,6 +2275,48 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   50%{ box-shadow:inset 0 0 0 3px var(--gold), inset 0 0 30px rgba(232,180,85,.6); }
 }
 
+/* ハンズオンの暗転。対象の上・左・右・下に板を敷いて、対象だけ素のまま触れるようにする。
+   z-indexで対象を持ち上げる方式は、別の重なり文脈(モーダルの中など)に入ると効かないので使わない。
+   対象が見つからないときは板を1枚も敷かない(穴のない真っ暗でプレイヤーを閉じ込めないため)。 */
+#guide-mask{ position:absolute; inset:0; z-index:54; pointer-events:none; display:none; }
+#guide-mask.show{ display:block; }
+#guide-mask .gm-pane{ position:absolute; background:rgba(8,10,16,.76); pointer-events:auto; }
+#guide-mask .gm-ring{
+  position:absolute; border-radius:14px; pointer-events:none;
+  animation:gm-ring 1.4s ease-in-out infinite;
+}
+@keyframes gm-ring{
+  0%, 100%{ box-shadow:0 0 0 3px var(--gold), 0 0 18px 2px rgba(232,180,85,.45); }
+  50%{ box-shadow:0 0 0 3px var(--gold), 0 0 30px 8px rgba(232,180,85,.8); }
+}
+.guide-wait{ font-size:11px; font-weight:800; color:var(--gold); align-self:center; }
+/* チュートリアル試験場のパネル(?lab=tutorial のときだけ body に足す) */
+#tutlab{
+  position:fixed; right:8px; top:8px; z-index:9999; width:208px;
+  background:rgba(10,12,20,.94); border:1px solid #39406a; border-radius:10px;
+  padding:8px; font-size:10.5px; color:#dfe3f5; box-shadow:0 8px 20px -6px #000;
+}
+#tutlab .tl-head{ font-weight:800; font-size:11px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+#tutlab .tl-head button{ background:none; border:0; color:#9aa3c7; cursor:pointer; font-size:13px; }
+#tutlab .tl-rows div{ display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
+#tutlab .tl-rows span{ color:#9aa3c7; }
+#tutlab .tl-rows b{ font-variant-numeric:tabular-nums; }
+#tutlab .tl-btns{ display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+#tutlab .tl-btns button{
+  flex:1 1 auto; background:#232a48; border:1px solid #39406a; border-radius:6px;
+  color:#dfe3f5; font-size:10px; padding:4px 5px; cursor:pointer;
+}
+#tutlab .tl-btns button.on{ background:var(--gold-deep); border-color:var(--gold); color:#1a1405; font-weight:800; }
+#tutlab .tl-btns button:disabled{ opacity:.35; cursor:default; }
+.guide-stuck:empty{ display:none; }
+.guide-stuck{ margin-top:6px; }
+/* 穴の外を押したとき、ここを押してと示す */
+#guide-mask.nudge .gm-ring{ animation:gm-nudge .42s ease; }
+@keyframes gm-nudge{ 0%,100%{ transform:translateX(0); } 20%{ transform:translateX(-6px); } 60%{ transform:translateX(6px); } }
+@media (prefers-reduced-motion: reduce){
+  #guide-mask .gm-ring{ animation:none; box-shadow:0 0 0 3px var(--gold), 0 0 22px 4px rgba(232,180,85,.6); }
+}
+
 @media (prefers-reduced-motion: reduce){
   .uni-summary, .point-summary{ animation:none; opacity:1; transform:none; }
   .unit.ready, .unit.ready.acting-ally{ animation:none; box-shadow:0 0 14px -2px rgba(232,180,85,.8); }
@@ -4292,6 +4334,9 @@ const firebaseConfigured = () => !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.au
 const ACCOUNT_KEY = 'monster-game-account';
 // バベル試験場(index.html?lab=babel)。本番のセーブ・クラウドには一切書かない(下の「バベル試験場」)
 const LAB_MODE = typeof location !== 'undefined' && /[?&]lab=babel\b/.test(location.search || '');
+/* チュートリアル試験場(index.html?lab=tutorial)。バベル試験場と違って本物のゲーム画面を使う
+   (押させるボタンが本物でないと意味がないため)。セーブは使い捨てで、本番のセーブには書かない */
+const TUT_LAB = typeof location !== 'undefined' && /[?&]lab=tutorial\b/.test(location.search || '');
 const SAVE_KEY = 'monster-game-state';           // also the key of pre-account saves
 const saveKeyFor = uid => `${SAVE_KEY}:${uid}`;
 const PROVIDER_LABEL = { google: 'Google', email: 'メールアドレス', guest: 'ゲスト' };
@@ -5509,7 +5554,7 @@ function normalizeState(){
 }
 
 function saveState(){
-  if(!STATE || LAB_MODE) return;   // 試験場は本番のセーブに書かない
+  if(!STATE || LAB_MODE || TUT_LAB) return;   // 試験場は本番のセーブに書かない
   syncActiveFormation();
   checkTamerLevelUp();
   checkUnlocks();
@@ -16265,6 +16310,8 @@ function findStage(id){
 }
 function showTutorial(stageId, page){
   const stage = findStage(stageId);
+  // ハンズオンに作り直したステージは、戦闘前にまとめて読ませる古いページを出さない
+  if(TUT_FLOW[stageId]) return startBattle(stageId, { skipIntro: true });
   const steps = TUTORIAL_PAGES[stage.tutorial].map(([title, body]) => ({ title, body }));
   guideToastState = {
     mascotKey: TUTORIAL_MASCOT, steps, step: page || 0, key: null, doneLabel: '戦闘開始',
@@ -19898,6 +19945,8 @@ function showBattleResult(tab){
     </div>
   `;
   layer.classList.add('show');
+  // チュートリアルのステージをクリアしたら、リザルト画面で続きの案内を出す
+  if(b.win && b.stage.tier === 'tu') startTutorialPost(b.stage.id);
 }
 
 // 撤退(中断)したときも、負けたときと同じくスタミナを全額返す。報酬は出ないので返しても得はしない
@@ -20425,9 +20474,14 @@ function handlePhoneClick(ev){
   }
   const guideHelpEl = t.closest('[data-guide-help]');
   if(guideHelpEl){ replayGuide(guideHelpEl.dataset.guideHelp); return; }
+  if(t.closest('[data-guide-skip]')){ askSkipTutorial(); return; }
+  const tutSkipEl = t.closest('[data-tut-skip]');
+  if(tutSkipEl){ answerSkipTutorial(tutSkipEl.dataset.tutSkip === 'yes'); return; }
   if(t.closest('[data-guide-next]')){ guideToastNext(); return; }
   if(t.closest('[data-guide-back]')){ guideToastBack(); return; }
   if(t.closest('[data-guide-close]')){ finishGuideToast(); return; }
+  // 暗転の板を押された: 穴の外なので、リングを揺らして「ここを押して」と示すだけ
+  if(t.closest('#guide-mask .gm-pane')){ nudgeGuideMask(); return; }
 
   // ---- ルーン ----
   const runeSlotEl = t.closest('[data-rune-slot]');
@@ -21157,7 +21211,10 @@ function handlePhoneClick(ev){
       const stCost = stageStaminaCost(st);
       if(STATE.stamina < stCost){ toast(`スタミナが足りません(必要 ${stCost})`); return; }
     }
-    closeModal(); startBattle(startEl.dataset.startStage); return;
+    closeModal();
+    // チュートリアルの次の1本に進んだら、出撃までの案内をやり直す(押させるボタンが変わる)
+    if(tutorialRunning() && String(startEl.dataset.startStage).startsWith('tu')){ guideOwner = null; clearGuideToast(true); }
+    startBattle(startEl.dataset.startStage); return;
   }
   const resultNavEl = t.closest('[data-result-nav]');
   if(resultNavEl){
@@ -23130,11 +23187,92 @@ async function bootLab(){
   render();
 }
 
+/* ---------------- チュートリアル試験場 (index.html?lab=tutorial) ----------------
+   本物のゲーム画面をそのまま使い、セーブだけ使い捨てにする。アカウントもクラウドも触らない。
+   浮かせたパネルから、好きなステージの頭に飛べる・まっさらに戻せる・いまロックを持っている
+   ガイドが見られる(被りバグを目で確かめるため)。ふつうに遊ぶ画面には出ない */
+async function bootTutLab(){
+  appPhase = 'game';
+  ACCOUNT = { uid: 'tutlab', provider: 'guest', name: '試験場' };
+  STATE = DEFAULT_STATE();
+  buildShell();
+  goto('home');
+  renderTutLabPanel();
+  startTutorialPre();
+}
+// まっさらな新規プレイヤーに戻す
+function tutLabReset(){
+  STATE = DEFAULT_STATE();
+  guideOwner = null;
+  clearGuideToast(true);
+  buildShell();
+  goto('home');
+  renderTutLabPanel();
+  startTutorialPre();
+  toast('まっさらに戻しました');
+}
+// 指定のステージの「頭」に飛ぶ(そこまでをクリア済みにして、案内をやり直す)
+function tutLabJump(stageId){
+  const i = TUT_STAGES.indexOf(stageId);
+  if(i < 0) return;
+  STATE.clearedStages = TUT_STAGES.slice(0, i);
+  STATE.stageStars = {};
+  STATE.tutorialSkipped = false;
+  guideOwner = null;
+  clearGuideToast(true);
+  goto('home');
+  render();
+  renderTutLabPanel();
+  startTutorialPre();
+}
+function tutLabAction(cmd){
+  if(cmd === 'reset') return tutLabReset();
+  if(cmd === 'skipflag'){ STATE.tutorialSkipped = !STATE.tutorialSkipped; guideOwner = null; clearGuideToast(true); render(); return renderTutLabPanel(); }
+  if(cmd === 'panel') return renderTutLabPanel();
+  if(cmd.startsWith('jump:')) return tutLabJump(cmd.slice(5));
+  if(cmd.startsWith('post:')) { startTutorialPost(cmd.slice(5)); return renderTutLabPanel(); }
+}
+function renderTutLabPanel(){
+  let el = document.getElementById('tutlab');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'tutlab';
+    document.body.appendChild(el);
+    // アプリのクリック委譲は #phone に付いているので、body 直下のこのパネルには届かない
+    el.addEventListener('click', ev => {
+      const btn = ev.target.closest('[data-tutlab]');
+      if(btn) tutLabAction(btn.dataset.tutlab);
+    });
+  }
+  const next = tutorialNextStage();
+  const owner = guideOwner || '-';
+  const cur = guideToastState ? `${guideToastState.key} ${guideToastState.step + 1}/${guideToastState.steps.length}` : '-';
+  el.innerHTML = `
+    <div class="tl-head">チュートリアル試験場<button data-tutlab="panel" title="更新">⟳</button></div>
+    <div class="tl-rows">
+      <div><span>次のステージ</span><b>${next || '(終わり)'}</b></div>
+      <div><span>ロック</span><b>${owner}</b></div>
+      <div><span>いまの案内</span><b>${cur}</b></div>
+      <div><span>スキップ済み</span><b>${STATE.tutorialSkipped ? 'はい' : 'いいえ'}</b></div>
+    </div>
+    <div class="tl-btns">
+      ${TUT_STAGES.map(id => `<button data-tutlab="jump:${id}" class="${next === id ? 'on' : ''}"${TUT_FLOW[id] ? '' : ' disabled title="まだ未実装"'}>${id}</button>`).join('')}
+    </div>
+    <div class="tl-btns">
+      ${TUT_STAGES.filter(id => TUT_FLOW[id] && TUT_FLOW[id].post).map(id => `<button data-tutlab="post:${id}">${id} 後半</button>`).join('')}
+    </div>
+    <div class="tl-btns">
+      <button data-tutlab="reset">まっさらに戻す</button>
+      <button data-tutlab="skipflag">スキップ切替</button>
+    </div>`;
+}
+
 /* ---------------- boot ---------------- */
 
 async function boot(){
   wireGlobalEvents();
   if(LAB_MODE) return bootLab();   // バベル試験場: アカウントもセーブも使わない
+  if(TUT_LAB) return bootTutLab(); // チュートリアル試験場: 本物の画面を使い捨てのセーブで回す
   appPhase = 'boot';
   renderTitle();                       // splash while the saved session is restored
   let acct = null;
@@ -23161,15 +23299,16 @@ async function startGame(){
   if(from === 'cloud') toast('クラウドのデータを読み込みました');
   if(!STATE.guidesSeen || !STATE.guidesSeen.welcome){
     const steps = GUIDE_CONTENT.welcome.steps.filter(s => !s.installOnly || canInstall());
-    openGuideToast('ketsy', steps, { key: 'welcome', doneLabel: 'はじめる' });
+    openGuideToast('ketsy', steps, { key: 'welcome', doneLabel: 'はじめる', onDone: () => startTutorialPre() });
     // はじめたばかりの人には、今あるニュースは読んだことにする(新しく出たものだけを次から知らせる)
     const ln = liveNotices();
     if(ln[0]) STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, ln[0].id);
-  }else openNewNewsOnEntry();
+  }else if(!startTutorialPre()) openNewNewsOnEntry();
 }
 // ゲームに入ったとき、まだ読んでいないニュース(アップデート内容は対象外)があれば、お知らせを開いて見せる。
 // 開いた時点で既読にするので、2回目は出ない
 function openNewNewsOnEntry(){
+  if(guideOwner === 'tutorial') return false;   // チュートリアル中は帯の上にモーダルを乗せない
   const ln = liveNotices();
   const seen = STATE.noticeSeen || 0;
   const fresh = ln.filter(n => n.id > seen);
@@ -23197,8 +23336,8 @@ function guideHelpBtn(key, cls){
 }
 function replayGuide(key){
   const g = GUIDE_REPLAY[key];
-  if(!g || !GUIDE_CONTENT[key]) return;
-  clearGuideToast();
+  if(!g || !GUIDE_CONTENT[key] || guideOwner === 'tutorial') return;
+  clearGuideToast(true);
   openGuideToast(g.mascot, GUIDE_CONTENT[key].steps, { key, doneLabel: g.doneLabel });
 }
 // ルーンの説明に使う見本(実物と同じ絵で見せる)
@@ -23258,10 +23397,63 @@ const GUIDE_CONTENT = {
   },
 };
 
+/* ---- ハンズオンの暗転(穴あきマスク) ----
+   対象のまわりに4枚の板を敷くので、穴の中のタップは本物のボタンにそのまま届く。
+   対象が見つからない・大きさが0のときは何も敷かない(穴のない真っ暗で閉じ込めない)。 */
+const GUIDE_MASK_PAD = 6;
+let guideMaskSel = null, guideMaskWired = false, guideMaskRaf = 0;
+function setGuideMask(selector){
+  guideMaskSel = selector || null;
+  if(guideMaskSel && !guideMaskWired){
+    guideMaskWired = true;
+    const redraw = () => {
+      if(guideMaskRaf) return;
+      guideMaskRaf = requestAnimationFrame(() => { guideMaskRaf = 0; drawGuideMask(); });
+    };
+    window.addEventListener('resize', redraw);
+    window.addEventListener('scroll', redraw, true);   // 中のスクロール要素も拾うので capture
+  }
+  drawGuideMask();
+}
+function drawGuideMask(){
+  const el = document.getElementById('guide-mask'), host = document.getElementById('phone');
+  if(!el) return;
+  const target = guideMaskSel ? document.querySelector(guideMaskSel) : null;
+  const r = target && target.getBoundingClientRect();
+  if(!host || !r || r.width <= 0 || r.height <= 0){ el.classList.remove('show'); el.innerHTML = ''; return; }
+  const h = host.getBoundingClientRect(), p = GUIDE_MASK_PAD;
+  const W = h.width, H = h.height;
+  const x = Math.max(0, r.left - h.left - p), y = Math.max(0, r.top - h.top - p);
+  const w = Math.min(W - x, r.width + p * 2), hh = Math.min(H - y, r.height + p * 2);
+  const pane = (l, t, wd, ht) => wd > 0 && ht > 0
+    ? `<div class="gm-pane" style="left:${l}px;top:${t}px;width:${wd}px;height:${ht}px;"></div>` : '';
+  el.innerHTML = pane(0, 0, W, y) + pane(0, y + hh, W, H - (y + hh))
+    + pane(0, y, x, hh) + pane(x + w, y, W - (x + w), hh)
+    + `<div class="gm-ring" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px;"></div>`;
+  el.classList.add('show');
+}
+// 穴の外を押されたとき、リングを揺らして「ここを押して」と示す
+function nudgeGuideMask(){
+  const el = document.getElementById('guide-mask');
+  if(!el) return;
+  el.classList.remove('nudge');
+  void el.offsetWidth;          // アニメーションを巻き戻す
+  el.classList.add('nudge');
+  setTimeout(() => el.classList.remove('nudge'), 450);
+}
+
+/* ---- ガイドの所有権 ----
+   チュートリアル中はほかのガイドを出さない。openGuideToast が同じ key しか弾いていないので、
+   別の key(モンスター詳細のハノコなど)が来ると guideToastState が丸ごと差し替わり、
+   チュートリアルが途中で死ぬ。溜めずに捨てる(あとから見直し一覧で見られる) */
+let guideOwner = null;   // 'tutorial' か null
+function guideLockedFor(key){ return guideOwner === 'tutorial' && key !== 'tutorial'; }
+
 // state for whichever guide is currently showing: { mascotKey, steps, step, key, doneLabel, dismissible, onDone }
 let guideToastState = null;
 function openGuideToast(mascotKey, steps, opts){
   opts = opts || {};
+  if(guideLockedFor(opts.key)) return;                                        // チュートリアル中の割り込みを捨てる
   if(guideToastState && opts.key && guideToastState.key === opts.key) return; // already mid-way through this one
   guideToastState = {
     mascotKey, steps, step: 0, key: opts.key || null, doneLabel: opts.doneLabel || '閉じる',
@@ -23269,14 +23461,23 @@ function openGuideToast(mascotKey, steps, opts){
   };
   renderGuideToastStep();
 }
+let guideStuckTimer = 0;
 function renderGuideToastStep(){
   const el = document.getElementById('guide-toast');
   const st = guideToastState;
   if(!el || !st) return;
   clearGuideHighlight();
+  if(guideStuckTimer){ clearTimeout(guideStuckTimer); guideStuckTimer = 0; }
   const mascot = MASCOTS[st.mascotKey];
   const s = st.steps[st.step];
   const isLast = st.step === st.steps.length - 1;
+  // spot: 暗転して穴を開ける要素。await:'tap' ならその要素を押すまで進まない(「次へ」を出さない)
+  const spot = s.spot || s.highlight || null;
+  const awaitTap = !!(s.spot && s.await === 'tap');
+  const canSkip = guideOwner === 'tutorial';
+  // 対象が見つからないときは「次へ」に落とす。穴のないマスクで閉じ込めないため
+  const spotFound = !!(spot && document.querySelector(spot));
+  const waiting = awaitTap && spotFound;
   el.innerHTML = `
     <div class="guide-banner">
       <img class="guide-avatar" src="${imgSrc(mascot.id)}" alt="${mascot.name}">
@@ -23286,15 +23487,42 @@ function renderGuideToastStep(){
         ${s.visual ? `<div class="guide-visual">${typeof s.visual === 'function' ? s.visual() : s.visual}</div>` : ''}
         <p>${s.body}</p>
         <div class="guide-nav">
-          ${st.step > 0 ? '<button class="btn btn-sm btn-ghost" data-guide-back="1">戻る</button>' : '<span></span>'}
-          <button class="btn btn-sm" data-guide-next="1">${isLast ? st.doneLabel : '次へ'}</button>
+          ${canSkip ? '<button class="btn btn-sm btn-ghost" data-guide-skip="1">スキップ</button>'
+            : st.step > 0 ? '<button class="btn btn-sm btn-ghost" data-guide-back="1">戻る</button>' : '<span></span>'}
+          ${waiting ? '<span class="guide-wait">光っているところを押してね</span>'
+            : `<button class="btn btn-sm" data-guide-next="1">${isLast ? st.doneLabel : '次へ'}</button>`}
         </div>
+        <div class="guide-stuck" id="guide-stuck"></div>
       </div>
       ${st.dismissible ? '<button class="guide-close" data-guide-close="1">×</button>' : ''}
     </div>`;
   el.classList.add('show');
-  if(s.highlight) applyGuideHighlight(s.highlight);
+  if(spot && spotFound) applyGuideHighlight(spot);
+  setGuideMask(awaitTap || s.dim ? (spotFound ? spot : null) : null);
+  // 押せるものが出てこないまま10秒たったら、進める逃げ道を出す
+  if(waiting) guideStuckTimer = setTimeout(() => {
+    const box = document.getElementById('guide-stuck');
+    if(box) box.innerHTML = '<button class="btn btn-sm btn-ghost btn-block" data-guide-next="1">うまく押せないときはここ</button>';
+  }, 10000);
+  if(TUT_LAB) renderTutLabPanel();   // 試験場のパネルを最新の状態に
 }
+/* 穴の中の本物のボタンが押されたら進める。板は敷いていないのでアプリ側の処理はそのまま走る。
+   document のクリックハンドラどうしの順番に頼らないよう、進めるのは次のタスクに回す */
+function wireGuideTapAdvance(){
+  if(wireGuideTapAdvance.done) return;
+  wireGuideTapAdvance.done = true;
+  document.addEventListener('click', ev => {
+    const st = guideToastState;
+    if(!st) return;
+    const s = st.steps[st.step];
+    if(!s || !s.spot || s.await !== 'tap') return;
+    if(ev.target.closest('#guide-toast') || ev.target.closest('#guide-mask')) return;
+    if(!ev.target.closest(s.spot)) return;
+    const at = st.step;
+    setTimeout(() => { if(guideToastState === st && st.step === at) guideToastNext(); }, 0);
+  });
+}
+
 function guideToastNext(){
   const st = guideToastState;
   if(!st) return;
@@ -23320,7 +23548,8 @@ function finishGuideToast(){
   if(st && st.onDone) st.onDone();
 }
 // hides the toast without marking its guide as seen (e.g. the screen behind it was closed mid-way)
-function clearGuideToast(){
+function clearGuideToast(force){
+  if(!force && guideOwner === 'tutorial') return;   // チュートリアルを横から消させない
   clearGuideHighlight();
   guideToastState = null;
   const el = document.getElementById('guide-toast');
@@ -23339,10 +23568,100 @@ function applyGuideHighlight(selector, opts){
 function clearGuideHighlight(){
   document.querySelectorAll('.guide-spot').forEach(el => el.classList.remove('guide-spot'));
   document.querySelectorAll('.result-modal.guide-clearance').forEach(el => el.classList.remove('guide-clearance'));
+  setGuideMask(null);   // 暗転の片付けはここが一手に持つ(漏れると画面が暗いまま残る)
 }
 // a modal re-rendering itself (e.g. a level-up refreshing the monster detail sheet) replaces the
 // whole node, losing the highlight/clearance classes even though the same guide step is still
 // showing - call this after such a re-render to restore them without re-triggering the scroll.
+/* ================= ハンズオン チュートリアル =================
+   1ステージで1つだけ教える。pre は出撃まで(押させたいボタンだけを光らせて暗転)、
+   post はリザルト画面で見せる。進行は clearedStages と STATE.tutorialSkipped だけから決めるので、
+   ステップ番号は保存しない(リロードで壊れた途中から再開しない)。 */
+const TUT_STAGES = ['tu1', 'tu2', 'tu3', 'tu4', 'tu5'];
+const TUT_FLOW = {
+  tu1: {
+    pre: [
+      { title: 'はじめまして', body: 'やっほー、案内役のヒノコだよ!まずは探索に行ってみよう。下の「探索」を押してね。',
+        spot: '.nav-btn[data-nav="battle"]', await: 'tap' },
+      { body: '「入門」を選んでね。ここはスタミナを使わないよ。', spot: '[data-quest-tier="tu"]', await: 'tap' },
+      { body: '「はじめての戦い」だよ。', spot: '[data-stage-open="tu1"]', await: 'tap' },
+      { body: 'それじゃあ出撃!', spot: '.ss-go[data-stage="tu1"]', await: 'tap' },
+    ],
+    post: [
+      // リザルトのモーダルが画面を覆うので、ここは指さずに文だけで言う
+      { title: 'クリア!', body: '戦闘はオートで進むよ。画面の上の帯が動く順番で、すばやさ(SPD)の高い子から動くんだ。' },
+      { body: '次のステージに行こう!', spot: '[data-start-stage="tu2"]', await: 'tap' },
+    ],
+  },
+};
+function tutorialNextStage(){
+  if(!STATE || STATE.tutorialSkipped) return null;
+  return TUT_STAGES.find(id => !(STATE.clearedStages || []).includes(id)) || null;
+}
+function tutorialRunning(){ return guideOwner === 'tutorial'; }
+function openTutorialSteps(steps, doneLabel){
+  if(!steps || !steps.length) return false;
+  guideOwner = 'tutorial';
+  wireGuideTapAdvance();
+  clearGuideToast(true);
+  openGuideToast(TUTORIAL_MASCOT, steps, {
+    key: 'tutorial', dismissible: false, doneLabel: doneLabel || '閉じる',
+    // 出撃しただけでは手放さない。入門が残っているあいだ持ち続けて、ほかのガイドを入れない
+    onDone: () => { if(!tutorialNextStage()) guideOwner = null; clearGuideHighlight(); },
+  });
+  return true;
+}
+// 出撃までの案内。ゲームに入ったときと、1本クリアした次に呼ぶ
+function startTutorialPre(){
+  const id = tutorialNextStage();
+  const f = id && TUT_FLOW[id];
+  if(!f || !f.pre) return false;
+  return openTutorialSteps(f.pre, 'はじめる');
+}
+// リザルト画面での案内
+function startTutorialPost(stageId){
+  if(!STATE || STATE.tutorialSkipped) return false;
+  const f = TUT_FLOW[stageId];
+  if(!f || !f.post) return false;
+  return openTutorialSteps(f.post, '閉じる');
+}
+/* スキップの確認。#modal-layer は z-index 50 で暗転(54)より下なので、
+   確認のあいだは暗転を一旦畳む(つづけるを押したら引き直す) */
+function askSkipTutorial(){
+  const layer = document.getElementById('modal-layer');
+  if(!layer) return;
+  setGuideMask(null);
+  layer.innerHTML = `
+    <div class="result-modal confirm-modal" role="alertdialog" aria-label="チュートリアルをスキップしますか">
+      <h3>チュートリアルをスキップしますか?</h3>
+      <p>あとで <b>設定 → チュートリアルを再開</b> から、いつでもやり直せます。<br>
+        入門のステージと報酬はそのまま残ります。</p>
+      <div class="br-actions">
+        <button class="btn btn-block" data-tut-skip="no">つづける</button>
+        <button class="btn btn-ghost btn-block" data-tut-skip="yes">スキップする</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
+}
+function answerSkipTutorial(yes){
+  closeModal();
+  if(!yes){ renderGuideToastStep(); return; }   // 暗転を引き直す
+  STATE.tutorialSkipped = true;
+  guideOwner = null;
+  clearGuideToast(true);
+  saveState();
+  toast('チュートリアルをスキップしました(設定から再開できます)');
+  render();
+}
+function resumeTutorial(){
+  STATE.tutorialSkipped = false;
+  saveState();
+  overlayView = null;
+  goto('battle');
+  render();
+  startTutorialPre();
+}
+
 function reapplyGuideHighlight(){
   const st = guideToastState;
   if(!st) return;
@@ -23456,6 +23775,7 @@ function buildShell(){
     <div id="stage-fx"></div>
     <div id="log-sheet" aria-hidden="true" role="dialog" aria-label="バトルログ"></div>
     <div id="modal-layer"></div>
+    <div id="guide-mask"></div>
     <div id="guide-toast"></div>
     <div id="toast"></div>
     <div id="nav">
