@@ -16092,10 +16092,11 @@ const BABEL_TOWERS = [
 const BABEL_STRENGTH = [[3, 4, 3], [3, 4, 4], [3, 5, 4], [4, 5, 5], [4, 5, 6], [4, 6, 7], [5, 6, 8], [5, 6, 8], [5, 7, 9], [6, 7, 10]];
 const BABEL_GROW = [
   { key: 0, name: '初心者', star: 0, sk: 1, rune: 0 },
-  { key: 1, name: '中級', star: 2, sk: 6, rune: 3 },
-  { key: 2, name: '上級', star: 5, sk: 10, rune: 7 },
-  // 超上級: 育てきった形。★10・スキルLv12・ルーンⅩ・遺物カンスト(Lv200・スキル10・4凸。遺物はモンスターに合うものを自動で選ぶ)
-  { key: 3, name: '超上級', star: 99, sk: 12, rune: 10, relic: 200 },
+  // 遺物: relic = [★, Lv, 遺物スキルLv, 凸]。その★の中から、モンスターに一番合う遺物を自動で選ぶ
+  { key: 1, name: '中級', star: 2, sk: 6, rune: 3, relic: [3, 50, 3, 0] },
+  { key: 2, name: '上級', star: 5, sk: 10, rune: 7, relic: [4, 150, 7, 2] },
+  // 超上級: 育てきった形。★10・スキルLv12・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)
+  { key: 3, name: '超上級', star: 99, sk: 12, rune: 10, relic: [5, 200, 10, 4] },
 ];
 const BB_DEBUFFS = ['burn', 'poison', 'stun', 'paralyze', 'bind', 'confuse', 'petrify', 'charm'];
 const bbElem = (el, k, v, label) => ({ who: { element: el }, side: 'ally', [k]: v, label });
@@ -22779,7 +22780,7 @@ let lab = null;   // { tower, floor, parties:[[slot×5],[slot×5]], pick:{p,i}|n
 function labSlot(id, g){
   const m = MON_BY_ID[id], gr = BABEL_GROW[g] || BABEL_GROW[0];
   const star = Math.min(MAX_STAR, m.rarity + gr.star);
-  return { id, star, sk: Math.min(STAR_TABLE[star].skillCap, gr.sk), rune: gr.rune, relic: gr.relic ? labBestRelic(m) : null, rlv: gr.relic || 0 };
+  return { id, star, sk: Math.min(STAR_TABLE[star].skillCap, gr.sk), rune: gr.rune, relic: gr.relic ? labBestRelic(m, gr.relic[0]) : null, rlv: gr.relic ? gr.relic[1] : 0, rsk: gr.relic ? gr.relic[2] : 1, rdupe: gr.relic ? gr.relic[3] : 0 };
 }
 /* 遺物: 試験場では「遺物Lv」1つで強さを決める(Lv200 = スキルLv10・4凸のカンスト)。
    超上級のときは、そのモンスターに一番合う★5の遺物を自動で選ぶ(条件が合う効果が多く、ロールに合った効果ほど高い点) */
@@ -22793,10 +22794,10 @@ function labRelicScore(def, m){
     return a + v * (pref.includes(e.stat) ? 1 : 0.3) * (e.cond ? (e.cond.type === 'mon' ? 2 : 1.3) : 1);
   }, 0) + def.star * 0.01;
 }
-function labBestRelic(m){
-  return Object.values(RELICS).filter(d => d.star === 5).sort((a, b) => labRelicScore(b, m) - labRelicScore(a, m))[0].id;
+function labBestRelic(m, star){
+  return Object.values(RELICS).filter(d => d.star === (star || 5)).sort((a, b) => labRelicScore(b, m) - labRelicScore(a, m))[0].id;
 }
-function labRelicState(rlv){ return { level: rlv, skillLv: Math.max(1, Math.round(rlv / 200 * RELIC_SKILL_MAX)), dupeUsed: Math.min(RELIC_MAX_DUPE_USE, Math.floor(rlv / 50)) }; }
+function labRelicState(s){ return { level: s.rlv, skillLv: s.rsk || 1, dupeUsed: s.rdupe || 0 }; }
 function labFill(names, g){ const ids = bbIds(names).slice(0, LAB_PARTY); return [...Array(LAB_PARTY).keys()].map(i => ids[i] ? labSlot(ids[i], g) : null); }
 function labFloor(){ return BABEL_FLOORS[lab.tower][lab.floor - 1]; }
 function labHint(kind){
@@ -22823,7 +22824,9 @@ function labClamp(s){
   s.sk = Math.max(1, Math.min(STAR_TABLE[s.star].skillCap, s.sk | 0));
   s.rune = Math.max(0, Math.min(RUNE_TIERS, s.rune | 0));
   s.relic = s.relic && RELICS[s.relic] ? s.relic : null;
-  s.rlv = s.relic ? Math.max(0, Math.min(200, s.rlv | 0)) : 0;
+  s.rlv = s.relic ? Math.max(1, Math.min(relicLevelCap(), s.rlv | 0)) : 0;
+  s.rsk = s.relic ? Math.max(1, Math.min(RELIC_SKILL_MAX, s.rsk | 0)) : 1;
+  s.rdupe = s.relic ? Math.max(0, Math.min(RELIC_MAX_DUPE_USE, s.rdupe | 0)) : 0;
   return s;
 }
 // ルーンは4つとも同じTier。メイン効果はロールで決める(サブ効果は乗せない)
@@ -22861,7 +22864,7 @@ function labBuildParty(stage, slotsIn){
     u.slot = i; u.row = slotRowIn(formation, i); u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
     applyRuneBonusToUnit(u, labRuneBonus(m.role, c.rune));
-    if(c.relic && c.rlv > 0) applyRelicCore(u, m, RELICS[c.relic], labRelicState(c.rlv));
+    if(c.relic && c.rlv > 0) applyRelicCore(u, m, RELICS[c.relic], labRelicState(c));
     applyStageRules(u, stage, false);
     applyFormationBonus(u, formation);
     party.push(u);
@@ -23002,7 +23005,7 @@ function labSlotHtml(p, i){
   const s = lab.parties[p][i], on = lab.pick && lab.pick.p === p && lab.pick.i === i;
   const bad = s && !babelAllowed(lab.tower, s.id);
   return `<button class="lab-slot ${on ? 'on' : ''} ${bad ? 'bad' : ''}" data-lab="pick:${p}:${i}">${s
-    ? `<img src="${imgSrc(s.id)}" alt=""><b>${MON_BY_ID[s.id].name}</b><small>★${s.star}・Lv${s.sk}${s.rune ? `・R${RUNE_ROMAN[s.rune - 1]}` : ''}${s.relic && s.rlv ? `<br>遺物Lv${s.rlv}` : ''}</small>`
+    ? `<img src="${imgSrc(s.id)}" alt=""><b>${MON_BY_ID[s.id].name}</b><small>★${s.star}・Lv${s.sk}${s.rune ? `・R${RUNE_ROMAN[s.rune - 1]}` : ''}${s.relic && s.rlv ? `<br>遺★${RELICS[s.relic].star} Lv${s.rlv}・S${s.rsk}${s.rdupe ? `・${s.rdupe}凸` : ''}` : ''}</small>`
     : '<span class="lab-plus">+</span><small>空き</small>'}</button>`;
 }
 function labEditorHtml(){
@@ -23014,11 +23017,11 @@ function labEditorHtml(){
   const step = (k, label, val) => `<div class="lab-step"><small>${label}</small><button data-lab="adj:${k}:-1">−</button><b>${val}</b><button data-lab="adj:${k}:1">＋</button></div>`;
   return `<div class="panel lab-editor">
     <div class="row-between"><div class="mc-head">${labIsTwo() ? (p === 0 ? '前半' : '後半') : ''} ${i + 1}番目</div><button class="btn btn-ghost btn-sm" data-lab="close">閉じる</button></div>
-    ${s ? `<div class="lab-steps">${step('star', '★', s.star)}${step('sk', 'スキルLv', s.sk)}${step('rune', 'ルーンTier', s.rune ? RUNE_ROMAN[s.rune - 1] : 'なし')}${s.relic ? step('rlv', '遺物Lv', s.rlv) : ''}
+    ${s ? `<div class="lab-steps">${step('star', '★', s.star)}${step('sk', 'スキルLv', s.sk)}${step('rune', 'ルーンTier', s.rune ? RUNE_ROMAN[s.rune - 1] : 'なし')}${s.relic ? step('rlv', '遺物Lv', s.rlv) + step('rsk', '遺物スキル', s.rsk) + step('rdupe', '凸', s.rdupe) : ''}
       <button class="btn btn-ghost btn-sm" data-lab="remove">外す</button></div>
       <div class="lab-relic"><small>遺物</small><select id="lab-relic"><option value="">なし</option>${Object.values(RELICS).slice().sort((a, b) => b.star - a.star || labRelicScore(b, MON_BY_ID[s.id]) - labRelicScore(a, MON_BY_ID[s.id]))
         .map(d => `<option value="${d.id}" ${s.relic === d.id ? 'selected' : ''}>★${d.star} ${d.name}${(d.effects || []).some(e => e.cond && relicEffectMatches(e.cond, MON_BY_ID[s.id])) ? ' ✓' : ''}</option>`).join('')}</select>
-        <span class="lab-relic-note">${s.relic ? `Lv${s.rlv}・スキルLv${labRelicState(s.rlv).skillLv}・${labRelicState(s.rlv).dupeUsed}凸` : '✓ = このモンスターに条件が合う効果あり'}</span></div>` : ''}
+        <span class="lab-relic-note">${s.relic ? `Lv${s.rlv}・遺物スキルLv${s.rsk}・${s.rdupe}凸` : '✓ = このモンスターに条件が合う効果あり'}</span></div>` : ''}
     <div class="lab-filters">${['', ...ELEM_ORDER].map(e => `<button class="lab-chip ${lab.fEl === e ? 'on' : ''}" data-lab="fel:${e}">${e ? ELEM_LABEL[e] : '全属性'}</button>`).join('')}</div>
     <div class="lab-filters">${['', ...Object.keys(ROLE_LABEL)].map(r => `<button class="lab-chip ${lab.fRole === r ? 'on' : ''}" data-lab="frole:${r}">${r ? ROLE_LABEL[r] : '全ロール'}</button>`).join('')}</div>
     <div class="lab-grid">${list.map(m => {
@@ -23049,7 +23052,7 @@ function renderLab(){
       <button class="btn btn-ghost btn-sm" data-lab="hint:lose">勝てない想定を入れる(${hintText('lose')})</button>
     </div>
     <div class="lab-grow"><small>全員の育ちをそろえる:</small>${BABEL_GROW.map(g => `<button class="lab-chip" data-lab="grow:${g.key}">${g.name}</button>`).join('')}
-      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし / 中級=★+2・Lv6・ルーンⅢ / 上級=★+5・Lv10・ルーンⅦ / 超上級=★10・Lv12・ルーンⅩ・遺物カンスト(合う遺物を自動で選ぶ)</span></div>
+      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし・遺物なし / 中級=★+2・Lv6・ルーンⅢ・★3遺物Lv50(スキル3) / 上級=★+5・Lv10・ルーンⅦ・★4遺物Lv150(スキル7・2凸) / 超上級=★10・Lv12・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)。遺物は合うものを自動で選ぶ</span></div>
     ${parts.map(p => `<div class="panel lab-party">
       <div class="row-between"><div class="mc-head">${two ? (p === 0 ? '前半の編成' : '後半の編成') : '編成'}</div><button class="btn btn-sm" data-lab="watch:${p}">観戦する</button></div>
       <div class="lab-slots">${[...Array(LAB_PARTY).keys()].map(i => labSlotHtml(p, i)).join('')}</div>
@@ -23085,11 +23088,11 @@ function labAction(a){
   else if(cmd === 'remove' && lab.pick) lab.parties[lab.pick.p][lab.pick.i] = null;
   else if(cmd === 'relic' && lab.pick){
     const s = lab.parties[lab.pick.p][lab.pick.i];
-    if(s){ s.relic = x || null; if(s.relic && !s.rlv) s.rlv = 200; labClamp(s); }
+    if(s){ s.relic = x || null; if(s.relic && !s.rlv){ s.rlv = 200; s.rsk = RELIC_SKILL_MAX; s.rdupe = RELIC_MAX_DUPE_USE; } labClamp(s); }
   }
   else if(cmd === 'adj' && lab.pick){
     const s = lab.parties[lab.pick.p][lab.pick.i];
-    if(s){ s[x] = (s[x] | 0) + Number(y) * (x === 'rlv' ? 50 : 1); labClamp(s); }
+    if(s){ s[x] = (s[x] | 0) + Number(y) * (x === 'rlv' ? 10 : 1); labClamp(s); }
   }
   labSave();
   render();
