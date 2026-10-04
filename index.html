@@ -3335,7 +3335,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.011';
+const GAME_VERSION = 'α0.4.012';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -16123,13 +16123,13 @@ const BABEL_FLOORS = {
     { name: '盾の遺跡', boost: { hp: 0.3, str: 0.18 }, rules: [{ side: 'ally', dmgDealt: 2.0, when: 'shielded', label: '味方 シールドを持っているあいだ 与ダメージ+200%' }, { side: 'ally', dmgTaken: 1.5, when: 'unshielded', label: '味方 シールドが無いあいだ 受けるダメージ+150%' }, { side: 'ally', shield: 1.0, label: '味方 シールドの効果量+100%' }, { side: 'ally', dmgDealt: -0.5, when: 'unshielded', label: '味方 シールドが無いあいだ 与ダメージ-50%' }],
       waves: ['オーク・ヒルジャイアント・ノッカー', 'ミノタウロス・土蜘蛛・アルヴィス', 'タイタン・ブロック・ドリュアス'],
       win: [1, 'ノーム・カーバンクル・ダークメカロイド・オーガ・サイクロプス'], lose: [2, 'グリズリー・オーガ・サイクロプス・スカーボア・ヘルハウンド'] },
-    { name: '毒の霧', rules: [{ side: 'enemy', stat: { hp: 1.0 }, label: '敵 最大HP+100%' }, { side: 'ally', dmgDealt: 1.5, whenTarget: 'poisoned', label: '味方 毒状態の敵へ 与ダメージ+150%' }, { side: 'enemy', dmgTaken: -0.6, when: 'unpoisoned', label: '敵 毒状態でないあいだ 受けるダメージ-60%' }],
+    { name: '毒の霧', boost: { hp: -0.5, str: -0.3 }, rules: [{ side: 'enemy', stat: { hp: 1.0 }, label: '敵 最大HP+100%' }, { side: 'ally', dmgDealt: 1.5, whenTarget: 'poisoned', label: '味方 毒状態の敵へ 与ダメージ+150%' }, { side: 'enemy', dmgTaken: -0.6, when: 'unpoisoned', label: '敵 毒状態でないあいだ 受けるダメージ-60%' }],
       waves: ['トレント・モスボア・スカラベ', 'エルダートレント・コカトリス・ゴブリンシャーマン・ノッカー', 'グリーンマン・アヌビス・ガーゴイル'],
       win: [1, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・アラクネ'], lose: [2, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・ブルーウィスプ'] },
-    { name: '守りの陣', rules: [{ side: 'enemy', stat: { str: 0.8 }, label: '敵 STR+80%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.8, stat: { hp: 1.0 }, label: 'タンクの味方 受けるダメージ-80%・最大HP+100%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 1.5, label: 'アタッカーの味方 受けるダメージ+150%' }],
+    { name: '守りの陣', boost: { hp: 0.9, str: 0.54 }, rules: [{ side: 'enemy', stat: { str: 0.8 }, label: '敵 STR+80%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.8, stat: { hp: 1.0 }, label: 'タンクの味方 受けるダメージ-80%・最大HP+100%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 1.5, label: 'アタッカーの味方 受けるダメージ+150%' }, { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 1.5, label: 'タンク・サポートの味方 与ダメージ+150%' }],
       waves: ['カマイタチ・ブラックウルフ・リザードマン', 'ワーウルフ・ドラウグル・ケルベロス', '死神・ハルピュイア・クラーケン'],
       win: [1, 'シルバーナイト・イエティ・エルダートレント・ブルーウィスプ・セイレーン'], lose: [2, 'グリズリー・オーガ・サイクロプス・スカーボア・ヘルハウンド'] },
-    { name: '静寂の間', rules: [{ side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' }, { side: 'enemy', stat: { hp: 0.5 }, label: '敵 最大HP+50%' }, { side: 'ally', atk: 'mag', dmgDealt: 2.0, label: '味方の魔法攻撃 与ダメージ+200%' }, { side: 'enemy', stat: { pdef: 45 }, label: '敵 物理防御+45' }],
+    { name: '静寂の間', boost: { hp: 1.05, str: 0.63 }, rules: [{ side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' }, { side: 'enemy', stat: { hp: 0.5 }, label: '敵 最大HP+50%' }, { side: 'ally', atk: 'mag', dmgDealt: 2.0, label: '味方の魔法攻撃 与ダメージ+200%' }, { side: 'enemy', stat: { pdef: 45 }, label: '敵 物理防御+45' }],
       waves: ['河童・ホーリースライム・ケットシー・ゴースト', 'ウンディーネ・ユニコーン・オルペウス・セルキー', 'ホーリードラゴン・カーバンクル・天狗'],
       win: [1, 'バンシー・アグニ・シームルグ・ブラッドローズ・セイレーン'], lose: [2, 'マンイーター・デススコーピオン・土蜘蛛・コカトリス・アラクネ'] },
     { name: '天の頂', boost: { hp: 0.4, str: 0.24 }, halves: [
@@ -16145,7 +16145,7 @@ const BABEL_FLOORS = {
     { name: '岩の谷', boost: { hp: 0.7, str: 0.42 }, rules: [bbElem('wind', 'dmgDealt', 1.0, '風属性の味方 与ダメージ+100%')],
       waves: ['コボルト・マッドモール・ノッカー', 'オーク・ジャッカロープ・ヒルジャイアント・アルヴィス', 'ミノタウロス・デススコーピオン・ロックゴーレム'],
       win: [0, 'ペガサス・ワイバーン・ゼピュロス・シームルグ・天狗'], lose: [1, '雷獣・サイクロプス・ダークメカロイド・ツインヘッドベア・エオス'] },
-    { name: '影の洞', boost: { hp: 0.6, str: 0.36 }, rules: [bbElem('light', 'stat', { hp: 2.0, str: 1.5 }, '光属性の味方 最大HP+200%・STR+150%'), { side: 'enemy', dmgTaken: -0.85, fromElemNot: 'light', label: '敵 光属性以外から受けるダメージ-85%' }],
+    { name: '影の洞', boost: { hp: 0.75, str: 0.45 }, rules: [bbElem('light', 'stat', { hp: 2.0, str: 1.5 }, '光属性の味方 最大HP+200%・STR+150%'), { side: 'enemy', dmgTaken: -0.85, fromElemNot: 'light', label: '敵 光属性以外から受けるダメージ-85%' }],
       waves: ['スケルトン弓兵・スケルトン戦士・ゾンビ', 'ヴェノムスライム・ジャイアントスパイダー・猫又・マミー', 'ワーウルフ・スカーボア・サキュバス'],
       win: [0, 'エオス・ファラオ・ムーンラビット・シルバーナイト・ケンタウロス'], lose: [1, 'ヘルハウンド・キマイラ・ボルケイノタートル・スルト・ケルベロス'] },
     { name: '水の神殿', boost: { hp: 1.7, str: 1.02 }, rules: [bbElem('none', 'stat', { str: 1.0, hp: 0.5 }, '無属性の味方 STR+100%・最大HP+50%')],
@@ -16162,10 +16162,10 @@ const BABEL_FLOORS = {
     { name: '消えない火', boost: { hp: 1.0, str: 0.6 }, rules: [{ side: 'enemy', immune: ['burn'], label: '敵 やけどにかからない' }, bbElem('fire', 'dmgDealt', -0.8, '火属性の味方 与ダメージ-80%'), bbElem('wind', 'dmgDealt', 1.0, '風属性の味方 与ダメージ+100%'), bbElem('light', 'dmgDealt', 1.0, '光属性の味方 与ダメージ+100%')],
       waves: ['トレント・マンドラゴラ・モススライム', 'コカトリス・ブラッドローズ・ハノコ・ドルイド', 'ベヒモス・エルダートレント・マンイーター'],
       win: [1, 'ペガサス・ゼピュロス・グリフォン・ペルセウス・ユニコーン'], lose: [2, 'ヘルハウンド・キマイラ・アグニ・スルト・ケルベロス'] },
-    { name: '嵐の回廊', rules: [{ who: { role: 'support' }, side: 'ally', stat: { hp: 2.5 }, dmgTaken: -0.5, label: 'サポートの味方 最大HP+250%・受けるダメージ-50%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 3.0, label: 'アタッカーの味方 受けるダメージ+300%' }],
+    { name: '嵐の回廊', boost: { hp: 0.4, str: 0.24 }, rules: [{ who: { role: 'support' }, side: 'ally', stat: { hp: 2.5 }, dmgTaken: -0.5, label: 'サポートの味方 最大HP+250%・受けるダメージ-50%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 3.0, label: 'アタッカーの味方 受けるダメージ+300%' }, { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 1.5, label: 'タンク・サポートの味方 与ダメージ+150%' }],
       waves: ['ヴェノムスライム・マーメイド・ゴブリン弓兵・マッドモール', 'バンシー・メリュジーヌ・ドリュアス・のっぺらぼう', 'シースライム・黙示のアルベ・ゲヘナの騎士'],
       win: [1, 'ファラオ・ムーンラビット・シームルグ・シルバーナイト・マグマゴーレム'], lose: [2, 'ヘルハウンド・キマイラ・ペガサス・ワイバーン・雷獣'] },
-    { name: '鉄の壁', rules: [{ side: 'enemy', stat: { pdef: 50 }, label: '敵 物理防御+50' }, { who: { role: 'shooter' }, side: 'ally', dmgDealt: 3.0, label: 'シューターの味方 与ダメージ+300%' }],
+    { name: '鉄の壁', boost: { hp: 0.8, str: 0.48 }, rules: [{ side: 'enemy', stat: { pdef: 50 }, label: '敵 物理防御+50' }, { who: { role: 'shooter' }, side: 'ally', dmgDealt: 4.0, label: 'シューターの味方 与ダメージ+400%' }],
       waves: ['アクアスライム・ヒルジャイアント・モスボア', 'ロックゴーレム・土蜘蛛・イエティ・ガーゴイル', 'ブロック・ユミル・アヌビス'],
       win: [1, 'ケンタウロス・アグニ・ダークメカロイド・サラマンダー・ハティ'], lose: [2, 'グリズリー・オーガ・サイクロプス・ヘルハウンド・ペガサス'] },
     { name: '陽の頂', boost: { hp: 0.7, str: 0.42 }, halves: [
@@ -16175,7 +16175,7 @@ const BABEL_FLOORS = {
       lose: [2, { a: 'エオス・ファラオ・ムーンラビット・ペルセウス・ユニコーン', b: 'シルバーナイト・グリズリー・オーガ・ケンタウロス・オークジェネラル' }] },
   ],
   in: [
-    { name: '炎の祠', boost: { hp: 1.5, str: 0.9 }, rules: [bbElem('water', 'stat', { str: 1.0, hp: 0.5 }, '水属性の味方 STR+100%・最大HP+50%')],
+    { name: '炎の祠', boost: { hp: 1.55, str: 0.93 }, rules: [bbElem('water', 'stat', { str: 1.0, hp: 0.5 }, '水属性の味方 STR+100%・最大HP+50%')],
       waves: ['ヒノコ・フレイムリザード・マグマスライム', 'フレイムボア・鬼火・ヘルハウンド', 'ケルベロス・アグニ・ボルケイノタートル'],
       win: [0, 'イエティ・アイスゴーレム・セイレーン・メリュジーヌ・ブルーウィスプ'], lose: [1, 'マンイーター・エルダートレント・コカトリス・ブラッドローズ・アラクネ'] },
     { name: '雷の丘', boost: { hp: 2.1, str: 1.26 }, rules: [bbElem('earth', 'dmgDealt', 1.0, '土属性の味方 与ダメージ+100%')],
@@ -16198,13 +16198,13 @@ const BABEL_FLOORS = {
     { name: '呪いの淵', boost: { hp: 2.5, str: 1.5 }, rules: [{ side: 'both', dmgTaken: 0.5, when: 'lowHp30', label: '敵も味方も HPが30%以下のとき 受けるダメージ+50%' }, bbElem('dark', 'dmgTaken', -0.7, '闇属性の味方 受けるダメージ-70%'), bbElem('dark', 'stat', { str: 1.0 }, '闇属性の味方 STR+100%')],
       waves: ['フレイムリザード・ストームホーク・ホーンラビット', 'スルト・グリズリー・オーガ', '雷電・ケルベロス・ハルピュイア'],
       win: [1, 'スカーボア・デュラハン・アヌビス・セイレーン・ドリュアス'], lose: [2, 'デススコーピオン・ミノタウロス・クラーケン・アラクネ・マンイーター'] },
-    { name: '先手の間', rules: [{ side: 'enemy', stat: { spd: 0.5 }, label: '敵 SPD+50%' }, bbElem('water', 'dmgTaken', -0.6, '水属性の味方 受けるダメージ-60%'), { who: { elements: ['fire', 'grass', 'earth', 'thunder', 'wind', 'light', 'dark', 'none'] }, side: 'ally', dmgTaken: 0.8, label: '水属性以外の味方 受けるダメージ+80%' }],
+    { name: '先手の間', boost: { hp: 2.2, str: 1.32 }, rules: [{ side: 'enemy', stat: { spd: 0.5 }, label: '敵 SPD+50%' }, bbElem('water', 'dmgTaken', -0.6, '水属性の味方 受けるダメージ-60%'), { who: { elements: ['fire', 'grass', 'earth', 'thunder', 'wind', 'light', 'dark', 'none'] }, side: 'ally', dmgTaken: 0.8, label: '水属性以外の味方 受けるダメージ+80%' }],
       waves: ['シルバーウルフ・ストームホーク・キラービー', '雷獣・ペガサス・ゼピュロス', 'ハティ・グリフォン・ロキ'],
       win: [1, 'ユミル・イエティ・ウンディーネ・セルキー・クラーケン'], lose: [2, 'デススコーピオン・ロックゴーレム・土蜘蛛・ガーゴイル・ミノタウロス'] },
-    { name: '不動の陣', rules: [{ side: 'enemy', stat: { str: 1.0 }, label: '敵 STR+100%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.8, stat: { hp: 1.0 }, label: 'タンクの味方 受けるダメージ-80%・最大HP+100%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 1.5, label: 'アタッカーの味方 受けるダメージ+150%' }],
+    { name: '不動の陣', boost: { hp: 1.0, str: 0.6 }, rules: [{ side: 'enemy', stat: { str: 1.0 }, label: '敵 STR+100%' }, { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.8, stat: { hp: 1.0 }, label: 'タンクの味方 受けるダメージ-80%・最大HP+100%' }, { who: { role: 'attacker' }, side: 'ally', dmgTaken: 1.5, label: 'アタッカーの味方 受けるダメージ+150%' }, { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 1.5, label: 'タンク・サポートの味方 与ダメージ+150%' }],
       waves: ['ゴブリン・ワイルドボア・フレイムボア', 'ヘルハウンド・ツインヘッドベア・オーガ・グリズリー', 'バハムート・スルト・ペルセウス'],
       win: [1, 'イエティ・土蜘蛛・セイレーン・ドリュアス・バンシー'], lose: [2, 'スカーボア・レッドキャップ・デュラハン・クラーケン・ミノタウロス'] },
-    { name: '陰の頂', halves: [
+    { name: '陰の頂', boost: { hp: 2.4, str: 1.44 }, halves: [
         { label: '前半(風のボス)', rules: [{ who: { role: 'tank' }, side: 'ally', stat: { str: 2.0 }, dmgTaken: -0.5, label: 'タンクの味方 STR+200%・受けるダメージ-50%' }], waves: ['アイオロス・ハティ・グリフォン・天狗', 'フェンリル・ハルピュイア・ゼピュロス'] },
         { label: '後半(火のボス)', rules: [bbElem('water', 'stat', { str: 1.0, hp: 0.5 }, '水属性の味方 STR+100%・最大HP+50%')], waves: ['ヘパイストス・スコル・ロキ・フェニクス', '九尾の狐・牛鬼・サラマンダー'] }],
       win: [2, { a: 'イエティ・アイスゴーレム・エルダートレント・アヌビス・ユミル', b: 'クラーケン・ウンディーネ・セルキー・メリュジーヌ・セイレーン' }],
@@ -21513,6 +21513,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 158, version: 'α0.4.012', date: '10/4', title: 'バベル試験場の遺物', body: '<span class="nt-i">・開発用のバベル試験場で、中級・上級にも遺物を付けるようにしました(中級=★3遺物Lv50・遺物スキルLv3 / 上級=★4遺物Lv150・遺物スキルLv7・2凸)。遺物スキルLvと凸も個別に変えられます。</span><span class="nt-i">・ルーンの数を本番と同じく★で開く数にしました。そのうえで30階すべての強さを合わせ直しました。</span>' },
   { id: 157, version: 'α0.4.011', date: '10/4', title: 'バベル試験場に「超上級」', body: '<span class="nt-i">・開発用のバベル試験場に、育ちの「超上級」(★10・スキルLv12・ルーンⅩ・遺物カンスト)を足しました。遺物はモンスターに合うものを自動で選び、編集欄で付け替え・強化度の変更もできます。</span>' },
   { id: 156, version: 'α0.4.010', date: '10/3', title: '奥義でWAVEを終えたときのSP', body: '<span class="nt-i">・奥義でWAVEの敵を倒しきったとき、次のWAVEに進むときのSP(+30)が、奥義を撃った本人には入らないようにしました。ほかの味方には入ります。</span>' },
   { id: 155, version: 'α0.4.009', date: '10/3', title: '奥義中はSPが入らないように', body: '<span class="nt-i">・奥義を撃っているあいだは、撃った本人にSPが入らないようにしました(撃破・パッシブ・被弾・回復のSP)。奥義そのものの効果のSP(アバドン★10の返還など)は入ります。</span>' },
