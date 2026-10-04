@@ -18,6 +18,7 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | babel_tune.js | バベル各階の「塔の敵の底上げ」を二分探索で決める(`N=10 node babel_tune.js ten [階...]`) |
 | reflect_loop_test.js | シールド反射どうしが往復して止まらないこと |
 | ult_sp_lock_test.js | 奥義を撃っているあいだは本人にSPが入らない(奥義の効果のSPは入る) |
+| relic_core_drop_test.js | 霊素の鉱脈の霊素核が確率で出る(平均が表どおり) |
 | mech19.js / mech22.js / mech54.js | 戦闘の仕組みの検証(70項目) |
 | econ26.js | 育成の検証(32項目) |
 | sweep27.js | クリアランクと周回の検証(14項目) |
