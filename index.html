@@ -22829,13 +22829,15 @@ function labClamp(s){
   s.rdupe = s.relic ? Math.max(0, Math.min(RELIC_MAX_DUPE_USE, s.rdupe | 0)) : 0;
   return s;
 }
-// ルーンは4つとも同じTier。メイン効果はロールで決める(サブ効果は乗せない)
+// ルーンはすべて同じTier。メイン効果はロールで決める(サブ効果は乗せない)
 const LAB_RUNE_MAINS = { attacker: ['atk', 'atk', 'critRate', 'critDmg'], shooter: ['atk', 'atk', 'critRate', 'critDmg'], trickster: ['atk', 'spd', 'critRate', 'hp'],
   tank: ['hp', 'hp', 'pdef', 'mdef'], support: ['hp', 'hp', 'spd', 'atk'] };
-function labRuneBonus(role, tier){
+// 付けられる数は本番と同じく★で開く(★1・4・6・9で1つずつ)
+function labRuneBonus(role, tier, star){
   if(!tier) return null;
   const b = {};
-  (LAB_RUNE_MAINS[role] || LAB_RUNE_MAINS.attacker).forEach(k => { b[k] = (b[k] || 0) + RUNE_STATS[k].main[tier - 1]; });
+  const open = RUNE_SLOT_STARS.filter(st => (star || 1) >= st).length;
+  (LAB_RUNE_MAINS[role] || LAB_RUNE_MAINS.attacker).slice(0, open).forEach(k => { b[k] = (b[k] || 0) + RUNE_STATS[k].main[tier - 1]; });
   return b;
 }
 function labIsTwo(){ return !!labFloor().halves; }
@@ -22863,7 +22865,7 @@ function labBuildParty(stage, slotsIn){
     const u = buildUnit(m, 1, false, c.star, false, BABEL_LV, { skillLv: c.sk, skill2Lv: c.sk, ultLv: c.sk, passiveLv: c.sk });
     u.slot = i; u.row = slotRowIn(formation, i); u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
-    applyRuneBonusToUnit(u, labRuneBonus(m.role, c.rune));
+    applyRuneBonusToUnit(u, labRuneBonus(m.role, c.rune, c.star));
     if(c.relic && c.rlv > 0) applyRelicCore(u, m, RELICS[c.relic], labRelicState(c));
     applyStageRules(u, stage, false);
     applyFormationBonus(u, formation);
