@@ -2998,6 +2998,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .lab-grow{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; font-size:11px; }
 .lab-grow > small{ color:var(--dim); }
 .lab-grow-note{ flex-basis:100%; font-size:9.5px; color:var(--dim); }
+.lab-relic{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:2px 0 8px; font-size:11px; }
+.lab-relic small{ color:var(--dim); font-size:10px; }
+.lab-relic select{ flex:1; min-width:0; max-width:100%; padding:5px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-family:inherit; font-size:12px; }
+.lab-relic-note{ flex-basis:100%; font-size:9.5px; color:var(--dim); }
 .lab-chip{ padding:4px 9px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-size:11px; font-weight:800; cursor:pointer; }
 .lab-chip.on{ border-color:var(--gold); color:var(--gold); }
 .lab-slots{ display:grid; grid-template-columns:repeat(5, 1fr); gap:5px; margin-top:8px; }
@@ -3331,7 +3335,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.4.010';
+const GAME_VERSION = 'α0.4.011';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -16090,6 +16094,8 @@ const BABEL_GROW = [
   { key: 0, name: '初心者', star: 0, sk: 1, rune: 0 },
   { key: 1, name: '中級', star: 2, sk: 6, rune: 3 },
   { key: 2, name: '上級', star: 5, sk: 10, rune: 7 },
+  // 超上級: 育てきった形。★10・スキルLv12・ルーンⅩ・遺物カンスト(Lv200・スキル10・4凸。遺物はモンスターに合うものを自動で選ぶ)
+  { key: 3, name: '超上級', star: 99, sk: 12, rune: 10, relic: 200 },
 ];
 const BB_DEBUFFS = ['burn', 'poison', 'stun', 'paralyze', 'bind', 'confuse', 'petrify', 'charm'];
 const bbElem = (el, k, v, label) => ({ who: { element: el }, side: 'ally', [k]: v, label });
@@ -21505,6 +21511,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 157, version: 'α0.4.011', date: '10/4', title: 'バベル試験場に「超上級」', body: '<span class="nt-i">・開発用のバベル試験場に、育ちの「超上級」(★10・スキルLv12・ルーンⅩ・遺物カンスト)を足しました。遺物はモンスターに合うものを自動で選び、編集欄で付け替え・強化度の変更もできます。</span>' },
   { id: 156, version: 'α0.4.010', date: '10/3', title: '奥義でWAVEを終えたときのSP', body: '<span class="nt-i">・奥義でWAVEの敵を倒しきったとき、次のWAVEに進むときのSP(+30)が、奥義を撃った本人には入らないようにしました。ほかの味方には入ります。</span>' },
   { id: 155, version: 'α0.4.009', date: '10/3', title: '奥義中はSPが入らないように', body: '<span class="nt-i">・奥義を撃っているあいだは、撃った本人にSPが入らないようにしました(撃破・パッシブ・被弾・回復のSP)。奥義そのものの効果のSP(アバドン★10の返還など)は入ります。</span>' },
   { id: 154, version: 'α0.4.008', date: '10/3', title: '戦闘が止まる不具合の修正', body: '<span class="nt-i">・シールドが割れたときの反射(カーバンクルの宝石)どうしが、敵と味方で往復して戦闘が止まることがある不具合を直しました。</span><span class="nt-i">・開発用のバベル試験場で、各階の条件の効果と敵の強さを調整しました(条件に合わせた編成なら勝ちやすく、合わせないとかなり厳しい形)。</span>' },
@@ -22772,8 +22779,24 @@ let lab = null;   // { tower, floor, parties:[[slot×5],[slot×5]], pick:{p,i}|n
 function labSlot(id, g){
   const m = MON_BY_ID[id], gr = BABEL_GROW[g] || BABEL_GROW[0];
   const star = Math.min(MAX_STAR, m.rarity + gr.star);
-  return { id, star, sk: Math.min(STAR_TABLE[star].skillCap, gr.sk), rune: gr.rune };
+  return { id, star, sk: Math.min(STAR_TABLE[star].skillCap, gr.sk), rune: gr.rune, relic: gr.relic ? labBestRelic(m) : null, rlv: gr.relic || 0 };
 }
+/* 遺物: 試験場では「遺物Lv」1つで強さを決める(Lv200 = スキルLv10・4凸のカンスト)。
+   超上級のときは、そのモンスターに一番合う★5の遺物を自動で選ぶ(条件が合う効果が多く、ロールに合った効果ほど高い点) */
+const LAB_RELIC_PREF = { attacker: ['atk', 'critRate', 'critDmg', 'skillDmg', 'ultDmg', 'pierce', 'normalDmg'], shooter: ['atk', 'critRate', 'critDmg', 'skillDmg', 'ultDmg', 'pierce'],
+  trickster: ['atk', 'spd', 'critRate', 'critDmg', 'skillDmg'], tank: ['hp', 'pdef', 'mdef', 'def', 'cut'], support: ['hp', 'spd', 'spGain', 'def', 'cut'] };
+function labRelicScore(def, m){
+  const pref = LAB_RELIC_PREF[m.role] || [];
+  return (def.effects || []).reduce((a, e) => {
+    if(!relicEffectMatches(e.cond, m)) return a;
+    const v = relicStatIsPoint(e.stat) ? e.pct / 100 : e.pct;
+    return a + v * (pref.includes(e.stat) ? 1 : 0.3) * (e.cond ? (e.cond.type === 'mon' ? 2 : 1.3) : 1);
+  }, 0) + def.star * 0.01;
+}
+function labBestRelic(m){
+  return Object.values(RELICS).filter(d => d.star === 5).sort((a, b) => labRelicScore(b, m) - labRelicScore(a, m))[0].id;
+}
+function labRelicState(rlv){ return { level: rlv, skillLv: Math.max(1, Math.round(rlv / 200 * RELIC_SKILL_MAX)), dupeUsed: Math.min(RELIC_MAX_DUPE_USE, Math.floor(rlv / 50)) }; }
 function labFill(names, g){ const ids = bbIds(names).slice(0, LAB_PARTY); return [...Array(LAB_PARTY).keys()].map(i => ids[i] ? labSlot(ids[i], g) : null); }
 function labFloor(){ return BABEL_FLOORS[lab.tower][lab.floor - 1]; }
 function labHint(kind){
@@ -22799,6 +22822,8 @@ function labClamp(s){
   s.star = Math.max(m.rarity, Math.min(MAX_STAR, s.star | 0));
   s.sk = Math.max(1, Math.min(STAR_TABLE[s.star].skillCap, s.sk | 0));
   s.rune = Math.max(0, Math.min(RUNE_TIERS, s.rune | 0));
+  s.relic = s.relic && RELICS[s.relic] ? s.relic : null;
+  s.rlv = s.relic ? Math.max(0, Math.min(200, s.rlv | 0)) : 0;
   return s;
 }
 // ルーンは4つとも同じTier。メイン効果はロールで決める(サブ効果は乗せない)
@@ -22836,6 +22861,7 @@ function labBuildParty(stage, slotsIn){
     u.slot = i; u.row = slotRowIn(formation, i); u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
     applyRuneBonusToUnit(u, labRuneBonus(m.role, c.rune));
+    if(c.relic && c.rlv > 0) applyRelicCore(u, m, RELICS[c.relic], labRelicState(c.rlv));
     applyStageRules(u, stage, false);
     applyFormationBonus(u, formation);
     party.push(u);
@@ -22976,7 +23002,7 @@ function labSlotHtml(p, i){
   const s = lab.parties[p][i], on = lab.pick && lab.pick.p === p && lab.pick.i === i;
   const bad = s && !babelAllowed(lab.tower, s.id);
   return `<button class="lab-slot ${on ? 'on' : ''} ${bad ? 'bad' : ''}" data-lab="pick:${p}:${i}">${s
-    ? `<img src="${imgSrc(s.id)}" alt=""><b>${MON_BY_ID[s.id].name}</b><small>★${s.star}・Lv${s.sk}${s.rune ? `・R${RUNE_ROMAN[s.rune - 1]}` : ''}</small>`
+    ? `<img src="${imgSrc(s.id)}" alt=""><b>${MON_BY_ID[s.id].name}</b><small>★${s.star}・Lv${s.sk}${s.rune ? `・R${RUNE_ROMAN[s.rune - 1]}` : ''}${s.relic && s.rlv ? `<br>遺物Lv${s.rlv}` : ''}</small>`
     : '<span class="lab-plus">+</span><small>空き</small>'}</button>`;
 }
 function labEditorHtml(){
@@ -22988,8 +23014,11 @@ function labEditorHtml(){
   const step = (k, label, val) => `<div class="lab-step"><small>${label}</small><button data-lab="adj:${k}:-1">−</button><b>${val}</b><button data-lab="adj:${k}:1">＋</button></div>`;
   return `<div class="panel lab-editor">
     <div class="row-between"><div class="mc-head">${labIsTwo() ? (p === 0 ? '前半' : '後半') : ''} ${i + 1}番目</div><button class="btn btn-ghost btn-sm" data-lab="close">閉じる</button></div>
-    ${s ? `<div class="lab-steps">${step('star', '★', s.star)}${step('sk', 'スキルLv', s.sk)}${step('rune', 'ルーンTier', s.rune ? RUNE_ROMAN[s.rune - 1] : 'なし')}
-      <button class="btn btn-ghost btn-sm" data-lab="remove">外す</button></div>` : ''}
+    ${s ? `<div class="lab-steps">${step('star', '★', s.star)}${step('sk', 'スキルLv', s.sk)}${step('rune', 'ルーンTier', s.rune ? RUNE_ROMAN[s.rune - 1] : 'なし')}${s.relic ? step('rlv', '遺物Lv', s.rlv) : ''}
+      <button class="btn btn-ghost btn-sm" data-lab="remove">外す</button></div>
+      <div class="lab-relic"><small>遺物</small><select id="lab-relic"><option value="">なし</option>${Object.values(RELICS).slice().sort((a, b) => b.star - a.star || labRelicScore(b, MON_BY_ID[s.id]) - labRelicScore(a, MON_BY_ID[s.id]))
+        .map(d => `<option value="${d.id}" ${s.relic === d.id ? 'selected' : ''}>★${d.star} ${d.name}${(d.effects || []).some(e => e.cond && relicEffectMatches(e.cond, MON_BY_ID[s.id])) ? ' ✓' : ''}</option>`).join('')}</select>
+        <span class="lab-relic-note">${s.relic ? `Lv${s.rlv}・スキルLv${labRelicState(s.rlv).skillLv}・${labRelicState(s.rlv).dupeUsed}凸` : '✓ = このモンスターに条件が合う効果あり'}</span></div>` : ''}
     <div class="lab-filters">${['', ...ELEM_ORDER].map(e => `<button class="lab-chip ${lab.fEl === e ? 'on' : ''}" data-lab="fel:${e}">${e ? ELEM_LABEL[e] : '全属性'}</button>`).join('')}</div>
     <div class="lab-filters">${['', ...Object.keys(ROLE_LABEL)].map(r => `<button class="lab-chip ${lab.fRole === r ? 'on' : ''}" data-lab="frole:${r}">${r ? ROLE_LABEL[r] : '全ロール'}</button>`).join('')}</div>
     <div class="lab-grid">${list.map(m => {
@@ -23020,7 +23049,7 @@ function renderLab(){
       <button class="btn btn-ghost btn-sm" data-lab="hint:lose">勝てない想定を入れる(${hintText('lose')})</button>
     </div>
     <div class="lab-grow"><small>全員の育ちをそろえる:</small>${BABEL_GROW.map(g => `<button class="lab-chip" data-lab="grow:${g.key}">${g.name}</button>`).join('')}
-      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし / 中級=★+2・Lv6・ルーンⅢ / 上級=★+5・Lv10・ルーンⅦ</span></div>
+      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし / 中級=★+2・Lv6・ルーンⅢ / 上級=★+5・Lv10・ルーンⅦ / 超上級=★10・Lv12・ルーンⅩ・遺物カンスト(合う遺物を自動で選ぶ)</span></div>
     ${parts.map(p => `<div class="panel lab-party">
       <div class="row-between"><div class="mc-head">${two ? (p === 0 ? '前半の編成' : '後半の編成') : '編成'}</div><button class="btn btn-sm" data-lab="watch:${p}">観戦する</button></div>
       <div class="lab-slots">${[...Array(LAB_PARTY).keys()].map(i => labSlotHtml(p, i)).join('')}</div>
@@ -23054,9 +23083,13 @@ function labAction(a){
     lab.parties[lab.pick.p][lab.pick.i] = cur ? labClamp({ ...cur, id: x }) : labSlot(x, g);
   }
   else if(cmd === 'remove' && lab.pick) lab.parties[lab.pick.p][lab.pick.i] = null;
+  else if(cmd === 'relic' && lab.pick){
+    const s = lab.parties[lab.pick.p][lab.pick.i];
+    if(s){ s.relic = x || null; if(s.relic && !s.rlv) s.rlv = 200; labClamp(s); }
+  }
   else if(cmd === 'adj' && lab.pick){
     const s = lab.parties[lab.pick.p][lab.pick.i];
-    if(s){ s[x] = (s[x] | 0) + Number(y); labClamp(s); }
+    if(s){ s[x] = (s[x] | 0) + Number(y) * (x === 'rlv' ? 50 : 1); labClamp(s); }
   }
   labSave();
   render();
@@ -23326,6 +23359,7 @@ function wireGlobalEvents(){
     if(ev.target.id === 'sfx-volume'){ saveState(); playSfx('tap'); }
     if(ev.target.id === 'bgm-volume') saveState();
     if(ev.target.id === 'title-sep') setTitleSep(ev.target.value);   // 決めたとき(Enter・ほかをタップ)に1文字へそろえて公開する
+    if(LAB_MODE && ev.target.id === 'lab-relic') labAction('relic:' + ev.target.value);
   });
   document.addEventListener('compositionend', ev => { if(ev.target && ev.target.id === 'title-sep') setTitleSep(ev.target.value, true); });
   // space / P toggles pause during a battle; leaving the app pauses automatically
