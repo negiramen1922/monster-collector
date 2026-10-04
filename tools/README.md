@@ -13,6 +13,12 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 |---|---|
 | harness.js | DOMなしでゲームのJSを動かす土台。`api.run(パーティ, ステージID, レベル, オプション)` |
 | crash19.js | 全モンスターで630戦のクラッシュテスト |
+| babel_sim.js | バベル各階の「勝てる想定」「勝てない想定」の勝率(`N=20 node babel_sim.js [ten yo in]`) |
+| babel_lab_ui_test.py | バベル試験場(index.html?lab=babel)の画面テスト |
+| babel_tune.js | バベル各階の「塔の敵の底上げ」を二分探索で決める(`N=10 node babel_tune.js ten [階...]`) |
+| reflect_loop_test.js | シールド反射どうしが往復して止まらないこと |
+| ult_sp_lock_test.js | 奥義を撃っているあいだは本人にSPが入らない(奥義の効果のSPは入る) |
+| relic_core_drop_test.js | 霊素の鉱脈の霊素核が確率で出る(平均が表どおり) |
 | mech19.js / mech22.js / mech54.js | 戦闘の仕組みの検証(70項目) |
 | econ26.js | 育成の検証(32項目) |
 | sweep27.js | クリアランクと周回の検証(14項目) |
@@ -24,6 +30,9 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | impact_sim.js | スキル見直しなどの影響測定。全メインクエスト(通常・ハード)×5パーティの勝率とラウンド数をJSONで出す(`N=20 node impact_sim.js game.js`) |
 | impact_one.js | 指定したステージ×パーティだけ勝率を測る(`N=100 node impact_one.js game.js q2_10:気絶`) |
 | skill_chance_test.js | 付与率はスキルLvで変わらない・必殺技は確定・やけど毒は基本50%・持続時間がLv5/Lv10で伸びる(357項目) |
+| title_list_ui_test.py | 称号とフレーム: 登録は1か所・取り方と進みぐあい・一覧で付け替え・終わったイベントは取れません・フレームの自動入手と表示・公開プロフィール・フレンドとPVPに表示 |
+| multihit_test.js | 連続攻撃の合計威力が同じ★・枠・対象の単発の平均の1.05倍まで・説明文の威力が実際と同じ・アバドンのスキル1が定義の威力を使う |
+| econ_month_test.js | 経済見直しの検算: ソウル表・メイン23,610・デイリー150/ウィークリー1,400・1イベント4,040・月の石と天井(総力戦・封印戦なし27.4日/あり20.5日)・素材レート・補填・実績 |
 | rune_scroll_ui_test.py | ルーンの合成画面で材料を選ぶ・合成しても閉じず、画面が一番上に戻らない |
 | relic_up_stay_ui_test.py | 遺物のスキル強化は押しても確認画面が閉じず、閉じると強化画面の元の場所に戻る・遺物の★は白5個まで、★6からは左から青 |
 | skill_up_stay_ui_test.py | スキル強化は押しても画面が閉じず続けて上げられる・閉じるとキャラ詳細の元の場所に戻る |

@@ -50,7 +50,7 @@ async def main():
                 runs = -(-r['shopTotal'] // r['medalPerRun'])
                 stam = runs * r['stam10']
                 check(f'{key}: 全買いが2週間ぶんのスタミナ(4,032)で足りる', stam <= 4032, (runs, stam))
-                check(f'{key}: ミッション14本・称号3つ', r['missions'] == 14 and len(r['titles']) == 3, (r['missions'], r['titles']))
+                check(f'{key}: ミッション12本・称号3つ(経済見直しでEXは★3の称号1本)', r['missions'] == 12 and len(r['titles']) == 3, (r['missions'], r['titles']))
                 check(f'{key}: EX全3面にルールがある', all(n > 0 for n in r['exRules']), r['exRules'])
 
             # メダルが実際に落ちるか(ボーナスつき)

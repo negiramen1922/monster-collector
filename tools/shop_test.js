@@ -44,6 +44,7 @@ const saleDef = E.SHOP_GOLD_ITEMS.find(x => x.sku === saleSku);
 const discounted = E.shopGoldPrice(saleDef);
 ok('本日の特売品は定価より安い', discounted < saleDef.price, [saleSku, saleDef.price, discounted]);
 S.gold = 1e9;
+if(S.shopDaily && S.shopDaily.bought) S.shopDaily.bought = {};   // 特売が霊素鉱の日は、上で買った分で弾かれていた(日付で落ちるテストだった)
 const goldBeforeSale = S.gold;
 E.buyShopItem('gold', saleSku);
 ok('特売価格が実際に請求される', S.gold === goldBeforeSale - discounted, [goldBeforeSale, S.gold, discounted]);

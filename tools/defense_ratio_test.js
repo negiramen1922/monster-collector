@@ -10,7 +10,7 @@
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   DEF_POINT_CAP, BP_DEF_WEIGHT, RATIO_CAP, CUT_CAP, defCutOf, effDef, capRatio,
-  scaledStats, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
+  scaledStats, defBaseScale, TANK_DEF_BUDGET, MONSTERS, buildUnit, MONSTERS, MON_BY_ID, ROLE_LABEL, RUNE_STATS, runeMainValue, runeSubValue,
   makeRune, runeBonusFromList, applyRuneBonusToUnit, applyStatus, hasStatus, ENEMY_POWER, LEVEL_STAT_BONUS,
   applyStatBonus, addDefPoints, BONUS_POINT_KEYS, RELICS, SPECIES_SYNERGY, FORMATIONS, bonusText, relicEffectText, STAGES,
   POINT_BUFF_KEYS, MONSTER_KITS, applyEffect, buffAmountText, get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
@@ -29,8 +29,10 @@ console.log('--- 1. 防御はレベル・★で伸びない ---');
 [TANK, ATK, SHOOTER].forEach(id => {
   const m = E.MON_BY_ID[id];
   const at = (star, lv) => E.scaledStats(m, star, lv);
-  ok(`  ${m.name} は Lv1 も Lv300 も 物防${m.pdef}% / 魔防${m.mdef}%`,
-     [[5, 1], [5, 200], [10, 300]].every(([s, l]) => at(s, l).pdef === m.pdef && at(s, l).mdef === m.mdef),
+  // 防御見直し(α0.4.001): 図鑑の値に役割の倍率(タンク2.5・ほか2)がかかる
+  const sc = E.defBaseScale(m.role), wp = Math.round(m.pdef * sc), wm = Math.round(m.mdef * sc);
+  ok(`  ${m.name} は Lv1 も Lv300 も 物防${wp}% / 魔防${wm}%(図鑑の値×${sc})`,
+     [[5, 1], [5, 200], [10, 300]].every(([s, l]) => at(s, l).pdef === wp && at(s, l).mdef === wm),
      [at(5, 1).pdef, at(10, 300).pdef]);
   ok(`  ${m.name} のHPとSTRはちゃんと伸びる`, at(10, 300).hp > at(5, 1).hp * 5 && at(10, 300).str > at(5, 1).str * 5);
 });
@@ -39,11 +41,24 @@ function enemy(id, stageLv, boss){
   E.battleUI = { stage: { rules: [] }, currentActor: null, party: [], enemies: [], log: [], fxEvents: [] };
   return E.buildUnit(E.MON_BY_ID[id], stageLv, true, 7, boss, null, null);
 }
+function unitAlly(id){
+  E.battleUI = { stage: { rules: [] }, currentActor: null, party: [], enemies: [], log: [], fxEvents: [] };
+  return E.buildUnit(E.MON_BY_ID[id], 1, false, 5, false, 1, null);
+}
 const e1 = enemy(TANK, 1, false), e300 = enemy(TANK, 300, false), eBoss = enemy(TANK, 300, true);
-ok('敵の防御もステージLvで伸びない', e1.pdef === e300.pdef && e300.pdef === E.MON_BY_ID[TANK].pdef, [e1.pdef, e300.pdef]);
+ok('敵の防御もステージLvで伸びない', e1.pdef === e300.pdef, [e1.pdef, e300.pdef]);
+// 防御見直し(α0.4.001)の倍率(タンク2.5・ほか2)は、敵にも味方にも同じようにかかる
+ok('敵もタンクは図鑑の防御の2.5倍', e1.pdef === Math.round(E.MON_BY_ID[TANK].pdef * 2.5), [e1.pdef, E.MON_BY_ID[TANK].pdef]);
+ok('味方も同じ(タンク2.5倍)', unitAlly(TANK).pdef === e1.pdef, unitAlly(TANK).pdef);
 ok('ボス補正もかからない', eBoss.pdef === e1.pdef, [e1.pdef, eBoss.pdef]);
 ok('敵のHPとSTRはステージLvで伸びる', e300.maxHp > e1.maxHp * 5 && e300.str > e1.str * 5, [e1.str, e300.str]);
 
+// タンクの防御の合計(倍率をかけたあと)は★ごとの上限以下
+{
+  const over = E.MONSTERS.filter(m => m.role === 'tank').map(m => { const st = E.scaledStats(m, m.rarity, 1); return { n: m.name, r: m.rarity, t: st.pdef + st.mdef }; })
+    .filter(x => x.t > E.TANK_DEF_BUDGET[x.r]);
+  ok('タンクの物防+魔防は ★5:80 / ★4:75 / ★3:65 / ★2:55 / ★1:45 以下', over.length === 0, over);
+}
 /* ---- 2. カットの計算 ---- */
 console.log('\n--- 2. 防御 = そのままカット% ---');
 [[0, 0], [10, 0.10], [31, 0.31], [50, 0.50], [99, 0.99]].forEach(([pt, cut]) =>
@@ -60,7 +75,7 @@ function unit(id, buffs){
   return u;
 }
 {
-  const base = E.MON_BY_ID[TANK].pdef, sh = E.MON_BY_ID[SHOOTER].pdef;
+  const base = E.scaledStats(E.MON_BY_ID[TANK], 5, 1).pdef, sh = E.scaledStats(E.MON_BY_ID[SHOOTER], 5, 1).pdef;
   ok(`  タンクの素は ${base}%`, E.effDef(unit(TANK), 'phys') === base, E.effDef(unit(TANK), 'phys'));
   ok('  pdefUp +8 で +8ポイント', E.effDef(unit(TANK, { pdefUp: 8 }), 'phys') === base + 8, E.effDef(unit(TANK, { pdefUp: 8 }), 'phys'));
   ok('  pdefDown -5 で -5ポイント', E.effDef(unit(TANK, { pdefDown: 5 }), 'phys') === base - 5);
@@ -125,9 +140,9 @@ console.log('\n--- 3b. 上乗せはぜんぶポイント加算(掛け算はゼ�
     });
   });
   ok('  ワザの防御バフがポイントのまま届く(0.8に潰れない)', clamped.length === 0, clamped.slice(0, 6));
-  ok('  防御バフの表示はx100しない(+8% と出る)', E.buffAmountText('mdefUp', 8, false) === '+8%', E.buffAmountText('mdefUp', 8, false));
+  ok('  防御バフの表示はポイント(x100しない・%も付けない: +8)', E.buffAmountText('mdefUp', 8, false) === '+8', E.buffAmountText('mdefUp', 8, false));
   ok('  割合のバフは今までどおりx100する(+30%)', E.buffAmountText('strUp', 0.3, false) === '+30%', E.buffAmountText('strUp', 0.3, false));
-  ok('  陣形の説明文が「+1%」の形で出る(x100しない)', E.bonusText({ def: 1 }).endsWith('+1%'), E.bonusText({ def: 1 }));
+  ok('  陣形の説明文の防御はポイント(「防御+1」・%なし)', E.bonusText({ def: 1 }).endsWith('防御+1'), E.bonusText({ def: 1 }));
 }
 
 /* ---- 4. 防御貫通 ---- */
@@ -163,7 +178,7 @@ ok('HP / STR は今までどおり %', E.RUNE_STATS.hp.pct && E.RUNE_STATS.atk.p
   console.log('   サブ1個 Ⅰ: ' + E.runeSubValue({ stat: 'pdef', q: 0 }, 1) + '〜' + E.runeSubValue({ stat: 'pdef', q: 1 }, 1)
     + '  Ⅹ: ' + E.runeSubValue({ stat: 'pdef', q: 0 }, 10) + '〜' + E.runeSubValue({ stat: 'pdef', q: 1 }, 10));
   ok('  Tierが上がるほど大きい', main.every((v, i) => i === 0 || v > main[i - 1]));
-  ok('  Ⅹのメインは5ポイント', main[9] === 5, main[9]);
+  ok('  Ⅹのメインは10ポイント(防御見直しで2倍)', main[9] === 10, main[9]);
   const u = unit(TANK);
   const before = u.pdef;
   E.applyRuneBonusToUnit(u, { pdef: 20 });

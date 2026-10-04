@@ -18,31 +18,31 @@ api.STATE = E.DEFAULT_STATE();
 
 /* ---- 星刻の必要ソウル ---- */
 const total = r => { let t = 0; for(let st = r; st < E.MAX_STAR; st++) t += E.soulsToNext({ star: st, base: r }, r); return t; };
-const want = { 1: 1500, 2: 2100, 3: 3150, 4: 3900, 5: 4800 };
+const want = { 1: 1500, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };   // 経済見直し(α0.4.000)
 [1, 2, 3, 4, 5].forEach(r => ok(`★${r}の子の完凸は${want[r]}ソウル`, total(r) === want[r], total(r)));
 ok('レアリティが高いほど完凸が重い(逆転が直っている)',
    [1, 2, 3, 4, 5].every((r, i, a) => i === 0 || total(a[i - 1]) < total(r)),
    [1, 2, 3, 4, 5].map(total));
 ok('★10は星刻できない', E.soulsToNext({ star: E.MAX_STAR, base: 5 }, 5) === null);
-// 最初の1段は今までと同じ(重くなるのは後半だけ)
-[[1, 10], [2, 50], [4, 200], [5, 300]].forEach(([r, was]) =>
-  ok(`★${r}→★${r + 1} は据え置きの${was}`, E.soulsToNext({ star: r, base: r }, r) === was, E.soulsToNext({ star: r, base: r }, r)));
-ok('★3→★4 は 100 → 90 に下がる(重複3体ぶん)', E.soulsToNext({ star: 3, base: 3 }, 3) === 90, E.soulsToNext({ star: 3, base: 3 }, 3));
+// 最初の1段は、そのレアリティの重複1体ぶん(★1・★2は据え置き)
+[[1, 10], [2, 50], [3, 150], [4, 200], [5, 500]].forEach(([r, was]) =>
+  ok(`★${r}→★${r + 1} は${was}`, E.soulsToNext({ star: r, base: r }, r) === was, E.soulsToNext({ star: r, base: r }, r)));
+ok('★5の段ごとは 500 / 500 / 1,000 / 1,500 / 1,500', Object.values(E.SOULS_TO_NEXT[5]).join() === '500,500,1000,1500,1500');
 // ガチャの重複ソウルの倍数になっている(「重複◯体ぶん」と数えられる)
-[3, 4, 5].forEach(r => {
+[2, 3, 4, 5].forEach(r => {
   const steps = Object.values(E.SOULS_TO_NEXT[r]);
   ok(`★${r}の各段はガチャの重複(${E.DUP_SOULS[r]})の倍数`, steps.every(v => v % E.DUP_SOULS[r] === 0), steps);
 });
 ok('newOwned が元レアリティを持つ', E.newOwned(E.MON_BY_ID['m116']).base === 5, E.newOwned(E.MON_BY_ID['m116']).base);
 // 元レアリティを渡さなくても、owned.base から引ける
-ok('owned.base から引ける', E.soulsToNext({ star: 7, base: 5 }) === 1050, E.soulsToNext({ star: 7, base: 5 }));
+ok('owned.base から引ける', E.soulsToNext({ star: 7, base: 5 }) === 1000, E.soulsToNext({ star: 7, base: 5 }));
 ok('★1の子と★5の子で同じ★でも必要数が違う',
    E.soulsToNext({ star: 7, base: 1 }, 1) !== E.soulsToNext({ star: 7, base: 5 }, 5),
    [E.soulsToNext({ star: 7, base: 1 }, 1), E.soulsToNext({ star: 7, base: 5 }, 5)]);
 // 古いセーブの移行(base が無い)
 const S = api.STATE;
 S.owned['m116'] = { star: 7, souls: 0, level: 1 };
-ok('soulsToNextOf は図鑑から元レアリティを引く', E.soulsToNextOf('m116') === 1050, E.soulsToNextOf('m116'));
+ok('soulsToNextOf は図鑑から元レアリティを引く', E.soulsToNextOf('m116') === 1000, E.soulsToNextOf('m116'));
 
 /* ---- EXの主役ソウル ---- */
 const evNow = E.EVENTS.find(e => e.key === 'ev_abaddon');

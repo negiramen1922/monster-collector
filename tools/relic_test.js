@@ -81,11 +81,11 @@ ok('コアのティア: Lv1-3はTier1・4-6はTier2・7-9はTier3', E.relicSkill
 ok('霊素工房に改名', E.FACILITIES.smithy.name === '霊素工房', E.FACILITIES.smithy.name);
 S.clearedStages.push('q1_10'); // unlocks the workshop facility (初級全クリ)
 const bs = E.baseState().smithy;
-bs.at = Date.now() - 3 * 3600 * 1000; // 3 hours ago, at facility Lv1
+bs.at = Date.now() - 6 * 3600 * 1000; // 6 hours ago, at facility Lv1(経済見直しで霊素核は1/6個/時)
 bs.carry = 0; bs.coreCarry = 0;
 const scrapIdle = E.idleAmount('smithy');
 const coreIdle = E.idleCoreAmount();
-ok('Lv1で3時間経過するとコアTierIが約1個貯まる', Math.abs(coreIdle - 1) < 0.05, coreIdle);
+ok('Lv1で6時間経過するとコアTierIが約1個貯まる', Math.abs(coreIdle - 1) < 0.05, coreIdle);
 const before2 = { scrap: E.getItem('relic_scrap'), core: E.getItem('relic_core_1') };
 E.collectFacility('smithy', true);
 ok('工房を回収すると霊素鉱と霊素核が両方増える', E.getItem('relic_scrap') > before2.scrap && E.getItem('relic_core_1') > before2.core,
@@ -142,7 +142,7 @@ ok('rewardHtml が遺物報酬を表示できる(クラッシュしない)', E.r
 // applyRelicCore/applyStatBonus do internally, just without needing a full battle unit.
 const capMult = E.relicSkillMult(E.RELIC_SKILL_MAX);
 // 防御のパークはポイント(値 = 上限% × 0.1)なので、くらべるときは ×5 して同じものさしに戻す
-const effScale = e => (['pdef', 'mdef', 'def'].includes(e.stat) ? 5 : 100);
+const effScale = e => (['pdef', 'mdef', 'def'].includes(e.stat) ? 2.5 : 100);   // 防御見直し(α0.4.001)でポイントが2倍になったので ×5 → ×2.5
 const sumPct = (def, mon) => Math.round((def.effects || []).filter(e => E.relicEffectMatches(e.cond, mon)).reduce((s, e) => s + e.pct * effScale(e), 0) * capMult);
 const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
 // α0.1 の遺物ルール(docs/design/遺物スキル枠のルール.json): スキル枠ごとの上限は★で決まり、
@@ -153,7 +153,7 @@ const inBand = (pct, lo, hi) => pct >= lo && pct <= hi;
    くらべるときは ×10 して同じものさしに戻す。 */
 const isPointStat = st => ['pdef', 'mdef', 'def'].includes(st);
 const slotCap = e => isPointStat(e.stat)
-  ? Math.round(e.pct * capMult * 5 * 10) / 10
+  ? Math.round(e.pct * capMult * 2.5 * 10) / 10   // 防御見直し(α0.4.001)でポイント2倍
   : Math.round(e.pct * capMult * 100);
 const CAP_BY_STAR = { 5:30, 4:25, 3:25, 2:20, 1:20 };
 // 確定データ(docs/design/新規遺物56種.json)がルール表から外れている枠。データのまま実装している

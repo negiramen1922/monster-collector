@@ -3,7 +3,7 @@
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   MONSTERS, MON_BY_ID, MONSTER_KITS, buildUnit, selectAllies, applyEffect, strike, addBuff, hasBuff,
-  statusIconsOf, BUFF_ICON, capRatio, passiveMod, effDef, defCutOf, cutOf, DEF_POINT_CAP,
+  statusIconsOf, BUFF_ICON, capRatio, passiveMod, effDef, defCutOf, scaledStats, cutOf, DEF_POINT_CAP,
   get battleUI(){ return battleUI }, set battleUI(v){ battleUI = v },
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
 };`);
@@ -56,9 +56,9 @@ ok('ステータスは★4タンクの並び', m.hp === 285 && m.pdef === 16 && 
   ok('2ターン', back.buffs.redirect.turns === 2, back.buffs.redirect.turns);
   ok('前衛の味方には付かない', !front.buffs.redirect);
   ok('牛鬼自身には付かない', !ushi.buffs.redirect);
-  ok('牛鬼に魔法防御+10が乗る(ポイントとして)', !!ushi.buffs.mdefUp && ushi.buffs.mdefUp.v === 10, ushi.buffs.mdefUp && ushi.buffs.mdefUp.v);
-  ok('実際の魔法防御が素の値+10になる', E.effDef(ushi, 'mag') === E.MON_BY_ID[USHI].mdef + 10, [E.effDef(ushi, 'mag'), E.MON_BY_ID[USHI].mdef]);
-  ok('物理防御は上がらない', E.effDef(ushi, 'phys') === E.MON_BY_ID[USHI].pdef, E.effDef(ushi, 'phys'));
+  ok('牛鬼に魔法防御+25が乗る(ポイントとして・防御見直しで2.5倍)', !!ushi.buffs.mdefUp && ushi.buffs.mdefUp.v === 25, ushi.buffs.mdefUp && ushi.buffs.mdefUp.v);
+  ok('実際の魔法防御が素の値+25になる', E.effDef(ushi, 'mag') === E.scaledStats(E.MON_BY_ID[USHI], 4, 1).mdef + 25, [E.effDef(ushi, 'mag'), E.scaledStats(E.MON_BY_ID[USHI], 4, 1).mdef]);
+  ok('物理防御は上がらない', E.effDef(ushi, 'phys') === E.scaledStats(E.MON_BY_ID[USHI], 4, 1).pdef, E.effDef(ushi, 'phys'));
   ok('挑発は付かない(肩代わりとの二重取りを避けた)', !ushi.buffs.taunt && !back.buffs.taunt);
   // かばう側にも印が出る
   ok('かばっている牛鬼にも肩代わりの印が出る', E.statusIconsOf(ushi).includes(E.BUFF_ICON.redirect));

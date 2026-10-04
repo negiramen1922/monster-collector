@@ -33,27 +33,31 @@ async def main():
               ['tu1','tu2','tu3'].forEach(id => STATE.clearedStages.push(id));   // 探索メニューはチュートリアル後に出る
               ev.stages.forEach(s => { STATE.clearedStages.push(s.id); STATE.stageStars[s.id] = 3; });
               [1,2,3].forEach(n => STATE.clearedStages.push(ev.key + '_ex' + n));
+              STATE.stageStars[ev.key + '_ex3'] = 3;   // EX3を★3(称号のミッション)
               const m = evMissionState('ev_fenrir');
               m.clears = 60; m.bonusMax = 2; m.pickClears = 12;
               const ms = eventMissions(ev);
               return { n: ms.length, claim: ms.filter(x => x.state === 'claim').length, ids: ms.map(x => x.id) };
             }""")
-            check('ミッションは通常8＋★3＋EX3の14本', r['n'] == 14, r['ids'])
-            check('条件を満たすと14本すべて受け取れる', r['claim'] == 14, r['claim'])
+            # 経済見直し(α0.4.000): EXのミッションは「EX3を★3」の称号1本だけ(星結晶はEXステージの初回クリアに移した)
+            check('ミッションは通常8＋★3＋EX3★3の12本', r['n'] == 12, r['ids'])
+            check('条件を満たすと12本すべて受け取れる', r['claim'] == 12, r['claim'])
 
             got = await pg.evaluate("""() => {
               const c0 = STATE.crystals;
               claimEventMissionsAll('ev_fenrir');
               return { crystal: STATE.crystals - c0, medal: getItem('medal_ev_fenrir'),
-                       titles: (STATE.titles || []).map(k => TITLES[k].name), title: STATE.title,
+                       titles: (STATE.titles || []).map(k => TITLES[k].name), title: myTitleText(),
                        gc: getItem('gacha_char'), gc10: getItem('gacha_char10'),
                        left: eventMissions(EVENTS.find(e => e.key === 'ev_fenrir')).filter(x => x.state === 'claim').length };
             }""")
-            # 通常1,200 ＋ ★2,500 ＋ EX3,500 = 7,200
-            check('結晶は7,200もらえる', got['crystal'] == 7200, got['crystal'])
+            # 通常500 ＋ ★500 = 1,000(経済見直し)
+            mi = await pg.evaluate("() => ({ icon: itemIcon('medal_ev_fenrir'), name: itemName('medal_ev_fenrir') })")
+            check('報酬に出るメダルに絵と名前がある(数字だけの「謎のアイテム」にならない)', mi['icon'] != '' and mi['name'] == '神狼の牙', mi)
+            check('結晶は1,000もらえる', got['crystal'] == 1000, got['crystal'])
             # 通常500 ＋ ★1,800 = 2,300
             check('メダルは2,300もらえる', got['medal'] == 2300, got['medal'])
-            check('キャラ召喚券5枚＋10連券1枚', got['gc'] == 5 and got['gc10'] == 1, (got['gc'], got['gc10']))
+            check('ミッションから召喚券は出ない(イベントの召喚券はショップの10枚だけ)', got['gc'] == 0 and got['gc10'] == 0, (got['gc'], got['gc10']))
             check('称号を3つ手に入れる', len(got['titles']) == 3, got['titles'])
             check('最初の称号が自動でつく', bool(got['title']), got['title'])
             check('受け取り残しがない', got['left'] == 0, got['left'])
@@ -74,7 +78,7 @@ async def main():
 
             await pg.evaluate("() => { eventView = 'mission'; render(); }"); await pg.wait_for_timeout(300)
             c = await pg.locator('.ev-mi').count()
-            check('ミッション画面に14行出る', c == 14, c)
+            check('ミッション画面に12行出る', c == 12, c)
             await pg.screenshot(path=str(OUT / 'ev_mission.png'))
 
             await pg.evaluate("() => { eventView = 'bonus'; render(); }"); await pg.wait_for_timeout(300)
@@ -84,13 +88,16 @@ async def main():
 
             # 称号: プロフィールで選べる
             await pg.evaluate("() => openOverlay('profile')"); await pg.wait_for_timeout(500)
-            c = await pg.locator('[data-set-title]').count()
-            check('プロフィールで称号を選べる(なし＋3つ)', c == 4, c)
+            # α0.4.003〜: 称号はプロフィールの「称号・フレームを見る」の一覧で付け替える(持っている3つに「付ける/付けている」)
+            await pg.evaluate("() => { openTitleList(); titleList.tab = 'event'; renderTitleList(); }"); await pg.wait_for_timeout(200)
+            c = await pg.locator('.tl-row.own').count()
+            check('称号一覧で、手に入れた3つを付け替えられる', c == 3, c)
+            await pg.evaluate("() => closeTitleList()"); await pg.wait_for_timeout(200)
             check('名前の上に称号が出る', await pg.locator('.pf-name-title').count() == 1)
             await pg.screenshot(path=str(OUT / 'ev_title.png'))
 
             # 召喚券でガチャ
-            await pg.evaluate("() => { closeOverlay(); gachaKind = 'mon'; goto('gacha'); render(); }")
+            await pg.evaluate("() => { closeOverlay(); addItem('gacha_char', 5); addItem('gacha_char10', 1); gachaKind = 'mon'; goto('gacha'); render(); }")
             await pg.wait_for_timeout(400)
             c = await pg.locator('[data-ticket-pull]').count()
             check('券を持っていると「券で引く」が出る', c == 2, c)
