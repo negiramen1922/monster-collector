@@ -347,8 +347,9 @@ async def main():
                 const all = Object.entries(GUIDE_CONTENT).concat(
                   Object.entries(TUT_FLOW).flatMap(([k, f]) =>
                     ['pre','battle','onSpFull','post'].filter(w => f[w]).map(w => [k+'.'+w, { steps: f[w] }])));
+                // アイコンの <img> が文の途中に入るので、タグを落としてから見る
                 const text = k => (GUIDE_CONTENT[k] ? GUIDE_CONTENT[k].steps : [])
-                  .map(s => (s.title || '') + (s.body || '')).join(' ');
+                  .map(s => (s.title || '') + (s.body || '')).join(' ').replace(/<[^>]*>/g, '');
                 const flow = k => (TUT_FLOW[k.split('.')[0]][k.split('.')[1]] || [])
                   .map(s => (s.title || '') + (s.body || '')).join(' ');
                 const tu = STAGE_BY_ID[TUTORIAL_LAST_STAGE];
@@ -370,7 +371,8 @@ async def main():
             check('召喚ポイントの必要数が定数どおり', f"{facts['spark']}個貯まったら" in facts['gacha'])
             check('クリア報酬の石が実際の値と合う', f"{facts['clearCrystal']:,}個" in facts['done'],
                   facts['clearCrystal'])
-            check('10連の値段も定数どおり', f"{facts['pull10']:,}個で10体" in facts['done'], facts['done'][:120])
+            check('初心者ガチャの値段も定数どおり',
+                  f"ふつうの10連と同じ{facts['pull10']:,}個" in facts['done'], facts['done'][:140])
             check('0-1の報酬の説明が実際と合う(ゴールドとEXPポットと石)',
                   'EXPポット' in facts['tu1post'] and 'ゴールド' in facts['tu1post']
                   and 'ソウル' not in facts['tu1post'] and 'ワザ' not in facts['tu1post'],
@@ -383,11 +385,27 @@ async def main():
             done = await pg.evaluate("""() => GUIDE_CONTENT.tutorialDone.steps.map(s => [s.spot || null, s.await || null])""")
             wrap = await pg.evaluate("""() => GUIDE_CONTENT.tutorialWrapUp.steps.map(s => [s.spot || null, s.await || null])""")
             check('ガチャ画面へ連れて行く', ['.nav-btn[data-nav="gacha"]', 'tap'] in done, done)
-            check('10連を自分で押させる', ['#pull10', 'tap'] in done, done)
+            check('引かせるのは初心者ガチャ(ピックアップは引かせない)',
+                  ['#beginner-gacha-btn', 'tap'] in done and ['#pull10', 'tap'] not in done, done)
+            check('初心者ガチャの中身を伝える(同じ値段・3回・★5確定)',
+                  await pg.evaluate("""() => { const t = GUIDE_CONTENT.tutorialDone.steps.map(s => s.body || '').join(' ');
+                      return t.includes('初心者ガチャ') && t.includes(String(BEGINNER_GACHA_ROUNDS))
+                        && t.includes('★5') && t.includes(BEGINNER_GACHA_COST.toLocaleString()); }"""))
             check('石が足りないときは飛ばす',
                   await pg.evaluate("""() => { const c = STATE.crystals; STATE.crystals = 0;
                       const n = GUIDE_CONTENT.tutorialDone.steps.filter(s => s.skipIf && s.skipIf()).length;
                       STATE.crystals = c; return n; }""") == 2)
+            check('引き終わっていたら飛ばす',
+                  await pg.evaluate("""() => { const d = STATE.beginnerGachaDone; STATE.beginnerGachaDone = true;
+                      const n = GUIDE_CONTENT.tutorialDone.steps.filter(s => s.skipIf && s.skipIf()).length;
+                      STATE.beginnerGachaDone = d; return n; }""") == 2)
+            check('初心者ガチャも「ガチャを10連する」に数える',
+                  await pg.evaluate("""() => { const m = BEGINNER_MISSIONS.find(x => x.id === 'b01');
+                      const s0 = STATE.stats && STATE.stats.beginnerGacha;
+                      track('beginnerGacha');
+                      const ok = m.value() >= 1;
+                      if(STATE.stats) STATE.stats.beginnerGacha = s0 || 0;
+                      return ok; }"""))
             check('結果を閉じてから次へ進ませる(モーダルがナビを覆うので)',
                   ['#close-result', 'tap'] in wrap, wrap)
             check('最後ははじめてガイドに引き継ぐ',

@@ -9181,7 +9181,9 @@ const ACHIEVEMENTS = [
 const BEGINNER_MISSIONS = [
   { id:'b05', label:'チュートリアルを終える',          hint:'探索 → 入門',          value:() => STATE.clearedStages.includes('tu5') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }],
     go:{ type:'tutorial' } },
-  { id:'b01', label:'ガチャを10連する',              hint:'ガチャ画面の「10連」',   value:() => stat('gacha10'),        goal:1, reward:[{ type:'crystal', n:300 }],
+  // 初心者ガチャも10連なので数える。チュートリアルでこちらを引かせているため、
+  // 数えないと「わざわざ割に合わないふつうの10連を引く」ことになってしまう
+  { id:'b01', label:'ガチャを10連する',              hint:'ガチャ画面の「10連」',   value:() => stat('gacha10') + stat('beginnerGacha'), goal:1, reward:[{ type:'crystal', n:300 }],
     go:{ type:'screen', screen:'gacha' }, guide:'tut_gacha' },
   { id:'b02', label:'編成を5体にする',             hint:'育成 → 編成 で配置',          value:() => getPartyIds().length,   goal:5, reward:[{ type:'item', key:'exp1', n:80 }],
     go:{ type:'screen', screen:'party' }, guide:'tut_form' },
@@ -23654,11 +23656,13 @@ const GUIDE_CONTENT = {
     steps: [
       { title: 'おつかれさま!', body: `チュートリアルはここまで!受け取った${CRYSTAL_ICON}${TUTORIAL_CLEAR_CRYSTALS.toLocaleString()}個で、さっそく仲間を迎えに行こう。` },
       { body: '下の「ガチャ」を押してね。', spot: '.nav-btn[data-nav="gacha"]', await: 'tap',
-        skipIf: () => (STATE.crystals || 0) < PULL10_COST },
-      { body: `${CRYSTAL_ICON}${PULL10_COST.toLocaleString()}個で10体まとめて引けるよ。10枠目は★${TEN_PULL_MIN_STAR}以上が確定なんだ。`
-          + '「10連」を押してみて!',
-        spot: '#pull10', await: 'tap', onShow: () => { tutorialGachaPending = true; },
-        skipIf: () => (STATE.crystals || 0) < PULL10_COST },
+        skipIf: () => !canBeginnerGacha() },
+      /* ピックアップではなく初心者ガチャを引かせる。ピックアップを強制すると
+         「引かされて損した」になるが、こちらは同じ値段で★5が確定するので損がない */
+      { body: `はじめた人だけが引ける<b>初心者ガチャ</b>があるよ。ふつうの10連と同じ${CRYSTAL_ICON}${BEGINNER_GACHA_COST.toLocaleString()}個で、`
+          + `${BEGINNER_GACHA_ROUNDS}回まで引けて<b>${BEGINNER_GACHA_ROUNDS}回目までに★5が1体確定</b>するんだ。押してみて!`,
+        spot: '#beginner-gacha-btn', await: 'tap', onShow: () => { tutorialGachaPending = true; },
+        skipIf: () => !canBeginnerGacha() },
     ],
   },
   // 10連の結果が出たところで続ける。ここで初心者ガイドに引き継ぐ
@@ -23666,6 +23670,8 @@ const GUIDE_CONTENT = {
     steps: [
       { title: '仲間が増えた!', body: 'おめでとう!同じ子がもう一度出たときは、代わりに<b>ソウル</b>がもらえるよ。'
           + `ソウルを集めると<b>星刻</b>ができて★が上がるんだ。引くたびに<b>召喚ポイント</b>も1つ溜まって、${SPARK_POINTS}個でピックアップの子と交換できるよ。` },
+      { body: `初心者ガチャはあと<b>${BEGINNER_GACHA_ROUNDS - 1}回</b>引けるよ。石が貯まったらまたどうぞ。`,
+        skipIf: () => !canBeginnerGacha() },
       // 結果のモーダルがナビを覆っているので、先に閉じてもらう(引かなかった人は「次へ」に落ちる)
       { body: '確認できたら「閉じる」を押してね。', spot: '#close-result', await: 'tap' },
       { body: 'ここから先は自分の力で進んでいこう!次に何をすればいいかは、ホームの<b>はじめてガイド</b>が順番に教えてくれるよ。',
@@ -24222,6 +24228,12 @@ function openFeatureGuide(key, opts){
 /* チュートリアルのしめくくり。「10連」を押させたあとは演出が入るので、
    結果が出てから続きを出す(tutorialGachaPending が目印) */
 let tutorialGachaPending = false;
+// チュートリアルで初心者ガチャを引かせられるか(残り回数と石が足りているか)
+function canBeginnerGacha(){
+  return !!STATE && !STATE.beginnerGachaDone
+    && (STATE.beginnerGachaCount || 0) < BEGINNER_GACHA_ROUNDS
+    && (STATE.crystals || 0) >= BEGINNER_GACHA_COST;
+}
 let afterAnnounceClose = null;    // お知らせのモーダルを閉じたあとに続けてやること
 function openTutorialDone(){
   guideOwner = 'tutorial';
