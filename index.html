@@ -2270,6 +2270,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   position:relative; z-index:1; border-radius:14px;
   animation:guide-pulse 1.6s ease-in-out infinite;
 }
+/* 暗転の穴で囲んでいるときは、外側のリングだけで十分。内側のグローは文字を潰すので出さない */
+.guide-spot.no-glow{ animation:none; box-shadow:none; }
 @keyframes guide-pulse{
   0%, 100%{ box-shadow:inset 0 0 0 3px var(--gold), inset 0 0 20px rgba(232,180,85,.35); }
   50%{ box-shadow:inset 0 0 0 3px var(--gold), inset 0 0 30px rgba(232,180,85,.6); }
@@ -2286,8 +2288,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   animation:gm-ring 1.4s ease-in-out infinite;
 }
 @keyframes gm-ring{
-  0%, 100%{ box-shadow:0 0 0 3px var(--gold), 0 0 18px 2px rgba(232,180,85,.45); }
-  50%{ box-shadow:0 0 0 3px var(--gold), 0 0 30px 8px rgba(232,180,85,.8); }
+  0%, 100%{ box-shadow:0 0 0 2px var(--gold), 0 0 14px 2px rgba(232,180,85,.4); }
+  50%{ box-shadow:0 0 0 2px var(--gold), 0 0 24px 6px rgba(232,180,85,.7); }
 }
 .guide-wait{ font-size:11px; font-weight:800; color:var(--gold); align-self:center; }
 /* チュートリアル試験場のパネル(?lab=tutorial のときだけ body に足す) */
@@ -2314,7 +2316,7 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 #guide-mask.nudge .gm-ring{ animation:gm-nudge .42s ease; }
 @keyframes gm-nudge{ 0%,100%{ transform:translateX(0); } 20%{ transform:translateX(-6px); } 60%{ transform:translateX(6px); } }
 @media (prefers-reduced-motion: reduce){
-  #guide-mask .gm-ring{ animation:none; box-shadow:0 0 0 3px var(--gold), 0 0 22px 4px rgba(232,180,85,.6); }
+  #guide-mask .gm-ring{ animation:none; box-shadow:0 0 0 2px var(--gold), 0 0 18px 4px rgba(232,180,85,.55); }
 }
 
 @media (prefers-reduced-motion: reduce){
@@ -23439,7 +23441,8 @@ const GUIDE_CONTENT = {
 /* ---- ハンズオンの暗転(穴あきマスク) ----
    対象のまわりに4枚の板を敷くので、穴の中のタップは本物のボタンにそのまま届く。
    対象が見つからない・大きさが0のときは何も敷かない(穴のない真っ暗で閉じ込めない)。 */
-const GUIDE_MASK_PAD = 6;
+// 穴の余白。小さい要素(WAVE 1/3 のような短い文字)は、リングが近すぎると読めなくなるので広げる
+function guideMaskPad(r){ return Math.round(Math.max(8, Math.min(16, 56 - Math.min(r.width, r.height) * 0.8))); }
 let guideMaskSel = null, guideMaskWired = false, guideMaskRaf = 0;
 function setGuideMask(selector){
   guideMaskSel = selector || null;
@@ -23460,7 +23463,7 @@ function drawGuideMask(){
   const target = guideMaskSel ? document.querySelector(guideMaskSel) : null;
   const r = target && target.getBoundingClientRect();
   if(!host || !r || r.width <= 0 || r.height <= 0){ el.classList.remove('show'); el.innerHTML = ''; return; }
-  const h = host.getBoundingClientRect(), p = GUIDE_MASK_PAD;
+  const h = host.getBoundingClientRect(), p = guideMaskPad(r);
   const W = h.width, H = h.height;
   const x = Math.max(0, r.left - h.left - p), y = Math.max(0, r.top - h.top - p);
   const w = Math.min(W - x, r.width + p * 2), hh = Math.min(H - y, r.height + p * 2);
@@ -23536,8 +23539,9 @@ function renderGuideToastStep(){
       ${st.dismissible ? '<button class="guide-close" data-guide-close="1">×</button>' : ''}
     </div>`;
   el.classList.add('show');
-  if(spot && spotFound) applyGuideHighlight(spot);
-  setGuideMask(awaitTap || s.dim ? (spotFound ? spot : null) : null);
+  const masking = !!((awaitTap || s.dim) && spotFound);
+  if(spot && spotFound) applyGuideHighlight(spot, { glow: !masking });
+  setGuideMask(masking ? spot : null);
   // 押せるものが出てこないまま10秒たったら、進める逃げ道を出す
   if(waiting) guideStuckTimer = setTimeout(() => {
     const box = document.getElementById('guide-stuck');
@@ -23608,6 +23612,8 @@ function applyGuideHighlight(selector, opts){
   const target = document.querySelector(selector);
   if(!target) return;
   target.classList.add('guide-spot');
+  // 暗転の穴で囲んでいるときは、内側のグローを出さない(小さい要素の文字が潰れる)
+  target.classList.toggle('no-glow', !!(opts && opts.glow === false));
   // reserve bottom clearance in the containing modal so scrolling to the end of it never
   // lands content underneath the fixed guide banner (see .result-modal.guide-clearance)
   const modal = target.closest('.result-modal');
@@ -23615,7 +23621,7 @@ function applyGuideHighlight(selector, opts){
   if(!opts || opts.scroll !== false) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 function clearGuideHighlight(){
-  document.querySelectorAll('.guide-spot').forEach(el => el.classList.remove('guide-spot'));
+  document.querySelectorAll('.guide-spot').forEach(el => el.classList.remove('guide-spot', 'no-glow'));
   document.querySelectorAll('.result-modal.guide-clearance').forEach(el => el.classList.remove('guide-clearance'));
   setGuideMask(null);   // 暗転の片付けはここが一手に持つ(漏れると画面が暗いまま残る)
 }
@@ -23792,7 +23798,7 @@ function reapplyGuideHighlight(){
   if(!st) return;
   const s = st.steps[st.step];
   const spot = s.spot || s.highlight;
-  if(spot) applyGuideHighlight(spot, { scroll: false });
+  if(spot) applyGuideHighlight(spot, { scroll: false, glow: !guideMaskSel });
   if(guideMaskSel) drawGuideMask();
 }
 
