@@ -2298,6 +2298,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .tut-replay .tr-ic{ display:inline-flex; align-items:center; justify-content:center; width:22px; margin-right:4px; vertical-align:-4px; }
 .tut-replay .tr-ic img, .tut-replay .tr-ic svg, .tut-replay .tr-ic .item-ic{ width:18px; height:18px; }
 .tut-replay .tr-ic .rune-ic{ width:20px; height:20px; }
+/* 属性・種族のアイコンを並べた見本 */
+.gv-icons{ display:grid; grid-template-columns:repeat(5, 1fr); gap:5px 3px; }
+.gv-ic{ display:flex; flex-direction:column; align-items:center; gap:1px; }
+.gv-ic small{ font-size:8.5px; color:var(--dim); line-height:1; }
+.gv-ic img, .gv-ic svg{ width:18px; height:18px; }
 /* 陣形の見本 */
 .gv-form{ display:flex; flex-direction:column; gap:5px; }
 .gv-frow{ display:flex; align-items:center; gap:5px; }
@@ -23432,6 +23437,16 @@ function elementGuideSample(){
   return cyc(['fire', 'grass', 'water']) + cyc(['earth', 'thunder', 'wind'])
     + `<div class="af-pair">${chip('light')}<span class="af-arrow">⇄</span>${chip('dark')}</div>`;
 }
+// 8つの属性を並べただけの見本(相性の矢印は出さない)
+function elementIconsSample(){
+  return `<div class="gv-icons">${ELEM_ORDER.filter(e => e !== 'none')
+    .map(e => `<span class="gv-ic">${ELEM_ICON[e]}<small>${ELEM_LABEL[e]}</small></span>`).join('')}</div>`;
+}
+// 種族の見本
+function speciesIconsSample(){
+  return `<div class="gv-icons">${SPECIES_ORDER
+    .map(k => `<span class="gv-ic">${SPECIES_ICON[k]}<small>${SPECIES_LABEL[k]}</small></span>`).join('')}</div>`;
+}
 // ルーンの説明に使う見本(実物と同じ絵で見せる)
 function runeGuideSample(tier, rarity, main){ return runeIconHtml({ tier, rarity, main, subs: [], lock: false }, { used: false }); }
 const GUIDE_CONTENT = {
@@ -23468,10 +23483,14 @@ const GUIDE_CONTENT = {
   },
   tut_element: {
     steps: [
-      { title: '属性と種族', visual: () => elementGuideSample(),
-        body: `属性には相性があるよ。矢印の向きに攻めると<b>ダメージ×${ELEM_UP}</b>、逆だと×${ELEM_DOWN}になるんだ。` },
-      { body: '光と闇はおたがいに有利だよ。相性は右上の「🔰 属性相性表」でいつでも見られるんだ。' },
-      { body: '同じ属性や同じ種族でそろえると、ボーナスも付くよ。編成を考える楽しみだね。' },
+      { title: '属性', visual: () => elementIconsSample(),
+        body: '属性は8つあるよ。モンスターの名前の左に付いている印がそれだよ。' },
+      { visual: () => elementGuideSample(),
+        body: `相性があって、矢印の向きに攻めると<b>ダメージ×${ELEM_UP}</b>、逆だと×${ELEM_DOWN}になるんだ。光と闇はおたがいに有利だよ。` },
+      { title: '種族', visual: () => speciesIconsSample(),
+        body: '種族は10種類。同じ属性や同じ種族でそろえると、ボーナスも付くよ。' },
+      { title: 'タップで詳しく', body: '戦闘中、盤面のモンスターをタップすると、<b>ステータス・属性・種族・ワザ</b>と、いまかかっている<b>強化や弱体</b>がその場で見られるよ。敵も見られるんだ。' },
+      { body: '相性は右上の「🔰 属性相性表」でもいつでも確かめられるよ。' },
     ],
   },
   tut_gacha: {
@@ -23820,9 +23839,16 @@ const TUT_FLOW = {
       { body: 'いったん戻ろう。', spot: '[data-result-nav="battle"]', await: 'tap' },
     ],
     battle: [
-      { title: '属性と種族', body: '最後は属性のお話。属性には相性があって、有利な属性で攻めるとダメージが1.5倍になるんだ。',
-        spot: '.battle-field', dim: true },
-      { body: '同じ属性や同じ種族でそろえると、ボーナスも付くよ。編成を考える楽しみだね。' },
+      { title: '属性', visual: () => elementIconsSample(),
+        body: `最後は属性のお話。属性は8つあって、名前の左に付いている印がそれだよ。` },
+      { visual: () => elementGuideSample(),
+        body: `相性があって、矢印の向きに攻めると<b>ダメージ×${ELEM_UP}</b>、逆だと×${ELEM_DOWN}になるんだ。光と闇はおたがいに有利だよ。` },
+      { title: '種族', visual: () => speciesIconsSample(),
+        body: '種族は10種類。同じ属性や同じ種族でそろえると、ボーナスも付くよ。編成を考える楽しみだね。' },
+      { title: 'タップで詳しく', body: '戦闘中、盤面のモンスターをタップしてみて。<b>ステータス・属性・種族・ワザ</b>と、いまかかっている<b>強化や弱体</b>がその場で見られるんだ。敵も見られるよ!',
+        spot: '.unit[data-inspect^="enemy"]', await: 'tap' },
+      { body: 'こんなふうに出るよ。相性が分からなくなったら、ここで確かめてね。',
+        spot: '.unit-modal', dim: true },
       { body: 'ここからはヒントなし!ヒノコも応援してるよ。', doneLabel: '戦いを見る' },
     ],
   },
