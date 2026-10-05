@@ -23559,7 +23559,7 @@ function wireGuideTapAdvance(){
      - 戦闘画面は pointerdown で動いていて preventDefault するので click が来ない
      - アプリ側のハンドラが先に走ると、押した要素のクラスがその場で書き換わって
        (例: .unit.ready → .unit.reserved)あとからでは判定できない */
-  const onTap = ev => {
+  const onTap = (ev, fromPointer) => {
     const st = guideToastState;
     if(!st) return;
     const s = st.steps[st.step];
@@ -23568,12 +23568,16 @@ function wireGuideTapAdvance(){
     if(!t || typeof t.closest !== 'function') return;
     if(t.closest('#guide-toast') || t.closest('#guide-mask')) return;
     if(!t.closest(s.spot)) return;
+    /* pointerdown で拾うのは戦闘画面だけ。戦闘は pointerdown で動いていて
+       preventDefault するので click が来ないため。
+       それ以外で pointerdown に反応すると、指を離す前に案内が閉じて帯の下余白
+       (.guide-clearance)が外れ、ボタンが動いて click が成立しない */
+    if(fromPointer && !t.closest('#battle-wrap')) return;
     const at = st.step;
-    // 同じ操作で pointerdown と click の両方が来ることがあるので、進むのは1回だけ
     setTimeout(() => { if(guideToastState === st && st.step === at) guideToastNext(); }, 0);
   };
-  document.addEventListener('click', onTap, true);
-  document.addEventListener('pointerdown', onTap, true);
+  document.addEventListener('click', ev => onTap(ev, false), true);
+  document.addEventListener('pointerdown', ev => onTap(ev, true), true);
 }
 
 function guideToastNext(){
