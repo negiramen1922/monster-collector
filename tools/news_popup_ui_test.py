@@ -27,8 +27,9 @@ async def main():
             await pg.wait_for_timeout(300)
             check('はじめたばかりのときはニュースを開かない(今あるニュースは既読)', await pg.evaluate("() => overlayView") != 'notices' and await pg.evaluate("() => STATE.noticeSeen === liveNotices()[0].id"))
             reenter = "async () => { overlayView = null; await flushSave(); await startGame(); }"
-            # 既存の人: 新しいニュースが1件ある
-            await pg.evaluate("() => { clearGuideToast(); STATE.guidesSeen = Object.assign(STATE.guidesSeen || {}, { welcome: true }); STATE.noticeSeen = liveNotices()[1].id; STATE.updateLogSeen = 0; saveState(); }")
+            # 既存の人: 新しいニュースが1件ある。
+            # チュートリアル中は帯の上にモーダルを乗せない仕様なので、ここでは終えた人として用意する
+            await pg.evaluate("() => { guideOwner = null; clearGuideToast(true); STATE.tutorialSkipped = true; STATE.guidesSeen = Object.assign(STATE.guidesSeen || {}, { welcome: true }); STATE.noticeSeen = liveNotices()[1].id; STATE.updateLogSeen = 0; saveState(); }")
             await pg.evaluate(reenter); await pg.wait_for_timeout(400)
             st = await pg.evaluate("() => [overlayView, noticesTab, [...noticesOpen]]")
             check('新しいニュースがあると、入ったときにニュースが開く(その記事が開いた状態)', st[0] == 'notices' and st[1] == 'news' and st[2] == [f"news:{await pg.evaluate('() => liveNotices()[0].id')}"], st)
