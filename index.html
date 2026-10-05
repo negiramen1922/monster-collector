@@ -23235,7 +23235,7 @@ async function bootTutLab(){
   buildShell();
   goto('home');
   renderTutLabPanel();
-  startTutorialPre();
+  openWelcomeThenTutorial();
 }
 // まっさらな新規プレイヤーに戻す
 function tutLabReset(){
@@ -23245,7 +23245,7 @@ function tutLabReset(){
   buildShell();
   goto('home');
   renderTutLabPanel();
-  startTutorialPre();
+  openWelcomeThenTutorial();
   toast('まっさらに戻しました');
 }
 // 指定のステージの「頭」に飛ぶ(そこまでをクリア済みにして、案内をやり直す)
@@ -23266,6 +23266,8 @@ function tutLabAction(cmd){
   if(cmd === 'reset') return tutLabReset();
   if(cmd === 'skipflag'){ STATE.tutorialSkipped = !STATE.tutorialSkipped; guideOwner = null; clearGuideToast(true); render(); return renderTutLabPanel(); }
   if(cmd === 'panel') return renderTutLabPanel();
+  if(cmd === 'welcome'){ guideOwner = null; clearGuideToast(true); delete (STATE.guidesSeen || {}).welcome;
+    goto('home'); render(); openWelcomeThenTutorial(); return renderTutLabPanel(); }
   if(cmd.startsWith('jump:')) return tutLabJump(cmd.slice(5));
   if(cmd.startsWith('post:')) { startTutorialPost(cmd.slice(5)); return renderTutLabPanel(); }
 }
@@ -23300,6 +23302,7 @@ function renderTutLabPanel(){
     </div>
     <div class="tl-btns">
       <button data-tutlab="reset">まっさらに戻す</button>
+      <button data-tutlab="welcome">ようこそから</button>
       <button data-tutlab="skipflag">スキップ切替</button>
     </div>`;
 }
@@ -23335,8 +23338,7 @@ async function startGame(){
   buildShell();
   if(from === 'cloud') toast('クラウドのデータを読み込みました');
   if(!STATE.guidesSeen || !STATE.guidesSeen.welcome){
-    const steps = GUIDE_CONTENT.welcome.steps.filter(s => !s.installOnly || canInstall());
-    openGuideToast('ketsy', steps, { key: 'welcome', doneLabel: 'はじめる', onDone: () => startTutorialPre() });
+    openWelcomeThenTutorial();
     // はじめたばかりの人には、今あるニュースは読んだことにする(新しく出たものだけを次から知らせる)
     const ln = liveNotices();
     if(ln[0]) STATE.noticeSeen = Math.max(STATE.noticeSeen || 0, ln[0].id);
@@ -23711,6 +23713,11 @@ function startTutorialBattle(stageId, b){
     },
   });
   return true;
+}
+// ようこそ(ケットシー) → チュートリアル(ヒノコ)。いきなり戦闘へ連れて行かない
+function openWelcomeThenTutorial(){
+  const steps = GUIDE_CONTENT.welcome.steps.filter(s => !s.installOnly || canInstall());
+  openGuideToast('ketsy', steps, { key: 'welcome', doneLabel: 'はじめる', onDone: () => startTutorialPre() });
 }
 function tutorialNextStage(){
   if(!STATE || STATE.tutorialSkipped) return null;
