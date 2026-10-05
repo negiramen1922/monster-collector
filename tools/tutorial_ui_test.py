@@ -263,6 +263,77 @@ async def main():
                       STATE.clearedStages = ['tu1','tu2','tu3']; normalizeState();
                       const ok = tutorialCleared(); STATE.clearedStages = s; return ok; }"""))
 
+            # ---- 11. 0-4 陣形とロールの向き ----
+            print('\n--- 11. 0-4 陣形とロールの向き ---')
+            await fresh(['tu1', 'tu2', 'tu3'])
+            await pg.evaluate("""() => { grantMonster(MON_BY_ID['m11']); grantMonster(MON_BY_ID['m02']);
+                goto('home', { nav: true }); startTutorialPre(); }""")
+            await wait_guide()
+            form = lambda: pg.evaluate("""() => { const f = currentFormation(); return {
+                key: STATE.formationKey, front: f.front, party: getPartyIds().length,
+                rows: STATE.slots.map((id, i) => id ? [MON_BY_ID[id].name, MON_BY_ID[id].role, slotRowIn(f, i)] : null),
+                warn: penalizedIds().map(id => MON_BY_ID[id].name) }; }""")
+            bodies, log, seen_warn, launched = [], [], None, None
+            for _ in range(30):
+                st = await pg.evaluate("""() => { const s = guideToastState; if(!s) return null;
+                    const d = s.steps[s.step];
+                    return { spot: d.spot || null, tap: d.await === 'tap',
+                             body: (d.body || '').replace(/<[^>]*>/g, ''),
+                             found: d.spot ? !!document.querySelector(d.spot) : null }; }""")
+                if not st: break
+                bodies.append(st['body'])
+                log.append((st['spot'], st['found']))
+                if st['spot'] and not st['found']: break
+                if st['spot'] == '[data-row-warn]': seen_warn = await form()
+                if st['tap']:
+                    if st['spot'] == '.ss-go[data-stage="tu4"]': launched = await form()
+                    await pg.locator(st['spot']).first.click()
+                else:
+                    await pg.locator('[data-guide-next]').click()
+                await pg.wait_for_timeout(500)
+                if launched: break
+            joined = ' '.join(bodies)
+            spotted = [sp for sp, _ in log]
+            check('どのステップも対象が見つかる', all(f is not False for _, f in log),
+                  [x for x in log if x[1] is False])
+            check('ロールの前衛向き・後衛向きを説明する',
+                  '前衛向き' in joined and '後衛向き' in joined and 'タンク' in joined and 'シューター' in joined)
+            check('後衛の近接は与ダメージ-30%だと伝える', '与ダメージ-30%' in joined)
+            check('鶴翼の陣(前衛3)に導く', '[data-formation="f3"]' in spotted)
+            check('わざと一枚盾の陣を踏ませる', '[data-formation="f1"]' in spotted)
+            check('そのとき⚠が2体に出る', bool(seen_warn) and seen_warn['warn'] == ['ゴブリン', 'ホーンラビット'],
+                  seen_warn and seen_warn['warn'])
+            check('⚠の欄そのものを穴にする', '[data-row-warn]' in spotted)
+            check('もとの陣形に戻させる', '鶴翼の陣' in joined and '戻し' in joined)
+            check('出撃までたどり着く', bool(launched), log[-1] if log else None)
+            check('出撃時は5体そろっている', bool(launched) and launched['party'] == 5, launched and launched['party'])
+            check('出撃時は前衛3・後衛2', bool(launched) and launched['key'] == 'f3' and launched['front'] == 3,
+                  launched and [launched['key'], launched['front']])
+            check('出撃時に適正外が1つもない', bool(launched) and launched['warn'] == [], launched and launched['warn'])
+            check('近接3体が前衛・遠隔2体が後衛',
+                  bool(launched) and all((r[2] == 'front') == (r[1] in ('tank', 'attacker'))
+                                         for r in launched['rows'] if r),
+                  launched and launched['rows'])
+            check('見直しのガイドにも向き不向きが載る',
+                  await pg.evaluate("""() => GUIDE_CONTENT.tut_form.steps.some(s => /前衛向き/.test(s.body || ''))"""))
+
+            # ---- 12. 入門の敵に回復役を入れない ----
+            print('\n--- 12. 入門の敵 ---')
+            healers = await pg.evaluate("""() => {
+                const bad = /回復|復活|吸収/;
+                const out = [];
+                STAGES.filter(s => s.tier === 'tu').forEach(s => (s.pool || []).forEach(id => {
+                  const k = MONSTER_KITS[id] || {};
+                  const hit = ['normal', 'skill1', 'skill2', 'passive', 'ult']
+                    .filter(w => k[w] && bad.test(k[w].desc || ''));
+                  if(hit.length) out.push([s.id, MON_BY_ID[id].name, hit.join('/')]);
+                })); 
+                return out; }""")
+            check('入門の敵に回復・復活・吸収を持つ子がいない', healers == [], healers)
+            check('0-4と0-5からマイコニド・マンドラゴラが外れている',
+                  await pg.evaluate("""() => ['tu4','tu5'].every(id =>
+                      !(STAGE_BY_ID[id].pool || []).some(m => m === 'm03' || m === 'm10'))"""))
+
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')

@@ -9482,13 +9482,15 @@ const TERRAIN = {
 };
 // per stage: [name, terrain, element, enemy pool, rares, lvAdj] ; bosses add { boss, gimmick, adds }
 const QUEST_SPEC = {
-  // ハンズオンのチュートリアル。1本で1つだけ教える(docs/提案資料/チュートリアル作り直し.md)
+  /* ハンズオンのチュートリアル。1本で1つだけ教える(docs/提案資料/チュートリアル作り直し.md)
+     敵には HP を回復する子・復活する子を入れない(戦闘が長引いて、教えたいことが伝わる前に飽きる)。
+     マイコニド(癒しの胞子)とマンドラゴラ(土に潜る・根っこの生命力)を外してある */
   tu: [
-    { name: 'はじめての戦い',   terrain: 'field', element: 'none',  pool: ['m21', 'm29'],               waves: [[2]],            tutorial: 'flow' },
-    { name: 'ウェーブを越える', terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],        waves: [[2], [2], [3]],  tutorial: 'wave' },
-    { name: '奥義を使う',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],        waves: [[2], [3]],       tutorial: 'ult' },
-    { name: '陣形を組む',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29', 'm10'], waves: [[2], [2], [3]],  tutorial: 'form' },
-    { name: '自分でやってみよう', terrain: 'field', element: 'grass', pool: ['m16', 'm03', 'm21', 'm10'], waves: [[2], [2], [3]],  tutorial: 'self' },
+    { name: 'はじめての戦い',   terrain: 'field', element: 'none',  pool: ['m21', 'm29'],                waves: [[2]],            tutorial: 'flow' },
+    { name: 'ウェーブを越える', terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],         waves: [[2], [2], [3]],  tutorial: 'wave' },
+    { name: '奥義を使う',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],         waves: [[2], [3]],       tutorial: 'ult' },
+    { name: '陣形を組む',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29', 'm130'], waves: [[2], [2], [3]],  tutorial: 'form' },
+    { name: '自分でやってみよう', terrain: 'field', element: 'grass', pool: ['m16', 'm39', 'm21', 'm130'], waves: [[2], [2], [3]],  tutorial: 'self' },
   ],
   q1: [
     { name: 'そよ風の草原', terrain: 'plains', element: 'none', fixed: [{ f:['m21', 'm16'], b:[] }, { f:['m16', 'm21'], b:['m29'] }, { f:['m21', 'm16', 'm21'], b:['m29'] }], rares: ['m15', 'm22'] },
@@ -15125,7 +15127,7 @@ function renderParty(){
     <div class="enemy-side-cap">▲ 敵側</div>
     ${renderFormationGrid(false)}
     <p class="formation-note">前衛が1体でも残っている間、<b>後衛は敵に狙われません</b>(一部の陣形無視スキルを除く)。前衛が全滅すると後衛が攻撃されます。</p>
-    ${penalized.length ? `<div class="warn-box" role="alert">⚠ 近接ロール(タンク・アタッカー)が後衛にいます。与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%: ${penalized.map(m => m.name).join('、')}</div>` : ''}
+    ${penalized.length ? `<div class="warn-box" data-row-warn role="alert">⚠ 近接ロール(タンク・アタッカー)が後衛にいます。与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%: ${penalized.map(m => m.name).join('、')}</div>` : ''}
 
     <div class="panel panel-tight cover-card">
       <div class="row-between" style="margin-bottom:8px;">
@@ -23421,8 +23423,11 @@ const GUIDE_CONTENT = {
     steps: [
       { title: '陣形', visual: () => formationGuideSample(),
         body: 'パーティは<b>前衛</b>と<b>後衛</b>に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。' },
-      { body: '前衛が全部倒れると後衛がねらわれるよ。前を守れる子(タンクやアタッカー)を置くのが大事なんだ。' },
-      { body: '逆に、シューターやサポーターを前衛に置くと力を出しきれないよ。陣形は「育成 → 編成」からいつでも変えられるんだ。' },
+      { body: '前衛が全部倒れると後衛がねらわれるよ。前を守れる子を置くのが大事なんだ。' },
+      { body: `ロールには向き不向きがあるよ。${ROLE_ICON.tank}タンクと${ROLE_ICON.attacker}アタッカーは<b>前衛向き</b>、`
+          + `${ROLE_ICON.support}サポート・${ROLE_ICON.shooter}シューター・${ROLE_ICON.trickster}トリックスターは<b>後衛向き</b>だよ。` },
+      { body: `近接ロール(タンク・アタッカー)を後衛に置くと<b>与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%</b>になって、編成に⚠が出るんだ。`
+          + '陣形は「育成 → 編成」からいつでも変えられるから、⚠が出たら前衛の人数を変えてみてね。' },
     ],
   },
   tut_element: {
@@ -23798,18 +23803,36 @@ const TUT_FLOW = {
     ],
   },
   tu4: {
-    // 陣形は戦う前に組むものなので、ここだけ編成画面に寄り道してから出撃する
+    /* 陣形は戦う前に組むものなので、ここだけ編成画面に寄り道してから出撃する。
+       手順の順番が大事: 鶴翼(前衛3)にしてから2体を入れると、近接3体が前衛・遠隔2体が後衛に
+       収まって適正外が1つも出ない。先に入れると前衛の空きが足りず、アタッカーが後衛に落ちる。
+       そのあと一枚盾(前衛1)をわざと踏ませて⚠を見せ、鶴翼に戻して終わる(戻すと元の並びに復元される) */
     pre: [
       { title: '陣形', body: 'パーティは<b>前衛</b>と<b>後衛</b>に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。' },
       { body: 'まずは「育成」を開いてみて。', spot: '.nav-btn[data-nav="party"]', await: 'tap' },
       { body: 'ここが編成。上の列が前衛、下の列が後衛だよ。<b>2つ空いている</b>のが分かるかな?', spot: '.formation', dim: true },
-      { body: 'さっき仲間になったホーンラビットを入れてみよう。下の一覧から押してね。',
+      { body: `ロールには<b>前衛向き・後衛向き</b>があるんだ。${ROLE_ICON.tank}タンクと${ROLE_ICON.attacker}アタッカーは近づいて殴るから前衛向き。`
+          + `${ROLE_ICON.support}サポート・${ROLE_ICON.shooter}シューター・${ROLE_ICON.trickster}トリックスターは離れていても届くから後衛向きだよ。`,
+        spot: '.formation', dim: true },
+      { body: `近接ロールを後衛に置くと、届かないぶん<b>与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%</b>になって⚠が出るんだ。気をつけてね!`,
+        spot: '.formation', dim: true },
+      { body: '仲間になったホーンラビットはアタッカー。前衛の席がもう1つ必要だから、前衛3人の「鶴翼の陣」にしよう。',
+        spot: '[data-formation="f3"]', await: 'tap',
+        skipIf: () => STATE.formationKey === 'f3' },
+      { body: 'それじゃあホーンラビットを入れてみよう。下の一覧から押してね。前衛の空きに入るよ。',
         spot: '.roster-row[data-toggle="m11"]', await: 'tap',
         skipIf: () => getPartyIds().includes('m11') },
-      { body: 'オオコウモリも入れよう!', spot: '.roster-row[data-toggle="m02"]', await: 'tap',
+      { body: 'オオコウモリはシューターだから後衛に入るよ。押してね!', spot: '.roster-row[data-toggle="m02"]', await: 'tap',
         skipIf: () => getPartyIds().includes('m02') },
-      { body: '5体そろったね!前衛に3体、後衛に2体。これで後衛が守られるんだ。', spot: '.formation', dim: true },
-      { body: 'この並びが陣形。押すと切り替えられるよ。好きなものを選んでみて!', spot: '.fm-card', await: 'tap' },
+      { body: '5体そろったね!前衛に3体、後衛に2体。ロールの向きもぴったりで、⚠は出ていないよ。', spot: '.formation', dim: true },
+      { body: 'ためしに「一枚盾の陣」を押してみて。前衛が1人だけの陣形だよ。',
+        spot: '[data-formation="f1"]', await: 'tap' },
+      { body: `ほら⚠が出た!前衛が1人になったから、ゴブリンとホーンラビットが後衛に下がって与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%になっちゃったんだ。`,
+        spot: '[data-row-warn]', dim: true,
+        skipIf: () => !penalizedIds().length },
+      { body: '「鶴翼の陣」に戻しておこう。これで⚠が消えて、みんな力を出しきれるよ。',
+        spot: '[data-formation="f3"]', await: 'tap',
+        skipIf: () => STATE.formationKey === 'f3' },
       { body: 'いいね!それじゃあ探索に戻ろう。', spot: '.nav-btn[data-nav="battle"]', await: 'tap' },
       { body: '「入門」だよ。', spot: '[data-quest-tier="tu"]', await: 'tap' },
       { body: '0-4「陣形を組む」。', spot: '[data-stage-open="tu4"]', await: 'tap' },
