@@ -2262,6 +2262,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
    its last content (e.g. the relic slot in a monster's detail) can never scroll to a spot the
    fixed guide banner covers - otherwise taps there are silently swallowed by the banner on top. */
 .result-modal.guide-clearance{ padding-bottom:230px; }
+/* 案内の帯が出ているあいだは、画面の下にも帯のぶんの余白を取る。
+   一覧のいちばん下にある相手でも、帯の上までスクロールして逃がせるようにするため */
+#screen.guide-clearance{ padding-bottom:240px; }
 
 /* the screen element a guide step is currently talking about.
    inset-only so it never gets clipped by #phone's overflow:clip, even for
@@ -9766,34 +9769,7 @@ const MASCOTS = {
   anubis: { id: 'm149', name: 'アヌビス' }, // 深淵回廊の門番(落ち着いた口調)
 };
 
-/* ---- tutorial texts (narrated by ヒノコ) ---- */
-const TUTORIAL_MASCOT = 'hinoko';
-const TUTORIAL_PAGES = {
-  flow: [
-    ['戦闘の流れ', 'やっほー、案内役のヒノコだよ!クエストでは敵のウェーブを順番にやっつけていくよ。戦闘はオートで進んで、すばやさ(SPD)の高い子から動いていくんだ。'],
-    ['ターンとラウンド', '全員が1回ずつ動くと1ラウンド。画面の上に、次に動く順番が出るから見ててね。'],
-    ['勝利と報酬', 'ウェーブを全部倒せばクリア!ゴールドやワザ強化素材、仲間にできるモンスターのソウルがもらえるよ。ステージによっては★3・4・5の高レアなモンスターが仲間になるチャンスもあるかも!?'],
-  ],
-  ult: [
-    ['スキル', 'ここからは奥義のお話。モンスターは決まったターンごとに、自動でスキルを使うよ。効果は詳細画面で確認できるんだ。'],
-    ['SPと奥義', '行動したり攻撃を受けたりすると、SPが少しずつ溜まっていくよ。いっぱいになったモンスターは光るんだ!'],
-    ['奥義発動', '光ってる子をタップすれば奥義発動!その子の番が来たら放たれるよ。オートにしておけば自動で撃ってくれる!'],
-    ['ウェーブ', 'このステージは3ウェーブ。突破するたびに、HPが少し回復するよ。'],
-  ],
-  wave: [
-    ['ウェーブ', 'このステージは3ウェーブ。敵の group を順番にやっつけていくよ。'],
-    ['突破するたびに', 'ウェーブを突破すると、HPが少し回復するんだ。'],
-  ],
-  form: [
-    ['陣形', 'パーティは前衛と後衛に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。'],
-    ['編成', '育成 → 編成 で、陣形と並びを変えられるよ。'],
-  ],
-  self: [
-    ['陣形', '最後は陣形のおさらい!パーティは前衛と後衛に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。'],
-    ['属性と種族', '属性の相性でダメージが変わるよ。同じ属性・種族をそろえるとボーナスも付くんだ!'],
-    ['自分でやってみよう', 'ここからはヒントなし!育成 → 編成 で陣形を整えてから、挑戦してみてね。ヒノコも応援してるよ!'],
-  ],
-};
+const TUTORIAL_MASCOT = 'hinoko';   // チュートリアルの案内役(ハンズオンの中身は TUT_FLOW)
 
 const STAGES = buildQuestStages();
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(st => [st.id, st]));
@@ -12051,6 +12027,8 @@ function render(){
   });
   updateMissionBadge();
   tickBanner();
+  // 画面を描き直すと、チュートリアルで光らせた印と暗転の穴が流れるので貼り直す
+  reapplyGuideHighlight();
 }
 
 const H_SCROLL_SEL = '.tier-tabs, .gacha-tabs, .dex-elems, .filter-row';
@@ -16359,17 +16337,6 @@ function findStage(id){
   if(ab) return abyssStage(Number(ab[1]));
   return STAGE_BY_ID[id];
 }
-function showTutorial(stageId, page){
-  const stage = findStage(stageId);
-  // ハンズオンに作り直したステージは、戦闘前にまとめて読ませる古いページを出さない
-  if(TUT_FLOW[stageId]) return startBattle(stageId, { skipIntro: true });
-  const steps = TUTORIAL_PAGES[stage.tutorial].map(([title, body]) => ({ title, body }));
-  guideToastState = {
-    mascotKey: TUTORIAL_MASCOT, steps, step: page || 0, key: null, doneLabel: '戦闘開始',
-    dismissible: false, onDone: () => startBattle(stageId, { skipIntro: true }),
-  };
-  renderGuideToastStep();
-}
 /* ---------------- PVP: async battle against another player's saved defense ---------------- */
 const PVP_DAILY_MAX = 5;
 const PVP_WIN_REWARD = [{ type:'gold', n:3000 }];
@@ -16533,7 +16500,6 @@ function startBattle(stageId, opts){
   const stage = findStage(stageId);
   if(!stage) return;
   if(getPartyIds().length === 0){ toast('編成にモンスターを入れてください'); return; }
-  if(stage.tutorial && !(opts && opts.skipIntro) && stageUnlocked(stage)){ showTutorial(stageId, 0); return; }
   // belt-and-suspenders: no non-tutorial content is playable until the tutorial itself is
   // finished, even if some other check (requires-chain, dungeon tier unlock, a stray button)
   // would otherwise let the request through.
@@ -18822,10 +18788,6 @@ function gainSp(unit, amount, source){
       b.ultHinted = true;
       // 止めない。止めるとタップしても発動を指示できないので、光った子を押させてそのまま続ける
       setTimeout(() => { if(battleUI === b && !b.finished) startTutorialSpFull(b); }, 0);
-    }else if(b && b.stage.tutorial === 'ult' && !b.ultHinted){
-      b.ultHinted = true;
-      b.pauseMsg = `${unit.name} が光りました!タップして奥義発動!`;
-      setTimeout(() => { if(battleUI === b && !b.finished) setPaused(true); }, 0);
     }
   }
 }
@@ -19525,7 +19487,6 @@ function setPaused(paused){
   const b = battleUI;
   if(!b || b.finished || b.paused === paused) return;
   b.paused = paused;
-  if(!paused) b.pauseMsg = null;
   if(paused) clearTimeout(b.tickTimer);
   else if(!b.transitioning) scheduleNextTick();
   renderBattleScreenOnly();
@@ -20277,8 +20238,8 @@ function renderBattleFight(){
       <div class="battle-field">
         ${b.paused && !b.finished && !b.tutorialPause ? `
           <div class="pause-banner" role="status">
-            <div class="pb-title">${b.pauseMsg ? '💡 ヒント' : '⏸ 一時停止中'}</div>
-            <div class="pb-sub">${b.pauseMsg || 'モンスターをタップして奥義を発動できます'}</div>
+            <div class="pb-title">⏸ 一時停止中</div>
+            <div class="pb-sub">モンスターをタップして奥義を発動できます</div>
             <button class="btn btn-sm" id="resume-btn">▶ 再開する</button>
           </div>` : ''}
         ${b.fxCutIn ? renderCutIn(b.fxCutIn) : ''}
@@ -23634,6 +23595,11 @@ function renderGuideToastStep(){
   const s = st.steps[st.step];
   const isLast = st.step === st.steps.length - 1;
   // spot: 暗転して穴を開ける要素。await:'tap' ならその要素を押すまで進まない(「次へ」を出さない)
+  // もう済んでいる手順(すでに編成に入れてある等)は飛ばす
+  if(s.skipIf && s.skipIf()){
+    if(st.step < st.steps.length - 1){ st.step++; return renderGuideToastStep(); }
+    return finishGuideToast();
+  }
   const spot = s.spot || s.highlight || null;
   const awaitTap = !!(s.spot && s.await === 'tap');
   const canSkip = guideOwner === 'tutorial';
@@ -23662,6 +23628,11 @@ function renderGuideToastStep(){
   const masking = !!((awaitTap || s.dim) && spotFound);
   if(spot && spotFound) applyGuideHighlight(spot, { glow: !masking });
   setGuideMask(masking ? spot : null);
+  if(spot && spotFound){
+    // 帯の下に入っていたら逃がして、穴を引き直す(描いたあとでないと位置が測れない)
+    const el = document.querySelector(spot);
+    if(el && keepSpotAboveBanner(el)) drawGuideMask();
+  }
   // 押せるものが出てこないまま10秒たったら、進める逃げ道を出す
   if(waiting) guideStuckTimer = setTimeout(() => {
     const box = document.getElementById('guide-stuck');
@@ -23732,6 +23703,27 @@ function clearGuideToast(force){
   const el = document.getElementById('guide-toast');
   if(el){ el.classList.remove('show'); el.innerHTML = ''; }
 }
+/* 案内の帯(z-index 55)は暗転(54)より上にあるので、穴を開けても帯の下に入った相手は
+   物理的に押せない。いちばん近いスクロールできる親を動かして、帯の上に逃がす */
+function scrollableAncestorOf(el){
+  for(let p = el.parentElement; p; p = p.parentElement){
+    const st = getComputedStyle(p);
+    if(/(auto|scroll)/.test(st.overflowY) && p.scrollHeight > p.clientHeight + 1) return p;
+  }
+  return null;
+}
+function keepSpotAboveBanner(target){
+  const banner = document.querySelector('#guide-toast.show .guide-banner');
+  if(!banner) return false;
+  const b = banner.getBoundingClientRect(), r = target.getBoundingClientRect();
+  const over = r.bottom - b.top + 12;      // 帯にかぶっている分 + 余白
+  if(over <= 0) return false;
+  const sc = scrollableAncestorOf(target);
+  if(!sc) return false;
+  const before = sc.scrollTop;
+  sc.scrollTop = Math.min(sc.scrollHeight - sc.clientHeight, sc.scrollTop + over);
+  return sc.scrollTop !== before;
+}
 function applyGuideHighlight(selector, opts){
   const target = document.querySelector(selector);
   if(!target) return;
@@ -23742,11 +23734,12 @@ function applyGuideHighlight(selector, opts){
   // lands content underneath the fixed guide banner (see .result-modal.guide-clearance)
   const modal = target.closest('.result-modal');
   if(modal) modal.classList.add('guide-clearance');
+  else { const sc = document.getElementById('screen'); if(sc) sc.classList.add('guide-clearance'); }
   if(!opts || opts.scroll !== false) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 function clearGuideHighlight(){
   document.querySelectorAll('.guide-spot').forEach(el => el.classList.remove('guide-spot', 'no-glow'));
-  document.querySelectorAll('.result-modal.guide-clearance').forEach(el => el.classList.remove('guide-clearance'));
+  document.querySelectorAll('.guide-clearance').forEach(el => el.classList.remove('guide-clearance'));
   setGuideMask(null);   // 暗転の片付けはここが一手に持つ(漏れると画面が暗いまま残る)
 }
 // a modal re-rendering itself (e.g. a level-up refreshing the monster detail sheet) replaces the
@@ -23807,7 +23800,7 @@ const TUT_FLOW = {
     ],
     post: [
       { title: '奥義が決まった!', body: '奥義はSPが溜まるたびに何度でも撃てるよ。強い敵ほど、使いどころが大事になるんだ。' },
-      { title: '仲間が増えた!', body: 'ホーンラビットとオオコウモリが仲間になったよ。これで5体!次は並べかたを覚えよう。' },
+      { title: '仲間が増えた!', body: 'ホーンラビットとオオコウモリが仲間になったよ!でも<b>まだ編成に入っていない</b>んだ。次は並べかたを覚えて、2体を入れてあげよう。' },
       { body: 'いったん探索に戻ろう。', spot: '[data-result-nav="battle"]', await: 'tap' },
     ],
   },
@@ -23816,7 +23809,13 @@ const TUT_FLOW = {
     pre: [
       { title: '陣形', body: 'パーティは<b>前衛</b>と<b>後衛</b>に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。' },
       { body: 'まずは「育成」を開いてみて。', spot: '.nav-btn[data-nav="party"]', await: 'tap' },
-      { body: 'ここが編成。上の列が前衛、下の列が後衛だよ。', spot: '.formation', dim: true },
+      { body: 'ここが編成。上の列が前衛、下の列が後衛だよ。<b>2つ空いている</b>のが分かるかな?', spot: '.formation', dim: true },
+      { body: 'さっき仲間になったホーンラビットを入れてみよう。下の一覧から押してね。',
+        spot: '.roster-row[data-toggle="m11"]', await: 'tap',
+        skipIf: () => getPartyIds().includes('m11') },
+      { body: 'オオコウモリも入れよう!', spot: '.roster-row[data-toggle="m02"]', await: 'tap',
+        skipIf: () => getPartyIds().includes('m02') },
+      { body: '5体そろったね!前衛に3体、後衛に2体。これで後衛が守られるんだ。', spot: '.formation', dim: true },
       { body: 'この並びが陣形。押すと切り替えられるよ。好きなものを選んでみて!', spot: '.fm-card', await: 'tap' },
       { body: 'いいね!それじゃあ探索に戻ろう。', spot: '.nav-btn[data-nav="battle"]', await: 'tap' },
       { body: '「入門」だよ。', spot: '[data-quest-tier="tu"]', await: 'tap' },
