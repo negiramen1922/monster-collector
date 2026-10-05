@@ -5487,6 +5487,13 @@ async function loadState(){
 
 // fixups that any save needs, whether it came from this device or the cloud
 function normalizeState(){
+  /* チュートリアルを3本から5本に増やしたときの移行。旧tu3(最後の1本)を終えていた人は
+     終えた扱いにする。そうしないと tu4・tu5 が未クリアになって、育成クエストや
+     探索のタブが再びロックされてしまう */
+  if(Array.isArray(STATE.clearedStages) && STATE.clearedStages.includes('tu3')
+     && !STATE.clearedStages.includes('tu5')){
+    ['tu4', 'tu5'].forEach(id => { if(!STATE.clearedStages.includes(id)) STATE.clearedStages.push(id); });
+  }
   // migrate older saves (4-slot list / 3x2 grid / 4x2 grid) to "formation + 5 slots"
   if(!Array.isArray(STATE.slots) || STATE.slots.length !== PARTY_MAX){
     let front = [], back = [];
@@ -8658,7 +8665,7 @@ function sweepButton(stage){
 
 /* ---- growth dungeons (unlimited, stamina 20, tiers unlock with main progress) ---- */
 const DUNGEON_STAMINA = 20;
-const DUNGEON_TIER_UNLOCK = ['tu3', 'q1_10', 'q2_05', 'q3_05', 'q3_10'];
+const DUNGEON_TIER_UNLOCK = ['tu5', 'q1_10', 'q2_05', 'q3_05', 'q3_10'];
 const DUNGEON_BASE_LV = [1, 30, 50, 80, 120];
 const DUNGEONS = {
   exp: {
@@ -8689,7 +8696,7 @@ const DUNGEONS = {
   // 素材ダンジョンの枠を置き換え。段階ごとにTierが1つずつ上がる(Ⅰ〜Ⅵ)。段階と推奨Lvは他と別
   rune: {
     name: 'ルーン採掘', icon: '⛏️', desc: 'ルーンとルーンの粉が手に入ります',
-    unlock: ['tu3', 'q1_10', 'q2_10', 'q3_10', 'q4_10', 'q5_10', 'q6_10'],
+    unlock: ['tu5', 'q1_10', 'q2_10', 'q3_10', 'q4_10', 'q5_10', 'q6_10'],
     baseLv: [5, 30, 60, 100, 150, 200, 250],
     enemies: [['m14', 'm29'], ['m16', 'm70', 'm14'], ['m03', 'm02', 'm16'], ['m13', 'm04', 'm02', 'm14'], ['m27', 'm20', 'm04', 'm02'], ['m27', 'm20', 'm13', 'm04'], ['m27', 'm20', 'm13', 'm04', 'm16']],
     rewards: [{ runes: 1, dust: 20, gold: 500 }, { runes: 2, dust: 40, gold: 1500 }, { runes: 2, dust: 60, gold: 3000 },
@@ -9122,7 +9129,7 @@ const ACHIEVEMENTS = [
 // tutorial: clear the tutorial stages first, then
 // touch each basic system in turn (gacha → party → level → formation → …).
 const BEGINNER_MISSIONS = [
-  { id:'b05', label:'チュートリアルを終える',          hint:'探索 → 入門',          value:() => STATE.clearedStages.includes('tu3') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
+  { id:'b05', label:'チュートリアルを終える',          hint:'探索 → 入門',          value:() => STATE.clearedStages.includes('tu5') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
   { id:'b01', label:'ガチャを10連する',              hint:'ガチャ画面の「10連」',   value:() => stat('gacha10'),        goal:1, reward:[{ type:'crystal', n:300 }] },
   { id:'b02', label:'編成を5体にする',             hint:'育成 → 編成 で配置',          value:() => getPartyIds().length,   goal:5, reward:[{ type:'item', key:'exp1', n:80 }] },
   { id:'b03', label:'モンスターのレベルを上げる',        hint:'モンスターの詳細画面',        value:() => stat('levelUp'),        goal:1, reward:[{ type:'crystal', n:100 }] },
@@ -9458,10 +9465,13 @@ const TERRAIN = {
 };
 // per stage: [name, terrain, element, enemy pool, rares, lvAdj] ; bosses add { boss, gimmick, adds }
 const QUEST_SPEC = {
+  // ハンズオンのチュートリアル。1本で1つだけ教える(docs/提案資料/チュートリアル作り直し.md)
   tu: [
-    { name: 'はじめての戦い', terrain: 'field', element: 'none', pool: ['m21', 'm29'], waves: [[2]], tutorial: 'flow' },
-    { name: '奥義を使おう', terrain: 'field', element: 'none', pool: ['m21', 'm16', 'm29'], waves: [[2], [2], [3]], tutorial: 'ult' },
-    { name: '自分でやってみよう', terrain: 'field', element: 'grass', pool: ['m16', 'm03', 'm21', 'm10'], waves: [[2], [2], [3]], tutorial: 'self' },
+    { name: 'はじめての戦い',   terrain: 'field', element: 'none',  pool: ['m21', 'm29'],               waves: [[2]],            tutorial: 'flow' },
+    { name: 'ウェーブを越える', terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],        waves: [[2], [2], [3]],  tutorial: 'wave' },
+    { name: '奥義を使う',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],        waves: [[3], [4]],       tutorial: 'ult' },
+    { name: '陣形を組む',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29', 'm10'], waves: [[2], [3], [3]],  tutorial: 'form' },
+    { name: '自分でやってみよう', terrain: 'field', element: 'grass', pool: ['m16', 'm03', 'm21', 'm10'], waves: [[3], [3], [4]],  tutorial: 'self' },
   ],
   q1: [
     { name: 'そよ風の草原', terrain: 'plains', element: 'none', fixed: [{ f:['m21', 'm16'], b:[] }, { f:['m16', 'm21'], b:['m29'] }, { f:['m21', 'm16', 'm21'], b:['m29'] }], rares: ['m15', 'm22'] },
@@ -9656,7 +9666,7 @@ function buildQuestStages(){
       const kinds = stageDropKinds(waves);
       const stage = {
         id, type: 'main', tier: t.key, no: i + 1, name: sp.name, terrain: sp.terrain, element: sp.element,
-        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 3200][i] : isBoss ? 100 : 30,   // 経済見直し: 1クエスト10本で440(以前は1,160)
+        rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 200, 250, 3000][i] : isBoss ? 100 : 30,   // 経済見直し: 1クエスト10本で440(以前は1,160)
         requires: prev, boss: isBoss, gimmick: sp.gimmick || null, tutorial: sp.tutorial || null,
         // sp.desc があればそれを使う。属性が混ざるステージは自動文が合わないため。
         desc: sp.desc || (isBoss ? `${TERRAIN[sp.terrain].label}の主「${MON_BY_ID[bossRef].name}」が待ち受ける。`
@@ -9671,7 +9681,14 @@ function buildQuestStages(){
         // ボスの初回クリア報酬は rebalanceDropKinds() のあとに入れる(kinds が入れ替わるので)
         bossReward: null,
       };
-      if(t.key === 'tu') stage.reward = [[{ type: 'item', key: 'exp1', n: 40 }], [{ type: 'gold', n: 20000 }], [{ type: 'item', key: 'box_sel_1', n: 2 }]][i];
+      // チュートリアル5本ぶん。BOXは最後の1本だけ(buildBossMatRewards が素材そのものに差し替える)
+      if(t.key === 'tu') stage.reward = [
+        [{ type: 'item', key: 'exp1', n: 40 }],
+        [{ type: 'gold', n: 20000 }],
+        [{ type: 'item', key: 'exp1', n: 60 }],
+        [{ type: 'gold', n: 30000 }],
+        [{ type: 'item', key: 'box_sel_1', n: 2 }],
+      ][i];
       out.push(stage);
       prev = id;
     });
@@ -9739,6 +9756,14 @@ const TUTORIAL_PAGES = {
     ['奥義の予約', '光ってる子をタップすれば奥義を予約できて、その子の番に発動するよ。オートにしておけば自動で使ってくれる!'],
     ['ウェーブ', 'このステージは3ウェーブ。突破するたびに、HPが少し回復するよ。'],
   ],
+  wave: [
+    ['ウェーブ', 'このステージは3ウェーブ。敵の group を順番にやっつけていくよ。'],
+    ['突破するたびに', 'ウェーブを突破すると、HPが少し回復するんだ。'],
+  ],
+  form: [
+    ['陣形', 'パーティは前衛と後衛に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。'],
+    ['編成', '育成 → 編成 で、陣形と並びを変えられるよ。'],
+  ],
   self: [
     ['陣形', '最後は陣形のおさらい!パーティは前衛と後衛に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。'],
     ['属性と種族', '属性の相性でダメージが変わるよ。同じ属性・種族をそろえるとボーナスも付くんだ!'],
@@ -9795,7 +9820,7 @@ function buildBossMatRewards(){
     st.bossReward = [{ type: 'item', key: matKey(fam, kind, spec[0]), n: spec[1] * (hard ? 2 : 1) }];
   });
   // チュートリアルの3つめも、最初のステージで落ちる素材そのものにする
-  const tu = STAGE_BY_ID.tu3, first = STAGE_BY_ID.q1_01;
+  const tu = STAGE_BY_ID.tu5, first = STAGE_BY_ID.q1_01;
   if(tu && first && first.drops) tu.reward = first.drops.kinds.map(([fam, kind]) => ({ type: 'item', key: matKey(fam, kind, 1), n: 7 }));
 }
 /* 「TierIIIは上級から」のような案内文をドロップ表から作る。数字を直したら勝手についてくる */
@@ -10835,10 +10860,10 @@ function nextStageOf(stage, win){
   return null;
 }
 // early-game gating: too many choices at once confuses a brand new player
-const TUTORIAL_LAST_STAGE = 'tu3';
-const SPEED_UNLOCK_STAGE = 'q1_05';
+const TUTORIAL_LAST_STAGE = 'tu5';
+const SPEED_UNLOCK_STAGE = TUTORIAL_LAST_STAGE;   // 倍速はチュートリアルを終えたら解放
 function tutorialCleared(){ return STATE.clearedStages.includes(TUTORIAL_LAST_STAGE); }
-function speedUnlocked(){ return STATE.clearedStages.includes(SPEED_UNLOCK_STAGE); }
+function speedUnlocked(){ return tutorialCleared(); }   // チュートリアルを終えたら解放
 function bossOf(stage){
   for(const wave of stage.waves){ const e = wave.find(x => x.boss); if(e) return MON_BY_ID[e.ref]; }
   return null;
@@ -16594,6 +16619,7 @@ function launchBattle(stage, formation, party, synergies, extra){
   playWaveIntro(b, () => {
     if(battleUI !== b) return;
     b.transitioning = false;
+    if(startTutorialBattle(stage.id, b)) return;   // 説明を出しているあいだは止めておく
     scheduleNextTick(300);
   });
 }
@@ -18766,7 +18792,11 @@ function gainSp(unit, amount, source){
   if(!wasReady && unit.sp >= unit.spCost && !unit.isEnemy && !STATE.autoUlt){
     logLine(`${nm(unit)} のSPが溜まった!タップで奥義を予約`, 'ult');
     const b = battleUI;
-    if(b && b.stage.tutorial === 'ult' && !b.ultHinted){
+    if(b && !b.ultHinted && TUT_FLOW[b.stage.id] && TUT_FLOW[b.stage.id].onSpFull){
+      b.ultHinted = true;
+      // 止めない。止めるとタップしても予約できないので、光った子を押させてそのまま続ける
+      setTimeout(() => { if(battleUI === b && !b.finished) startTutorialSpFull(b); }, 0);
+    }else if(b && b.stage.tutorial === 'ult' && !b.ultHinted){
       b.ultHinted = true;
       b.pauseMsg = `${unit.name} が光りました!タップして奥義を予約しましょう`;
       setTimeout(() => { if(battleUI === b && !b.finished) setPaused(true); }, 0);
@@ -19484,7 +19514,7 @@ function toggleAutoUlt(){
 }
 
 function cycleSpeed(){
-  if(!speedUnlocked()){ toast(`「初級5」クリアで倍速が解放されます`); return; }
+  if(!speedUnlocked()){ toast('チュートリアルを終えると倍速が解放されます'); return; }
   const cur = STATE.battleSpeed || 1;
   let next = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(cur) + 1) % SPEED_OPTIONS.length];
   if(next === 3 && SPEED_3X_VIP_ONLY && !STATE.vip){
@@ -19699,9 +19729,14 @@ function finishBattle(win){
     STATE.stageStars[battleUI.stage.id] = Math.max(battleUI.prevRank, battleUI.rank);
     logEvent('stage_clear', { stage_id: battleUI.stage.id, tier: battleUI.stage.tier,
       type: battleUI.stage.type || 'main', rank: battleUI.rank, rounds: battleUI.round, first: !battleUI.prevRank });
-    if(battleUI.stage.id === 'tu3'){
+    if(battleUI.stage.id === TUTORIAL_LAST_STAGE){
       logEvent('tutorial_complete', {});
-      if(!battleUI.prevRank) battleUI.tutorialJustDone = true;
+      if(!battleUI.prevRank){
+        battleUI.tutorialJustDone = true;
+        const n = battleUI.stage.firstClear || 0;
+        if(n) queueAnnouncement({ kind: 'crystal', icon: '🎉', title: 'チュートリアルクリア!',
+          body: 'おつかれさま!これからの冒険のおともに、星結晶を受け取ってね。', crystal: n });
+      }
     }
     logLine(`${battleUI.stage.name} を制覇した!`, 'ult');
   }else{
@@ -20297,6 +20332,8 @@ function renderBattleScreenOnly(){
   const screenEl = document.getElementById('screen');
   screenEl.innerHTML = renderBattleFight();
   updateLogSheet();
+  // 戦闘は毎ティック描き直すので、チュートリアルで光らせた印と暗転の穴を貼り直す
+  reapplyGuideHighlight();
 }
 
 /* ---- expanded battle log (bottom sheet) ---- */
@@ -21844,7 +21881,7 @@ function showAnnouncements(){
       <div class="an-list">${list.map(a => `
         <div class="an-item ${a.kind}">
           <span class="an-icon">${a.icon}</span>
-          <div class="an-body"><b>${a.title}</b><p>${a.body}</p>${a.stamina ? `<div class="an-stam">⚡ +${a.stamina}(いまのスタミナ ${STATE.stamina})</div>` : ''}</div>
+          <div class="an-body"><b>${a.title}</b><p>${a.body}</p>${a.stamina ? `<div class="an-stam">⚡ +${a.stamina}(いまのスタミナ ${STATE.stamina})</div>` : ''}${a.crystal ? `<div class="an-stam">${CRYSTAL_ICON} +${a.crystal.toLocaleString()}(いまの星結晶 ${(STATE.crystals || 0).toLocaleString()})</div>` : ''}</div>
         </div>`).join('')}</div>
       <button class="btn btn-block" id="close-result">OK</button>
     </div>`;
@@ -22052,7 +22089,7 @@ function renderSettingsOverlay(){
           <div class="set-row wrap">
             <div class="set-k wide">既定の速度</div>
             <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''} ${n > 1 && !speedUnlocked() ? 'btn-ghost' : ''}" data-set-speed="${n}" ${n > 1 && !speedUnlocked() ? 'disabled' : ''}>${n}倍</button>`).join('')}</div>
-            ${speedUnlocked() ? '' : '<div class="screen-sub set-hint">「初級5」クリアで倍速が解放されます</div>'}
+            ${speedUnlocked() ? '' : '<div class="screen-sub set-hint">チュートリアルを終えると倍速が解放されます</div>'}
           </div>
           <div class="set-row"><div class="set-k wide">奥義オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
@@ -23404,7 +23441,7 @@ const GUIDE_MASK_PAD = 6;
 let guideMaskSel = null, guideMaskWired = false, guideMaskRaf = 0;
 function setGuideMask(selector){
   guideMaskSel = selector || null;
-  if(guideMaskSel && !guideMaskWired){
+  if(guideMaskSel && !guideMaskWired && typeof window !== 'undefined' && typeof window.addEventListener === 'function'){
     guideMaskWired = true;
     const redraw = () => {
       if(guideMaskRaf) return;
@@ -23490,7 +23527,7 @@ function renderGuideToastStep(){
           ${canSkip ? '<button class="btn btn-sm btn-ghost" data-guide-skip="1">スキップ</button>'
             : st.step > 0 ? '<button class="btn btn-sm btn-ghost" data-guide-back="1">戻る</button>' : '<span></span>'}
           ${waiting ? '<span class="guide-wait">光っているところを押してね</span>'
-            : `<button class="btn btn-sm" data-guide-next="1">${isLast ? st.doneLabel : '次へ'}</button>`}
+            : `<button class="btn btn-sm" data-guide-next="1">${isLast ? (s.doneLabel || st.doneLabel) : '次へ'}</button>`}
         </div>
         <div class="guide-stuck" id="guide-stuck"></div>
       </div>
@@ -23509,18 +23546,28 @@ function renderGuideToastStep(){
 /* 穴の中の本物のボタンが押されたら進める。板は敷いていないのでアプリ側の処理はそのまま走る。
    document のクリックハンドラどうしの順番に頼らないよう、進めるのは次のタスクに回す */
 function wireGuideTapAdvance(){
-  if(wireGuideTapAdvance.done) return;
+  // テスト用のdocumentの作りものには addEventListener が無いので、あるときだけ張る
+  if(wireGuideTapAdvance.done || typeof document.addEventListener !== 'function') return;
   wireGuideTapAdvance.done = true;
-  document.addEventListener('click', ev => {
+  /* click と pointerdown の両方を、キャプチャ段階で拾う。
+     - 戦闘画面は pointerdown で動いていて preventDefault するので click が来ない
+     - アプリ側のハンドラが先に走ると、押した要素のクラスがその場で書き換わって
+       (例: .unit.ready → .unit.reserved)あとからでは判定できない */
+  const onTap = ev => {
     const st = guideToastState;
     if(!st) return;
     const s = st.steps[st.step];
     if(!s || !s.spot || s.await !== 'tap') return;
-    if(ev.target.closest('#guide-toast') || ev.target.closest('#guide-mask')) return;
-    if(!ev.target.closest(s.spot)) return;
+    const t = ev.target;
+    if(!t || typeof t.closest !== 'function') return;
+    if(t.closest('#guide-toast') || t.closest('#guide-mask')) return;
+    if(!t.closest(s.spot)) return;
     const at = st.step;
+    // 同じ操作で pointerdown と click の両方が来ることがあるので、進むのは1回だけ
     setTimeout(() => { if(guideToastState === st && st.step === at) guideToastNext(); }, 0);
-  });
+  };
+  document.addEventListener('click', onTap, true);
+  document.addEventListener('pointerdown', onTap, true);
 }
 
 function guideToastNext(){
@@ -23587,13 +23634,84 @@ const TUT_FLOW = {
       { body: '「はじめての戦い」だよ。', spot: '[data-stage-open="tu1"]', await: 'tap' },
       { body: 'それじゃあ出撃!', spot: '.ss-go[data-stage="tu1"]', await: 'tap' },
     ],
+    battle: [
+      { title: '戦闘の流れ', body: '戦闘はオートで進むよ。こっちから指示しなくても、みんな勝手に動いてくれるんだ。' },
+      { body: 'この帯が動く順番。すばやさ(SPD)が高い子から動くよ。左にいる子ほど先に動くんだ。',
+        spot: '.turn-strip', dim: true },
+      { body: 'それじゃあ、見ててね!', doneLabel: '戦いを見る' },
+    ],
     post: [
-      // リザルトのモーダルが画面を覆うので、ここは指さずに文だけで言う
-      { title: 'クリア!', body: '戦闘はオートで進むよ。画面の上の帯が動く順番で、すばやさ(SPD)の高い子から動くんだ。' },
+      { title: 'クリア!', body: 'ウェーブの敵を全部倒せばクリア。ゴールドやワザの強化素材、仲間にできるモンスターのソウルがもらえるよ。' },
       { body: '次のステージに行こう!', spot: '[data-start-stage="tu2"]', await: 'tap' },
     ],
   },
+  tu2: {
+    // 「次のステージへ」で直接ここに入るので pre は無い。ウェーブの話はウェーブが
+    // 起きている最中が一番わかるので、戦闘のあたまで止めて見せる
+    battle: [
+      { title: 'ウェーブ', body: 'このステージは3ウェーブ。ここに出てるよ。まとまった敵を順番にやっつけていくんだ。',
+        spot: '.battle-head .wave-row', dim: true },
+      { body: 'いま何ウェーブ目かはここ。ウェーブを突破するたびに、みんなのHPが少し回復するよ。',
+        spot: '.battle-head .bh-wave', dim: true },
+    ],
+    post: [
+      { title: 'おつかれさま!', body: '3ウェーブぜんぶ倒せたね。次は奥義を使ってみよう!' },
+      { body: '次のステージへ進もう。', spot: '[data-start-stage="tu3"]', await: 'tap' },
+    ],
+  },
+  tu3: {
+    battle: [
+      { title: 'SPと奥義', body: 'みんなの絵の下にある細い金色のバーがSP。動いたり攻撃を受けたりすると、少しずつ溜まっていくよ。',
+        spot: '.unit[data-inspect^="ally"]', dim: true },
+      { body: 'いっぱいになるとバーが明るく光って、その子も光るんだ。光ったら教えるね!', doneLabel: '戦いを見る' },
+    ],
+    // 止めずに押させる。止めるとタップしても予約できないため。
+    // 押すと予約が入って、そのまま戦闘が続く
+    onSpFull: [
+      { title: '光った!', body: '光っているモンスターをタップして、奥義を予約しよう。その子の番が来たら発動するよ。',
+        spot: '.unit.ready', await: 'tap' },
+      { body: 'ここを押すと「オート」に切り替えられるよ。オートなら、溜まった子が自分の番に勝手に奥義を撃ってくれるんだ。',
+        spot: '#auto-ult-btn', dim: true, doneLabel: '戦いを見る' },
+    ],
+    post: [
+      { title: '奥義が決まった!', body: '奥義はSPが溜まるたびに何度でも使えるよ。強い敵ほど、使いどころが大事になるんだ。' },
+      { body: '次のステージへ進もう。', spot: '[data-start-stage="tu4"]', await: 'tap' },
+    ],
+  },
 };
+/* SPが溜まったときの案内。戦闘は止めない(止めるとタップしても予約できないため)。
+   光っている子を押したら予約が入って、そのまま戦闘が続く */
+function startTutorialSpFull(b){
+  if(!STATE || STATE.tutorialSkipped) return false;
+  const f = TUT_FLOW[b.stage.id];
+  if(!f || !f.onSpFull) return false;
+  guideOwner = 'tutorial';
+  wireGuideTapAdvance();
+  clearGuideToast(true);
+  openGuideToast(TUTORIAL_MASCOT, f.onSpFull, {
+    key: 'tutorial', dismissible: false, doneLabel: '閉じる',
+    onDone: () => clearGuideHighlight(),
+  });
+  return true;
+}
+// 戦闘が始まった直後の説明。出しているあいだは戦闘を止めて、閉じたら動かす
+function startTutorialBattle(stageId, b){
+  if(!STATE || STATE.tutorialSkipped) return false;
+  const f = TUT_FLOW[stageId];
+  if(!f || !f.battle) return false;
+  b.paused = true;
+  guideOwner = 'tutorial';
+  wireGuideTapAdvance();
+  clearGuideToast(true);
+  openGuideToast(TUTORIAL_MASCOT, f.battle, {
+    key: 'tutorial', dismissible: false, doneLabel: '戦ってみる',
+    onDone: () => {
+      clearGuideHighlight();
+      if(battleUI === b && !b.finished){ b.paused = false; render(); scheduleNextTick(300); }
+    },
+  });
+  return true;
+}
 function tutorialNextStage(){
   if(!STATE || STATE.tutorialSkipped) return null;
   return TUT_STAGES.find(id => !(STATE.clearedStages || []).includes(id)) || null;
@@ -23666,7 +23784,9 @@ function reapplyGuideHighlight(){
   const st = guideToastState;
   if(!st) return;
   const s = st.steps[st.step];
-  if(s.highlight) applyGuideHighlight(s.highlight, { scroll: false });
+  const spot = s.spot || s.highlight;
+  if(spot) applyGuideHighlight(spot, { scroll: false });
+  if(guideMaskSel) drawGuideMask();
 }
 
 function wireGlobalEvents(){
