@@ -23979,6 +23979,8 @@ const TUT_FLOW = {
         spot: '.unit[data-inspect^="enemy"]', await: 'tap' },
       { body: 'こんなふうに出るよ。相性が分からなくなったら、ここで確かめてね。',
         spot: '.unit-modal', dim: true },
+      { body: '見終わったら「閉じる」を押してね。',
+        spot: '.unit-modal .btn-block[data-close-inspect]', await: 'tap' },
       { body: 'ここからはヒントなし!ヒノコも応援してるよ。', doneLabel: '戦いを見る' },
     ],
   },

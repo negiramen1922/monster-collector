@@ -314,6 +314,13 @@ async def main():
                   bool(launched) and all((r[2] == 'front') == (r[1] in ('tank', 'attacker'))
                                          for r in launched['rows'] if r),
                   launched and launched['rows'])
+            check('0-5はキャラ詳細を閉じさせてから終わる',
+                  await pg.evaluate("""() => { const b = TUT_FLOW.tu5.battle;
+                      const i = b.findIndex(s => s.spot === '.unit-modal');
+                      const close = b[i + 1], bye = b[i + 2];
+                      return i >= 0 && !!close && close.await === 'tap'
+                        && /close-inspect/.test(close.spot || '')
+                        && !!bye && !bye.spot && bye === b[b.length - 1]; }"""))
             check('見直しのガイドにも向き不向きが載る',
                   await pg.evaluate("""() => GUIDE_CONTENT.tut_form.steps.some(s => /前衛向き/.test(s.body || ''))"""))
 
