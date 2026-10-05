@@ -9138,11 +9138,11 @@ const BEGINNER_MISSIONS = [
   { id:'b02', label:'編成を5体にする',             hint:'育成 → 編成 で配置',          value:() => getPartyIds().length,   goal:5, reward:[{ type:'item', key:'exp1', n:80 }] },
   { id:'b03', label:'モンスターのレベルを上げる',        hint:'モンスターの詳細画面',        value:() => stat('levelUp'),        goal:1, reward:[{ type:'crystal', n:100 }] },
   { id:'b04', label:'陣形を変える',                    hint:'育成 → 編成 の陣形カード',     value:() => stat('formationChange'), goal:1, reward:[{ type:'universal', n:10 }] },
-  { id:'b06', label:'初級「猪王の縄張り」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m01' }] },
+  { id:'b06', label:'1-5「猪王の縄張り」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m01' }] },
   { id:'b07', label:'スキルLvを上げる',                 hint:'詳細画面(属性の欠片とロールの証を使う)',  value:() => stat('skillUp'),        goal:1, reward:[{ type:'item', key:'box_sel_2', n:1 }] },
   { id:'b08', label:'育成クエストをクリアする',        hint:'探索 → 育成クエスト',      value:() => stat('dungeonClear'),   goal:1, reward:[{ type:'gold', n:20000 }] },
   { id:'b09', label:'モンスターを星刻させる',            hint:'詳細画面の「星刻」',          value:() => stat('promote'),        goal:1, reward:[{ type:'universal', n:20 }] },
-  { id:'b10', label:'初級「森の主」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m24' }] },
+  { id:'b10', label:'1-10「森の主」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m24' }] },
   // ---- はじめてガイド2(α0.1で追加)。1〜10を終えた人も、ここから続きとして受け取れる ----
   { id:'b20', label:'ログインする',                   hint:'今日ゲームを開くだけ',        value:() => stat('login'),          goal:1, reward:[{ type:'crystal', n:50 }] },
   { id:'b11', label:'PVPの攻撃編成を組む',            hint:'PVP画面の「攻撃編成」',     value:() => hasPvpForm('attack') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }] },
@@ -9473,9 +9473,9 @@ const QUEST_SPEC = {
   tu: [
     { name: 'はじめての戦い',   terrain: 'field', element: 'none',  pool: ['m21', 'm29'],               waves: [[2]],            tutorial: 'flow' },
     { name: 'ウェーブを越える', terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],        waves: [[2], [2], [3]],  tutorial: 'wave' },
-    { name: '奥義を使う',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],        waves: [[3], [4]],       tutorial: 'ult' },
-    { name: '陣形を組む',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29', 'm10'], waves: [[2], [3], [3]],  tutorial: 'form' },
-    { name: '自分でやってみよう', terrain: 'field', element: 'grass', pool: ['m16', 'm03', 'm21', 'm10'], waves: [[3], [3], [4]],  tutorial: 'self' },
+    { name: '奥義を使う',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29'],        waves: [[2], [3]],       tutorial: 'ult' },
+    { name: '陣形を組む',       terrain: 'field', element: 'none',  pool: ['m21', 'm16', 'm29', 'm10'], waves: [[2], [2], [3]],  tutorial: 'form' },
+    { name: '自分でやってみよう', terrain: 'field', element: 'grass', pool: ['m16', 'm03', 'm21', 'm10'], waves: [[2], [2], [3]],  tutorial: 'self' },
   ],
   q1: [
     { name: 'そよ風の草原', terrain: 'plains', element: 'none', fixed: [{ f:['m21', 'm16'], b:[] }, { f:['m16', 'm21'], b:['m29'] }, { f:['m21', 'm16', 'm21'], b:['m29'] }], rares: ['m15', 'm22'] },
@@ -9631,6 +9631,7 @@ function buildQuestStages(){
     if(t.hard) return; // hard-mode tiers are derived from the normal stages, see buildHardStages()
     QUEST_SPEC[t.key].forEach((sp, i) => {
       const id = t.key === 'tu' ? `tu${i + 1}` : `${t.key}_${String(i + 1).padStart(2, '0')}`;
+      const stageNo = `${t.key === 'tu' ? 0 : Number(String(t.key).replace(/\D/g, '')) || 0}-${i + 1}`;
       const rec = t.key === 'tu' ? 1 : questRec(t.key, i);
       const tune = QUEST_LV_ADJ[id] || {};
       // boss stages: the waves stay at the recommended level, only the boss gets the extra levels
@@ -9669,7 +9670,8 @@ function buildQuestStages(){
       }
       const kinds = stageDropKinds(waves);
       const stage = {
-        id, type: 'main', tier: t.key, no: i + 1, name: sp.name, terrain: sp.terrain, element: sp.element,
+        // ステージ番号。チュートリアルが0、初級が1…神話級が7(ハードは同じ番号を使う)
+        id, type: 'main', tier: t.key, no: i + 1, stageNo, name: `${stageNo} ${sp.name}`, terrain: sp.terrain, element: sp.element,
         rec, stamina: t.key === 'tu' ? 0 : 10, power: t.key === 'tu' ? 0.5 : 1, firstClear: t.key === 'tu' ? [100, 150, 200, 250, 3000][i] : isBoss ? 100 : 30,   // 経済見直し: 1クエスト10本で440(以前は1,160)
         requires: prev, boss: isBoss, gimmick: sp.gimmick || null, tutorial: sp.tutorial || null,
         // sp.desc があればそれを使う。属性が混ざるステージは自動文が合わないため。
@@ -9757,7 +9759,7 @@ const TUTORIAL_PAGES = {
   ult: [
     ['スキル', 'ここからは奥義のお話。モンスターは決まったターンごとに、自動でスキルを使うよ。効果は詳細画面で確認できるんだ。'],
     ['SPと奥義', '行動したり攻撃を受けたりすると、SPが少しずつ溜まっていくよ。いっぱいになったモンスターは光るんだ!'],
-    ['奥義の予約', '光ってる子をタップすれば奥義を予約できて、その子の番に発動するよ。オートにしておけば自動で使ってくれる!'],
+    ['奥義発動', '光ってる子をタップすれば奥義発動!その子の番が来たら放たれるよ。オートにしておけば自動で撃ってくれる!'],
     ['ウェーブ', 'このステージは3ウェーブ。突破するたびに、HPが少し回復するよ。'],
   ],
   wave: [
@@ -18794,15 +18796,15 @@ function gainSp(unit, amount, source){
   const wasReady = unit.sp >= unit.spCost;
   unit.sp = Math.min(unit.spCost, unit.sp + amount);
   if(!wasReady && unit.sp >= unit.spCost && !unit.isEnemy && !STATE.autoUlt){
-    logLine(`${nm(unit)} のSPが溜まった!タップで奥義を予約`, 'ult');
+    logLine(`${nm(unit)} のSPが溜まった!タップで奥義発動`, 'ult');
     const b = battleUI;
     if(b && !b.ultHinted && TUT_FLOW[b.stage.id] && TUT_FLOW[b.stage.id].onSpFull){
       b.ultHinted = true;
-      // 止めない。止めるとタップしても予約できないので、光った子を押させてそのまま続ける
+      // 止めない。止めるとタップしても発動を指示できないので、光った子を押させてそのまま続ける
       setTimeout(() => { if(battleUI === b && !b.finished) startTutorialSpFull(b); }, 0);
     }else if(b && b.stage.tutorial === 'ult' && !b.ultHinted){
       b.ultHinted = true;
-      b.pauseMsg = `${unit.name} が光りました!タップして奥義を予約しましょう`;
+      b.pauseMsg = `${unit.name} が光りました!タップして奥義発動!`;
       setTimeout(() => { if(battleUI === b && !b.finished) setPaused(true); }, 0);
     }
   }
@@ -18812,7 +18814,7 @@ function drainSp(unit, amount){
   unit.sp = Math.max(0, unit.sp - amount);
   if(unit.ultReserved && unit.sp < unit.spCost){
     unit.ultReserved = false;
-    logLine(`${nm(unit)} はSPを奪われ、奥義の予約が取り消された`, 'debuff');
+    logLine(`${nm(unit)} はSPを奪われ、奥義が不発に終わった`, 'debuff');
   }
 }
 function addHate(unit, amount){ if(unit && unit.alive) unit.hate += amount * unit.hateMult; }
@@ -19488,10 +19490,10 @@ function toggleReserve(idx){
   if(!unit || !unit.alive) return;
   if(unit.ultReserved){
     unit.ultReserved = false;
-    toast(`${unit.name} の奥義の予約を取り消しました`);
+    toast(`${unit.name} の奥義発動をやめました`);
   }else if(spReady(unit)){
     unit.ultReserved = true;
-    toast(`${unit.name} の奥義を予約しました`);
+    toast(`${unit.name} の奥義発動!`);
   }else{
     toast(`SPが足りません(${unit.sp} / ${unit.spCost})`);
     return;
@@ -19513,12 +19515,12 @@ function togglePause(){ if(battleUI) setPaused(!battleUI.paused); }
 function toggleAutoUlt(){
   STATE.autoUlt = !STATE.autoUlt;
   saveState();
-  toast(STATE.autoUlt ? '奥義をオートで発動します' : '奥義はタップで予約して発動します');
+  toast(STATE.autoUlt ? '奥義をオートで発動します' : '奥義はタップで発動します');
   renderBattleScreenOnly();
 }
 
 function cycleSpeed(){
-  if(!speedUnlocked()){ toast('「はじめての戦い」をクリアすると倍速が解放されます'); return; }
+  if(!speedUnlocked()){ toast('0-1「はじめての戦い」をクリアすると倍速が解放されます'); return; }
   const cur = STATE.battleSpeed || 1;
   let next = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(cur) + 1) % SPEED_OPTIONS.length];
   if(next === 3 && SPEED_3X_VIP_ONLY && !STATE.vip){
@@ -20161,10 +20163,10 @@ function renderBattleFight(){
       <div class="unit ${u.alive?'':'dead'} ${u.vanished?'vanished':''} ${justDied?'just-died':''} ${isReady?'ready':''} ${isReserved?'reserved':''} ${u.boss?'boss':''} ${u.rare?'rare':''} ${warn?'penalty':''} ${actingClass}"
         data-inspect="${side}:${idx}"
         ${isReady || isReserved
-          ? `data-ult="${idx}" role="button" aria-pressed="${isReserved}" aria-label="${u.name} の奥義${isReserved ? 'の予約を取り消す' : 'を予約'}"`
+          ? `data-ult="${idx}" role="button" aria-pressed="${isReserved}" aria-label="${u.name} の奥義${isReserved ? '発動をやめる' : 'を発動'}"`
           : `role="button" aria-label="${u.name} の状態を見る"`}>
-        ${isReady ? '<div class="ready-badge">タップで予約</div>' : ''}
-        ${isReserved ? '<div class="ready-badge reserved-badge">予約中</div>' : ''}
+        ${isReady ? '<div class="ready-badge">タップで奥義</div>' : ''}
+        ${isReserved ? '<div class="ready-badge reserved-badge">発動!</div>' : ''}
         ${u.boss ? '<div class="boss-badge">BOSS</div>' : ''}
         ${u.rare ? '<div class="boss-badge rare-badge">RARE</div>' : ''}
         ${isAggro ? '<div class="aggro-mark" title="敵に狙われやすい">👁</div>' : ''}
@@ -20221,10 +20223,10 @@ function renderBattleFight(){
   const ultHint = STATE.autoUlt
     ? 'SPが溜まると、そのモンスターの番に自動で奥義'
     : readyCount > 0
-      ? `<b>光っているモンスターをタップして予約</b> → そのモンスターの番に発動${reservedCount ? `(予約中 ${reservedCount}体)` : ''}`
+      ? `<b>光っているモンスターをタップして奥義発動</b> → その子の番に放たれる${reservedCount ? `(発動 ${reservedCount}体)` : ''}`
       : reservedCount
-        ? `予約中 ${reservedCount}体。もう一度タップで取り消し`
-        : 'SPが溜まったモンスターをタップで奥義を予約';
+        ? `発動 ${reservedCount}体。もう一度タップでやめる`
+        : 'SPが溜まったモンスターをタップで奥義発動';
 
   // the running commentary in the middle of the field: the latest attack or skill
   const telopLine = [...b.log].reverse().find(l => /^@@(hit|skill|ult|ko|burn|debuff|heal)@@/.test(l));
@@ -20256,7 +20258,7 @@ function renderBattleFight(){
         ${b.paused && !b.finished ? `
           <div class="pause-banner" role="status">
             <div class="pb-title">${b.pauseMsg ? '💡 ヒント' : '⏸ 一時停止中'}</div>
-            <div class="pb-sub">${b.pauseMsg || 'モンスターをタップして奥義を予約できます'}</div>
+            <div class="pb-sub">${b.pauseMsg || 'モンスターをタップして奥義を発動できます'}</div>
             <button class="btn btn-sm" id="resume-btn">▶ 再開する</button>
           </div>` : ''}
         ${b.fxCutIn ? renderCutIn(b.fxCutIn) : ''}
@@ -22093,7 +22095,7 @@ function renderSettingsOverlay(){
           <div class="set-row wrap">
             <div class="set-k wide">既定の速度</div>
             <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''} ${n > 1 && !speedUnlocked() ? 'btn-ghost' : ''}" data-set-speed="${n}" ${n > 1 && !speedUnlocked() ? 'disabled' : ''}>${n}倍</button>`).join('')}</div>
-            ${speedUnlocked() ? '' : '<div class="screen-sub set-hint">「はじめての戦い」をクリアすると倍速が解放されます</div>'}
+            ${speedUnlocked() ? '' : '<div class="screen-sub set-hint">0-1「はじめての戦い」をクリアすると倍速が解放されます</div>'}
           </div>
           <div class="set-row"><div class="set-k wide">奥義オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
@@ -23645,7 +23647,7 @@ const TUT_FLOW = {
       { title: 'はじめまして', body: 'やっほー、案内役のヒノコだよ!まずは探索に行ってみよう。下の「探索」を押してね。',
         spot: '.nav-btn[data-nav="battle"]', await: 'tap' },
       { body: '「入門」を選んでね。ここはスタミナを使わないよ。', spot: '[data-quest-tier="tu"]', await: 'tap' },
-      { body: '「はじめての戦い」だよ。', spot: '[data-stage-open="tu1"]', await: 'tap' },
+      { body: '1本目「はじめての戦い」だよ。', spot: '[data-stage-open="tu1"]', await: 'tap' },
       { body: 'それじゃあ出撃!', spot: '.ss-go[data-stage="tu1"]', await: 'tap' },
     ],
     battle: [
@@ -23679,22 +23681,22 @@ const TUT_FLOW = {
         spot: '.unit[data-inspect^="ally"]', dim: true },
       { body: 'いっぱいになるとバーが明るく光って、その子も光るんだ。光ったら教えるね!', doneLabel: '戦いを見る' },
     ],
-    // 止めずに押させる。止めるとタップしても予約できないため。
-    // 押すと予約が入って、そのまま戦闘が続く
+    // 止めずに押させる。止めるとタップしても発動を指示できないため。
+    // 押すと発動が決まって、そのまま戦闘が続く
     onSpFull: [
-      { title: '光った!', body: '光っているモンスターをタップして、奥義を予約しよう。その子の番が来たら発動するよ。',
+      { title: '光った!', body: '光っているモンスターをタップして奥義発動!その子の番が来たら放たれるよ。',
         spot: '.unit.ready', await: 'tap' },
       { body: 'ここを押すと「オート」に切り替えられるよ。オートなら、溜まった子が自分の番に勝手に奥義を撃ってくれるんだ。',
         spot: '#auto-ult-btn', dim: true, doneLabel: '戦いを見る' },
     ],
     post: [
-      { title: '奥義が決まった!', body: '奥義はSPが溜まるたびに何度でも使えるよ。強い敵ほど、使いどころが大事になるんだ。' },
+      { title: '奥義が決まった!', body: '奥義はSPが溜まるたびに何度でも撃てるよ。強い敵ほど、使いどころが大事になるんだ。' },
       { body: '次のステージへ進もう。', spot: '[data-start-stage="tu4"]', await: 'tap' },
     ],
   },
 };
-/* SPが溜まったときの案内。戦闘は止めない(止めるとタップしても予約できないため)。
-   光っている子を押したら予約が入って、そのまま戦闘が続く */
+/* SPが溜まったときの案内。戦闘は止めない(止めるとタップしても発動を指示できないため)。
+   光っている子を押したら発動が決まって、そのまま戦闘が続く */
 function startTutorialSpFull(b){
   if(!STATE || STATE.tutorialSkipped) return false;
   const f = TUT_FLOW[b.stage.id];
