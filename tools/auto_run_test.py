@@ -29,14 +29,14 @@ async def main():
               STATE.stamina = 999; STATE.autoUlt = true; saveState();
             }""")
             check('VIPでなくてもメインを周回できる', await pg.evaluate("() => sweepAllowed(STAGE_BY_ID['q1_05']).ok"))
-            check('速さは×1〜×4', await pg.evaluate("() => JSON.stringify(SPEED_OPTIONS)") == '[1,2,3,4]')
+            check('速さは×1〜×3', await pg.evaluate("() => JSON.stringify(SPEED_OPTIONS)") == '[1,2,3]')
 
-            await pg.evaluate("() => { sweepTarget = 'q1_05'; sweepSpeed = 4; renderSweepModal(); }")
+            await pg.evaluate("() => { sweepTarget = 'q1_05'; sweepSpeed = 3; renderSweepModal(); }")
             await pg.wait_for_timeout(300)
-            check('周回モーダルに速さが5つ出る', await pg.locator('[data-sweep-speed]').count() == 5)
+            check('周回モーダルに速さが4つ出る(結果だけ + ×1〜×3)', await pg.locator('[data-sweep-speed]').count() == 4)
             await pg.screenshot(path=str(OUT / 'auto_modal.png'))
 
-            await pg.evaluate("() => startAutoRun('q1_05', 3, 4)")
+            await pg.evaluate("() => startAutoRun('q1_05', 3, 3)")
             await pg.wait_for_timeout(1500)
             check('周回HUDが戦闘画面に出る', await pg.locator('.ar-hud').count() == 1)
             await pg.screenshot(path=str(OUT / 'auto_hud.png'))
