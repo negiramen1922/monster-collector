@@ -5323,7 +5323,7 @@ function cloudPayload(){
   return { savedAt: STATE.savedAt || Date.now(), version: STATE_VERSION, data: JSON.stringify(STATE) };
 }
 async function cloudPush(now){
-  if(deletingData) return;
+  if(deletingData || LAB_MODE || TUT_LAB) return;   // 試験場はクラウドにも書かない
   if(!ACCOUNT || !STATE || !cloudAvailable() || cloud.blocked) return;
   clearTimeout(cloud.timer);
   if(!now){
@@ -5566,7 +5566,7 @@ function saveState(){
   }, 250);
 }
 async function writeSave(){
-  if(!STATE || deletingData) return;
+  if(!STATE || deletingData || LAB_MODE || TUT_LAB) return;   // 試験場は本番のセーブに書かない
   try{ await storage.set(ACCOUNT ? saveKeyFor(ACCOUNT.uid) : SAVE_KEY, JSON.stringify(STATE)); }
   catch(e){ /* storage unavailable, ignore in prototype */ }
 }
