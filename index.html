@@ -20254,7 +20254,7 @@ function renderBattleFight(){
       ${autoRunHud()}
       ${turnStrip}
       <div class="battle-field">
-        ${b.paused && !b.finished ? `
+        ${b.paused && !b.finished && !b.tutorialPause ? `
           <div class="pause-banner" role="status">
             <div class="pb-title">${b.pauseMsg ? '💡 ヒント' : '⏸ 一時停止中'}</div>
             <div class="pb-sub">${b.pauseMsg || 'モンスターをタップして奥義を発動できます'}</div>
@@ -21263,7 +21263,13 @@ function handlePhoneClick(ev){
     const tutorialJustDone = battleUI && battleUI.tutorialJustDone;
     closeModal();
     goto(resultNavEl.dataset.resultNav);
-    if(tutorialJustDone) openGuideToast('hinoko', GUIDE_CONTENT.tutorialDone.steps, { key: 'tutorialDone', doneLabel: 'ありがとう!' });
+    if(tutorialJustDone){
+      guideOwner = null;   // チュートリアルはここで終わり。ほかのガイドを通す
+      clearGuideToast(true);
+      // 閉じたらそのまま星結晶のお知らせを出す(ガイドが出ているあいだは showAnnouncements が待つ)
+      openGuideToast('hinoko', GUIDE_CONTENT.tutorialDone.steps, {
+        key: 'tutorialDone', doneLabel: 'ありがとう!', onDone: () => showAnnouncements() });
+    }
     return;
   }
   if(t.closest('[data-show-result]')){ showBattleResult(); return; }
@@ -23420,7 +23426,10 @@ const GUIDE_CONTENT = {
   },
   tutorialDone: {
     steps: [
-      { title: 'おつかれさま!', body: `戦闘チュートリアルはここまで!おつかれさまでした。これからの冒険の足しに、${CRYSTAL_ICON}3200個を受け取ってね。ここから先は自分の力で進んでいこう!` },
+      { title: 'おつかれさま!', body: `チュートリアルはここまで!これからの冒険の足しに、${CRYSTAL_ICON}3,000個を受け取ってね。` },
+      { body: `${CRYSTAL_ICON}3,000個あれば10連が2回引けるよ。新しい仲間を迎えに行こう!`,
+        spot: '.nav-btn[data-nav="gacha"]', dim: true },
+      { body: 'ここから先は自分の力で進んでいこう!困ったら右上の「?」でいつでも見返せるよ。' },
     ],
   },
   abyss: {
@@ -23690,7 +23699,42 @@ const TUT_FLOW = {
     ],
     post: [
       { title: '奥義が決まった!', body: '奥義はSPが溜まるたびに何度でも撃てるよ。強い敵ほど、使いどころが大事になるんだ。' },
-      { body: '次のステージへ進もう。', spot: '[data-start-stage="tu4"]', await: 'tap' },
+      { title: '仲間が増えた!', body: 'ホーンラビットとオオコウモリが仲間になったよ。これで5体!次は並べかたを覚えよう。' },
+      { body: 'いったん探索に戻ろう。', spot: '[data-result-nav="battle"]', await: 'tap' },
+    ],
+  },
+  tu4: {
+    // 陣形は戦う前に組むものなので、ここだけ編成画面に寄り道してから出撃する
+    pre: [
+      { title: '陣形', body: 'パーティは<b>前衛</b>と<b>後衛</b>に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。' },
+      { body: 'まずは「育成」を開いてみて。', spot: '.nav-btn[data-nav="party"]', await: 'tap' },
+      { body: 'ここが編成。上の列が前衛、下の列が後衛だよ。', spot: '.formation', dim: true },
+      { body: 'この並びが陣形。押すと切り替えられるよ。好きなものを選んでみて!', spot: '.fm-card', await: 'tap' },
+      { body: 'いいね!それじゃあ探索に戻ろう。', spot: '.nav-btn[data-nav="battle"]', await: 'tap' },
+      { body: '「入門」だよ。', spot: '[data-quest-tier="tu"]', await: 'tap' },
+      { body: '0-4「陣形を組む」。', spot: '[data-stage-open="tu4"]', await: 'tap' },
+      { body: '組んだ陣形で出撃!', spot: '.ss-go[data-stage="tu4"]', await: 'tap' },
+    ],
+    battle: [
+      { title: '倍速', body: 'そうだ、戦闘の速さを変えられるようになったよ。ここを押すと1倍→2倍→3倍と切り替わるんだ。急ぎたいときに使ってね。',
+        spot: '#speed-btn', dim: true },
+      { body: '前衛が倒れると後衛がねらわれるよ。前を守れる子を置くのが大事なんだ。', doneLabel: '戦いを見る' },
+    ],
+    post: [
+      { title: 'いい陣形だ!', body: '陣形は「育成 → 編成」からいつでも変えられるよ。敵に合わせて組み替えてみてね。' },
+      { body: '次が最後のステージだよ。', spot: '[data-start-stage="tu5"]', await: 'tap' },
+    ],
+  },
+  tu5: {
+    post: [
+      { title: 'チュートリアル クリア!', body: 'おつかれさま!ここまでで覚えたことは、どのステージでもそのまま使えるよ。' },
+      { body: 'いったん戻ろう。', spot: '[data-result-nav="battle"]', await: 'tap' },
+    ],
+    battle: [
+      { title: '属性と種族', body: '最後は属性のお話。属性には相性があって、有利な属性で攻めるとダメージが1.5倍になるんだ。',
+        spot: '.battle-field', dim: true },
+      { body: '同じ属性や同じ種族でそろえると、ボーナスも付くよ。編成を考える楽しみだね。' },
+      { body: 'ここからはヒントなし!ヒノコも応援してるよ。', doneLabel: '戦いを見る' },
     ],
   },
 };
@@ -23715,6 +23759,7 @@ function startTutorialBattle(stageId, b){
   const f = TUT_FLOW[stageId];
   if(!f || !f.battle) return false;
   b.paused = true;
+  b.tutorialPause = true;   // 「⏸ 一時停止中 / 再開する」は出さない(説明の帯と二重になる)
   /* playWaveIntro のあと scheduleNextTick を飛ばすので、ここで描き直さないと
      「出てくる途中」の画面(前の戦闘の終わりが残ったまま)で説明が始まり、
      閉じてから敵が現れる形になる */
@@ -23726,7 +23771,8 @@ function startTutorialBattle(stageId, b){
     key: 'tutorial', dismissible: false, doneLabel: '戦ってみる',
     onDone: () => {
       clearGuideHighlight();
-      if(battleUI === b && !b.finished){ b.paused = false; render(); scheduleNextTick(300); }
+      if(!tutorialNextStage()) guideOwner = null;
+      if(battleUI === b && !b.finished){ b.paused = false; b.tutorialPause = false; render(); scheduleNextTick(300); }
     },
   });
   return true;
