@@ -26,6 +26,9 @@ async def main():
               STATE.owned.m116 = { star:7, souls:0, level:120, exp:0, skillLv:8, skill2Lv:8, ultLv:8, passiveLv:8 };
               goto('monsters'); render(); showMonsterDetail('m116'); }""")
             await pg.wait_for_timeout(300)
+            # 用語はワザの説明文の中にある。ワザは既定で折りたたみなので開く
+            await pg.evaluate("() => document.querySelector('[data-skill-toggle]').click()")
+            await pg.wait_for_timeout(250)
 
             n = await pg.locator('.term').count()
             check('説明文の中の用語が押せる形になっている', n >= 3, n)

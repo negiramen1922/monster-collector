@@ -87,7 +87,10 @@ async def main():
             await pg.evaluate("() => document.querySelector('[data-close-rune-detail]').click()"); await pg.wait_for_timeout(150)
             # キャラ詳細の4枠 → 装備
             await pg.evaluate("() => { showMonsterDetail('m06'); }"); await pg.wait_for_timeout(250)
-            check('キャラ詳細にルーン4枠', await pg.locator('#modal-layer .rune-slot').count() == 4)
+            # 遺物とルーンは「装備」タブにまとめた
+            check('キャラ詳細の既定(育成)にはルーン枠は出ない', await pg.locator('#modal-layer .rune-slot').count() == 0)
+            await pg.evaluate("() => document.querySelector('[data-detail-tab=\"equip\"]').click()"); await pg.wait_for_timeout(250)
+            check('装備タブにルーン4枠', await pg.locator('#modal-layer .rune-slot').count() == 4)
             await pg.evaluate("() => document.querySelector('[data-rune-slot=\"m06:0\"]').click()"); await pg.wait_for_timeout(200)
             check('枠を押すとルーンを選ぶ画面', await pg.locator('#modal-layer .rune-picker-modal .rpk-row').count() == await pg.evaluate('() => STATE.runes.length'))
             await pg.screenshot(path=str(OUT / 'rune_picker.png'))

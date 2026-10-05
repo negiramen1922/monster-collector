@@ -1179,6 +1179,29 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .stars{ color:#eeeaf6; letter-spacing:-.02em; }
 .stars i{ font-style:normal; }
 .stars i.gold{ color:var(--gold); text-shadow:0 0 6px rgba(255,200,61,.55); }
+/* キャラ詳細の★: 大きく出して、★5個ぶんの間を空けた右に星刻の＋を置く */
+.detail-sub.big-stars{ display:flex; align-items:center; gap:4px; margin-bottom:1px; }
+.detail-sub.big-stars .stars{ font-size:20px; line-height:1.1; letter-spacing:.04em; }
+.star-gap{ display:inline-block; width:5.6em; font-size:20px; flex:none; }
+.star-plus{
+  flex:none; width:26px; height:26px; border-radius:50%; cursor:pointer; padding:0;
+  border:1px solid var(--gold); background:var(--panel); color:var(--gold);
+  font-size:17px; font-weight:900; line-height:1;
+}
+.star-plus.ready{ background:linear-gradient(180deg,#e8b455,#c98f2e); color:#1a1206; border-color:var(--gold);
+  box-shadow:0 0 12px -2px rgba(232,180,85,.8); animation:gm-ring 1.6s ease-in-out infinite; }
+.star-plus.maxed{ opacity:.4; }
+/* 育成 / 装備 の切り替え */
+.detail-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:11px; }
+.detail-tab{
+  padding:9px 4px; border-radius:12px; font-size:12.5px; font-weight:800; cursor:pointer;
+  background:var(--panel); border:1px solid var(--line); color:var(--dim);
+}
+.detail-tab.on{ background:var(--panel2); border-color:var(--gold); color:var(--gold); }
+/* ワザは折りたたむ(縦に長くなりすぎるので) */
+.skill-toggle{ display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;
+  background:none; border:none; padding:0; cursor:pointer; color:inherit; text-align:left; }
+.skill-toggle .st-arrow{ color:var(--dim); font-size:12px; flex:none; }
 .lv-note{ color:var(--dim); font-size:11px; font-weight:700; margin-left:8px; }
 .promo-box{ border-color:rgba(176,111,224,.45); }
 .soul-bar{ height:7px; border-radius:999px; background:#171225; overflow:hidden; border:1px solid var(--line); margin-bottom:6px; }
@@ -1224,6 +1247,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .stat-row span{ color:var(--dim); flex:none; }
 .stat-row b{ font-size:13px; margin-left:auto; }
 .stat-grow{ font-size:9.5px; color:var(--ok); font-style:normal; flex:none; }
+/* 数字の下に、遺物とルーンで増えたぶんを出す(文章では書かない) */
+.stat-row{ flex-wrap:wrap; }
+.stat-eq{ width:100%; text-align:right; font-size:9.5px; font-weight:800; color:var(--gold);
+  font-style:normal; margin-top:-3px; }
 .detail-level-box{
   background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:12px 13px;
 }
@@ -5952,7 +5979,7 @@ function breakWall(id){
   playSfx('promote');
   toast(`Lv${owned.level}の上限解放しました`);
   saveState();
-  showMonsterDetail(id);
+  refreshMonsterDetail(id);
   render();
 }
 
@@ -14484,7 +14511,7 @@ function promoteMonster(id){
   track('upgrade');
   saveState();
   toast(`★${owned.star}に星刻!レベル上限が${levelCapOf(owned)}になりました`);
-  showMonsterDetail(id);
+  refreshMonsterDetail(id);
   render();
 }
 
@@ -14498,11 +14525,84 @@ function convertUniversal(id, count){
   owned.souls += count;
   saveState();
   toast(`無形のソウル${cost}個を、ソウル${count}個に変換しました`);
-  showMonsterDetail(id);
+  refreshMonsterDetail(id);
   render();
 }
 
+/* キャラ詳細の見た目の状態。縦に長くなりすぎるので、
+   育成(レベル・ステータス・ワザ)と装備(遺物・ルーン)をタブで分け、
+   ワザは折りたたみ、星刻は★の横の＋から別モーダルで出す */
+let detailTab = 'grow';            // 'grow' | 'equip'
+let detailSkillOpen = false;       // ワザを開いているか
+let promoteModalFor = null;        // 星刻モーダルを開いているモンスター
+// 星刻の中身。詳細の中ではなく、★の＋から開くモーダルで使う
+function promoteBoxHtml(id){
+  const m = MON_BY_ID[id], owned = STATE.owned[id];
+  const need = soulsToNext(owned, m.rarity);
+  const canPromote = need !== null && owned.souls >= need;
+  const shortSouls = need === null ? 0 : Math.max(0, need - owned.souls);
+  const convertible = Math.floor(STATE.universalSouls / UNIVERSAL_PER_SOUL);
+  const fillCount = Math.min(shortSouls, convertible);
+  const soulPct = need === null ? 100 : Math.min(100, Math.round(owned.souls / need * 100));
+  const lvCap = levelCapOf(owned);
+  const skillCap = skillCapOf(owned);
+  const promoGold = need === null ? 0 : PROMO_GOLD[owned.star + 1];
+  return `
+    <div class="detail-level-box promo-box">
+      <div class="row-between" style="margin-bottom:6px;">
+        <div style="font-weight:800; font-size:12.5px;">${need === null ? `★${MAX_STAR}(最大)` : `★${owned.star} → ★${owned.star + 1}`}</div>
+        <div class="mat-need ${canPromote || need === null ? '' : 'short'}">◆ ソウル ${owned.souls}${need === null ? '' : ` / ${need}`}</div>
+      </div>
+      ${need === null ? '' : `
+        <div class="soul-bar"><div class="soul-fill" style="width:${soulPct}%;"></div></div>
+        <div class="promo-note">星刻すると基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%、レベル上限${lvCap}→${STAR_TABLE[owned.star + 1].lvCap}${owned.star + 1 === SECOND_SKILL_STAR ? '、スキル枠+1' : ''}${STAR_TABLE[owned.star + 1].skillCap > skillCap ? `、スキル系Lv上限${STAR_TABLE[owned.star + 1].skillCap}` : ''}</div>
+        <button class="btn btn-sm btn-block ${canPromote ? '' : 'btn-ghost'}" data-promote="${id}" ${canPromote ? '' : 'disabled'}>
+          ${canPromote ? `★${owned.star + 1}に星刻する(ソウル×${need}・${goldText(promoGold)})` : `ソウルがあと${shortSouls}個必要(星刻に${goldText(promoGold)})`}
+        </button>
+        <div class="uni-convert">
+          <div class="uni-have">${UNIVERSAL_ICON} 無形のソウル ${STATE.universalSouls}個(ソウル${convertible}個分)</div>
+          <div class="uni-btns">
+            <button class="btn btn-sm btn-ghost" data-convert="${id}" data-count="1" ${convertible >= 1 ? '' : 'disabled'}>1個変換</button>
+            <button class="btn btn-sm ${fillCount > 0 ? '' : 'btn-ghost'}" data-convert="${id}" data-count="${fillCount}" ${fillCount > 0 ? '' : 'disabled'}>
+              ${shortSouls === 0 ? '不足なし' : fillCount > 0 ? `不足分を変換(${fillCount}個)` : '無形のソウルが不足'}
+            </button>
+          </div>
+        </div>`}
+      ${starUnlockHtml(m, owned)}
+    </div>`;
+}
+function showPromoteModal(id){
+  const m = MON_BY_ID[id], owned = STATE.owned[id];
+  if(!m || !owned) return;
+  promoteModalFor = id;
+  const layer = document.getElementById('modal-layer');
+  const openNow = layer.querySelector('.promote-modal');
+  const keep = openNow ? openNow.scrollTop : 0;
+  layer.innerHTML = `
+    <div class="result-modal detail-modal promote-modal" data-mon="${id}">
+      <button class="detail-close" data-close-promote="${id}">×</button>
+      <div class="detail-head elem-${m.element}">
+        <img src="${imgSrc(m.id)}" alt="${m.name}">
+        <div class="dh-body">
+          <div class="detail-sub big-stars">${starsHtml(m.rarity, owned.star)}</div>
+          <div class="detail-name">${m.name}</div>
+          <div class="detail-family">星刻して★を上げる</div>
+        </div>
+      </div>
+      ${promoteBoxHtml(id)}
+      <button class="btn btn-ghost btn-block" data-close-promote="${id}" style="margin-top:11px;">閉じる</button>
+    </div>`;
+  layer.classList.add('show');
+  const el = layer.querySelector('.promote-modal');
+  if(el && keep) el.scrollTop = keep;
+}
+// 星刻・変換・壁の解放のあと、いま開いている方(詳細か星刻モーダル)を描き直す
+function refreshMonsterDetail(id){
+  if(promoteModalFor === id) showPromoteModal(id);
+  else showMonsterDetail(id);
+}
 function showMonsterDetail(id){
+  promoteModalFor = null;
   const m = MON_BY_ID[id];
   const owned = STATE.owned[id];
   if(!m || !owned) return;
@@ -14530,16 +14630,24 @@ function showMonsterDetail(id){
   const up = k => (before && stats[k] > before[k]) ? ' up' : '';
   showMonsterDetail._prev = { id, stats };
   const nextStats = statsWithRelic(m, owned.star, Math.min(lvCap, owned.level + 1), equippedRelicId, runeB);
+  // 素(遺物もルーンも付けていない)の値。差が遺物とルーンで増えたぶん
+  const bareStats = statsWithRelic(m, owned.star, owned.level, null, null);
+  /* 数字の下に「+NNN」で遺物・ルーンのぶんを出す。
+     以前は「ダメージを15%カット」「遺物・ルーン +10%」と文章で書いていたが、
+     行が文字でぎゅうぎゅうになるのでやめた */
+  const eqLine = (add, fmt) => add > 0 ? `<i class="stat-eq">+${fmt ? fmt(add) : add}</i>` : '';
   const statRow = (label, key) => {
     const grow = nextStats[key] - stats[key];
+    const add = stats[key] - (bareStats[key] || 0);
     // 防御は「そのまま%カット」。レベルでは伸びないので伸び幅も出さない
     if(key === 'pdef' || key === 'mdef')
-      return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}%</b><i class="stat-plus">ダメージを${stats[key]}%カット</i></div>`;
-    return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}</b>${grow > 0 ? `<i class="stat-grow">+${grow}/Lv</i>` : ''}</div>`;
+      return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}%</b>${eqLine(add, v => `${v}%`)}</div>`;
+    return `<div class="stat-row"><span>${label}</span><b class="lv-stat${up(key)}">${stats[key]}</b>`
+      + `${grow > 0 ? `<i class="stat-grow">+${grow}/Lv</i>` : ''}${eqLine(add)}</div>`;
   };
   // 会心はレベルでは伸びない。基本値(全員同じ)＋遺物とルーンのぶん、で出す
   const critRow = (label, base, bonus, fmt) =>
-    `<div class="stat-row"><span>${label}</span><b class="lv-stat">${fmt(base + bonus)}</b>${bonus > 0 ? `<i class="stat-plus">遺物・ルーン +${fmt(bonus).replace('×', '')}</i>` : ''}</div>`;
+    `<div class="stat-row"><span>${label}</span><b class="lv-stat">${fmt(base + bonus)}</b>${eqLine(bonus, v => fmt(v).replace('×', ''))}</div>`;
 
   // 強化: 本体レベル。詳細の一番上に置く(ここを何度も押すため)
   const maxed = owned.level >= lvCap;
@@ -14603,7 +14711,11 @@ function showMonsterDetail(id){
       <div class="detail-head elem-${m.element}">
         <img src="${imgSrc(m.id)}" alt="${m.name}">
         <div class="dh-body">
-          <div class="detail-sub">${starsHtml(m.rarity, owned.star)}</div>
+          <div class="detail-sub big-stars">
+            ${starsHtml(m.rarity, owned.star)}<span class="star-gap" aria-hidden="true"></span>
+            <button class="star-plus ${need === null ? 'maxed' : canPromote ? 'ready' : ''}" data-open-promote="${id}"
+              aria-label="星刻" title="星刻">＋</button>
+          </div>
           <div class="detail-name">${m.name}</div>
           <div class="detail-tags">
             <span class="elem-tag elem-${m.element}">${ELEM_ICON[m.element]} ${ELEM_LABEL[m.element]}</span>
@@ -14615,6 +14727,12 @@ function showMonsterDetail(id){
         </div>
       </div>
 
+      <div class="detail-tabs" role="tablist">
+        <button class="detail-tab ${detailTab === 'equip' ? '' : 'on'}" data-detail-tab="grow" role="tab" aria-selected="${detailTab !== 'equip'}">育成</button>
+        <button class="detail-tab ${detailTab === 'equip' ? 'on' : ''}" data-detail-tab="equip" role="tab" aria-selected="${detailTab === 'equip'}">装備</button>
+      </div>
+
+      ${detailTab === 'equip' ? '' : `
       ${levelBox}
 
       <div class="panel panel-tight detail-stats">
@@ -14632,34 +14750,15 @@ function showMonsterDetail(id){
       </div>
 
       <div class="panel panel-tight detail-skill-box">
-        <div class="mc-head">ワザ<small class="mc-sub">通常攻撃・スキル・パッシブ・奥義</small></div>
-        ${kitLinesHtml(m, owned.star, owned, { skill1: upgradeBox('skillLv'), skill2: upgradeBox('skill2Lv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') })}
+        <button class="skill-toggle" data-skill-toggle="1" aria-expanded="${detailSkillOpen}">
+          <div class="mc-head" style="margin:0;">ワザ<small class="mc-sub">通常攻撃・スキル・パッシブ・奥義</small></div>
+          <span class="st-arrow">${detailSkillOpen ? '︿' : '﹀'}</span>
+        </button>
+        ${detailSkillOpen ? kitLinesHtml(m, owned.star, owned, { skill1: upgradeBox('skillLv'), skill2: upgradeBox('skill2Lv'), passive: upgradeBox('passiveLv'), ult: upgradeBox('ultLv') }) : ''}
       </div>
+      `}
 
-      <div class="detail-level-box promo-box">
-        <div class="mc-head" style="margin-bottom:8px;">星刻</div>
-        <div class="row-between" style="margin-bottom:6px;">
-          <div style="font-weight:800; font-size:12.5px;">${need === null ? `★${MAX_STAR}(最大)` : `★${owned.star} → ★${owned.star + 1}`}</div>
-          <div class="mat-need ${canPromote || need === null ? '' : 'short'}">◆ ソウル ${owned.souls}${need === null ? '' : ` / ${need}`}</div>
-        </div>
-        ${need === null ? '' : `
-          <div class="soul-bar"><div class="soul-fill" style="width:${soulPct}%;"></div></div>
-          <div class="promo-note">星刻すると基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%、レベル上限${lvCap}→${STAR_TABLE[owned.star + 1].lvCap}${owned.star + 1 === SECOND_SKILL_STAR ? '、スキル枠+1' : ''}${STAR_TABLE[owned.star + 1].skillCap > skillCap ? `、スキル系Lv上限${STAR_TABLE[owned.star + 1].skillCap}` : ''}</div>
-          <button class="btn btn-sm btn-block ${canPromote ? '' : 'btn-ghost'}" data-promote="${id}" ${canPromote ? '' : 'disabled'}>
-            ${canPromote ? `★${owned.star + 1}に星刻する(ソウル×${need}・${goldText(promoGold)})` : `ソウルがあと${shortSouls}個必要(星刻に${goldText(promoGold)})`}
-          </button>
-          <div class="uni-convert">
-            <div class="uni-have">${UNIVERSAL_ICON} 無形のソウル ${STATE.universalSouls}個(ソウル${convertible}個分)</div>
-            <div class="uni-btns">
-              <button class="btn btn-sm btn-ghost" data-convert="${id}" data-count="1" ${convertible >= 1 ? '' : 'disabled'}>1個変換</button>
-              <button class="btn btn-sm ${fillCount > 0 ? '' : 'btn-ghost'}" data-convert="${id}" data-count="${fillCount}" ${fillCount > 0 ? '' : 'disabled'}>
-                ${shortSouls === 0 ? '不足なし' : fillCount > 0 ? `不足分を変換(${fillCount}個)` : '無形のソウルが不足'}
-              </button>
-            </div>
-          </div>`}
-        ${starUnlockHtml(m, owned)}
-      </div>
-
+      ${detailTab === 'equip' ? `
       <div class="detail-level-box relic-box">
         <div class="mc-head" style="margin-bottom:8px;">遺物</div>
         <button class="relic-slot ${equippedRelicDef ? 'filled' : 'empty'}" data-relic-slot="${id}">
@@ -14689,6 +14788,7 @@ function showMonsterDetail(id){
         </div>
         <div class="rune-total">合計: ${runeBonusText(runeB)}</div>
       </div>
+      ` : ''}
     </div>
   `;
   layer.classList.add('show');
@@ -20885,6 +20985,16 @@ function handlePhoneClick(ev){
     if(r){ playSfx(r.isNew ? 'recruit' : 'promote'); toast(r.isNew ? `「${m.name}」が仲間になりました!` : `「${m.name}」のソウルを${r.souls}個手に入れました`); }
     render(); renderBag(); return;
   }
+  const detailTabEl = t.closest('[data-detail-tab]');
+  if(detailTabEl){ detailTab = detailTabEl.dataset.detailTab; showMonsterDetail(detailTabEl.closest('[data-mon]').dataset.mon); return; }
+  if(t.closest('[data-skill-toggle]')){
+    detailSkillOpen = !detailSkillOpen;
+    showMonsterDetail(t.closest('[data-mon]').dataset.mon); return;
+  }
+  const openPromoEl = t.closest('[data-open-promote]');
+  if(openPromoEl){ detailScrollMemo = null; showPromoteModal(openPromoEl.dataset.openPromote); return; }
+  const closePromoEl = t.closest('[data-close-promote]');
+  if(closePromoEl){ promoteModalFor = null; showMonsterDetail(closePromoEl.dataset.closePromote); return; }
   const promoteEl = t.closest('[data-promote]');
   if(promoteEl){ promoteMonster(promoteEl.dataset.promote); return; }
   const convertEl = t.closest('[data-convert]');
@@ -21391,6 +21501,7 @@ function uiSfxFor(t){
   if(hit('[data-claim], [data-claim-all], [data-collect]')) return 'reward';
   if(hit('[data-sweep-run]')) return null; // the sweep plays its own sound
   if(hit('[data-promote]')) return 'promote';
+  if(hit('[data-open-promote], [data-detail-tab], [data-skill-toggle]')) return 'open';
   if(hit('[data-levelup], [data-break-wall], [data-facility-up]')) return 'levelUp';
   if(hit('[data-skill-up]')) return 'skillUp';
   if(hit('[data-craft]')) return 'fuse';
@@ -23531,10 +23642,10 @@ const GUIDE_CONTENT = {
   monsterDetail: {
     steps: [
       { body: 'わたしハノコ。ここがモンスターの詳細画面。まずはレベルアップ。育てたいモンスターをどんどん強くしてあげてね。', highlight: '.lv-card' },
-      { body: 'ここでステータスが見られるよ。HPや攻撃力、防御力なんかが確認できるの。', highlight: '.detail-stats' },
-      { body: 'こっちはワザ。通常攻撃・スキル・パッシブ・奥義をまとめてワザって呼ぶの。効果はここに書いてあるよ。', highlight: '.detail-skill-box' },
-      { body: '星刻。ソウルを集めると★を上げられて、もっと強くなれるの。', highlight: '.promo-box' },
-      { body: '最後はここ、遺物。タップすると装着する遺物を選べるよ。困ったらいつでも呼んでね。', highlight: '.relic-box' },
+      { body: 'ここでステータスが見られるよ。数字の下に出る<b>+NNN</b>は、遺物とルーンで増えたぶんなの。', highlight: '.detail-stats' },
+      { body: 'こっちはワザ。通常攻撃・スキル・パッシブ・奥義をまとめてワザって呼ぶの。<b>押すと開いて</b>、効果とレベル上げが見られるよ。', highlight: '.detail-skill-box' },
+      { body: '★の右の<b>＋</b>が星刻。ソウルを集めると★を上げられて、もっと強くなれるの。', highlight: '.star-plus' },
+      { body: '遺物とルーンは<b>「装備」</b>のほうにあるよ。タップして切り替えてね。困ったらいつでも呼んでね。', highlight: '[data-detail-tab="equip"]' },
     ],
   },
   /* チュートリアルのしめくくり。石を渡して終わりにせず、ガチャまで連れて行って
