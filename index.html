@@ -2362,8 +2362,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .shield-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:inherit; pointer-events:none;
   background:linear-gradient(180deg, rgba(150,220,255,.95), rgba(58,160,214,.85));
   box-shadow:0 0 6px rgba(120,200,255,.55); }
-.shield-num{ position:absolute; right:2px; top:-11px; z-index:4; font-size:9.5px; font-weight:800; line-height:1;
-  color:#9fdcff; text-shadow:0 1px 3px #000, 0 0 6px rgba(0,0,0,.9); pointer-events:none; }
 .ubody{ position:relative; z-index:3; }
 .ui-bar-row .sh-num{ display:block; font-size:10px; color:#9fdcff; }
 
@@ -9691,7 +9689,8 @@ function buildQuestStages(){
       if(t.key === 'tu') stage.reward = [
         [{ type: 'item', key: 'exp1', n: 40 }],
         [{ type: 'gold', n: 20000 }],
-        [{ type: 'item', key: 'exp1', n: 60 }],
+        // 0-4「陣形を組む」を5体で組めるように、ここで前衛1・後衛1を渡す
+        [{ type: 'item', key: 'exp1', n: 60 }, { type: 'monster', id: 'm11' }, { type: 'monster', id: 'm02' }],
         [{ type: 'gold', n: 30000 }],
         [{ type: 'item', key: 'box_sel_1', n: 2 }],
       ][i];
@@ -10867,7 +10866,7 @@ function nextStageOf(stage, win){
 }
 // early-game gating: too many choices at once confuses a brand new player
 const TUTORIAL_LAST_STAGE = 'tu5';
-const SPEED_UNLOCK_STAGE = 'tu1';   // 倍速は1本目を終えたら解放(チュートリアル2から使える)
+const SPEED_UNLOCK_STAGE = 'tu3';   // 倍速は 0-3「奥義を使う」を終えたら解放
 function tutorialCleared(){ return STATE.clearedStages.includes(TUTORIAL_LAST_STAGE); }
 function speedUnlocked(){ return STATE.clearedStages.includes(SPEED_UNLOCK_STAGE); }
 function bossOf(stage){
@@ -19520,7 +19519,7 @@ function toggleAutoUlt(){
 }
 
 function cycleSpeed(){
-  if(!speedUnlocked()){ toast('0-1「はじめての戦い」をクリアすると倍速が解放されます'); return; }
+  if(!speedUnlocked()){ toast('0-3「奥義を使う」をクリアすると倍速が解放されます'); return; }
   const cur = STATE.battleSpeed || 1;
   let next = SPEED_OPTIONS[(SPEED_OPTIONS.indexOf(cur) + 1) % SPEED_OPTIONS.length];
   if(next === 3 && SPEED_3X_VIP_ONLY && !STATE.vip){
@@ -20178,7 +20177,7 @@ function renderBattleFight(){
         <div class="ulv">${battleStarsHtml(u.rarity, u.star)} <span class="ulv-num">Lv${u.level}</span></div>
         <img src="${imgSrc(u.ref)}" alt="${u.name}">
         <div class="ubody">
-          ${shield > 0 ? `<div class="shield-num">${shield}</div>` : ''}
+
           <div class="hp-bg">
             <div class="hp-fill ${hpPct<=30?'low':''} ${hpAnim}"></div>
             ${shield > 0 ? `<div class="shield-fill" style="width:${shieldPct}%;"></div>` : ''}
@@ -22095,7 +22094,7 @@ function renderSettingsOverlay(){
           <div class="set-row wrap">
             <div class="set-k wide">既定の速度</div>
             <div class="set-speeds">${[1, 2, 3].map(n => `<button class="spd ${speed === n ? 'on' : ''} ${n > 1 && !speedUnlocked() ? 'btn-ghost' : ''}" data-set-speed="${n}" ${n > 1 && !speedUnlocked() ? 'disabled' : ''}>${n}倍</button>`).join('')}</div>
-            ${speedUnlocked() ? '' : '<div class="screen-sub set-hint">0-1「はじめての戦い」をクリアすると倍速が解放されます</div>'}
+            ${speedUnlocked() ? '' : '<div class="screen-sub set-hint">0-3「奥義を使う」をクリアすると倍速が解放されます</div>'}
           </div>
           <div class="set-row"><div class="set-k wide">奥義オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
@@ -23716,6 +23715,10 @@ function startTutorialBattle(stageId, b){
   const f = TUT_FLOW[stageId];
   if(!f || !f.battle) return false;
   b.paused = true;
+  /* playWaveIntro のあと scheduleNextTick を飛ばすので、ここで描き直さないと
+     「出てくる途中」の画面(前の戦闘の終わりが残ったまま)で説明が始まり、
+     閉じてから敵が現れる形になる */
+  render();
   guideOwner = 'tutorial';
   wireGuideTapAdvance();
   clearGuideToast(true);
