@@ -1849,7 +1849,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   0%,100%{ box-shadow:0 0 8px -2px rgba(232,180,85,.55); }
   50%{ box-shadow:0 0 20px 1px rgba(232,180,85,.95); }
 }
-.ult-hint{ font-size:11px; color:var(--dim); text-align:center; margin-top:8px; line-height:1.6; }
 .unit.reserved{ border:2px solid var(--gold); box-shadow:0 0 0 2px rgba(232,180,85,.25), 0 0 14px -2px rgba(232,180,85,.8); cursor:pointer; }
 .reserved-badge{ background:#fff3c9; color:#6b4a10; }
 .battle-controls.two{ display:grid; grid-template-columns:1fr auto; gap:8px; }
@@ -1881,7 +1880,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .ts-icon.later{ opacity:.45; }
 .ts-sep{ flex:none; font-size:9px; font-weight:800; color:var(--dim); padding:0 3px; border-left:1px solid var(--line); margin-left:2px; }
 .log-lines .log-round{ color:var(--dim); font-size:.92em; text-align:center; letter-spacing:.08em; }
-.ult-hint b{ color:var(--gold); }
 
 /* ---------- attacker step-forward + damage popups ---------- */
 @keyframes step-forward-ally{
@@ -2152,7 +2150,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 #battle-wrap .wave-row{ margin:2px 0 6px; }
 #battle-wrap .battle-controls{ margin-top:8px; }
 #battle-wrap .btn{ padding:10px 14px; }
-#battle-wrap .ult-hint{ margin-top:6px; }
 
 /* ---------- battle result overlay ---------- */
 .battle-result{ text-align:center; padding:22px 18px 18px; }
@@ -2348,10 +2345,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   .br-rewards .mat-chip{ animation:none; opacity:1; }
 }
 
-/* short screens: the glowing card already says "tap me", give the space to the field */
-@media (max-height:720px){
-  #battle-wrap .ult-hint{ display:none; }
-}
 
 /* ---------- stage sheet: join odds ---------- */
 .ss-label .ss-sub{ float:right; font-weight:600; color:var(--dim); font-size:9.5px; }
@@ -20199,15 +20192,6 @@ function renderBattleFight(){
     ? dot + `<div class="wave-line ${i < b.waveIndex ? 'done':''}"></div>`
     : dot).join('');
 
-  const readyCount = b.party.filter(u => spReady(u) && !u.ultReserved).length;
-  const reservedCount = b.party.filter(u => u.alive && u.ultReserved).length;
-  const ultHint = STATE.autoUlt
-    ? 'SPが溜まると、そのモンスターの番に自動で奥義'
-    : readyCount > 0
-      ? `<b>光っているモンスターをタップして奥義発動</b> → その子の番に放たれる${reservedCount ? `(発動 ${reservedCount}体)` : ''}`
-      : reservedCount
-        ? `発動 ${reservedCount}体。もう一度タップでやめる`
-        : 'SPが溜まったモンスターをタップで奥義発動';
 
   // the running commentary in the middle of the field: the latest attack or skill
   const telopLine = [...b.log].reverse().find(l => /^@@(hit|skill|ult|ko|burn|debuff|heal)@@/.test(l));
@@ -20270,7 +20254,6 @@ function renderBattleFight(){
             ${'▶'.repeat(speedFactor())} ${speedFactor()}倍速
           </button>
         </div>
-        <div class="ult-hint">${ultHint}</div>
       `}
     </div>
   `;
