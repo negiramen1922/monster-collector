@@ -213,6 +213,9 @@ body{
 .rw-mon{ color:var(--gold); }
 .rw-mon img{ width:18px; height:18px; object-fit:contain; image-rendering:pixelated; }
 .ms-side{ flex:none; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+/* はじめてガイドの「行く」: その機能の画面まで連れて行って、使いかたの説明を出す */
+.ms-go{ margin-top:7px; align-self:flex-start; }
+.beginner-card .ms-go{ margin-top:9px; width:100%; }
 .ms-prog{ font-size:11px; font-weight:800; color:var(--dim); font-variant-numeric:tabular-nums; }
 .ms-state{ font-size:11.5px; font-weight:800; color:var(--dim2); }
 .ms-state.claim{ color:var(--gold); }
@@ -9145,28 +9148,50 @@ const ACHIEVEMENTS = [
 // worth of crystals (BEGINNER_ALL_CLEAR below). ordered to double as a soft
 // tutorial: clear the tutorial stages first, then
 // touch each basic system in turn (gacha → party → level → formation → …).
+/* go: 「行く」で連れて行く先。guide: 着いたときに出す説明(GUIDE_CONTENT のキー)。
+   go.type は beginnerGo() が解釈する。説明は1つの機能につき1回だけ自動で出し、
+   2回目からは画面の「?」から読み返せる */
 const BEGINNER_MISSIONS = [
-  { id:'b05', label:'チュートリアルを終える',          hint:'探索 → 入門',          value:() => STATE.clearedStages.includes('tu5') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
-  { id:'b01', label:'ガチャを10連する',              hint:'ガチャ画面の「10連」',   value:() => stat('gacha10'),        goal:1, reward:[{ type:'crystal', n:300 }] },
-  { id:'b02', label:'編成を5体にする',             hint:'育成 → 編成 で配置',          value:() => getPartyIds().length,   goal:5, reward:[{ type:'item', key:'exp1', n:80 }] },
-  { id:'b03', label:'モンスターのレベルを上げる',        hint:'モンスターの詳細画面',        value:() => stat('levelUp'),        goal:1, reward:[{ type:'crystal', n:100 }] },
-  { id:'b04', label:'陣形を変える',                    hint:'育成 → 編成 の陣形カード',     value:() => stat('formationChange'), goal:1, reward:[{ type:'universal', n:10 }] },
-  { id:'b06', label:'1-5「猪王の縄張り」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m01' }] },
-  { id:'b07', label:'スキルLvを上げる',                 hint:'詳細画面(属性の欠片とロールの証を使う)',  value:() => stat('skillUp'),        goal:1, reward:[{ type:'item', key:'box_sel_2', n:1 }] },
-  { id:'b08', label:'育成クエストをクリアする',        hint:'探索 → 育成クエスト',      value:() => stat('dungeonClear'),   goal:1, reward:[{ type:'gold', n:20000 }] },
-  { id:'b09', label:'モンスターを星刻させる',            hint:'詳細画面の「星刻」',          value:() => stat('promote'),        goal:1, reward:[{ type:'universal', n:20 }] },
-  { id:'b10', label:'1-10「森の主」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m24' }] },
+  { id:'b05', label:'チュートリアルを終える',          hint:'探索 → 入門',          value:() => STATE.clearedStages.includes('tu5') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }],
+    go:{ type:'tutorial' } },
+  { id:'b01', label:'ガチャを10連する',              hint:'ガチャ画面の「10連」',   value:() => stat('gacha10'),        goal:1, reward:[{ type:'crystal', n:300 }],
+    go:{ type:'screen', screen:'gacha' }, guide:'tut_gacha' },
+  { id:'b02', label:'編成を5体にする',             hint:'育成 → 編成 で配置',          value:() => getPartyIds().length,   goal:5, reward:[{ type:'item', key:'exp1', n:80 }],
+    go:{ type:'screen', screen:'party' }, guide:'tut_form' },
+  { id:'b03', label:'モンスターのレベルを上げる',        hint:'モンスターの詳細画面',        value:() => stat('levelUp'),        goal:1, reward:[{ type:'crystal', n:100 }],
+    go:{ type:'monster' } },
+  { id:'b04', label:'陣形を変える',                    hint:'育成 → 編成 の陣形カード',     value:() => stat('formationChange'), goal:1, reward:[{ type:'universal', n:10 }],
+    go:{ type:'screen', screen:'party' }, guide:'tut_form' },
+  { id:'b06', label:'1-5「猪王の縄張り」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_05') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m01' }],
+    go:{ type:'stage', id:'q1_05' } },
+  { id:'b07', label:'スキルLvを上げる',                 hint:'詳細画面(属性の欠片とロールの証を使う)',  value:() => stat('skillUp'),        goal:1, reward:[{ type:'item', key:'box_sel_2', n:1 }],
+    go:{ type:'monster' } },
+  { id:'b08', label:'育成クエストをクリアする',        hint:'探索 → 育成クエスト',      value:() => stat('dungeonClear'),   goal:1, reward:[{ type:'gold', n:20000 }],
+    go:{ type:'dungeon', kind:'exp' }, guide:'dungeon' },
+  { id:'b09', label:'モンスターを星刻させる',            hint:'詳細画面の「星刻」',          value:() => stat('promote'),        goal:1, reward:[{ type:'universal', n:20 }],
+    go:{ type:'monster' } },
+  { id:'b10', label:'1-10「森の主」をクリアする',     hint:'探索 → メインクエスト',        value:() => STATE.clearedStages.includes('q1_10') ? 1 : 0, goal:1, reward:[{ type:'monster', id:'m24' }],
+    go:{ type:'stage', id:'q1_10' } },
   // ---- はじめてガイド2(α0.1で追加)。1〜10を終えた人も、ここから続きとして受け取れる ----
   { id:'b20', label:'ログインする',                   hint:'今日ゲームを開くだけ',        value:() => stat('login'),          goal:1, reward:[{ type:'crystal', n:50 }] },
-  { id:'b11', label:'PVPの攻撃編成を組む',            hint:'PVP画面の「攻撃編成」',     value:() => hasPvpForm('attack') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }] },
-  { id:'b12', label:'PVPでバトルする',                hint:'PVP画面で相手を探して挑戦',  value:() => stat('pvpBattle'),      goal:1, reward:[{ type:'gold', n:20000 }] },
-  { id:'b13', label:'フレンドを1人登録する',           hint:'メニュー → フレンド → フレンドを追加', value:() => STATE.friends.length, goal:1, reward:[{ type:'crystal', n:100 }] },
-  { id:'b14', label:'フレンドからモンスターを借りて探索する', hint:'フレンド画面の「借りる」→ 編成に入れて探索', value:() => stat('helperClear'), goal:1, reward:[{ type:'item', key:'exp2', n:10 }] },
-  { id:'b15', label:'初心者ガチャを回す',              hint:'ガチャ画面の「初心者ガチャ」', value:() => (STATE.beginnerGachaDone || STATE.beginnerGachaCount > 0) ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }] },
-  { id:'b16', label:'ショップで買い物をする',           hint:'ショップ画面',              value:() => stat('shopBuy'),        goal:1, reward:[{ type:'gold', n:20000 }] },
-  { id:'b17', label:'鉱山のレベルを上げる',            hint:'拠点 → 鉱山',              value:() => baseState().mine.lv >= 2 ? 1 : 0, goal:1, reward:[{ type:'gold', n:30000 }] },
-  { id:'b18', label:'育成クエスト「ゴールド」Lv1をクリアする', hint:'探索 → 育成クエスト', value:() => (STATE.stageStars || {}).dg_gold_0 ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }] },
-  { id:'b19', label:'育成クエスト「EXP」Lv1をクリアする',     hint:'探索 → 育成クエスト', value:() => (STATE.stageStars || {}).dg_exp_0 ? 1 : 0, goal:1, reward:[{ type:'item', key:'exp1', n:50 }] },
+  { id:'b11', label:'PVPの攻撃編成を組む',            hint:'PVP画面の「攻撃編成」',     value:() => hasPvpForm('attack') ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }],
+    go:{ type:'screen', screen:'pvp' }, guide:'pvp' },
+  { id:'b12', label:'PVPでバトルする',                hint:'PVP画面で相手を探して挑戦',  value:() => stat('pvpBattle'),      goal:1, reward:[{ type:'gold', n:20000 }],
+    go:{ type:'screen', screen:'pvp' }, guide:'pvp' },
+  { id:'b13', label:'フレンドを1人登録する',           hint:'メニュー → フレンド → フレンドを追加', value:() => STATE.friends.length, goal:1, reward:[{ type:'crystal', n:100 }],
+    go:{ type:'overlay', view:'friends' }, guide:'friends' },
+  { id:'b14', label:'フレンドからモンスターを借りて探索する', hint:'フレンド画面の「借りる」→ 編成に入れて探索', value:() => stat('helperClear'), goal:1, reward:[{ type:'item', key:'exp2', n:10 }],
+    go:{ type:'overlay', view:'friends' }, guide:'friends' },
+  { id:'b15', label:'初心者ガチャを回す',              hint:'ガチャ画面の「初心者ガチャ」', value:() => (STATE.beginnerGachaDone || STATE.beginnerGachaCount > 0) ? 1 : 0, goal:1, reward:[{ type:'crystal', n:150 }],
+    go:{ type:'screen', screen:'gacha' }, guide:'tut_gacha' },
+  { id:'b16', label:'ショップで買い物をする',           hint:'ショップ画面',              value:() => stat('shopBuy'),        goal:1, reward:[{ type:'gold', n:20000 }],
+    go:{ type:'screen', screen:'shop' }, guide:'shop' },
+  { id:'b17', label:'鉱山のレベルを上げる',            hint:'拠点 → 鉱山',              value:() => baseState().mine.lv >= 2 ? 1 : 0, goal:1, reward:[{ type:'gold', n:30000 }],
+    go:{ type:'screen', screen:'base' }, guide:'base' },
+  { id:'b18', label:'育成クエスト「ゴールド」Lv1をクリアする', hint:'探索 → 育成クエスト', value:() => (STATE.stageStars || {}).dg_gold_0 ? 1 : 0, goal:1, reward:[{ type:'crystal', n:100 }],
+    go:{ type:'dungeon', kind:'gold' }, guide:'dungeon' },
+  { id:'b19', label:'育成クエスト「EXP」Lv1をクリアする',     hint:'探索 → 育成クエスト', value:() => (STATE.stageStars || {}).dg_exp_0 ? 1 : 0, goal:1, reward:[{ type:'item', key:'exp1', n:50 }],
+    go:{ type:'dungeon', kind:'exp' }, guide:'dungeon' },
 ];
 const BEGINNER_PART1 = 10;   // 1〜10がはじめてガイド、11〜がはじめてガイド2(それぞれにすべて達成のボーナス)
 // completing every beginner mission pays out a 10-pull's worth of crystals
@@ -9327,7 +9352,8 @@ function missionEntries(){
   const step = STATE.beginnerStep || 0;
   BEGINNER_MISSIONS.forEach((m, i) => {
     const val = i === step ? m.value() : 0;
-    out.push({ key:`b:${m.id}`, section:'beginner', label:m.label, hint:m.hint, progress: i < step ? m.goal : val, goal:m.goal, reward:m.reward, stepNo:i + 1,
+    out.push({ key:`b:${m.id}`, id:m.id, section:'beginner', label:m.label, hint:m.hint, go:m.go, guide:m.guide,
+      progress: i < step ? m.goal : val, goal:m.goal, reward:m.reward, stepNo:i + 1,
       state: i < step ? 'done' : i > step ? 'locked' : val >= m.goal ? 'claim' : 'progress' });
     if(i === BEGINNER_PART1 - 1)
       out.push({ key:'b:all', section:'beginner', bonus:true, label:'はじめてガイドをすべて達成', progress:Math.min(step, BEGINNER_PART1), goal:BEGINNER_PART1, reward:BEGINNER_ALL_CLEAR,
@@ -11093,8 +11119,12 @@ async function searchPvpOpponents(){
 }
 function renderPvp(){
   if(!pvpAvailable()){
+    // 遊べない状態でも、どんな機能かは読めるようにしておく
     return `
-      <div class="screen-title">PVP</div>
+      <div class="screen-head">
+        <div class="screen-title">PVP</div>
+        <div class="head-right">${guideHelpBtn('pvp')}</div>
+      </div>
       <div class="screen-sub" style="margin:28px 0;text-align:center;">ログインするとPVPに挑戦できます</div>`;
   }
   if(pvpFormEdit) return renderPvpFormEdit();
@@ -11104,7 +11134,7 @@ function renderPvp(){
   return `
     <div class="screen-head">
       <div class="screen-title">PVP</div>
-      <div class="base-wallet">🏆${(STATE.pvpPoints || 0).toLocaleString()}</div>
+      <div class="head-right"><div class="base-wallet">🏆${(STATE.pvpPoints || 0).toLocaleString()}</div>${guideHelpBtn('pvp')}</div>
     </div>
     <div class="panel">
       <div class="row-between">
@@ -11244,7 +11274,7 @@ function renderBase(){
   return `
     <div class="screen-head">
       <div class="screen-title">拠点</div>
-      <div class="base-wallet">${goldText(STATE.gold || 0)}</div>
+      <div class="head-right"><div class="base-wallet">${goldText(STATE.gold || 0)}</div>${guideHelpBtn('base')}</div>
     </div>
     <div class="screen-sub">施設を強化すると素材とEXPが自動で溜まります(最大24時間分)</div>
     ${facilityCard('mine')}
@@ -11299,7 +11329,7 @@ function renderShop(){
   return `
     <div class="screen-head">
       <div class="screen-title">ショップ</div>
-      <div class="base-wallet">${goldText(STATE.gold || 0)}　🏆${STATE.pvpPoints || 0}　${CRYSTAL_ICON}${STATE.crystals || 0}</div>
+      <div class="head-right"><div class="base-wallet">${goldText(STATE.gold || 0)}　🏆${STATE.pvpPoints || 0}　${CRYSTAL_ICON}${STATE.crystals || 0}</div>${guideHelpBtn('shop')}</div>
     </div>
     <div class="shop-tabs">
       <button class="stage-tab ${shopTab === 'gold' ? 'on' : ''}" data-shop-tab="gold">ゴールドショップ</button>
@@ -12097,6 +12127,7 @@ function renderMissions(){
           ${e.state === 'progress' && e.hint ? `<div class="ms-hint">${e.hint}</div>` : ''}
           ${e.state !== 'locked' ? `<div class="ms-bar"><div class="ms-fill" style="width:${pct}%;"></div></div>` : '<div class="ms-bar"></div>'}
           <div class="ms-rewards">${rewardHtml(e.reward)}</div>
+          ${e.state === 'progress' && e.go ? `<button class="btn btn-sm ms-go" data-beginner-go="${e.id}">${beginnerGoLabel(e)} ›</button>` : ''}
         </div>
         <div class="ms-side"><span class="ms-prog">${count}</span>${state}</div>
       </div>`;
@@ -12282,6 +12313,7 @@ function renderBeginnerCard(){
       </div>
       ${current.hint && current.state === 'progress' ? `<div class="mc-reset" style="margin-top:6px;">${current.hint}</div>` : ''}
       <div class="mc-bar"><div style="width:${pct}%;"></div></div>
+      ${current.state === 'progress' && current.go ? `<button class="btn btn-sm ms-go" data-beginner-go="${current.id}">${beginnerGoLabel(current)} ›</button>` : ''}
     </div>`;
 }
 // login bonus cards start collapsed (a compact header row) and expand in place
@@ -12434,6 +12466,10 @@ function ticketBtnsHtml(kind){
 }
 function renderGacha(){
   return `
+    <div class="screen-head">
+      <div class="screen-title">ガチャ</div>
+      <div class="head-right">${guideHelpBtn(gachaKind === 'relic' ? 'relics' : 'tut_gacha')}</div>
+    </div>
     <div class="gacha-kind-tabs" role="tablist">
       <button class="stage-tab ${gachaKind === 'mon' ? 'on' : ''}" data-gacha-kind="mon" role="tab" aria-selected="${gachaKind === 'mon'}">モンスター</button>
       <button class="stage-tab ${gachaKind === 'relic' ? 'on' : ''}" data-gacha-kind="relic" role="tab" aria-selected="${gachaKind === 'relic'}">遺物</button>
@@ -14098,6 +14134,8 @@ function finishGachaEggs(){
   clearTimeout(gachaTimer);
   if(kind === 'relic') showRelicGachaFinalResult(results);
   else showGachaResults(results, before);
+  // チュートリアルで引かせた10連。結果が出たところで案内を続ける
+  if(tutorialGachaPending){ tutorialGachaPending = false; setTimeout(() => openTutorialWrapUp(), 0); }
 }
 
 /* ---- ガチャ結果のSNS共有: 共有すると星結晶+10(1日1回)。共有シートが使える端末は
@@ -15117,6 +15155,7 @@ function renderParty(){
       <div class="screen-title" style="margin:0;">編成</div>
       <div class="home-party-btns">
         <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 相性</button>
+        ${guideHelpBtn('tut_form')}
       </div>
     </div>
     ${formationSetTabsHtml()}
@@ -15617,7 +15656,8 @@ function renderBattleSelect(){
         <div class="screen-title" style="margin:0;">${(EXPLORE_MENU.find(m => m.key === stageTab) || EXPLORE_MENU[0]).label}</div>
       </div>` : `<div class="screen-title" style="margin:0;">探索</div>`}
       <div class="head-right">
-        ${stageTab === 'abyss' && abyssUnlocked() ? guideHelpBtn('abyss') : stageTab === 'dungeon' && dungeonTab === 'rune' ? guideHelpBtn('runeMine') : ''}
+        ${stageTab === 'abyss' && abyssUnlocked() ? guideHelpBtn('abyss')
+          : stageTab === 'dungeon' ? guideHelpBtn(dungeonTab === 'rune' ? 'runeMine' : 'dungeon') : ''}
         <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
       </div>
     </div>
@@ -20410,6 +20450,9 @@ function handlePhoneClick(ev){
   if(t.closest('[data-screen-back]')){ goBackScreen(); return; }
   const groupTabEl = t.closest('[data-group-tab]');
   if(groupTabEl){ goto(groupTabEl.dataset.groupTab, { nav: true }); return; }
+  // はじめてガイドの「行く」。カード自体が data-nav なので、ナビの判定より先に拾う
+  const beginnerGoEl = t.closest('[data-beginner-go]');
+  if(beginnerGoEl){ beginnerGo(beginnerGoEl.dataset.beginnerGo); return; }
   const navEl0 = t.closest('[data-nav]');
   if(navEl0 && currentScreen === 'battle-fight' && battleUI && !battleUI.finished){
     confirmLeaveBattle(navEl0.dataset.nav);
@@ -20470,7 +20513,8 @@ function handlePhoneClick(ev){
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
     layer.innerHTML = '';
-    showAnnouncements();   // 報酬を受け取ってレベルが上がった、などをこのまま続けて知らせる
+    // 報酬を受け取ってレベルが上がった、などをこのまま続けて知らせる
+    if(!showAnnouncements() && afterAnnounceClose){ const next = afterAnnounceClose; afterAnnounceClose = null; next(); }
     return;
   }
   if(t.closest('[data-close-detail]')){
@@ -21232,11 +21276,12 @@ function handlePhoneClick(ev){
     closeModal();
     goto(resultNavEl.dataset.resultNav);
     if(tutorialJustDone){
-      guideOwner = null;   // チュートリアルはここで終わり。ほかのガイドを通す
+      /* 先に星結晶のお知らせ(🎉 +3,000)を出して、閉じたらガチャまで案内する。
+         順番が逆だと、10連で使ったあとの残りを「いまの星結晶」として見せてしまう */
+      guideOwner = null;
       clearGuideToast(true);
-      // 閉じたらそのまま星結晶のお知らせを出す(ガイドが出ているあいだは showAnnouncements が待つ)
-      openGuideToast('hinoko', GUIDE_CONTENT.tutorialDone.steps, {
-        key: 'tutorialDone', doneLabel: 'ありがとう!', onDone: () => showAnnouncements() });
+      afterAnnounceClose = openTutorialDone;
+      if(!showAnnouncements()){ afterAnnounceClose = null; openTutorialDone(); }
     }
     return;
   }
@@ -22301,7 +22346,7 @@ function renderFriendsOverlay(){
   const title = friendsView === 'add' ? 'フレンドを追加' : friendsView === 'followers' ? 'フォロワー' : 'フレンド';
   return `
     <div class="ov-screen">
-      ${overlayHead(title, avail ? `<span class="base-wallet" style="margin:0 0 0 auto;">🎗️${(STATE.friendPoints || 0).toLocaleString()}</span>` : '')}
+      ${overlayHead(title, `${avail ? `<span class="base-wallet" style="margin:0 0 0 auto;">🎗️${(STATE.friendPoints || 0).toLocaleString()}</span>` : ''}${friendsView === 'list' ? guideHelpBtn('friends') : ''}`)}
       <div class="ov-body">
         ${!avail ? '<div class="screen-sub" style="margin:16px 0;">この機能はログイン中のみ利用できます。</div>'
         : friendsView === 'add' ? renderFriendAddView()
@@ -23357,6 +23402,12 @@ const GUIDE_REPLAY = {
   relics: { mascot: 'pixie' },
   abyss: { mascot: 'anubis', doneLabel: 'いざ深淵へ' },
   runeMine: { mascot: 'knocker', doneLabel: '掘りに行く' },
+  // はじめてガイドのショートカットから開く、機能ごとの説明
+  dungeon: { mascot: 'hinoko' },
+  pvp:     { mascot: 'hinoko' },
+  friends: { mascot: 'hinoko' },
+  shop:    { mascot: 'hinoko' },
+  base:    { mascot: 'hinoko' },
 };
 function guideHelpBtn(key, cls){
   return `<button class="guide-help ${cls || ''}" data-guide-help="${key}" aria-label="説明をもう一度見る" title="説明をもう一度見る">?</button>`;
@@ -23486,13 +23537,68 @@ const GUIDE_CONTENT = {
       { body: '最後はここ、遺物。タップすると装着する遺物を選べるよ。困ったらいつでも呼んでね。', highlight: '.relic-box' },
     ],
   },
+  /* チュートリアルのしめくくり。石を渡して終わりにせず、ガチャまで連れて行って
+     1回いっしょに引く。石の数と10連の回数はステージとガチャの値段から出す */
   tutorialDone: {
-    // 石の数と10連の回数はステージとガチャの値段から出す(調整しても文だけ古くならないように)
     steps: [
-      { title: 'おつかれさま!', body: `チュートリアルはここまで!これからの冒険の足しに、${CRYSTAL_ICON}${TUTORIAL_CLEAR_CRYSTALS.toLocaleString()}個を受け取ってね。` },
-      { body: `${CRYSTAL_ICON}${TUTORIAL_CLEAR_CRYSTALS.toLocaleString()}個あれば10連が${Math.floor(TUTORIAL_CLEAR_CRYSTALS / PULL10_COST)}回引けるよ。新しい仲間を迎えに行こう!`,
-        spot: '.nav-btn[data-nav="gacha"]', dim: true },
-      { body: 'ここから先は自分の力で進んでいこう!困ったら右上の「?」でいつでも見返せるよ。' },
+      { title: 'おつかれさま!', body: `チュートリアルはここまで!受け取った${CRYSTAL_ICON}${TUTORIAL_CLEAR_CRYSTALS.toLocaleString()}個で、さっそく仲間を迎えに行こう。` },
+      { body: '下の「ガチャ」を押してね。', spot: '.nav-btn[data-nav="gacha"]', await: 'tap',
+        skipIf: () => (STATE.crystals || 0) < PULL10_COST },
+      { body: `${CRYSTAL_ICON}${PULL10_COST.toLocaleString()}個で10体まとめて引けるよ。10枠目は★${TEN_PULL_MIN_STAR}以上が確定なんだ。`
+          + '「10連」を押してみて!',
+        spot: '#pull10', await: 'tap', onShow: () => { tutorialGachaPending = true; },
+        skipIf: () => (STATE.crystals || 0) < PULL10_COST },
+    ],
+  },
+  // 10連の結果が出たところで続ける。ここで初心者ガイドに引き継ぐ
+  tutorialWrapUp: {
+    steps: [
+      { title: '仲間が増えた!', body: 'おめでとう!同じ子がもう一度出たときは、代わりに<b>ソウル</b>がもらえるよ。'
+          + `ソウルを集めると<b>星刻</b>ができて★が上がるんだ。引くたびに<b>召喚ポイント</b>も1つ溜まって、${SPARK_POINTS}個でピックアップの子と交換できるよ。` },
+      // 結果のモーダルがナビを覆っているので、先に閉じてもらう(引かなかった人は「次へ」に落ちる)
+      { body: '確認できたら「閉じる」を押してね。', spot: '#close-result', await: 'tap' },
+      { body: 'ここから先は自分の力で進んでいこう!次に何をすればいいかは、ホームの<b>はじめてガイド</b>が順番に教えてくれるよ。',
+        spot: '.nav-btn[data-nav="home"]', await: 'tap' },
+      { body: 'これだよ。次にやることがここに出るんだ。<b>「行く」を押すとその画面まで連れて行って、使いかたも説明する</b>からね。'
+          + '説明は画面の右上の「?」から、あとで何度でも読み返せるよ。',
+        spot: '.beginner-card', dim: true },
+    ],
+  },
+  /* ---- はじめてガイドのショートカットから開く、機能ごとの説明 ---- */
+  dungeon: {
+    steps: [
+      { title: '育成クエスト', body: 'ここは<b>育てるための場所</b>だよ。メインクエストと違って、ほしいものを狙って集められるんだ。' },
+      { body: `<b>EXPの泉</b>はEXPポット、<b>黄金の洞窟</b>はゴールド、<b>霊素の鉱脈</b>は霊素鉱と霊素核、<b>ルーン採掘</b>はルーンが手に入るよ。`
+          + 'どれもスタミナを使うから、いま足りないものから回るのがおすすめ。' },
+      { body: '上の段ほどたくさんもらえるけど、敵も強くなるよ。段はメインクエストを進めると開くんだ。' },
+    ],
+  },
+  pvp: {
+    steps: [
+      { title: 'PVP', body: 'ほかのプレイヤーの<b>防衛編成</b>と戦う場所だよ。戦闘はいつもどおりオートで進むんだ。' },
+      { body: 'まずは<b>攻撃編成</b>と<b>防衛編成</b>を組んでね。防衛編成は、自分がいないあいだに挑まれたときに戦ってくれる編成だよ。' },
+      { body: '勝つとPVPポイントがもらえて、ショップで交換に使えるよ。挑戦できる回数は時間で回復するんだ。' },
+    ],
+  },
+  friends: {
+    steps: [
+      { title: 'フレンド', body: 'IDで探して申請すると、フレンドになれるよ。お互いに毎日ギフトを贈り合えるんだ。' },
+      { body: 'フレンドのモンスターは<b>お助けモンスター</b>として借りられるよ。「借りる」を押して編成に入れると、その1回の探索だけいっしょに戦ってくれるんだ。' },
+      { body: '自分より強い子を借りれば、まだ勝てないステージも越えられるよ。困ったときほど頼ってね。' },
+    ],
+  },
+  shop: {
+    steps: [
+      { title: 'ショップ', body: 'ゴールド・星結晶・PVPポイント・イベントのメダルで、それぞれ買えるものが違うよ。タブで切り替えてね。' },
+      { body: '<b>スタミナ回復</b>は1日1回タダで受け取れるよ。使わないと損だから、毎日もらっておこう。' },
+      { body: 'ゴールドのタブには<b>ワザ素材BOX</b>があるよ。ワザのレベル上げで素材が足りなくなったら、ここで買えるんだ。' },
+    ],
+  },
+  base: {
+    steps: [
+      { title: '拠点', body: 'ここは<b>置いておくだけで増える</b>場所だよ。ときどき見に来て受け取ってね。' },
+      { body: '<b>鉱山</b>はゴールド、<b>研究所</b>はEXPポット、<b>霊素工房</b>は霊素鉱と霊素核を作るよ。レベルを上げると、1時間あたりの量が増えるんだ。' },
+      { body: '<b>錬金術</b>は下のTierの素材5個を、上のTier1個に作り変えられるよ。余った素材の使い道に困ったらここだね。' },
     ],
   },
   abyss: {
@@ -23600,6 +23706,8 @@ function renderGuideToastStep(){
     if(st.step < st.steps.length - 1){ st.step++; return renderGuideToastStep(); }
     return finishGuideToast();
   }
+  // このステップが出たときに1度だけ走る処理(「この先はガチャの演出を待つ」などの目印を立てる)
+  if(s.onShow && st.shown !== st.step){ st.shown = st.step; s.onShow(); }
   const spot = s.spot || s.highlight || null;
   const awaitTap = !!(s.spot && s.await === 'tap');
   const canSkip = guideOwner === 'tutorial';
@@ -23955,6 +24063,76 @@ function tutorialNextStage(){
   return TUT_STAGES.find(id => !(STATE.clearedStages || []).includes(id)) || null;
 }
 function tutorialRunning(){ return guideOwner === 'tutorial'; }
+/* ---- はじめてガイドの「行く」: その機能の画面まで連れて行って、初めてならそこで説明を出す ---- */
+const BEGINNER_GO_LABEL = { tutorial:'入門へ', screen:'開く', monster:'モンスターを選ぶ', stage:'ステージへ', dungeon:'育成クエストへ', overlay:'開く' };
+function beginnerGoLabel(e){
+  if(!e || !e.go) return '開く';
+  if(e.go.type === 'screen') return `${SCREEN_LABEL[e.go.screen] || '画面'}へ`;
+  return BEGINNER_GO_LABEL[e.go.type] || '開く';
+}
+function beginnerGo(id){
+  const m = BEGINNER_MISSIONS.find(x => x.id === id);
+  if(!m || !m.go) return;
+  const g = m.go;
+  closeModal();
+  stageSheet = null;
+  if(overlayView) closeOverlay();
+  if(g.type === 'tutorial'){ stageTab = 'main'; questTier = 'tu'; goto('battle'); }
+  else if(g.type === 'dungeon'){ stageTab = 'dungeon'; dungeonTab = g.kind || 'exp'; goto('battle'); }
+  else if(g.type === 'stage'){
+    const st = STAGE_BY_ID[g.id], qt = st && QUEST_TIERS.find(q => q.key === st.tier);
+    stageTab = 'main'; questTier = qt ? qt.key : 'q1'; hardMode = false;
+    goto('battle');
+    if(st && stageUnlocked(st)){ stageSheet = st.id; renderStageSheet(); }
+  }
+  else if(g.type === 'monster'){
+    // 育てる相手を選んでもらう。詳細を開いた時に monsterDetail の説明が出る
+    goto('party');
+    toast('下の一覧からモンスターを選んで「詳細」を押してね');
+  }
+  else if(g.type === 'overlay'){ goto('home', { nav: true }); openOverlay(g.view); }
+  else goto(g.screen, { nav: true });
+  // 着いたところで、その機能の説明を1度だけ出す(2回目からは画面の「?」から)
+  if(m.guide && GUIDE_REPLAY[m.guide] && GUIDE_CONTENT[m.guide]) openFeatureGuide(m.guide);
+}
+/* 機能ごとの説明。初めて開いたときだけ自動で出して、既読にする。
+   チュートリアル中は(かぶせないために)出さない */
+function openFeatureGuide(key, opts){
+  if(!GUIDE_CONTENT[key] || guideOwner === 'tutorial') return false;
+  if(!STATE.guidesSeen) STATE.guidesSeen = {};
+  if(!(opts && opts.force) && STATE.guidesSeen[key]) return false;
+  STATE.guidesSeen[key] = true;
+  saveState();
+  setTimeout(() => replayGuide(key), 180);   // 画面が描き変わってから出す
+  return true;
+}
+/* チュートリアルのしめくくり。「10連」を押させたあとは演出が入るので、
+   結果が出てから続きを出す(tutorialGachaPending が目印) */
+let tutorialGachaPending = false;
+let afterAnnounceClose = null;    // お知らせのモーダルを閉じたあとに続けてやること
+function openTutorialDone(){
+  guideOwner = 'tutorial';
+  wireGuideTapAdvance();
+  clearGuideToast(true);
+  tutorialGachaPending = false;
+  openGuideToast(TUTORIAL_MASCOT, GUIDE_CONTENT.tutorialDone.steps, {
+    key: 'tutorial', dismissible: false, doneLabel: '引いてみる',
+    onDone: () => {
+      clearGuideHighlight();
+      if(tutorialGachaPending) return;   // 演出が終わってから openTutorialWrapUp が呼ばれる
+      openTutorialWrapUp();
+    },
+  });
+}
+function openTutorialWrapUp(){
+  guideOwner = 'tutorial';
+  wireGuideTapAdvance();
+  clearGuideToast(true);
+  openGuideToast(TUTORIAL_MASCOT, GUIDE_CONTENT.tutorialWrapUp.steps, {
+    key: 'tutorial', dismissible: false, doneLabel: '冒険に出る',
+    onDone: () => { guideOwner = null; clearGuideHighlight(); showAnnouncements(); },
+  });
+}
 function openTutorialSteps(steps, doneLabel, thenPre){
   if(!steps || !steps.length) return false;
   guideOwner = 'tutorial';

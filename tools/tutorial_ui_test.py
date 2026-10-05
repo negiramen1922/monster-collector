@@ -363,14 +363,76 @@ async def main():
             check('召喚ポイントの必要数が定数どおり', f"{facts['spark']}個貯まったら" in facts['gacha'])
             check('クリア報酬の石が実際の値と合う', f"{facts['clearCrystal']:,}個" in facts['done'],
                   facts['clearCrystal'])
-            check('10連が何回引けるかも合う',
-                  f"10連が{facts['clearCrystal'] // facts['pull10']}回" in facts['done'], facts['done'][-50:])
+            check('10連の値段も定数どおり', f"{facts['pull10']:,}個で10体" in facts['done'], facts['done'][:120])
             check('0-1の報酬の説明が実際と合う(ゴールドとEXPポットと石)',
                   'EXPポット' in facts['tu1post'] and 'ゴールド' in facts['tu1post']
                   and 'ソウル' not in facts['tu1post'] and 'ワザ' not in facts['tu1post'],
                   [facts['tu1gold'], facts['tu1pots'], facts['tu1reward']])
             check('奥義ボタンの文言が画面と合う', facts['ultBtn'])
             check('中身が空のガイドが無い', facts['empty'] == [], facts['empty'])
+
+            # ---- 14. しめくくりでガチャを引かせる ----
+            print('\n--- 14. ガチャへの引き継ぎ ---')
+            done = await pg.evaluate("""() => GUIDE_CONTENT.tutorialDone.steps.map(s => [s.spot || null, s.await || null])""")
+            wrap = await pg.evaluate("""() => GUIDE_CONTENT.tutorialWrapUp.steps.map(s => [s.spot || null, s.await || null])""")
+            check('ガチャ画面へ連れて行く', ['.nav-btn[data-nav="gacha"]', 'tap'] in done, done)
+            check('10連を自分で押させる', ['#pull10', 'tap'] in done, done)
+            check('石が足りないときは飛ばす',
+                  await pg.evaluate("""() => { const c = STATE.crystals; STATE.crystals = 0;
+                      const n = GUIDE_CONTENT.tutorialDone.steps.filter(s => s.skipIf && s.skipIf()).length;
+                      STATE.crystals = c; return n; }""") == 2)
+            check('結果を閉じてから次へ進ませる(モーダルがナビを覆うので)',
+                  ['#close-result', 'tap'] in wrap, wrap)
+            check('最後ははじめてガイドに引き継ぐ',
+                  ['.nav-btn[data-nav="home"]', 'tap'] in wrap and ['.beginner-card', None] in wrap, wrap)
+
+            # ---- 15. はじめてガイドのショートカット ----
+            print('\n--- 15. はじめてガイドのショートカット ---')
+            info = await pg.evaluate("""() => {
+                const withGo = BEGINNER_MISSIONS.filter(m => m.go);
+                return { total: BEGINNER_MISSIONS.length, withGo: withGo.length,
+                  noGo: BEGINNER_MISSIONS.filter(m => !m.go).map(m => m.id),
+                  badGuide: withGo.filter(m => m.guide && !(GUIDE_CONTENT[m.guide] && GUIDE_REPLAY[m.guide])).map(m => m.id),
+                  types: [...new Set(withGo.map(m => m.go.type))].sort(),
+                  badStage: withGo.filter(m => m.go.type === 'stage' && !STAGE_BY_ID[m.go.id]).map(m => m.id),
+                  badScreen: withGo.filter(m => m.go.type === 'screen' && !SCREEN_LABEL[m.go.screen]).map(m => m.id),
+                  monsterNoGuide: withGo.filter(m => m.go.type === 'monster').every(m => !m.guide),
+                }; }""")
+            check('ログイン以外ぜんぶに行き先がある', info['withGo'] == info['total'] - 1 and info['noGo'] == ['b20'],
+                  [info['withGo'], info['total'], info['noGo']])
+            check('説明のキーがぜんぶ実在する', info['badGuide'] == [], info['badGuide'])
+            check('ステージの行き先が実在する', info['badStage'] == [], info['badStage'])
+            check('画面の行き先が実在する', info['badScreen'] == [], info['badScreen'])
+            check('モンスター詳細は一覧の上で説明を出さない(詳細側が出すので)', info['monsterNoGuide'])
+
+            feats = ['dungeon', 'pvp', 'friends', 'shop', 'base']
+            check('機能ごとの説明を5つ足した',
+                  await pg.evaluate("""(ks) => ks.every(k => GUIDE_CONTENT[k] && GUIDE_CONTENT[k].steps.length
+                      && GUIDE_REPLAY[k])""", feats))
+            # 各画面に「?」が出るか
+            helps = {}
+            for scr, key in [('gacha', 'tut_gacha'), ('party', 'tut_form'), ('pvp', 'pvp'),
+                             ('shop', 'shop'), ('base', 'base')]:
+                await pg.evaluate("""(s) => { STATE.clearedStages = ['tu1','tu2','tu3','tu4','tu5'];
+                    guideOwner = null; clearGuideToast(true); closeModal(); goto(s, { nav: true }); }""", scr)
+                await pg.wait_for_timeout(400)
+                helps[scr] = await pg.locator(f'[data-guide-help="{key}"]').count() == 1
+            await pg.evaluate("""() => { stageTab = 'dungeon'; dungeonTab = 'exp'; goto('battle', { nav: true }); }""")
+            await pg.wait_for_timeout(400)
+            helps['育成クエスト'] = await pg.locator('[data-guide-help="dungeon"]').count() == 1
+            await pg.evaluate("""() => { goto('home', { nav: true }); openOverlay('friends'); }""")
+            await pg.wait_for_timeout(500)
+            helps['フレンド'] = await pg.locator('[data-guide-help="friends"]').count() == 1
+            await pg.evaluate("() => closeOverlay()")
+            check('各機能の画面に「?」が出る', all(helps.values()), helps)
+            check('同じ説明は2回目から自動で出ない',
+                  await pg.evaluate("""() => { STATE.guidesSeen = { shop: true };
+                      guideOwner = null; clearGuideToast(true);
+                      const again = openFeatureGuide('shop');
+                      STATE.guidesSeen = {};
+                      const first = openFeatureGuide('shop');
+                      clearGuideToast(true);
+                      return again === false && first === true; }"""))
 
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
