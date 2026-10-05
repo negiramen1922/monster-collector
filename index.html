@@ -23395,6 +23395,8 @@ function speciesIconsSample(){
 }
 // ルーンの説明に使う見本(実物と同じ絵で見せる)
 function runeGuideSample(tier, rarity, main){ return runeIconHtml({ tier, rarity, main, subs: [], lock: false }, { used: false }); }
+// チュートリアルを終えたときにもらえる石。案内の文もここから作る
+const TUTORIAL_CLEAR_CRYSTALS = (STAGE_BY_ID[TUTORIAL_LAST_STAGE] || {}).firstClear || 0;
 const GUIDE_CONTENT = {
   // ---- チュートリアルの見返し。入門の画面と右上の「?」から、何度でも読める ----
   tut_flow: {
@@ -23444,10 +23446,13 @@ const GUIDE_CONTENT = {
   },
   tut_gacha: {
     steps: [
-      { title: 'ガチャと星刻', body: 'ガチャは1回135個、10連なら1,350個の星結晶で引けるよ。同じ子が重なると<b>ソウル</b>がもらえるんだ。' },
+      // 値段は定数から出す(経済の調整でここだけ古い数字が残らないように)
+      { title: 'ガチャと星刻', body: `ガチャは1回${PULL_COST}個、10連なら${PULL10_COST.toLocaleString()}個の星結晶で引けるよ。`
+          + `10連のほうが1回あたり${Math.round(PULL10_COST / 10)}個でお得なんだ。同じ子が重なると<b>ソウル</b>がもらえるよ。` },
       { body: 'ソウルを集めると<b>星刻</b>ができて、★が上がるよ。★が上がるとレベルの上限が伸びて、もっと強くなれるんだ。' },
       { body: 'ソウルはガチャだけじゃなくて、ステージのボスを倒しても手に入るよ。欲しい子が出るステージを周回するのも手だね。' },
-      { body: 'ガチャを引くたびに<b>召喚ポイント</b>も溜まるよ。貯まったらピックアップの子と交換できるんだ(召喚ポイントショップ)。' },
+      { body: `ガチャを1回引くと<b>召喚ポイント</b>が1つ溜まるよ。${SPARK_POINTS}個貯まったら、ピックアップの子と交換できるんだ(召喚ポイントショップ)。`
+          + `ポイントは次のピックアップにも持ち越せるから、引いたぶんは無駄にならないよ。` },
     ],
   },
   runeMine: {
@@ -23482,9 +23487,10 @@ const GUIDE_CONTENT = {
     ],
   },
   tutorialDone: {
+    // 石の数と10連の回数はステージとガチャの値段から出す(調整しても文だけ古くならないように)
     steps: [
-      { title: 'おつかれさま!', body: `チュートリアルはここまで!これからの冒険の足しに、${CRYSTAL_ICON}3,000個を受け取ってね。` },
-      { body: `${CRYSTAL_ICON}3,000個あれば10連が2回引けるよ。新しい仲間を迎えに行こう!`,
+      { title: 'おつかれさま!', body: `チュートリアルはここまで!これからの冒険の足しに、${CRYSTAL_ICON}${TUTORIAL_CLEAR_CRYSTALS.toLocaleString()}個を受け取ってね。` },
+      { body: `${CRYSTAL_ICON}${TUTORIAL_CLEAR_CRYSTALS.toLocaleString()}個あれば10連が${Math.floor(TUTORIAL_CLEAR_CRYSTALS / PULL10_COST)}回引けるよ。新しい仲間を迎えに行こう!`,
         spot: '.nav-btn[data-nav="gacha"]', dim: true },
       { body: 'ここから先は自分の力で進んでいこう!困ったら右上の「?」でいつでも見返せるよ。' },
     ],
@@ -23764,7 +23770,8 @@ const TUT_FLOW = {
       { body: 'それじゃあ、見ててね!', doneLabel: '戦いを見る' },
     ],
     post: [
-      { title: 'クリア!', body: 'ウェーブの敵を全部倒せばクリア。ゴールドやワザの強化素材、仲間にできるモンスターのソウルがもらえるよ。' },
+      { title: 'クリア!', body: 'ウェーブの敵を全部倒せばクリア。ゴールドと、レベル上げに使う<b>EXPポット</b>がもらえるよ。'
+          + 'はじめてのクリアでは、ガチャに使う<b>石</b>も入るんだ。' },
       { body: '次のステージに行こう!', spot: '[data-start-stage="tu2"]', await: 'tap' },
     ],
   },

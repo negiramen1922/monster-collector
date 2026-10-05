@@ -334,6 +334,44 @@ async def main():
                   await pg.evaluate("""() => ['tu4','tu5'].every(id =>
                       !(STAGE_BY_ID[id].pool || []).some(m => m === 'm03' || m === 'm10'))"""))
 
+            # ---- 13. 案内の文が今のゲームと合っているか ----
+            print('\n--- 13. 文と中身が合っているか ---')
+            facts = await pg.evaluate("""() => {
+                const all = Object.entries(GUIDE_CONTENT).concat(
+                  Object.entries(TUT_FLOW).flatMap(([k, f]) =>
+                    ['pre','battle','onSpFull','post'].filter(w => f[w]).map(w => [k+'.'+w, { steps: f[w] }])));
+                const text = k => (GUIDE_CONTENT[k] ? GUIDE_CONTENT[k].steps : [])
+                  .map(s => (s.title || '') + (s.body || '')).join(' ');
+                const flow = k => (TUT_FLOW[k.split('.')[0]][k.split('.')[1]] || [])
+                  .map(s => (s.title || '') + (s.body || '')).join(' ');
+                const tu = STAGE_BY_ID[TUTORIAL_LAST_STAGE];
+                return {
+                  gacha: text('tut_gacha'),
+                  done: text('tutorialDone'),
+                  tu1post: flow('tu1.post'),
+                  pull: PULL_COST, pull10: PULL10_COST, spark: SPARK_POINTS,
+                  clearCrystal: tu.firstClear,
+                  tu1reward: (STAGE_BY_ID.tu1.reward || []).map(r => r.type + ':' + (r.key || r.id || '')),
+                  tu1gold: STAGE_BY_ID.tu1.gold, tu1pots: Object.keys(STAGE_BY_ID.tu1.pots || {}),
+                  waveHeal: /HPが少し回復/.test(text('tut_wave')),
+                  ultBtn: text('tut_ult').includes('奥義: 手動 / オート'),
+                  empty: all.filter(([k, v]) => !v.steps || !v.steps.length).map(([k]) => k),
+                }; }""")
+            check('ガチャの値段が定数どおり', f"1回{facts['pull']}個" in facts['gacha']
+                  and f"{facts['pull10']:,}個" in facts['gacha'], facts['gacha'][:60])
+            check('10連の1回あたりも書いてある', f"{facts['pull10'] // 10}個でお得" in facts['gacha'])
+            check('召喚ポイントの必要数が定数どおり', f"{facts['spark']}個貯まったら" in facts['gacha'])
+            check('クリア報酬の石が実際の値と合う', f"{facts['clearCrystal']:,}個" in facts['done'],
+                  facts['clearCrystal'])
+            check('10連が何回引けるかも合う',
+                  f"10連が{facts['clearCrystal'] // facts['pull10']}回" in facts['done'], facts['done'][-50:])
+            check('0-1の報酬の説明が実際と合う(ゴールドとEXPポットと石)',
+                  'EXPポット' in facts['tu1post'] and 'ゴールド' in facts['tu1post']
+                  and 'ソウル' not in facts['tu1post'] and 'ワザ' not in facts['tu1post'],
+                  [facts['tu1gold'], facts['tu1pots'], facts['tu1reward']])
+            check('奥義ボタンの文言が画面と合う', facts['ultBtn'])
+            check('中身が空のガイドが無い', facts['empty'] == [], facts['empty'])
+
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')
