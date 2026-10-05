@@ -23781,7 +23781,7 @@ const TUT_FLOW = {
     // 止めずに押させる。止めるとタップしても発動を指示できないため。
     // 押すと発動が決まって、そのまま戦闘が続く
     onSpFull: [
-      { title: '光った!', body: '光っているモンスターをタップして奥義発動!その子の番が来たら放たれるよ。',
+      { title: '光った!', body: 'SPが溜まったよ!光っているモンスターをタップして奥義発動!その子の番が来たら放たれるんだ。',
         spot: '.unit.ready', await: 'tap' },
       { body: 'ここを押すと「オート」に切り替えられるよ。オートなら、溜まった子が自分の番に勝手に奥義を撃ってくれるんだ。',
         spot: '#auto-ult-btn', dim: true, doneLabel: '戦いを見る' },
@@ -23827,18 +23827,25 @@ const TUT_FLOW = {
     ],
   },
 };
-/* SPが溜まったときの案内。戦闘は止めない(止めるとタップしても発動を指示できないため)。
-   光っている子を押したら発動が決まって、そのまま戦闘が続く */
+/* SPが溜まったときの案内。押すまで戦闘を止めて待つ。
+   「⏸ 一時停止中」のパネルはモンスターを覆ってしまうので出さない(b.tutorialPause)。
+   暗転の穴は光っている子に開いているので、止まっていてもタップはそのまま届く */
 function startTutorialSpFull(b){
   if(!STATE || STATE.tutorialSkipped) return false;
   const f = TUT_FLOW[b.stage.id];
   if(!f || !f.onSpFull) return false;
+  b.paused = true;
+  b.tutorialPause = true;
+  render();
   guideOwner = 'tutorial';
   wireGuideTapAdvance();
   clearGuideToast(true);
   openGuideToast(TUTORIAL_MASCOT, f.onSpFull, {
-    key: 'tutorial', dismissible: false, doneLabel: '閉じる',
-    onDone: () => clearGuideHighlight(),
+    key: 'tutorial', dismissible: false, doneLabel: '戦いを見る',
+    onDone: () => {
+      clearGuideHighlight();
+      if(battleUI === b && !b.finished){ b.paused = false; b.tutorialPause = false; render(); scheduleNextTick(300); }
+    },
   });
   return true;
 }
