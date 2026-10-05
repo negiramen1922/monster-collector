@@ -2292,6 +2292,18 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   50%{ box-shadow:0 0 0 2px var(--gold), 0 0 24px 6px rgba(232,180,85,.7); }
 }
 .guide-wait{ font-size:11px; font-weight:800; color:var(--gold); align-self:center; }
+/* 見直しの一覧(入門の画面) */
+.tut-replay .set-item{ width:100%; background:none; border:0; font-family:inherit; text-align:left; }
+.tut-replay .set-k small{ display:block; font-weight:600; color:var(--dim); font-size:10px; margin-top:1px; }
+.tut-replay .tr-ic{ display:inline-block; width:20px; }
+/* 陣形の見本 */
+.gv-form{ display:flex; flex-direction:column; gap:5px; }
+.gv-frow{ display:flex; align-items:center; gap:5px; }
+.gv-frow b{ font-size:10px; color:var(--dim); width:28px; }
+.gv-u{ width:30px; height:30px; border-radius:7px; display:grid; place-items:center; font-size:13px;
+  background:var(--panel2); border:1.5px solid var(--line); }
+.gv-u.front{ border-color:var(--gold); }
+.gv-u.back{ border-color:#5a63a8; }
 /* チュートリアル試験場のパネル(?lab=tutorial のときだけ body に足す) */
 #tutlab{
   position:fixed; right:8px; top:8px; z-index:9999; width:208px;
@@ -15662,6 +15674,8 @@ function renderBattleSelect(){
     </div>
     ${list2.map(st => renderStageRow(st)).join('')}` : ''}
 
+    ${questTier === 'tu' ? tutorialReplayListHtml() : ''}
+
     ${DEBUG_TOOLS ? `<div class="debug-row"><button class="btn btn-ghost btn-sm" data-debug="stamina">テスト用:スタミナ全回復</button><button class="btn btn-ghost btn-sm" data-debug="daily">テスト用:日付リセット</button><button class="btn btn-ghost btn-sm" data-debug="rich">テスト用:素材とゴールド</button><button class="btn btn-ghost btn-sm" data-debug="vip">テスト用:VIP ${STATE.vip ? 'ON' : 'OFF'}</button></div>` : ''}
   `;
 
@@ -20405,6 +20419,7 @@ function handlePhoneClick(ev){
   if(t.closest('[data-open-account]')){ acctView = 'main'; renderAccountModal(); playSfx('open'); return; }
   if(t.closest('[data-open-delete-data]')){ acctView = 'delete-data'; renderAccountModal(); playSfx('open'); return; }
   if(t.closest('[data-view-tutorial]')){ stageTab = 'main'; questTier = 'tu'; goto('battle'); return; }
+  if(t.closest('[data-resume-tutorial]')){ resumeTutorial(); return; }
   const ovEl = t.closest('[data-overlay]');
   if(ovEl){ openOverlay(ovEl.dataset.overlay); playSfx('open'); return; }
   if(t.closest('[data-overlay-close]')){ closeOverlay(); return; }
@@ -22119,6 +22134,9 @@ function renderSettingsOverlay(){
           <div class="set-item"><div class="set-k wide">言語</div><div class="set-val">日本語</div></div>
           <div class="set-item" data-view-tutorial="1"><div class="set-k wide">チュートリアルを見る</div>
             <div class="set-val"></div><div class="set-go">›</div></div>
+          ${tutorialCleared() ? '' : `
+            <div class="set-item" data-resume-tutorial="1"><div class="set-k wide">チュートリアルを再開</div>
+              <div class="set-val">${STATE.tutorialSkipped ? 'スキップ中' : `次は ${(STAGE_BY_ID[tutorialNextStage()] || {}).name || '-'}`}</div><div class="set-go">›</div></div>`}
           <a class="set-item" href="${COMMUNITY.discord}" target="_blank" rel="noopener noreferrer"><div class="set-k wide">Discord</div>
             <div class="set-val">バグ報告・要望</div><div class="set-go">›</div></a>
           <a class="set-item" href="${COMMUNITY.x}" target="_blank" rel="noopener noreferrer"><div class="set-k wide">X(開発アカウント)</div>
@@ -23376,6 +23394,12 @@ function openNewNewsOnEntry(){
 /* ---- mascot guides: multi-step tips pinned above the nav bar, can spotlight a screen element ---- */
 // 右上の「?」から、機能ごとのチュートリアルを何度でも見返せる
 const GUIDE_REPLAY = {
+  tut_flow:    { mascot: 'hinoko' },
+  tut_wave:    { mascot: 'hinoko' },
+  tut_ult:     { mascot: 'hinoko' },
+  tut_form:    { mascot: 'hinoko' },
+  tut_element: { mascot: 'hinoko' },
+  tut_gacha:   { mascot: 'hinoko' },
   monsterDetail: { mascot: 'hanoko' },
   relics: { mascot: 'pixie' },
   abyss: { mascot: 'anubis', doneLabel: 'いざ深淵へ' },
@@ -23390,9 +23414,72 @@ function replayGuide(key){
   clearGuideToast(true);
   openGuideToast(g.mascot, GUIDE_CONTENT[key].steps, { key, doneLabel: g.doneLabel });
 }
+// 陣形の説明に使う見本
+function formationGuideSample(){
+  // 絵文字はフォントによって化けるので、ゲーム内のロールアイコンをそのまま使う
+  const u = (role, row) => `<span class="gv-u ${row}" title="${ROLE_LABEL[role]}">${ROLE_ICON[role]}</span>`;
+  return `<div class="gv-form">
+    <div class="gv-frow"><b>前衛</b>${u('tank', 'front')}${u('attacker', 'front')}${u('attacker', 'front')}</div>
+    <div class="gv-frow"><b>後衛</b>${u('shooter', 'back')}${u('support', 'back')}</div>
+  </div>`;
+}
+// 属性相性の見本(相性表と同じ見た目)
+function elementGuideSample(){
+  const chip = e => `<span class="af-el" style="border-color:${ELEM_COLOR[e]};">${ELEM_ICON[e]}${ELEM_LABEL[e]}</span>`;
+  const cyc = c => `<div class="af-cycle">${c.map((e, i) => `${chip(e)}<span class="af-arrow">${i < c.length - 1 ? '→' : '↩'}</span>`).join('')}</div>`;
+  return cyc(['fire', 'grass', 'water']) + cyc(['earth', 'thunder', 'wind'])
+    + `<div class="af-pair">${chip('light')}<span class="af-arrow">⇄</span>${chip('dark')}</div>`;
+}
 // ルーンの説明に使う見本(実物と同じ絵で見せる)
 function runeGuideSample(tier, rarity, main){ return runeIconHtml({ tier, rarity, main, subs: [], lock: false }, { used: false }); }
 const GUIDE_CONTENT = {
+  // ---- チュートリアルの見返し。入門の画面と右上の「?」から、何度でも読める ----
+  tut_flow: {
+    steps: [
+      { title: '戦闘の流れ', body: '戦闘はオートで進むよ。こっちから指示しなくても、みんな勝手に動いてくれるんだ。' },
+      { body: '動く順番は<b>すばやさ(SPD)</b>で決まるよ。画面の上の帯に、次に動く順番が出ているんだ。' },
+      { body: '全員が1回ずつ動くと1ラウンド。ウェーブの敵を全部倒せばクリアだよ。' },
+    ],
+  },
+  tut_wave: {
+    steps: [
+      { title: 'ウェーブ', body: 'ステージはいくつかの<b>ウェーブ</b>に分かれているよ。まとまった敵を順番にやっつけていくんだ。' },
+      { body: 'いま何ウェーブ目かは、画面の上の「WAVE 1/3」で分かるよ。' },
+      { body: 'ウェーブを突破するたびに、みんなのHPが少し回復するんだ。' },
+    ],
+  },
+  tut_ult: {
+    steps: [
+      { title: 'SPと奥義', body: 'みんなの絵の下にある細い金色のバーが<b>SP</b>。動いたり攻撃を受けたりすると、少しずつ溜まっていくよ。' },
+      { body: 'いっぱいになるとバーが明るく光って、その子も光るんだ。光っている子をタップすると<b>奥義発動</b>!その子の番が来たら放たれるよ。' },
+      { body: '画面の下の「奥義: 手動 / オート」で切り替えられるよ。オートなら、溜まった子が自分の番に勝手に撃ってくれるんだ。' },
+      { body: '奥義はSPが溜まるたびに何度でも撃てるよ。強い敵ほど、使いどころが大事になるんだ。' },
+    ],
+  },
+  tut_form: {
+    steps: [
+      { title: '陣形', visual: () => formationGuideSample(),
+        body: 'パーティは<b>前衛</b>と<b>後衛</b>に分かれるよ。前衛が残っていれば、後衛は敵の攻撃から守られるんだ。' },
+      { body: '前衛が全部倒れると後衛がねらわれるよ。前を守れる子(タンクやアタッカー)を置くのが大事なんだ。' },
+      { body: '逆に、シューターやサポーターを前衛に置くと力を出しきれないよ。陣形は「育成 → 編成」からいつでも変えられるんだ。' },
+    ],
+  },
+  tut_element: {
+    steps: [
+      { title: '属性と種族', visual: () => elementGuideSample(),
+        body: `属性には相性があるよ。矢印の向きに攻めると<b>ダメージ×${ELEM_UP}</b>、逆だと×${ELEM_DOWN}になるんだ。` },
+      { body: '光と闇はおたがいに有利だよ。相性は右上の「🔰 属性相性表」でいつでも見られるんだ。' },
+      { body: '同じ属性や同じ種族でそろえると、ボーナスも付くよ。編成を考える楽しみだね。' },
+    ],
+  },
+  tut_gacha: {
+    steps: [
+      { title: 'ガチャと星刻', body: 'ガチャは1回135個、10連なら1,350個の星結晶で引けるよ。同じ子が重なると<b>ソウル</b>がもらえるんだ。' },
+      { body: 'ソウルを集めると<b>星刻</b>ができて、★が上がるよ。★が上がるとレベルの上限が伸びて、もっと強くなれるんだ。' },
+      { body: 'ソウルはガチャだけじゃなくて、ステージのボスを倒しても手に入るよ。欲しい子が出るステージを周回するのも手だね。' },
+      { body: 'ガチャを引くたびに<b>召喚ポイント</b>も溜まるよ。貯まったらピックアップの子と交換できるんだ(召喚ポイントショップ)。' },
+    ],
+  },
   runeMine: {
     steps: [
       { title: 'ルーン採掘へようこそ', visual: () => `<div class="gv-row">${runeGuideSample(1, 0, 'atk')}${runeGuideSample(3, 2, 'hp')}${runeGuideSample(5, 4, 'critDmg')}</div>`,
@@ -23782,6 +23869,29 @@ function openWelcomeThenTutorial(){
   const steps = GUIDE_CONTENT.welcome.steps.filter(s => !s.installOnly || canInstall());
   openGuideToast('ketsy', steps, { key: 'welcome', doneLabel: 'はじめる', onDone: () => startTutorialPre() });
 }
+/* 入門の画面に出す「もう一度見る」。項目ごとにいつでも読み返せる。
+   遺物とルーンはすでにガイドがあるので、書き直さずにここから呼ぶ */
+const TUTORIAL_REPLAY_TOPICS = [
+  { key: 'tut_flow',    icon: '🗡', label: '戦闘の流れ',   sub: 'オートで進む・SPDの順' },
+  { key: 'tut_wave',    icon: '🌊', label: 'ウェーブ',     sub: '進みかた・HPの回復' },
+  { key: 'tut_ult',     icon: '✨', label: 'SPと奥義',     sub: '溜めかた・奥義発動・オート' },
+  { key: 'tut_form',    icon: '🏰', label: '陣形',         sub: '前衛と後衛・編成' },
+  { key: 'tut_element', icon: '🔰', label: '属性と種族',   sub: '相性・そろえるボーナス' },
+  { key: 'tut_gacha',   icon: '🎰', label: 'ガチャと星刻', sub: '10連・ソウル・★を上げる' },
+  { key: 'relics',      icon: '🔮', label: '遺物',         sub: '装備・レベルアップ' },
+  { key: 'runeMine',    icon: '⛏️', label: 'ルーン',       sub: '採掘・合成' },
+];
+function tutorialReplayListHtml(){
+  return `
+    <div class="mc-head" style="margin:18px 0 8px;">もう一度見る</div>
+    <div class="panel tut-replay">
+      ${TUTORIAL_REPLAY_TOPICS.map(t => `
+        <button class="set-item" data-guide-help="${t.key}">
+          <div class="set-k wide"><span class="tr-ic">${t.icon}</span>${t.label}<small>${t.sub}</small></div>
+          <div class="set-go">›</div>
+        </button>`).join('')}
+    </div>`;
+}
 function tutorialNextStage(){
   if(!STATE || STATE.tutorialSkipped) return null;
   return TUT_STAGES.find(id => !(STATE.clearedStages || []).includes(id)) || null;
@@ -23799,12 +23909,24 @@ function openTutorialSteps(steps, doneLabel){
   });
   return true;
 }
+/* pre を持たないステージ(0-2・0-3・0-5は「次のステージへ」で直接入る)でも、
+   途中から再開したときは出撃までを案内できるように、その場で組み立てる */
+function defaultTutorialPre(id){
+  const st = STAGE_BY_ID[id];
+  const name = st ? st.name : id;
+  return [
+    { title: 'つづきから', body: `「${name}」から続けよう。まずは探索を開いてね。`,
+      spot: '.nav-btn[data-nav="battle"]', await: 'tap' },
+    { body: '「入門」だよ。', spot: '[data-quest-tier="tu"]', await: 'tap' },
+    { body: `「${name}」。`, spot: `[data-stage-open="${id}"]`, await: 'tap' },
+    { body: '出撃!', spot: `.ss-go[data-stage="${id}"]`, await: 'tap' },
+  ];
+}
 // 出撃までの案内。ゲームに入ったときと、1本クリアした次に呼ぶ
 function startTutorialPre(){
   const id = tutorialNextStage();
-  const f = id && TUT_FLOW[id];
-  if(!f || !f.pre) return false;
-  return openTutorialSteps(f.pre, 'はじめる');
+  if(!id || !TUT_FLOW[id]) return false;
+  return openTutorialSteps(TUT_FLOW[id].pre || defaultTutorialPre(id), 'はじめる');
 }
 // リザルト画面での案内
 function startTutorialPost(stageId){
