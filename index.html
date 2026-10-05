@@ -2295,7 +2295,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* 見直しの一覧(入門の画面) */
 .tut-replay .set-item{ width:100%; background:none; border:0; font-family:inherit; text-align:left; }
 .tut-replay .set-k small{ display:block; font-weight:600; color:var(--dim); font-size:10px; margin-top:1px; }
-.tut-replay .tr-ic{ display:inline-block; width:20px; }
+.tut-replay .tr-ic{ display:inline-flex; align-items:center; justify-content:center; width:22px; margin-right:4px; vertical-align:-4px; }
+.tut-replay .tr-ic img, .tut-replay .tr-ic svg, .tut-replay .tr-ic .item-ic{ width:18px; height:18px; }
+.tut-replay .tr-ic .rune-ic{ width:20px; height:20px; }
 /* 陣形の見本 */
 .gv-form{ display:flex; flex-direction:column; gap:5px; }
 .gv-frow{ display:flex; align-items:center; gap:5px; }
@@ -23871,15 +23873,16 @@ function openWelcomeThenTutorial(){
 }
 /* 入門の画面に出す「もう一度見る」。項目ごとにいつでも読み返せる。
    遺物とルーンはすでにガイドがあるので、書き直さずにここから呼ぶ */
+// 絵文字はフォントで化けるので、ゲーム内のドットアイコンとアイテムの絵を使う
 const TUTORIAL_REPLAY_TOPICS = [
-  { key: 'tut_flow',    icon: '🗡', label: '戦闘の流れ',   sub: 'オートで進む・SPDの順' },
-  { key: 'tut_wave',    icon: '🌊', label: 'ウェーブ',     sub: '進みかた・HPの回復' },
-  { key: 'tut_ult',     icon: '✨', label: 'SPと奥義',     sub: '溜めかた・奥義発動・オート' },
-  { key: 'tut_form',    icon: '🏰', label: '陣形',         sub: '前衛と後衛・編成' },
-  { key: 'tut_element', icon: '🔰', label: '属性と種族',   sub: '相性・そろえるボーナス' },
-  { key: 'tut_gacha',   icon: '🎰', label: 'ガチャと星刻', sub: '10連・ソウル・★を上げる' },
-  { key: 'relics',      icon: '🔮', label: '遺物',         sub: '装備・レベルアップ' },
-  { key: 'runeMine',    icon: '⛏️', label: 'ルーン',       sub: '採掘・合成' },
+  { key: 'tut_flow',    icon: () => ROLE_ICON.attacker,          label: '戦闘の流れ',   sub: 'オートで進む・SPDの順' },
+  { key: 'tut_wave',    icon: () => ELEM_ICON.water,             label: 'ウェーブ',     sub: '進みかた・HPの回復' },
+  { key: 'tut_ult',     icon: () => ELEM_ICON.thunder,           label: 'SPと奥義',     sub: '溜めかた・奥義発動・オート' },
+  { key: 'tut_form',    icon: () => ROLE_ICON.tank,              label: '陣形',         sub: '前衛と後衛・編成' },
+  { key: 'tut_element', icon: () => ELEM_ICON.fire,              label: '属性と種族',   sub: '相性・そろえるボーナス' },
+  { key: 'tut_gacha',   icon: () => ITEM_ICON.ticket_char,       label: 'ガチャと星刻', sub: '10連・ソウル・★を上げる' },
+  { key: 'relics',      icon: () => ITEM_ICON.resonance,         label: '遺物',         sub: '装備・レベルアップ' },
+  { key: 'runeMine',    icon: () => runeGuideSample(5, 2, 'atk'), label: 'ルーン',      sub: '採掘・合成' },
 ];
 function tutorialReplayListHtml(){
   return `
@@ -23887,7 +23890,7 @@ function tutorialReplayListHtml(){
     <div class="panel tut-replay">
       ${TUTORIAL_REPLAY_TOPICS.map(t => `
         <button class="set-item" data-guide-help="${t.key}">
-          <div class="set-k wide"><span class="tr-ic">${t.icon}</span>${t.label}<small>${t.sub}</small></div>
+          <div class="set-k wide"><span class="tr-ic">${t.icon()}</span>${t.label}<small>${t.sub}</small></div>
           <div class="set-go">›</div>
         </button>`).join('')}
     </div>`;
