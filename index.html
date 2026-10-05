@@ -5492,6 +5492,8 @@ function normalizeState(){
   /* チュートリアルを3本から5本に増やしたときの移行。旧tu3(最後の1本)を終えていた人は
      終えた扱いにする。そうしないと tu4・tu5 が未クリアになって、育成クエストや
      探索のタブが再びロックされてしまう */
+  // 4倍速をやめたので、設定していた人は3倍に戻す
+  if(STATE.battleSpeed > 3) STATE.battleSpeed = 3;
   if(Array.isArray(STATE.clearedStages) && STATE.clearedStages.includes('tu3')
      && !STATE.clearedStages.includes('tu5')){
     ['tu4', 'tu5'].forEach(id => { if(!STATE.clearedStages.includes(id)) STATE.clearedStages.push(id); });
@@ -15675,7 +15677,7 @@ const MAX_ROUNDS = 30;
 const ACTION_DELAY_MS = 950;
 const HIT_DELAY_MS = 300;
 const CUTIN_HOLD_MS = 1000;
-const SPEED_OPTIONS = [1, 2, 3, 4];
+const SPEED_OPTIONS = [1, 2, 3];
 const SPEED_3X_VIP_ONLY = false;
 
 // ---- SP ----
