@@ -18923,8 +18923,10 @@ function gainSp(unit, amount, source){
     const b = battleUI;
     if(b && !b.ultHinted && TUT_FLOW[b.stage.id] && TUT_FLOW[b.stage.id].onSpFull){
       b.ultHinted = true;
-      // 止めない。止めるとタップしても発動を指示できないので、光った子を押させてそのまま続ける
-      setTimeout(() => { if(battleUI === b && !b.finished) startTutorialSpFull(b); }, 0);
+      /* ここは行動の決着の途中(攻撃を受けてSPが溜まった瞬間)なので、すぐ案内を出すと
+         その行動の演出(ダメージの数字・攻撃の表示)が暗転の裏で流れたままになる。
+         目印だけ立てて、次の行動に移る手前(盤面が止まっているところ)で出す */
+      b.spGuidePending = true;
     }
   }
 }
@@ -19482,6 +19484,14 @@ function upcomingOrder(b, limit){
 function runNextAction(){
   const b = battleUI;
   if(!b || b.finished || b.transitioning || b.paused) return;
+  // SPが溜まったときの案内は、前の行動の演出が流れ切ったここで出す(出すと戦闘は止まる)。
+  // 直前の行動の表示(「○○の攻撃」やダメージの数字)は先に片付ける。残すと暗転の裏で
+  // 出たままになって、戦闘が動いているように見えてしまう
+  if(b.spGuidePending){
+    b.spGuidePending = false;
+    b.fxEvents = []; b.fxActor = null; b.fxCutIn = null;
+    if(startTutorialSpFull(b)) return;
+  }
 
   b.actionCount += 1;
   b.fxEvents = [];
@@ -20340,7 +20350,9 @@ function renderBattleFight(){
   // the running commentary in the middle of the field: the latest attack or skill
   const telopLine = [...b.log].reverse().find(l => /^@@(hit|skill|ult|ko|burn|debuff|heal)@@/.test(l));
   const telopRaw = (telopLine || '').replace(/^@@[a-z]+@@/, '').split('!')[0];
-  const telop = b.finished || !telopRaw ? '' : (telopRaw.length > 30 ? `${telopRaw.slice(0, 29)}…` : telopRaw);
+  // チュートリアルの説明で止めているあいだは、直前の行動の見出しも消す。
+  // 残っていると、暗転の裏で戦闘が続いているように見える
+  const telop = b.finished || b.tutorialPause || !telopRaw ? '' : (telopRaw.length > 30 ? `${telopRaw.slice(0, 29)}…` : telopRaw);
 
   // turn order: units still to act this round, then the next round
   const order = upcomingOrder(b, 9);

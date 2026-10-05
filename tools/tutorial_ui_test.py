@@ -321,6 +321,14 @@ async def main():
                       return i >= 0 && !!close && close.await === 'tap'
                         && /close-inspect/.test(close.spot || '')
                         && !!bye && !bye.spot && bye === b[b.length - 1]; }"""))
+            check('奥義のあとの説明の裏で戦闘が動かない',
+                  await pg.evaluate("""() => {
+                      // SPが溜まった案内は、行動の決着の途中ではなく次の行動の手前で出す
+                      const src = runNextAction.toString();
+                      return /spGuidePending/.test(src) && /fxEvents\s*=\s*\[\]/.test(src)
+                        && /startTutorialSpFull/.test(src); }"""))
+            check('止めているあいだは直前の行動の見出しも消す',
+                  await pg.evaluate("""() => /tutorialPause/.test(renderBattleFight.toString())"""))
             check('見直しのガイドにも向き不向きが載る',
                   await pg.evaluate("""() => GUIDE_CONTENT.tut_form.steps.some(s => /前衛向き/.test(s.body || ''))"""))
 
