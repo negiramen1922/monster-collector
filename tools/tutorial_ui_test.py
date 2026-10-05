@@ -174,13 +174,20 @@ async def main():
 
             # ---- 7. 対象が見つからないときは真っ暗にしない ----
             print('\n--- 7. 閉じ込めない ---')
-            await pg.evaluate("""() => { guideOwner = 'tutorial';
+            # 前の節の案内が残っていると同じkeyで弾かれるので、いったん畳んでから開く
+            await pg.evaluate("""() => { guideOwner = null; clearGuideToast(true); guideOwner = 'tutorial';
                 openGuideToast(TUTORIAL_MASCOT, [{ body: 'ないものを指す', spot: '.this-does-not-exist', await: 'tap' }],
                   { key: 'tutorial', dismissible: false }); }""")
             await pg.wait_for_timeout(400)
             check('見つからない相手を指しても、穴のない真っ暗にはしない', await panes() == 0)
             check('代わりに「次へ」で進める', await pg.locator('[data-guide-next]').count() == 1)
             check('スキップはいつでも出ている', await pg.locator('[data-guide-skip]').count() == 1)
+            await pg.evaluate("""() => { guideOwner = null; clearGuideToast(true); guideOwner = 'tutorial';
+                openGuideToast(TUTORIAL_MASCOT, [{ body: '説明だけのステップ' }], { key: 'tutorial', dismissible: false }); }""")
+            await pg.wait_for_timeout(400)
+            check('説明だけのステップでも暗転する(読んでいるあいだに別の画面へ行けない)', await panes() == 1, await panes())
+            check('そのときも「次へ」は押せる(帯は暗転より上)', await pg.locator('[data-guide-next]').count() == 1)
+            await pg.evaluate("() => { guideOwner = null; clearGuideToast(true); }")
 
             # ---- 8. スキップと再開 ----
             print('\n--- 8. スキップと再開 ---')

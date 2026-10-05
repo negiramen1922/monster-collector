@@ -23541,6 +23541,12 @@ function setGuideMask(selector){
 function drawGuideMask(){
   const el = document.getElementById('guide-mask'), host = document.getElementById('phone');
   if(!el) return;
+  // true = 穴を開けずに全面を暗くする(説明だけのステップ。「次へ」は帯の中なので押せる)
+  if(guideMaskSel === true){
+    el.innerHTML = '<div class="gm-pane" style="inset:0;"></div>';
+    el.classList.add('show');
+    return;
+  }
   const target = guideMaskSel ? document.querySelector(guideMaskSel) : null;
   const r = target && target.getBoundingClientRect();
   if(!host || !r || r.width <= 0 || r.height <= 0){ el.classList.remove('show'); el.innerHTML = ''; return; }
@@ -23625,9 +23631,13 @@ function renderGuideToastStep(){
       ${st.dismissible ? '<button class="guide-close" data-guide-close="1">×</button>' : ''}
     </div>`;
   el.classList.add('show');
-  const masking = !!((awaitTap || s.dim) && spotFound);
+  /* チュートリアル中は、説明だけのステップでも暗転する(でないと読んでいるあいだに
+     別の画面へ行けてしまう)。「次へ」は帯の中にあって暗転より上なので押せる。
+     ただし spot を指したのに見つからないときは暗転しない(穴のない真っ暗で閉じ込めない) */
+  const masking = spot ? !!((awaitTap || s.dim) && spotFound)
+    : guideOwner === 'tutorial';
   if(spot && spotFound) applyGuideHighlight(spot, { glow: !masking });
-  setGuideMask(masking ? spot : null);
+  setGuideMask(masking ? (spot || true) : null);   // spotが無いときは true = 穴なしの全面
   if(spot && spotFound){
     // 帯の下に入っていたら逃がして、穴を引き直す(描いたあとでないと位置が測れない)
     const el = document.querySelector(spot);
@@ -23932,7 +23942,7 @@ function tutorialNextStage(){
   return TUT_STAGES.find(id => !(STATE.clearedStages || []).includes(id)) || null;
 }
 function tutorialRunning(){ return guideOwner === 'tutorial'; }
-function openTutorialSteps(steps, doneLabel){
+function openTutorialSteps(steps, doneLabel, thenPre){
   if(!steps || !steps.length) return false;
   guideOwner = 'tutorial';
   wireGuideTapAdvance();
@@ -23940,7 +23950,17 @@ function openTutorialSteps(steps, doneLabel){
   openGuideToast(TUTORIAL_MASCOT, steps, {
     key: 'tutorial', dismissible: false, doneLabel: doneLabel || '閉じる',
     // 出撃しただけでは手放さない。入門が残っているあいだ持ち続けて、ほかのガイドを入れない
-    onDone: () => { if(!tutorialNextStage()) guideOwner = null; clearGuideHighlight(); },
+    onDone: () => {
+      if(!tutorialNextStage()) guideOwner = null;
+      clearGuideHighlight();
+      /* リザルトの案内のあとは、次の1本の案内にそのまま繋ぐ。
+         繋がないと、0-3の「戻る」のあと案内が止まって、編成を直さないまま
+         0-4へ行けてしまう(3体のままで挑むことになる) */
+      if(thenPre) setTimeout(() => {
+        const id = tutorialNextStage();
+        if(id && TUT_FLOW[id] && TUT_FLOW[id].pre) startTutorialPre();
+      }, 0);
+    },
   });
   return true;
 }
@@ -23968,7 +23988,7 @@ function startTutorialPost(stageId){
   if(!STATE || STATE.tutorialSkipped) return false;
   const f = TUT_FLOW[stageId];
   if(!f || !f.post) return false;
-  return openTutorialSteps(f.post, '閉じる');
+  return openTutorialSteps(f.post, '閉じる', true);
 }
 /* スキップの確認。#modal-layer は z-index 50 で暗転(54)より下なので、
    確認のあいだは暗転を一旦畳む(つづけるを押したら引き直す) */
