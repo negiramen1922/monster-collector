@@ -67,8 +67,9 @@ ok('仲間になる確率は層が進むほど上がる', ev.tiers.every((t, i) 
 });
 ok('7層では完凸しない(8・10層に残りの凸がある)', ['8', '10'].every(n => (E.STAGE_BY_ID[`${ev.key}_${n}`].bossReward || []).some(r => r.type === 'relic')));
 ok('9層は強化素材(スクラップ・コアTierIII)を配る', (E.STAGE_BY_ID[`${ev.key}_9`].bossReward || []).some(r => r.key === 'relic_core_3'));
-ok('敵のスキルLvは10→11→12と上がる',
-  JSON.stringify([8, 9, 10].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill)) === '[10,11,12]',
+// α0.5: スキルLvの上限が10になったので、敵も10で止まる
+ok('敵のスキルLvは8層から10(上限)',
+  JSON.stringify([8, 9, 10].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill)) === '[10,10,10]',
   [8, 9, 10].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill));
 ok('7層までの敵スキルLvは従来どおり(3〜9)',
   JSON.stringify([1, 7].map(n => E.STAGE_BY_ID[`${ev.key}_${n}`].enemySkill)) === '[3,9]',
