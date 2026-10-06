@@ -1247,9 +1247,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .stars i{ font-style:normal; }
 .stars i.gold{ color:var(--gold); text-shadow:0 0 6px rgba(255,200,61,.55); }
 /* キャラ詳細の★: 大きく出して、★5個ぶんの間を空けた右に星刻の＋を置く */
-.detail-sub.big-stars{ display:flex; align-items:center; gap:4px; margin-bottom:1px; }
-.detail-sub.big-stars .stars{ font-size:20px; line-height:1.1; letter-spacing:.04em; }
-.star-gap{ display:inline-block; width:5.6em; font-size:20px; flex:none; }
+.detail-sub.big-stars{ display:flex; align-items:center; gap:6px; margin-bottom:1px; }
+/* ★の欄は常に5個ぶんの幅を取る(★は最大5個までしか並ばない)。
+   こうしないと★が増えるたびに＋が右へ動いて、画面の端まで押し出される */
+.detail-sub.big-stars .stars{ font-size:20px; line-height:1.1; letter-spacing:.04em;
+  display:inline-block; min-width:5.4em; flex:none; }
 .star-plus{
   flex:none; width:26px; height:26px; border-radius:50%; cursor:pointer; padding:0;
   border:1px solid var(--gold); background:var(--panel); color:var(--gold);
@@ -14926,7 +14928,7 @@ function showMonsterDetail(id){
         <img src="${imgSrc(m.id)}" alt="${m.name}">
         <div class="dh-body">
           <div class="detail-sub big-stars">
-            ${starsHtml(m.rarity, owned.star)}<span class="star-gap" aria-hidden="true"></span>
+            ${starsHtml(m.rarity, owned.star)}
             <button class="star-plus ${need === null ? 'maxed' : canPromote ? 'ready' : ''}" data-open-promote="${id}"
               aria-label="星刻" title="星刻">＋</button>
           </div>

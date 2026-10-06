@@ -96,9 +96,24 @@ async def main():
             # ---- 5. ★の＋から星刻 ----
             print('\n--- 5. 星刻 ---')
             check('★の右に＋がある', await pg.locator('.detail-head .star-plus').count() == 1)
-            check('★5個ぶんの間が空いている', await pg.evaluate("""() => {
-                const g = document.querySelector('.star-gap');
-                return !!g && g.getBoundingClientRect().width > 60; }"""))
+            check('★の欄は常に★5個ぶんの幅', await pg.evaluate("""() => {
+                const e = document.querySelector('.detail-head .stars');
+                return e.getBoundingClientRect().width >= 95; }"""))
+            # ★が増えても画面が狭くても、＋の位置は動かずカードの中に収まる
+            place = await pg.evaluate("""() => {
+                const out = [];
+                [1, 3, 5, 7, 10].forEach(st => {
+                  STATE.owned.m06.star = st; STATE.owned.m06.souls = 99999;
+                  showMonsterDetail('m06');
+                  const row = document.querySelector('.big-stars').getBoundingClientRect();
+                  const p = document.querySelector('.star-plus').getBoundingClientRect();
+                  out.push([Math.round(p.left), Math.round(p.right - row.right)]);
+                });
+                STATE.owned.m06.star = 4; showMonsterDetail('m06');
+                return out; }""")
+            check('★が増えても＋の位置が動かない',
+                  len({x[0] for x in place}) == 1, place)
+            check('＋がカードからはみ出さない', all(x[1] <= 0 for x in place), place)
             check('ソウルが足りていると＋が光る', await pg.locator('.star-plus.ready').count() == 1)
             await pg.locator('.star-plus').click(); await pg.wait_for_timeout(500)
             check('星刻のモーダルが開く', await pg.locator('.promote-modal').count() == 1)
