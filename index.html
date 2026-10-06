@@ -146,7 +146,7 @@ body{
   justify-content:center; font-size:14px; flex:none; overflow:hidden; }
 .tb-avatar img{ width:100%; height:100%; object-fit:contain; image-rendering:pixelated; }
 .tb-name{ font-size:11px; font-weight:800; line-height:1.35; text-align:left; white-space:nowrap; overflow:hidden;
-  text-overflow:ellipsis; max-width:84px; }
+  text-overflow:ellipsis; max-width:96px; }
 .tb-name small{ display:block; font-size:9px; color:var(--dim); font-weight:700; }
 .tb-gap{ flex:1; }
 .tb-pill{ display:flex; align-items:baseline; gap:2px; background:var(--panel2); border:1px solid rgba(232,180,85,.18);
@@ -158,6 +158,19 @@ body{
   .tb-pill{ padding:5px 6px; gap:1px; }
   .tb-btn{ width:30px; }
   .tb-profile{ gap:5px; padding-right:8px; }
+}
+/* 名前の欄はスタミナ・ゴールド・星結晶の3つのピルの残りなので、幅が狭くなるほど潰れる。
+   詰めないと「テイマーTW5K」のような既定の名前でも390pxで切れ、320pxでは4pxまで潰れて消える */
+@media (max-width:400px){
+  #statusbar{ gap:3px; }
+  .tb-pill{ padding:5px 5px; }
+}
+@media (max-width:380px){
+  #statusbar{ padding-left:6px; padding-right:6px; }
+  .tb-pill{ font-size:10px; }
+  .tb-btn{ width:28px; }
+  .tb-avatar{ width:24px; height:24px; }
+  .tb-profile{ gap:4px; padding-left:3px; padding-right:6px; }
 }
 .tb-btn{ position:relative; width:32px; height:32px; border-radius:10px; background:var(--panel2);
   border:1px solid rgba(232,180,85,.2); display:flex; align-items:center; justify-content:center; font-size:15px;
@@ -1681,14 +1694,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .fs-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-size:12.5px; }
 .fs-all{ font-size:10.5px; color:var(--dim); }
 .fs-clear{ font-family:inherit; font-size:10.5px; color:var(--gold); background:none; border:none; cursor:pointer; padding:2px 4px; }
-.fs-chips{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:6px; }
+/* 等幅の格子にすると「トリックスター」のような長いラベルが「トリ…」まで削られて何の絞り込みか
+   分からなくなるので、中身の幅に合わせて折り返す(余った幅は同じ行のチップで分け合う) */
+.fs-chips{ display:flex; flex-wrap:wrap; gap:6px; }
 .fs-chip{
-  display:flex; align-items:center; gap:4px; min-width:0; cursor:pointer;
+  display:flex; align-items:center; gap:4px; min-width:0; flex:1 1 auto; cursor:pointer;
   font-family:inherit; font-size:11.5px; font-weight:700; color:var(--text);
   background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:7px 8px;
 }
 .fs-chip img.ico{ width:1.5em !important; height:1.5em !important; }
-.fs-chip span{ flex:1; min-width:0; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fs-chip span{ flex:0 1 auto; min-width:0; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fs-chip small{ font-size:10px; color:var(--dim); }
 .fs-chip.on{ background:rgba(232,180,85,.16); border-color:var(--gold); box-shadow:inset 0 0 0 1px var(--gold); }
 .fs-chip.on small{ color:var(--gold); }
