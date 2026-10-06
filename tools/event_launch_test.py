@@ -24,7 +24,7 @@ async def main():
             # 9/29 に前倒しして両イベントを開催中にする
             r = await pg.evaluate("""() => {
               ['ev_fenrir','ev_abaddon'].forEach(k => { EVENTS.find(e => e.key===k).startAt = '2026-09-01T00:00:00+09:00'; });
-              ['tu1','tu2','tu3'].forEach(id => STATE.clearedStages.push(id));
+              ['tu1','tu2','tu3','tu4','tu5'].forEach(id => STATE.clearedStages.push(id));   // 入門は0-5まで
               return activeEvents().map(e => e.key);
             }""")
             check('開催中は4つ(既存2＋新2)', len(r) == 4 and 'ev_fenrir' in r and 'ev_abaddon' in r, r)
