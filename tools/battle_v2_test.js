@@ -31,10 +31,10 @@ let u = mk(kyubi);
 check('初期CTは全部0', u.skillCd.every(c => c === 0), u.skillCd);
 
 /* ---- 必要SP ---- */
-check('タンクの必要SPは-30', E.ultSpCostFor('tank', 120) === 90, E.ultSpCostFor('tank', 120));
-check('シューターの必要SPは-20', E.ultSpCostFor('shooter', 120) === 100, E.ultSpCostFor('shooter', 120));
-check('アタッカーは据え置き', E.ultSpCostFor('attacker', 120) === 120);
-check('下限40を割らない', E.ultSpCostFor('tank', 60) === 40, E.ultSpCostFor('tank', 60));
+// α0.5: ロールの差は ult.sp に入れたので、戦闘中には足し引きしない(ult_sp_test.js)
+check('タンクも必要SPはデータのまま', E.ultSpCostFor('tank', 70) === 70, E.ultSpCostFor('tank', 70));
+check('シューターも必要SPはデータのまま', E.ultSpCostFor('shooter', 80) === 80, E.ultSpCostFor('shooter', 80));
+check('下限40を割らない', E.ultSpCostFor('tank', 30) === 40, E.ultSpCostFor('tank', 30));
 
 /* ---- 被弾SPは「平均HP」基準 ---- */
 const tu = mk(titan), ku = mk(kyubi);
