@@ -1,0 +1,208 @@
+<title>チュートリアルアンケート画面</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap">
+<style>
+/* Layout: ゲームのオーバーレイ1枚。質問を上から並べるだけの簡素なフォーム。ゲームが暗い配色だけなので、見本も暗い配色に固定 */
+:root{
+  --bg:#1a1630;        /* 外側。真っ黒をやめて少し明るく */
+  --panel:#241e3c;     /* シート */
+  --block:#2d2649;     /* 質問1つぶんの面。シートより一段明るくして字を浮かせる */
+  --field:#363056;     /* 入力欄 */
+  --line:rgba(232,180,85,.22);
+  --gold:#e3b35f;
+  --text:#ebe4d6;      /* 白を少し落として、ちかちかを抑える */
+  --sub:#c6bcdc;       /* 補足の字。前より明るく */
+  --err:#f29aa7;
+  --font:'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  color-scheme: dark;
+}
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--font); padding-inline:16px; padding-block:20px 40px; }
+.wrap{ max-width:430px; margin:0 auto; display:flex; flex-direction:column; gap:12px; }
+.note{ font-size:12px; color:var(--sub); text-align:center; line-height:1.7; }
+.tabs{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+.tabs button{ font-family:inherit; font-size:12px; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--sub); cursor:pointer; }
+.tabs button[aria-pressed="true"]{ color:var(--text); border-color:var(--gold); }
+
+.sheet{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 14px; }
+h2{ margin:0 0 6px; font-size:16px; color:var(--gold); }
+.lead{ margin:0; font-size:13px; color:var(--sub); line-height:1.75; }
+
+form{ display:flex; flex-direction:column; gap:10px; }
+fieldset, .field{ border:0; margin:0; min-width:0; display:flex; flex-direction:column; gap:10px; background:var(--block); border-radius:12px; padding:14px; }
+.label{ font-size:14px; font-weight:700; line-height:1.6; letter-spacing:.01em; }
+.label small{ font-weight:400; color:var(--sub); font-size:12px; margin-left:4px; }
+.req{ color:var(--err); font-size:11.5px; margin-left:6px; font-weight:700; }
+.err{ box-shadow: inset 0 0 0 1px var(--err); }
+
+.opts{ display:flex; flex-direction:column; gap:10px; }
+.opts.row{ flex-direction:row; flex-wrap:wrap; gap:10px 20px; }
+.opts label{ display:flex; align-items:center; gap:8px; font-size:14px; line-height:1.4; cursor:pointer; }
+input[type=radio], input[type=checkbox]{ accent-color:var(--gold); width:18px; height:18px; margin:0; }
+.ends{ display:flex; justify-content:space-between; font-size:12px; color:var(--sub); }
+
+textarea{ width:100%; min-height:80px; resize:vertical; border-radius:10px; border:1px solid transparent; background:var(--field); color:var(--text); font-family:inherit; font-size:14px; line-height:1.65; padding:10px 12px; }
+textarea::placeholder{ color:var(--sub); opacity:.75; }
+textarea:focus, input:focus-visible, button:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+textarea:disabled{ opacity:.4; }
+.count{ font-size:12px; color:var(--sub); text-align:right; font-variant-numeric:tabular-nums; }
+.count.short{ color:var(--err); }
+
+.btn{ border:none; border-radius:12px; padding:13px 16px; font-family:inherit; font-weight:800; font-size:14px; cursor:pointer; color:#2a2140; background:var(--gold); width:100%; margin-top:6px; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--text); }
+.hint{ font-size:12px; color:var(--sub); text-align:center; margin:0; }
+
+.center{ display:flex; flex-direction:column; gap:12px; text-align:center; }
+.center p{ margin:0; font-size:14px; line-height:1.8; }
+.center p small{ color:var(--sub); font-size:12.5px; }
+</style>
+
+<div class="wrap">
+  <p class="note">見本（ゲームにはまだ入っていません）。入力して送るまで試せます。保存はされません。</p>
+  <div class="tabs" role="group" aria-label="見本の画面">
+    <button type="button" id="tab-form" aria-pressed="true">アンケート</button>
+    <button type="button" id="tab-done" aria-pressed="false">送ったあと</button>
+    <button type="button" id="tab-locked" aria-pressed="false">まだ答えられないとき</button>
+  </div>
+
+  <div class="sheet">
+    <form id="survey" novalidate>
+      <div>
+        <h2>チュートリアルのアンケート</h2>
+        <p class="lead" style="margin-bottom:6px">答えてくれた方に、お礼としてモンスター召喚券10枚をお送りします。1回だけ・10/22(木) 23:59まで。</p>
+      </div>
+
+      <fieldset id="q1">
+        <span class="label">1. チュートリアルは分かりやすかったですか<span class="req">必須</span></span>
+        <div class="opts row">
+          <label><input type="radio" name="q1" id="q1-1" value="1">1</label>
+          <label><input type="radio" name="q1" id="q1-2" value="2">2</label>
+          <label><input type="radio" name="q1" id="q1-3" value="3">3</label>
+          <label><input type="radio" name="q1" id="q1-4" value="4">4</label>
+          <label><input type="radio" name="q1" id="q1-5" value="5">5</label>
+        </div>
+        <div class="ends"><span>1 分かりにくい</span><span>5 分かりやすい</span></div>
+      </fieldset>
+
+      <fieldset id="q2">
+        <span class="label">2. チュートリアルの長さはどうでしたか<span class="req">必須</span></span>
+        <div class="opts row">
+          <label><input type="radio" name="q2" id="q2-short" value="short">短い</label>
+          <label><input type="radio" name="q2" id="q2-good" value="good">ちょうどよい</label>
+          <label><input type="radio" name="q2" id="q2-long" value="long">長い</label>
+        </div>
+      </fieldset>
+
+      <fieldset id="q3">
+        <span class="label">3. 分かりにくかったところ<small>いくつでも</small><span class="req">必須</span></span>
+        <div class="opts">
+          <label><input type="checkbox" name="q3" id="q3-flow" value="flow">戦闘の流れ</label>
+          <label><input type="checkbox" name="q3" id="q3-wave" value="wave">ウェーブ</label>
+          <label><input type="checkbox" name="q3" id="q3-ult" value="ult">奥義</label>
+          <label><input type="checkbox" name="q3" id="q3-form" value="formation">陣形</label>
+          <label><input type="checkbox" name="q3" id="q3-elem" value="element">属性と種族</label>
+          <label><input type="checkbox" name="q3" id="q3-gacha" value="gacha">ガチャと星刻</label>
+          <label><input type="checkbox" name="q3" id="q3-relic" value="relic">遺物とルーン</label>
+          <label><input type="checkbox" name="q3" id="q3-none" value="none">とくになし</label>
+        </div>
+      </fieldset>
+
+      <div class="field" id="q4">
+        <label class="label" for="q4-text">4. 3で選んだところは、どう分かりにくかったですか<span class="req" id="q4-req">必須</span></label>
+        <textarea id="q4-text" maxlength="500" placeholder="20文字以上"></textarea>
+        <div class="count" id="q4-count">0 / 20</div>
+      </div>
+
+      <fieldset id="q5">
+        <span class="label">5. 新しいバトルシステムはどうですか<span class="req">必須</span></span>
+        <div class="opts row">
+          <label><input type="radio" name="q5" id="q5-1" value="1">1</label>
+          <label><input type="radio" name="q5" id="q5-2" value="2">2</label>
+          <label><input type="radio" name="q5" id="q5-3" value="3">3</label>
+          <label><input type="radio" name="q5" id="q5-4" value="4">4</label>
+          <label><input type="radio" name="q5" id="q5-5" value="5">5</label>
+        </div>
+        <div class="ends"><span>1 遊びにくい</span><span>5 遊びやすい</span></div>
+      </fieldset>
+
+      <div class="field" id="q6">
+        <label class="label" for="q6-text">6. いちばん直してほしいこと・足してほしいこと<span class="req">必須</span></label>
+        <textarea id="q6-text" maxlength="500" placeholder="20文字以上。ゲーム全体のことでもかまいません"></textarea>
+        <div class="count" id="q6-count">0 / 20</div>
+      </div>
+
+      <div class="field" id="q7">
+        <label class="label" for="q7-text">7. そのほか、ご自由にどうぞ<small>任意</small></label>
+        <textarea id="q7-text" maxlength="500"></textarea>
+      </div>
+
+      <button class="btn" type="submit" id="send">送る</button>
+      <p class="hint" id="send-hint">必須の質問にすべて答えると送れます</p>
+    </form>
+
+    <div class="center" id="done" hidden>
+      <h2>送信しました</h2>
+      <p>ありがとうございました。<br>モンスター召喚券10枚をプレゼントボックスに送りました。</p>
+      <button class="btn" type="button">プレゼントボックスを開く</button>
+      <button class="btn btn-ghost" type="button" id="done-close">閉じる</button>
+    </div>
+
+    <div class="center" id="locked" hidden>
+      <h2>チュートリアルのアンケート</h2>
+      <p>チュートリアルを最後（0-5）まで遊ぶと答えられます。<br><small>設定の「チュートリアルを最初から遊ぶ」から遊べます。最後まで遊ぶと星結晶360のお礼もあります。</small></p>
+      <button class="btn" type="button">チュートリアルを最初から遊ぶ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const MIN = 20;
+  const $ = id => document.getElementById(id);
+  const form = $('survey');
+  const picked = n => [...form.querySelectorAll('input[name="' + n + '"]:checked')].map(i => i.value);
+  const len = id => $(id).value.trim().length;
+  const needQ4 = () => { const v = picked('q3'); return v.length > 0 && v[0] !== 'none'; };
+
+  function state(){
+    return {
+      q1: picked('q1').length > 0,
+      q2: picked('q2').length > 0,
+      q3: picked('q3').length > 0,
+      q4: !needQ4() || len('q4-text') >= MIN,
+      q5: picked('q5').length > 0,
+      q6: len('q6-text') >= MIN,
+    };
+  }
+  function refresh(){
+    const none = $('q3-none').checked;
+    form.querySelectorAll('input[name="q3"]:not(#q3-none)').forEach(o => { o.disabled = none; if(none) o.checked = false; });
+    const need = needQ4();
+    $('q4-text').disabled = !need;
+    $('q4-req').hidden = !need;
+    [['q4-text','q4-count'],['q6-text','q6-count']].forEach(([t, c]) => {
+      const n = len(t); $(c).textContent = n + ' / ' + MIN; $(c).className = 'count' + (n > 0 && n < MIN ? ' short' : '');
+    });
+    const s = state(), left = Object.values(s).filter(v => !v).length;
+    $('send').disabled = left > 0;
+    $('send-hint').textContent = left ? 'あと' + left + '問答えると送れます' : '送れるのは1回だけです';
+    Object.keys(s).forEach(k => { if(s[k]) $(k).classList.remove('err'); });
+  }
+  form.addEventListener('input', refresh);
+  form.addEventListener('change', refresh);
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const s = state(), bad = Object.keys(s).filter(k => !s[k]);
+    bad.forEach(k => $(k).classList.add('err'));
+    if(bad.length) return;
+    show('done');
+  });
+  function show(w){
+    form.hidden = w !== 'form'; $('done').hidden = w !== 'done'; $('locked').hidden = w !== 'locked';
+    ['form','done','locked'].forEach(k => $('tab-' + k).setAttribute('aria-pressed', k === w));
+  }
+  ['form','done','locked'].forEach(k => $('tab-' + k).addEventListener('click', () => show(k)));
+  $('done-close').addEventListener('click', () => show('form'));
+  refresh();
+})();
+</script>
