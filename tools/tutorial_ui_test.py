@@ -467,6 +467,25 @@ async def main():
                       clearGuideToast(true);
                       return again === false && first === true; }"""))
 
+            # ---- 16. 下書きの目印がプレイヤーに出ていないか ----
+            # 指示を書くときの変数(+NNN)や、書き損じたテンプレート(${...})がそのまま
+            # 画面に出ていたことがあるので、文言の定数をまとめて見張る
+            print('\n--- 16. 下書きの目印が残っていない ---')
+            leaks = await pg.evaluate("""() => {
+                const bad = [];
+                const look = (where, v) => {
+                  if(typeof v === 'string'){
+                    // アイコンは <img src="data:..."> なので中身は見ない
+                    const t = v.replace(/<img[^>]*>/g, '');
+                    if(/\\$\\{|NNN|XXX|\\bTODO\\b|undefined|\\[object /.test(t)) bad.push([where, t.slice(0, 80)]);
+                  } else if(Array.isArray(v)) v.forEach((x, i) => look(where + '[' + i + ']', x));
+                  else if(v && typeof v === 'object') for(const k of Object.keys(v)) look(where + '.' + k, v[k]);
+                };
+                for(const k of Object.keys(GUIDE_CONTENT)) look('GUIDE_CONTENT.' + k, GUIDE_CONTENT[k]);
+                for(const k of Object.keys(TUT_FLOW)) look('TUT_FLOW.' + k, TUT_FLOW[k]);
+                return bad; }""")
+            check('説明の文に下書きの目印(${...}や+NNN)が残っていない', leaks == [], leaks[:3])
+
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')
