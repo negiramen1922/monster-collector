@@ -64,7 +64,8 @@ function measure(stageId, bonus){
 console.log('--- 1. ステージの攻撃属性 ---');
 const magic = magShare('q5_08');
 ok('q5_08(精霊の坩堝)はほぼ魔法攻撃', magic >= 0.9, Math.round(magic * 100) + '%');
-ok('q5_08の名前が入れ替わっている', E.STAGE_BY_ID['q5_08'].name === '精霊の坩堝', E.STAGE_BY_ID['q5_08'].name);
+// ステージ名は「5-8 精霊の坩堝」のように番号が頭に付く
+ok('q5_08の名前が入れ替わっている', /精霊の坩堝$/.test(E.STAGE_BY_ID['q5_08'].name), E.STAGE_BY_ID['q5_08'].name);
 ok('ハード側にも同じ編成が入っている', magShare('q5_08h') >= 0.9, Math.round(magShare('q5_08h') * 100) + '%');
 const phys = magShare('q5_04');
 ok('比較対象の q5_04(骨の玉座)は物理のまま', phys <= 0.1, Math.round(phys * 100) + '%');

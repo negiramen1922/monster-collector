@@ -73,11 +73,15 @@ async def main():
             await pg.evaluate("() => showMonsterDetail('m128')")
             await pg.wait_for_timeout(400)
             order = await pg.evaluate("() => [...document.querySelectorAll('.detail-modal > div')].map(d => d.className)")
-            check('レベルアップが詳細の一番上にある',
-                  order[0].startswith('detail-head') and 'lv-card' in order[1]
-                  and all('lv-card' not in c for c in order[2:]), str(order[:4]))
+            # 育成/装備のタブを挟むようになったので、レベルアップは「中身の一番上」
+            check('レベルアップが中身の一番上にある(タブのすぐ下)',
+                  order[0].startswith('detail-head') and 'detail-tabs' in order[1] and 'lv-card' in order[2]
+                  and all('lv-card' not in c for c in order[3:]), str(order[:4]))
             # HP/STR/物防/魔防/SPD の5つ + 会心率・会心倍率(α0.2.008で追加)の2つ
             check('レベルで変わる数字が色つき', await pg.evaluate("() => document.querySelectorAll('.detail-stats .lv-stat').length") == 7)
+            # ワザは折りたたみが既定。開いてから中身を見る
+            await pg.evaluate("() => document.querySelector('[data-skill-toggle]').click()")
+            await pg.wait_for_timeout(250)
             check('スキル説明の下に強化ボタンがある',
                   await pg.evaluate("() => document.querySelectorAll('.detail-skill-box .skill-upgrade [data-skill-up]').length") == 3)
 
@@ -100,7 +104,19 @@ async def main():
             await pg.mouse.up()
             await pg.wait_for_timeout(400)
             check('長押しで連続レベルアップ', await lv() >= 6, f'Lv{await lv()}')
-            check('壁で止まる', await lv() == 10, f'Lv{await lv()}')
+            # 上限解放の壁(いまは Lv30)。壁の手前まで上げてから長押しして、そこで止まるか見る
+            stop = await pg.evaluate("""() => { const o = STATE.owned.m128;
+                o.level = levelStop({ ...o, level: 1, wall: 0 }) - 2; o.exp = 0;
+                addItem('exp3', 999); showMonsterDetail('m128');
+                return levelStop(o); }""")
+            await pg.wait_for_timeout(400)
+            box = await pg.locator('[data-times="1"]').bounding_box()
+            await pg.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+            await pg.mouse.down()
+            await pg.wait_for_timeout(1500)
+            await pg.mouse.up()
+            await pg.wait_for_timeout(400)
+            check('壁で止まる', await lv() == stop, f'Lv{await lv()} / 壁Lv{stop}')
             await pg.screenshot(path=str(OUT / 'ux_detail.png'))
 
 
@@ -108,13 +124,14 @@ async def main():
             # ---- プロフィール・設定・お知らせ ----
             await pg.evaluate("() => { closeModal(); goto('home'); render(); }")
             await pg.wait_for_timeout(300)
-            check('未読のお知らせがギアに出る',
-                  await pg.evaluate("() => { const d = document.querySelector('[data-overlay=\"settings\"] .tb-dot'); return !!d && Number(d.textContent) > 0; }"))
+            # 設定はトップバーのギアではなく「メニュー」の中に移った。未読の数はメニューのボタンに出る
+            check('未読のお知らせがメニューに出る',
+                  await pg.evaluate("() => { const d = document.querySelector('[data-overlay=\"menu\"] .tb-dot'); return !!d && Number(d.textContent) > 0; }"))
             await pg.click('[data-overlay="profile"]')
             await pg.wait_for_timeout(400)
             check('プロフィールが開く', await pg.evaluate("() => !!document.querySelector('.pf-card')"))
-            check('プレイヤーIDと統計が出る',
-                  'ID' in await pg.inner_text('.pf-id') and await pg.evaluate("() => document.querySelectorAll('.pf-stat').length") == 4)
+            n_stat = await pg.evaluate("() => document.querySelectorAll('.pf-stat').length")
+            check('プレイヤーIDと統計が出る', 'ID' in await pg.inner_text('.pf-id') and n_stat >= 4, n_stat)
             await pg.click('[data-pick="fav0"]')
             await pg.wait_for_timeout(300)
             await pg.click('.mon-cell[data-picked]')

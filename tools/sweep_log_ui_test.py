@@ -28,7 +28,7 @@ async def main():
             await start_as_guest(pg)
             await pg.evaluate("""() => { clearGuideToast(); closeModal && closeModal();
               const ev = EVENTS.find(e => e.key === 'ev_fenrir'); ev.startAt = '2026-09-01T00:00:00+09:00'; ev.endAt = '2099-01-01T00:00:00+09:00';
-              ['tu1','tu2','tu3'].forEach(id => STATE.clearedStages.push(id));
+              ['tu1','tu2','tu3','tu4','tu5'].forEach(id => STATE.clearedStages.push(id));   // 入門は0-5まで
               const st = ev.stages[9]; ev.stages.forEach(s => { STATE.clearedStages.push(s.id); STATE.stageStars[s.id] = 3; });
               ['m68','m01','m02'].forEach((id, i) => { if(MON_BY_ID[id]){ STATE.owned[id] = STATE.owned[id] || newOwned(MON_BY_ID[id]); STATE.slots[i] = id; } });
               STATE.stamina = 5000; STATE.sweepSpeed = 0; goto('battle'); render(); sweepTarget = st.id; renderSweepModal(); }""")

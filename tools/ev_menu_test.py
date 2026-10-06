@@ -30,7 +30,7 @@ async def main():
             r = await pg.evaluate("""() => {
               const ev = EVENTS.find(e => e.key === 'ev_fenrir');
               ev.startAt = '2026-09-01T00:00:00+09:00';
-              ['tu1','tu2','tu3'].forEach(id => STATE.clearedStages.push(id));   // 探索メニューはチュートリアル後に出る
+              ['tu1','tu2','tu3','tu4','tu5'].forEach(id => STATE.clearedStages.push(id));   // 入門は0-5まで(探索メニューはチュートリアル後に出る)
               ev.stages.forEach(s => { STATE.clearedStages.push(s.id); STATE.stageStars[s.id] = 3; });
               [1,2,3].forEach(n => STATE.clearedStages.push(ev.key + '_ex' + n));
               STATE.stageStars[ev.key + '_ex3'] = 3;   // EX3を★3(称号のミッション)

@@ -83,10 +83,17 @@ async def main():
             check('★5のヒビからはBGMを止めて静けさで溜める', await pg.evaluate("() => bgm.duck") == 0)
             await pg.screenshot(path=str(OUT / 'gacha_4_crack.png'))
             await pg.wait_for_timeout(1000)
-            check('2段目: 暗転してシルエット', await ph() == 'silhouette' and await pg.locator('.sil-mon').count() == 1)
+            check('2段目: その子の属性を見せる', await ph() == 'element' and await pg.locator('.ec-label').count() == 1)
+            await pg.screenshot(path=str(OUT / 'gacha_5a_element.png'))
+            await pg.wait_for_timeout(1200)
+            check('3段目: 暗転してシルエット', await ph() == 'silhouette' and await pg.locator('.sil-mon').count() == 1)
             await pg.screenshot(path=str(OUT / 'gacha_5_silhouette.png'))
             await pg.wait_for_timeout(1500)
-            check('3段目: カットイン(★が刻まれ、紙吹雪)', await ph() == 'legend' and await pg.locator('.cut-stars span').count() == 5 and await pg.locator('.confetti i').count() > 20)
+            check('4段目: カットイン(★が刻まれ、紙吹雪)', await ph() == 'legend' and await pg.locator('.cut-stars span').count() == 5 and await pg.locator('.confetti i').count() > 20)
+            check('ピックアップでない★5も虹色のカットイン',
+                  await pg.evaluate("""() => { const e = document.querySelector('.cut-stage.legend');
+                      return !e.classList.contains('pickup')
+                        && /gradient/.test(getComputedStyle(e).backgroundImage); }"""))
             await pg.wait_for_timeout(1500)
             await pg.screenshot(path=str(OUT / 'gacha_6_legend.png'))
             await pg.evaluate("() => document.querySelector('[data-gacha-stage]').click()"); await pg.wait_for_timeout(300)
@@ -154,14 +161,15 @@ async def main():
             await wait_reveal(pg)
             check('ピックアップの★5の卵は(昇格なしなら)金の予兆', 'hint' in await pg.evaluate("() => document.querySelectorAll('.reveal-grid .egg-slot')[0].className"))
             await pg.evaluate("() => { gachaSeq.fake[0] = false; document.querySelector('[data-egg-open=\"0\"]').click(); }")
-            await pg.wait_for_timeout(2600)
-            check('ピックアップ★5は虹色の専用カットインと流れる帯', await pg.evaluate("() => gachaSeq.phase === 'legend' && !!document.querySelector('.cut-stage.legend.pickup .pickup-band')"))
+            await pg.wait_for_timeout(3800)   # 属性の段が1つ増えたぶん長い
+            check('ピックアップ★5には流れる帯が乗る(虹色の演出はどちらも同じ)',
+                  await pg.evaluate("() => gachaSeq.phase === 'legend' && !!document.querySelector('.cut-stage.legend.pickup .pickup-band')"))
             await pg.wait_for_timeout(1400)
             await pg.screenshot(path=str(OUT / 'gacha_9_pickup.png'))
             # 卵の昇格: 紫の予兆の★5
             await pg.evaluate(SETUP); await pg.evaluate("() => { gachaSeq.fake[6] = true; }"); await wait_reveal(pg)
             c6 = await pg.evaluate("() => document.querySelectorAll('.reveal-grid .egg-slot')[6].className")
-            check('昇格する★5の卵は紫の予兆で並ぶ(★4と見分けがつかない)', 'hint4' in c6 and 'hint5' not in c6, c6)
+            check('昇格する★5の卵は1段下(金)の予兆で並ぶ(★4と見分けがつかない)', 'hint4' in c6 and 'hint5' not in c6, c6)
             await pg.evaluate("() => document.querySelector('[data-egg-open=\"6\"]').click()"); await pg.wait_for_timeout(300)
             check('割ると紫→金に昇格するヒビ演出', await pg.locator('.egg-slot.crack5.crack-up').count() == 1)
             await pg.wait_for_timeout(450)

@@ -51,8 +51,12 @@ async def main():
             # ルーン採掘
             await pg.evaluate("() => { stageTab = 'dungeon'; dungeonTab = 'rune'; render(); }"); await pg.wait_for_timeout(250)
             await press_twice('ルーン採掘', 'ノッカー', 'help_rune.png')
+            # 育成クエスト(ルーン以外)
             await pg.evaluate("() => { dungeonTab = 'exp'; render(); }"); await pg.wait_for_timeout(150)
-            check('チュートリアルのない画面(EXPダンジョン)には「?」は出ない', await pg.locator('[data-guide-help]').count() == 0)
+            await press_twice('育成クエスト', 'ヒノコ', 'help_dungeon.png')
+            # 説明を持たない画面には出ない
+            await pg.evaluate("() => { stageTab = 'main'; render(); }"); await pg.wait_for_timeout(150)
+            check('説明のない画面(メインクエスト)には「?」は出ない', await pg.locator('[data-guide-help]').count() == 0)
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')

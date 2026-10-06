@@ -42,7 +42,7 @@ async def main():
             await pg.evaluate("() => { currentScreen = 'dex'; render(); }")
             await pg.wait_for_timeout(400)
             total = await pg.evaluate('() => MONSTERS.length')
-            check('図鑑のモンスターは139体', total == 139, total)
+            check('図鑑のモンスターは140体', total == 140, total)
             await pg.screenshot(path=str(OUT / 'a01_dex.png'))
             # 名前の長いキャラが増えても、図鑑のグリッドが画面の右からはみ出さない(スマホ幅)
             for w in (360, 390):
@@ -54,6 +54,9 @@ async def main():
 
             await pg.evaluate("() => showMonsterDetail('m165')")
             await pg.wait_for_timeout(400)
+            # ワザは既定で折りたたみ。開いてから中身を見る
+            await pg.evaluate("() => document.querySelector('[data-skill-toggle]').click()")
+            await pg.wait_for_timeout(250)
             txt = await pg.locator('body').inner_text()
             check('死神の詳細にスキル名が出る', '刈り取りの一閃' in txt and '死の宣告' in txt)
             await pg.screenshot(path=str(OUT / 'a01_detail_shinigami.png'))
