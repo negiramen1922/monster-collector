@@ -272,16 +272,19 @@ ok('TierIIIも周回で集まる(1周のTierI換算のうち10%以上)',
    st('q7_10h').drops.tiers[2] * V[2] / perRun('q7_10h').all >= 0.10,
    +(st('q7_10h').drops.tiers[2] * V[2] / perRun('q7_10h').all).toFixed(3));
 
-/* TierIV を使わないところ(ワザLv10まで)は詰まらない */
+/* TierIV を使わないところ(ワザLv8まで)は詰まらない。
+   α0.5 でスキルLvの上限を10にし、前の Lv10→11・11→12 の TierIV を Lv8→9・9→10 に寄せた */
 const needNoT4 = [0, 0, 0, 0];
-for(let lv = 1; lv <= 9; lv++) (E.SKILL_MAT_COST[lv] || []).forEach((n, i) => { needNoT4[i] += n * 2 * 4; });
-ok('ワザLv10まで(TierIV不要)は TierIV が1個もいらない', needNoT4[3] === 0, needNoT4);
-const upTo10 = Math.ceil(asT1(needNoT4) / perRun('q5_10h').drop);
-console.log(`   極上級ハードボスなら ワザLv10まで ${upTo10}周 / ${(upTo10 / RUNS_PER_DAY).toFixed(1)}日(TierIVを1個も使わない)`);
-ok('極上級ハードボスで「Lv10まで」が4日以内(素材で詰まらない)', upTo10 / RUNS_PER_DAY <= 4, +(upTo10 / RUNS_PER_DAY).toFixed(1));
-ok('TierIV が要るのは ワザLv10→11 と Lv11→12 だけ',
-   Object.entries(E.SKILL_MAT_COST).every(([lv, c]) => (c[3] > 0) === (Number(lv) >= 10)),
+for(let lv = 1; lv <= 7; lv++) (E.SKILL_MAT_COST[lv] || []).forEach((n, i) => { needNoT4[i] += n * 2 * 4; });
+ok('ワザLv8まで(TierIV不要)は TierIV が1個もいらない', needNoT4[3] === 0, needNoT4);
+const upTo8 = Math.ceil(asT1(needNoT4) / perRun('q5_10h').drop);
+console.log(`   極上級ハードボスなら ワザLv8まで ${upTo8}周 / ${(upTo8 / RUNS_PER_DAY).toFixed(1)}日(TierIVを1個も使わない)`);
+ok('極上級ハードボスで「Lv8まで」が4日以内(素材で詰まらない)', upTo8 / RUNS_PER_DAY <= 4, +(upTo8 / RUNS_PER_DAY).toFixed(1));
+ok('TierIV が要るのは ワザLv8→9 と Lv9→10 だけ',
+   Object.entries(E.SKILL_MAT_COST).every(([lv, c]) => (c[3] > 0) === (Number(lv) >= 8)),
    Object.entries(E.SKILL_MAT_COST).filter(([, c]) => c[3] > 0).map(([lv]) => lv));
+ok('TierIV の合計は前の Lv10→12 と同じ3個(1系統あたり)',
+   Object.values(E.SKILL_MAT_COST).reduce((a, c) => a + c[3], 0) === 3);
 
 console.log(ng ? `\n${ng}件 NG` : '\ndone');
 if(ng) process.exitCode = 1;

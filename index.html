@@ -3885,11 +3885,11 @@ const STAR_TABLE = {
   3: { lvCap: 100, soulsToNext: 100, skillCap: 10 },
   4: { lvCap: 120, soulsToNext: 200, skillCap: 10 },
   5: { lvCap: 150, soulsToNext: 300, skillCap: 10 },
-  6: { lvCap: 170, soulsToNext: 500, skillCap: 11 },
-  7: { lvCap: 200, soulsToNext: 500, skillCap: 12 },
-  8: { lvCap: 230, soulsToNext: 500, skillCap: 12 },
-  9: { lvCap: 260, soulsToNext: 1000, skillCap: 12 },
-  10: { lvCap: 300, soulsToNext: null, skillCap: 12 },
+  6: { lvCap: 170, soulsToNext: 500, skillCap: 10 },
+  7: { lvCap: 200, soulsToNext: 500, skillCap: 10 },
+  8: { lvCap: 230, soulsToNext: 500, skillCap: 10 },
+  9: { lvCap: 260, soulsToNext: 1000, skillCap: 10 },
+  10: { lvCap: 300, soulsToNext: null, skillCap: 10 },
 };
 const MAX_LEVEL = STAR_TABLE[MAX_STAR].lvCap;
 const PROMOTION_STAT_BONUS = 0.10; // +10% base HP/STR/DEF per promotion (SPD unaffected)
@@ -3911,7 +3911,10 @@ const RESONANCE_PER_DUPE = { 1:2, 2:6, 3:60, 4:100, 5:300 };
 const UNIVERSAL_PER_SOUL = 5;                           // 5 universal → 1 soul of an owned monster
 
 function levelCapOf(owned){ return STAR_TABLE[owned.star].lvCap; }
-function skillCapOf(owned){ return STAR_TABLE[owned.star].skillCap; }
+// α0.5: スキル(スキル1・スキル2・奥義)は上限10、パッシブは上限5。★では伸ばさない
+const SKILL_LV_CAP = 10;
+const PASSIVE_LV_CAP = 5;
+function skillCapOf(owned, field){ return field === 'passiveLv' ? PASSIVE_LV_CAP : SKILL_LV_CAP; }
 /* 星刻に必要なソウル。「もとのレアリティ」と「いまの★」で決まる。
    ★10までの合計は ★1:1,500 / ★2:2,000 / ★3:3,000 / ★4:4,000 / ★5:5,000(経済見直し α0.4.000)。
    ★5の段ごとは 500 / 500 / 1,000 / 1,500 / 1,500 で、重複1体(500)・PUの重複1体(1,000)で数えられる。
@@ -5667,6 +5670,7 @@ const DEFAULT_STATE = () => ({
   presentBox: [],          // [{ id, label, reward:[...], receivedAt }] - claimable gifts (stamina overflow, compensation, etc.)
   presentBoxSeq: 0,        // next presentBox entry id
   giftsGranted: {},        // COMPENSATION_GIFTS id → true once delivered to this save's presentBox
+  lvSys: 2,                // スキルLv・パッシブLvの制度の版。2 = α0.5(スキル上限10・パッシブ上限5)。古いセーブは migrateLvSystem で移す
 });
 
 let STATE = null;
@@ -5692,6 +5696,39 @@ async function loadState(){
     localSaveFound = false;
   }
   normalizeState();
+}
+
+/* α0.5 のスキルLv・パッシブLvの見直しで、古いセーブを一度だけ移す(docs/提案資料/パッシブLvの区切り見直し.md)。
+   - スキル1・スキル2・奥義: Lv11・12 は Lv10 にし、Lv10→11・11→12 で使った素材(TierIV)を返す
+   - パッシブ: 1〜2→1、3〜4→2、5〜7→3、8〜9→4、10〜12→5。まとめたぶんの段で使った素材を返す
+   返す素材はプレゼントボックスに届ける */
+const PASSIVE_GROUP_START = { 1: 1, 2: 3, 3: 5, 4: 8, 5: 10 };   // 新しいパッシブLv → まとめた前のLvの最初
+function migrateLvSystem(){
+  const refund = {};
+  const add = (m, field, fromLv, toLv) => {   // 前の表で fromLv→toLv に使ったぶん
+    for(let lv = fromLv; lv < toLv; lv++){
+      const cost = OLD_SKILL_MAT_COST[lv] || [0, 0, 0, 0];
+      SKILL_KINDS[field].fams(m).forEach(([fam, kind]) => cost.forEach((n, i) => {
+        if(n > 0){ const key = matKey(fam, kind, i + 1); refund[key] = (refund[key] || 0) + n; }
+      }));
+    }
+  };
+  Object.entries(STATE.owned || {}).forEach(([id, o]) => {
+    const m = MON_BY_ID[id];
+    if(!m || !o) return;
+    ['skillLv', 'skill2Lv', 'ultLv'].forEach(f => {
+      const lv = o[f] | 0;
+      if(lv > SKILL_LV_CAP){ add(m, f, SKILL_LV_CAP, lv); o[f] = SKILL_LV_CAP; }
+    });
+    const old = Math.max(1, Math.min(12, o.passiveLv | 0 || 1));
+    const nw = passiveFromSkillLv(old);
+    add(m, 'passiveLv', PASSIVE_GROUP_START[nw], old);
+    o.passiveLv = nw;
+  });
+  STATE.lvSys = 2;
+  const reward = Object.entries(refund).map(([key, n]) => ({ type: 'item', key, n }));
+  if(reward.length) addPresentBoxGift('スキルLv・パッシブLvの見直しのお返し', reward);
+  return refund;
 }
 
 // fixups that any save needs, whether it came from this device or the cloud
@@ -5745,6 +5782,7 @@ function normalizeState(){
   if(!STATE.giftsGranted) STATE.giftsGranted = {};
   // α0.5: 旧バトルシステムとお試し(初回スタミナ0＋お礼の星結晶)はなくなった
   delete STATE.battleV2; delete STATE.v2Cleared;
+  if(!(STATE.lvSys >= 2)) migrateLvSystem();
   // skill2Lv is new: seed it from the existing (shared) skillLv so nobody's skill2 gets
   // weaker the moment this ships - they diverge only from here on as the player upgrades.
   Object.values(STATE.owned).forEach(o => { if(o.skill2Lv === undefined) o.skill2Lv = o.skillLv || 1; });
@@ -6154,7 +6192,15 @@ const PROMO_GOLD = { 2: 5000, 3: 15000, 4: 40000, 5: 80000, 6: 150000, 7: 300000
 
 /* ---- skill / ult / passive levels ---- */
 // cost to go from lv to lv+1, per material family: [tierI, tierII, tierIII, tierIV]
+// α0.5: Lv10→11・11→12 をなくし、そのぶんの TierIV を Lv8→9・9→10 に寄せた(合計は前の Lv1→12 と同じ)
 const SKILL_MAT_COST = {
+  1: [3, 0, 0, 0], 2: [5, 0, 0, 0], 3: [6, 1, 0, 0], 4: [8, 2, 0, 0], 5: [10, 3, 0, 0],
+  6: [12, 4, 0, 0], 7: [12, 5, 1, 0], 8: [15, 6, 2, 1], 9: [18, 8, 3, 2],
+};
+// パッシブ(上限5)。前のスキル用の表を2〜3回ぶんずつまとめた(合計は前の Lv1→10 と同じ)
+const PASSIVE_MAT_COST = { 1: [8, 0, 0, 0], 2: [14, 3, 0, 0], 3: [34, 12, 1, 0], 4: [33, 14, 5, 0] };
+// 前の(α0.4までの)表。古いセーブの移し替えで、返す素材を数えるのに使う
+const OLD_SKILL_MAT_COST = {
   1: [3, 0, 0, 0], 2: [5, 0, 0, 0], 3: [6, 1, 0, 0], 4: [8, 2, 0, 0], 5: [10, 3, 0, 0],
   6: [12, 4, 0, 0], 7: [12, 5, 1, 0], 8: [15, 6, 2, 0], 9: [18, 8, 3, 0], 10: [0, 0, 0, 1], 11: [0, 0, 0, 2],
 };
@@ -6166,7 +6212,7 @@ const SKILL_KINDS = {
   passiveLv: { label: 'パッシブLv', fams: m => [['sp', speciesOf(m)], ['ro', m.role]] },
 };
 function skillCostList(m, field, lv){
-  const cost = SKILL_MAT_COST[lv] || [0, 0, 0, 0];
+  const cost = (field === 'passiveLv' ? PASSIVE_MAT_COST : SKILL_MAT_COST)[lv] || [0, 0, 0, 0];
   const out = [];
   SKILL_KINDS[field].fams(m).forEach(([fam, kind]) => {
     cost.forEach((n, i) => { if(n > 0) out.push({ key: matKey(fam, kind, i + 1), n }); });
@@ -6219,7 +6265,7 @@ function skillUpgradePreviewLines(m, field, lv){
   }else if(field === 'ultLv'){
     addPowLine(kit.ult); addEffectLines(kit.ult); addTurnLines(kit.ult);
   }else if(field === 'passiveLv' && passiveScalesWithLevel(kit.passive)){
-    lines.push({ name: `${kit.passive.name}(効果量・Lv1を100%とした場合)`, before: pctBefore(1), after: pctAfter(1) });
+    lines.push({ name: `${kit.passive.name}(効果量・Lv1を100%とした場合)`, before: Math.round(passiveLvScale(lv) * 100), after: Math.round(passiveLvScale(nextLv) * 100) });
   }
   return lines;
 }
@@ -6234,7 +6280,7 @@ function upgradeSkillLevel(id, field, opts){
   const owned = STATE.owned[id];
   const m = MON_BY_ID[id];
   if(!owned || !m) return false;
-  if(owned[field] >= skillCapOf(owned)){ toast(`${SKILL_KINDS[field].label}は上限です`); return false; }
+  if(owned[field] >= skillCapOf(owned, field)){ toast(`${SKILL_KINDS[field].label}は上限です`); return false; }
   const list = skillCostList(m, field, owned[field]);
   const short = list.find(c => getItem(c.key) < c.n);
   if(short){ toast(`${itemName(short.key)}が足りません`); return false; }
@@ -6277,7 +6323,7 @@ function renderSkillUpgradeModal(){
   const m = MON_BY_ID[id];
   if(!owned || !m){ closeSkillUpgradeModal(); return; }
   const lv = owned[field];
-  const cap = skillCapOf(owned);
+  const cap = skillCapOf(owned, field);
   const maxed = lv >= cap;
   const list = maxed ? [] : skillCostList(m, field, lv);
   const allOk = list.every(c => getItem(c.key) >= c.n);
@@ -9678,10 +9724,10 @@ const QUEST_TIERS = [
   { key: 'q4h', label: '超上級ハード', short: `${UI_ICON.skull}超上級`, lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
   { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [6, 1.3, 0.08, 0.045], pots: { exp3: 3 } },
   { key: 'q5h', label: '極上級ハード', short: `${UI_ICON.skull}極上級`, lv: [150, 200], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
-  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6.5, 1.55, 0.10, 0.06], pots: { exp3: 5 } },
-  { key: 'q6h', label: '伝説級ハード', short: `${UI_ICON.skull}伝説級`, lv: [210, 250], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
-  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [7, 1.7, 0.12, 0.075], pots: { exp3: 8 } },
-  { key: 'q7h', label: '神話級ハード', short: `${UI_ICON.skull}神話級`, lv: [260, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
+  { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [6.5, 1.55, 0.10, 0.06], pots: { exp3: 5 } },
+  { key: 'q6h', label: '伝説級ハード', short: `${UI_ICON.skull}伝説級`, lv: [210, 250], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q6' },
+  { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [7, 1.7, 0.12, 0.075], pots: { exp3: 8 } },
+  { key: 'q7h', label: '神話級ハード', short: `${UI_ICON.skull}神話級`, lv: [260, 300], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
 const HARD_TIERS = QUEST_TIERS_ACTIVE.filter(t => t.hard);
@@ -10106,7 +10152,7 @@ function buildEventStages(ev){
     }
     return {
       id: `${ev.key}_${n}`, type: 'event', tier: 'event', eventKey: ev.key, evNo: n, name: `${ev.stageName}・ステージ${n}`,
-      terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(12, 2 + n),
+      terrain: ev.terrain, element: ev.element, rec, stamina: 10 + n, power: 1, enemySkill: Math.min(SKILL_LV_CAP, 2 + n),
       firstClear: 18 * n, boss: true,   // 経済見直し: 10本で990(以前は 60×n = 3,300)
       desc: `期間限定・ステージ${n}(推奨Lv${rec})。「${MON_BY_ID[ev.pickup].name}」が守る${ev.stageName}に挑む。`,
       waves,
@@ -10716,7 +10762,7 @@ function exMobSoulRate(ev, ex, mon){
   return mon.rarity >= 4 ? r.other4 : r.low;
 }
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
-const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":12,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}],"ex_kyubi":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m72:front","m33:front","m129:back","m127:back"],["m72:front","m17:front","m151:back","m129:back"],["m116:back","m170:front","m59:front","m151:back","m127:back"]],"rules":[{"side":"enemy","stat":{"hp":1.2,"str":0.9},"label":"敵 最大HP+120%・STR+90%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"hp":0.5,"str":0.3},"label":"EX2から 敵 最大HP+50%・STR+30%"}],"waves":[["m72:front","m63:front","m151:back","m87:back"],["m67:front","m66:front","m87:back","m141:back"],["m116:back","m170:front","m53:front","m150:back","m145:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":12,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"pdef":40},"label":"EX3から 敵 物理防御+40(物理が通りにくい)"},{"side":"enemy","stat":{"hp":1.0,"str":0.4},"label":"EX3から 敵 最大HP+100%・STR+40%"}],"waves":[["m67:front","m53:front","m145:back","m87:back"],["m72:front","m66:front","m141:back","m151:back"],["m116:back","m170:front","m67:front","m150:back","m141:back"]]}],"ex_titan":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m51:front","m47:front","m134:back","m48:back"],["m13:front","m45:front","m154:back","m134:back"],["m54:front","m144:front","m53:front","m154:back","m48:back"]],"rules":[{"side":"enemy","stat":{"hp":0.9,"str":0.8},"label":"敵 最大HP+90%・STR+80%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","stat":{"hp":0.7,"str":0.6},"label":"EX2から 敵 最大HP+70%・STR+60%"}],"waves":[["m27:front","m123:front","m120:back","m153:back"],["m155:front","m56:front","m20:back","m154:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":12,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","shield":1.0,"label":"EX3から 敵 シールドの効果量+100%"},{"side":"enemy","stat":{"hp":0.6,"str":2.2},"label":"EX3から 敵 最大HP+60%・STR+220%"}],"waves":[["m89:front","m50:front","m20:back","m106:back"],["m52:front","m22:front","m154:back","m120:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]}]};
+const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":10,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":10,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}],"ex_kyubi":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m72:front","m33:front","m129:back","m127:back"],["m72:front","m17:front","m151:back","m129:back"],["m116:back","m170:front","m59:front","m151:back","m127:back"]],"rules":[{"side":"enemy","stat":{"hp":1.2,"str":0.9},"label":"敵 最大HP+120%・STR+90%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"hp":0.5,"str":0.3},"label":"EX2から 敵 最大HP+50%・STR+30%"}],"waves":[["m72:front","m63:front","m151:back","m87:back"],["m67:front","m66:front","m87:back","m141:back"],["m116:back","m170:front","m53:front","m150:back","m145:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":10,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"pdef":40},"label":"EX3から 敵 物理防御+40(物理が通りにくい)"},{"side":"enemy","stat":{"hp":1.0,"str":0.4},"label":"EX3から 敵 最大HP+100%・STR+40%"}],"waves":[["m67:front","m53:front","m145:back","m87:back"],["m72:front","m66:front","m141:back","m151:back"],["m116:back","m170:front","m67:front","m150:back","m141:back"]]}],"ex_titan":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m51:front","m47:front","m134:back","m48:back"],["m13:front","m45:front","m154:back","m134:back"],["m54:front","m144:front","m53:front","m154:back","m48:back"]],"rules":[{"side":"enemy","stat":{"hp":0.9,"str":0.8},"label":"敵 最大HP+90%・STR+80%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","stat":{"hp":0.7,"str":0.6},"label":"EX2から 敵 最大HP+70%・STR+60%"}],"waves":[["m27:front","m123:front","m120:back","m153:back"],["m155:front","m56:front","m20:back","m154:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":10,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","shield":1.0,"label":"EX3から 敵 シールドの効果量+100%"},{"side":"enemy","stat":{"hp":0.6,"str":2.2},"label":"EX3から 敵 最大HP+60%・STR+220%"}],"waves":[["m89:front","m50:front","m20:back","m106:back"],["m52:front","m22:front","m154:back","m120:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]}]};
 const EVENT_EX_RULES = {
   /* EX1〜EX3で共通のルール。EX2・EX3はここに EVENT_EX[].rules が1つずつ足される。
      共通ぶんは全部「味方側」にしてある。EX1はルールの旨みを覚える段で、縛りは上の段から乗る */
@@ -10882,7 +10928,7 @@ function abyssStage(floor, season){
   return {
     id: `ab_${floor}`, type: 'abyss', tier: 'abyss', floor, name: `深淵回廊・${floor}階`,
     terrain: 'abyss', element: theme[0], rec: lv, stamina: 0, power: 1, boss,
-    enemySkill: Math.min(12, 2 + Math.floor(floor / 5)), firstClear: 0, gold: 0,
+    enemySkill: Math.min(SKILL_LV_CAP, 2 + Math.floor(floor / 5)), firstClear: 0, gold: 0,
     desc: `深淵回廊の${floor}階(敵Lv${lv})。${boss ? 'この階のボスを倒すとチェックポイント。' : ''}`,
     waves: [wave],
   };
@@ -14661,7 +14707,6 @@ function starUnlockHtml(m, owned){
     if(n > m.rarity) opens.push(`基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%`);
     opens.push(`レベル上限 ${st.lvCap}`);
     const prev = STAR_TABLE[n - 1];
-    if(prev && st.skillCap > prev.skillCap) opens.push(`スキル系Lv上限 ${st.skillCap}`);
     if(n === SECOND_SKILL_STAR) opens.push('スキル枠+1(スキル2が使えるようになる)');
     const rs = RUNE_SLOT_STARS.indexOf(n);
     if(rs >= 0) opens.push(`ルーンの枠 ${rs + 1}つ目`);
@@ -14749,7 +14794,6 @@ function promoteBoxHtml(id){
   const fillCount = Math.min(shortSouls, convertible);
   const soulPct = need === null ? 100 : Math.min(100, Math.round(owned.souls / need * 100));
   const lvCap = levelCapOf(owned);
-  const skillCap = skillCapOf(owned);
   const promoGold = need === null ? 0 : PROMO_GOLD[owned.star + 1];
   return `
     <div class="detail-level-box promo-box">
@@ -14759,7 +14803,7 @@ function promoteBoxHtml(id){
       </div>
       ${need === null ? '' : `
         <div class="soul-bar"><div class="soul-fill" style="width:${soulPct}%;"></div></div>
-        <div class="promo-note">星刻すると基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%、レベル上限${lvCap}→${STAR_TABLE[owned.star + 1].lvCap}${owned.star + 1 === SECOND_SKILL_STAR ? '、スキル枠+1' : ''}${STAR_TABLE[owned.star + 1].skillCap > skillCap ? `、スキル系Lv上限${STAR_TABLE[owned.star + 1].skillCap}` : ''}</div>
+        <div class="promo-note">星刻すると基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%、レベル上限${lvCap}→${STAR_TABLE[owned.star + 1].lvCap}${owned.star + 1 === SECOND_SKILL_STAR ? '、スキル枠+1' : ''}</div>
         <button class="btn btn-sm btn-block ${canPromote ? '' : 'btn-ghost'}" data-promote="${id}" ${canPromote ? '' : 'disabled'}>
           ${canPromote ? `★${owned.star + 1}に星刻する(ソウル×${need}・${goldText(promoGold)})` : `ソウルがあと${shortSouls}個必要(星刻に${goldText(promoGold)})`}
         </button>
@@ -14820,7 +14864,6 @@ function showMonsterDetail(id){
   const fillCount = Math.min(shortSouls, convertible);
   const soulPct = need === null ? 100 : Math.min(100, Math.round(owned.souls / need * 100));
   const lvCap = levelCapOf(owned);
-  const skillCap = skillCapOf(owned);
   const promoGold = need === null ? 0 : PROMO_GOLD[owned.star + 1];
   const wall = atWall(owned);
   const expPct = Math.min(100, Math.round((owned.exp || 0) / expToNext(owned.level) * 100));
@@ -14886,6 +14929,7 @@ function showMonsterDetail(id){
   // 所持数がここだけで(モーダルを開かなくても)わかるように小さなチップで出す。
   const upgradeBox = field => {
     const lv = owned[field];
+    const skillCap = skillCapOf(owned, field);
     const maxed = lv >= skillCap;
     const pct = Math.min(100, Math.round(lv / skillCap * 100));
     const list = maxed ? [] : skillCostList(m, field, lv);
@@ -16038,8 +16082,13 @@ const BASE_CRIT_RATE = 0.05;
 const BASE_CRIT_MULT = 1.5;
 const RATIO_CAP = 0.8;
 const CUT_CAP = 0.8;
-const LV_STEP = 0.05;                 // skill / ult / passive: +5% per level (design doc v4.2)
-function lvScale(lv){ return 1 + ((lv || 1) - 1) * LV_STEP; }
+// α0.5: スキル(スキル1・スキル2・奥義)は Lv1→Lv10 で1.5倍(9等分)、パッシブは Lv1→Lv5 で1.5倍(4等分)
+const SKILL_LV_MAX_MULT = 1.5;
+function lvScale(lv){ const l = Math.max(1, Math.min(SKILL_LV_CAP, lv || 1)); return 1 + (l - 1) * (SKILL_LV_MAX_MULT - 1) / (SKILL_LV_CAP - 1); }
+function passiveLvScale(lv){ const l = Math.max(1, Math.min(PASSIVE_LV_CAP, lv || 1)); return 1 + (l - 1) * (SKILL_LV_MAX_MULT - 1) / (PASSIVE_LV_CAP - 1); }
+// スキルLvの値(1〜12)をパッシブLv(1〜5)に読み替える。敵(ステージの enemySkill)と、古いセーブの移し替えで使う
+const PASSIVE_FROM_SKILL_LV = [1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5];   // [0]は使わない。1〜2→1, 3〜4→2, 5〜7→3, 8〜9→4, 10〜12→5
+function passiveFromSkillLv(lv){ return PASSIVE_FROM_SKILL_LV[Math.max(1, Math.min(12, lv | 0))]; }
 function capRatio(v){ return Math.min(RATIO_CAP, v); }
 const NORMAL_POWER_BY_ROLE = { attacker:1.0, shooter:1.0, trickster:1.0, tank:0.8, support:0.7 };
 
@@ -16374,7 +16423,9 @@ function buildUnit(mon, stageLevel, isEnemy, star, boss, charLevel, upgrades){
     pdef: s.pdef, mdef: s.mdef,
     spd: s.spd,
     star: curStar, level: isEnemy ? (stageLevel || 1) : (charLevel || 1),
-    skillLv: up.skillLv || 1, skill2Lv: up.skill2Lv || up.skillLv || 1, ultLv: up.ultLv || 1, passiveLv: up.passiveLv || 1,
+    // 上限で丸める(フレンドやPVPの相手の古い公開データに Lv11・12 やパッシブLv6以上が残っていても、上限の強さで止める)
+    skillLv: Math.min(SKILL_LV_CAP, up.skillLv || 1), skill2Lv: Math.min(SKILL_LV_CAP, up.skill2Lv || up.skillLv || 1),
+    ultLv: Math.min(SKILL_LV_CAP, up.ultLv || 1), passiveLv: Math.min(PASSIVE_LV_CAP, up.passiveLv || 1),
     isEnemy, boss: !!boss, alive: true, vanished: false,
     kit, normal: kit.normal, skills: skillSlotsOf(mon, curStar), skillCd: [], ctReduce: 0,
     ult: kit.ult, passive: kit.passive || {},
@@ -16443,10 +16494,10 @@ function spawnWave(stage, waveIndex){
   const units = [];
   slots.forEach((e, i) => {
     if(!e) return;
-    const sk = stage.enemySkill || 1;
+    const sk = Math.min(SKILL_LV_CAP, stage.enemySkill || 1);
     // 新バトルシステム: ウェーブごとに上がり、最終ウェーブが推奨レベル
     const lv = stage.flatLv ? e.level : waveEnemyLv(stage, waveIndex);   // バベルは全WAVEがLv200
-    const u = buildUnit(MON_BY_ID[e.ref], lv, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: sk });
+    const u = buildUnit(MON_BY_ID[e.ref], lv, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: passiveFromSkillLv(sk) });
     u.rare = !!e.rare;
     u.gimmick = e.gimmick || null;
     u.levelHint = lv;
@@ -16512,8 +16563,8 @@ const BABEL_GROW = [
   // 遺物: relic = [★, Lv, 遺物スキルLv, 凸]。その★の中から、モンスターに一番合う遺物を自動で選ぶ
   { key: 1, name: '中級', star: 2, sk: 6, rune: 3, relic: [3, 50, 3, 0] },
   { key: 2, name: '上級', star: 5, sk: 10, rune: 7, relic: [4, 150, 7, 2] },
-  // 超上級: 育てきった形。★10・スキルLv12・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)
-  { key: 3, name: '超上級', star: 99, sk: 12, rune: 10, relic: [5, 200, 10, 4] },
+  // 超上級: 育てきった形。★10・スキルLv10・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)
+  { key: 3, name: '超上級', star: 99, sk: 10, rune: 10, relic: [5, 200, 10, 4] },
 ];
 const BB_DEBUFFS = ['burn', 'poison', 'stun', 'paralyze', 'bind', 'confuse', 'petrify', 'charm'];
 const bbElem = (el, k, v, label) => ({ who: { element: el }, side: 'ally', [k]: v, label });
@@ -18716,7 +18767,7 @@ function passiveMod(u, hook, ...args){ return runPassive(u, hook, ...args) || 0;
 function allyMod(u, hook, ...args){
   return sideOf(u).reduce((a, x) => a + (x.alive ? (runPassive(x, hook, u, ...args) || 0) : 0), 0);
 }
-function pv(u, v){ return v * lvScale(u.passiveLv); }        // passive value at its level
+function pv(u, v){ return v * passiveLvScale(u.passiveLv); }   // passive value at its level
 function sv(u, v, kind){ return v * lvScale(kind === 'ult' ? u.ultLv : (u.curSkillLv || u.skillLv)); }
 // 持続時間の伸び(docs/design の「持続時間のルール」):
 //   味方への数値バフ … スキルLv5とLv10で+1ターンずつ / 敵への弱体化・やけど・毒 … Lv10で+1ターン
@@ -23219,7 +23270,7 @@ let lab = null;   // { tower, floor, parties:[[slot×5],[slot×5]], pick:{p,i}|n
 function labSlot(id, g){
   const m = MON_BY_ID[id], gr = BABEL_GROW[g] || BABEL_GROW[0];
   const star = Math.min(MAX_STAR, m.rarity + gr.star);
-  return { id, star, sk: Math.min(STAR_TABLE[star].skillCap, gr.sk), rune: gr.rune, relic: gr.relic ? labBestRelic(m, gr.relic[0]) : null, rlv: gr.relic ? gr.relic[1] : 0, rsk: gr.relic ? gr.relic[2] : 1, rdupe: gr.relic ? gr.relic[3] : 0 };
+  return { id, star, sk: Math.min(SKILL_LV_CAP, gr.sk), rune: gr.rune, relic: gr.relic ? labBestRelic(m, gr.relic[0]) : null, rlv: gr.relic ? gr.relic[1] : 0, rsk: gr.relic ? gr.relic[2] : 1, rdupe: gr.relic ? gr.relic[3] : 0 };
 }
 /* 遺物: 試験場では「遺物Lv」1つで強さを決める(Lv200 = スキルLv10・4凸のカンスト)。
    超上級のときは、そのモンスターに一番合う★5の遺物を自動で選ぶ(条件が合う効果が多く、ロールに合った効果ほど高い点) */
@@ -23260,7 +23311,7 @@ function labSave(){ try{ localStorage.setItem(LAB_KEY, JSON.stringify({ tower: l
 function labClamp(s){
   const m = MON_BY_ID[s.id];
   s.star = Math.max(m.rarity, Math.min(MAX_STAR, s.star | 0));
-  s.sk = Math.max(1, Math.min(STAR_TABLE[s.star].skillCap, s.sk | 0));
+  s.sk = Math.max(1, Math.min(SKILL_LV_CAP, s.sk | 0));
   s.rune = Math.max(0, Math.min(RUNE_TIERS, s.rune | 0));
   s.relic = s.relic && RELICS[s.relic] ? s.relic : null;
   s.rlv = s.relic ? Math.max(1, Math.min(relicLevelCap(), s.rlv | 0)) : 0;
@@ -23301,7 +23352,7 @@ function labBuildParty(stage, slotsIn){
   lineupFromList(ids, fk).forEach((id, i) => {
     if(!id) return;
     const c = slots.find(s => s.id === id), m = MON_BY_ID[id];
-    const u = buildUnit(m, 1, false, c.star, false, BABEL_LV, { skillLv: c.sk, skill2Lv: c.sk, ultLv: c.sk, passiveLv: c.sk });
+    const u = buildUnit(m, 1, false, c.star, false, BABEL_LV, { skillLv: c.sk, skill2Lv: c.sk, ultLv: c.sk, passiveLv: passiveFromSkillLv(c.sk) });
     u.slot = i; u.row = slotRowIn(formation, i); u.x = slotX(formation, i);
     u.penalty = u.row === 'back' && isMeleeRole(u.role);
     applyRuneBonusToUnit(u, labRuneBonus(m.role, c.rune, c.star));
@@ -23493,7 +23544,7 @@ function renderLab(){
       <button class="btn btn-ghost btn-sm" data-lab="hint:lose">勝てない想定を入れる(${hintText('lose')})</button>
     </div>
     <div class="lab-grow"><small>全員の育ちをそろえる:</small>${BABEL_GROW.map(g => `<button class="lab-chip" data-lab="grow:${g.key}">${g.name}</button>`).join('')}
-      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし・遺物なし / 中級=★+2・Lv6・ルーンⅢ・★3遺物Lv50(スキル3) / 上級=★+5・Lv10・ルーンⅦ・★4遺物Lv150(スキル7・2凸) / 超上級=★10・Lv12・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)。遺物は合うものを自動で選ぶ</span></div>
+      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし・遺物なし / 中級=★+2・Lv6・ルーンⅢ・★3遺物Lv50(スキル3) / 上級=★+5・Lv10・ルーンⅦ・★4遺物Lv150(スキル7・2凸) / 超上級=★10・Lv10・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)。遺物は合うものを自動で選ぶ</span></div>
     ${parts.map(p => `<div class="panel lab-party">
       <div class="row-between"><div class="mc-head">${two ? (p === 0 ? '前半の編成' : '後半の編成') : '編成'}</div><button class="btn btn-sm" data-lab="watch:${p}">観戦する</button></div>
       <div class="lab-slots">${[...Array(LAB_PARTY).keys()].map(i => labSlotHtml(p, i)).join('')}</div>
