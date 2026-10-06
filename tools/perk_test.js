@@ -1,5 +1,5 @@
 /* 星刻特性(★6〜★10)のテスト。
-   前半: PERK_RELEASE_AT(2026-10-08 12:00)より前は、今までの星刻(MONSTER_PERKS_OLD)が出る。
+   前半: PERK_RELEASE_AT(2026-10-07 12:00)より前は、今までの星刻(MONSTER_PERKS_OLD)が出る。
          中身の正は docs/design/凸ボーナス_ピックアップ4体.json
    後半: 公開後は α0.5 の星刻(16体)が出る。中身の正は docs/提案資料/星刻特性の見直し_★5.md・_★4.md。
          各段(★6〜★10)が効いていることを、1段に1つ以上たしかめる。キットの変更(バハムート・リヴァイアサン・
@@ -13,7 +13,7 @@ const T = global.__t;
 let fail = 0;
 const ok = (c, m, v) => { console.log((c ? '✅' : '❌') + ' ' + m + (v !== undefined ? '  ' + JSON.stringify(v) : '')); if (!c) fail++; };
 const realNow = Date.now, realRand = Math.random;
-const AFTER = '2026-10-08T12:00:00+09:00', BEFORE = '2026-10-08T11:59:00+09:00';
+const AFTER = '2026-10-07T12:00:00+09:00', BEFORE = '2026-10-07T11:59:00+09:00';
 const at = iso => { Date.now = () => new Date(iso).getTime(); };
 // 乱数を決めうちにして1回だけ動かす(会心・ばらつき・確率を固定する)
 const withRand = (v, f) => { Math.random = () => v; try { return f(); } finally { Math.random = realRand; } };
@@ -24,7 +24,7 @@ const mk = (name, star) => {
 const foe = (hpPct, st) => ({ hp: hpPct * 100, maxHp: 100, alive: true, name: '的', statuses: st || {}, buffs: {}, passive: {}, spd: 1 });
 
 at(BEFORE);
-console.log('=== 公開前(10/8 11:59): 今までの星刻 ===');
+console.log('=== 公開前(10/7 11:59): 今までの星刻 ===');
 console.log('--- kit を壊していないか(★5は素のまま) ---');
 const k5 = mk('九尾の狐', 5), K = T.MONSTER_KITS[k5.ref];
 ok(k5.skills[1] === K.skill2, '★5はスキルが共有のまま(コピーしていない)');
@@ -44,9 +44,9 @@ ok(k8.foxMax === 8 && k8.foxStart === 3, '★8で上限8・初期3', { max: k8.f
 console.log('--- タイタン ---');
 const t10 = mk('タイタン', 10), t5 = mk('タイタン', 5);
 t10.hp = t10.maxHp * 0.9; t5.hp = t5.maxHp * 0.9;
-ok(Math.abs(T.passiveMod(t10, 'cutBonus') - 0.435) < 0.01, '★7 HP90%なら被ダメ-30%(パッシブLv10で-43.5%)', T.passiveMod(t10, 'cutBonus').toFixed(3));
+ok(Math.abs(T.passiveMod(t10, 'cutBonus') - 0.45) < 0.01, '★7 HP90%なら被ダメ-30%(パッシブLv5で-45%)', T.passiveMod(t10, 'cutBonus').toFixed(3));
 t10.hp = t10.maxHp * 0.6;
-ok(Math.abs(T.passiveMod(t10, 'cutBonus') - 0.2175) < 0.01, 'HP60%なら-15%のまま(重ならない)', T.passiveMod(t10, 'cutBonus').toFixed(3));
+ok(Math.abs(T.passiveMod(t10, 'cutBonus') - 0.225) < 0.01, 'HP60%なら-15%のまま(重ならない)', T.passiveMod(t10, 'cutBonus').toFixed(3));
 ok(t10.wallTurns === 4 && t10.wallShare === 0.6, '★10で城壁が4ターン・肩代わり60%', { t: t10.wallTurns, s: t10.wallShare });
 ok(!!t10.wallBank && t10.wallBank.cap === 0.6, '★10でSTRに変える仕組みが付く');
 ok(t5.wallTurns === undefined, '★5には付かない');
@@ -71,14 +71,14 @@ ok(a10.ult.bonusIf[0].cond === 'halfHp', '★10で無底坑の条件がHP50%以�
 ok(a5.ult.bonusIf[0].cond === 'low30', '★5はHP30%以下');
 ok(a10.ultRefund === 0.5, '★10でSPの半分が戻る');
 const low = foe(0.4);
-ok(Math.abs(T.passiveMod(a10, 'critBonus', low) - (0.435 + 0.10 + 0.20)) < 0.01, '★6+★8で会心率(パッシブ+43.5% +10% +20%)', T.passiveMod(a10, 'critBonus', low).toFixed(3));
+ok(Math.abs(T.passiveMod(a10, 'critBonus', low) - (0.45 + 0.10 + 0.20)) < 0.01, '★6+★8で会心率(パッシブ+45% +10% +20%)', T.passiveMod(a10, 'critBonus', low).toFixed(3));
 ok(Math.abs(T.passiveMod(a10, 'critDmgBonus') - 0.30) < 0.001, '★8で会心倍率+30%');
 
 /* ===================================================================== */
 console.log('\n=== 公開時刻での切り替え ===');
 const NEW16 = ['m116', 'm54', 'm68', 'm139', 'm31', 'm113', 'm125', 'm136', 'm137', 'm138', 'm140', 'm165', 'm53', 'm144', 'm150', 'm170'];
 const OLD8 = ['m116', 'm54', 'm68', 'm139', 'm53', 'm144', 'm150', 'm170'];
-ok(T.PERK_RELEASE_AT === '2026-10-08T12:00:00+09:00', 'PERK_RELEASE_AT は 10/8 12:00');
+ok(T.PERK_RELEASE_AT === '2026-10-07T12:00:00+09:00', 'PERK_RELEASE_AT は 10/7 12:00');
 ok(NEW16.every(id => T.MONSTER_PERKS[id] && T.MONSTER_PERKS[id].from === T.PERK_RELEASE_AT && [6, 7, 8, 9, 10].every(n => T.MONSTER_PERKS[id][n])),
   '16体とも新しい表に★6〜★10があり、from が PERK_RELEASE_AT');
 at(BEFORE);
@@ -344,7 +344,8 @@ console.log('\n--- スルト ---');
   let s;
   ok(mk('スルト', 8).skills[1].effects.find(e => e.buff === 'burnOnHit').v === 0.7, '★8 巨人の怒りのやけど付与が70%');
   ok(mk('スルト', 9).ult.extraIf.hits === 2 && !mk('スルト', 8).ult.extraIf.hits, '★9 ムスペルの業火の追加攻撃が2回');
-  s = setup('m53', 10, 3); s.B.enemies.slice(0, 3).forEach(e => { e.statuses.burn = { turns: 2, dmg: 1, source: s.u }; });
+  // やけどの付け主を自分以外にする(自分がやけどにした相手へのパッシブの+10%は別に見る)
+  s = setup('m53', 10, 3); s.B.enemies.slice(0, 3).forEach(e => { e.statuses.burn = { turns: 2, dmg: 1, source: s.e2 }; });
   const b1 = T.passiveMod(s.u, 'dmgBonus', s.e);
   s.e2.statuses = {};
   const b2 = T.passiveMod(s.u, 'dmgBonus', s.e);
