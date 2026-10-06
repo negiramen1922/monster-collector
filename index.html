@@ -3511,6 +3511,98 @@ const CURRENCY_ICON = Object.fromEntries(Object.keys(CURRENCY_SVG_BODY).map(k =>
   [k, dataIcon(`cur_${k}`, CURRENCY_SVG_BODY[k], `ico-currency ico-${k}`, CURRENCY_LABEL[k])]));
 const GOLD_ICON = CURRENCY_ICON.gold, CRYSTAL_ICON = CURRENCY_ICON.crystal, UNIVERSAL_ICON = CURRENCY_ICON.universal, SPARK_ICON = CURRENCY_ICON.spark;
 
+/* ---- UI アイコン: 絵文字をやめて、どの端末でも同じ見た目になるドットの絵にする ----
+   絵文字はフォント任せで環境ごとに形も色も変わるうえ、ゲームの絵と合わない。
+   ここも CURRENCY/ITEM と同じで、ICON_DATA に実物のドット絵が来ればそちらが勝つ */
+const UI_SVG_BODY = {
+  // 注意・状態
+  warn:    '<path d="M50 14 L90 84 H10 Z" fill="#f2c14e" stroke="#7a5410" stroke-width="7" stroke-linejoin="round"/><rect x="45" y="38" width="10" height="24" rx="5" fill="#3a2a06"/><circle cx="50" cy="71" r="6" fill="#3a2a06"/>',
+  lock:    '<path d="M32 44V34a18 18 0 0 1 36 0v10" fill="none" stroke="#b9b2cc" stroke-width="10"/><rect x="22" y="44" width="56" height="44" rx="9" fill="#cfc8e0" stroke="#4a4560" stroke-width="6"/><circle cx="50" cy="63" r="7" fill="#4a4560"/><rect x="46" y="63" width="8" height="14" rx="4" fill="#4a4560"/>',
+  unlock:  '<path d="M32 44V34a18 18 0 0 1 34-6" fill="none" stroke="#9fd8a0" stroke-width="10"/><rect x="22" y="44" width="56" height="44" rx="9" fill="#cfe8c8" stroke="#2f6a2a" stroke-width="6"/><circle cx="50" cy="63" r="7" fill="#2f6a2a"/>',
+  skull:   '<path d="M50 12c21 0 34 14 34 33 0 12-6 18-10 22v13H26V67c-4-4-10-10-10-22 0-19 13-33 34-33z" fill="#e6e2f0" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><circle cx="36" cy="48" r="9" fill="#2a2440"/><circle cx="64" cy="48" r="9" fill="#2a2440"/><path d="M44 70h12l-6-10z" fill="#2a2440"/>',
+  person:  '<circle cx="50" cy="35" r="18" fill="#cfc8e0" stroke="#4a4560" stroke-width="6"/><path d="M16 90c0-19 15-28 34-28s34 9 34 28z" fill="#cfc8e0" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/>',
+  gift:    '<rect x="14" y="40" width="72" height="46" rx="6" fill="#e2572b" stroke="#7a2412" stroke-width="6"/><rect x="10" y="28" width="80" height="18" rx="5" fill="#f08050" stroke="#7a2412" stroke-width="6"/><rect x="43" y="28" width="14" height="58" fill="#ffe08a"/><path d="M50 28c-8-14-24-10-20 0M50 28c8-14 24-10 20 0" fill="none" stroke="#ffe08a" stroke-width="7" stroke-linecap="round"/>',
+  helper:  '<circle cx="32" cy="32" r="15" fill="#cfe8c8" stroke="#2f6a2a" stroke-width="6"/><path d="M6 84c0-16 12-24 26-24s26 8 26 24z" fill="#cfe8c8" stroke="#2f6a2a" stroke-width="6" stroke-linejoin="round"/><circle cx="70" cy="40" r="13" fill="#7bc46a" stroke="#2f6a2a" stroke-width="6"/><path d="M46 88c0-15 11-22 24-22s24 7 24 22z" fill="#7bc46a" stroke="#2f6a2a" stroke-width="6" stroke-linejoin="round"/>',
+  elem:    '<circle cx="50" cy="50" r="36" fill="none" stroke="#e8b455" stroke-width="7"/><path d="M50 14a36 36 0 0 1 31 54L50 50z" fill="#e2572b"/><path d="M19 68A36 36 0 0 1 50 14v36z" fill="#3aa6f2"/><path d="M81 68a36 36 0 0 1-62 0z" fill="#7bc46a"/>',
+  trophy:  '<path d="M30 16h40v22a20 20 0 0 1-40 0z" fill="#e8b455" stroke="#7a5416" stroke-width="6" stroke-linejoin="round"/><path d="M30 22H16v8c0 10 7 14 14 14M70 22h14v8c0 10-7 14-14 14" fill="none" stroke="#7a5416" stroke-width="6"/><rect x="42" y="58" width="16" height="16" fill="#c98f2e"/><rect x="28" y="74" width="44" height="12" rx="4" fill="#e8b455" stroke="#7a5416" stroke-width="6"/>',
+  ribbon:  '<path d="M28 8l22 40L72 8" fill="none" stroke="#f08050" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="68" r="24" fill="#e8b455" stroke="#7a5416" stroke-width="6"/><path d="M50 54l5 12h13l-10 8 4 13-12-8-12 8 4-13-10-8h13z" fill="#fff4c2"/>',
+  pause:   '<rect x="24" y="18" width="20" height="64" rx="5" fill="#cfc8e0" stroke="#4a4560" stroke-width="6"/><rect x="56" y="18" width="20" height="64" rx="5" fill="#cfc8e0" stroke="#4a4560" stroke-width="6"/>',
+  dust:    '<path d="M50 10l9 26 26 9-26 9-9 26-9-26-26-9 26-9z" fill="#ffe9a8" stroke="#a8812a" stroke-width="5" stroke-linejoin="round"/><circle cx="22" cy="24" r="6" fill="#fff4c2"/><circle cx="80" cy="76" r="5" fill="#fff4c2"/>',
+  crown:   '<path d="M14 72L22 30l20 16L50 20l8 26 20-16 8 42z" fill="#e8b455" stroke="#7a5416" stroke-width="6" stroke-linejoin="round"/><rect x="14" y="72" width="72" height="14" rx="4" fill="#c98f2e" stroke="#7a5416" stroke-width="6"/>',
+  eye:     '<path d="M6 50c14-22 30-32 44-32s30 10 44 32c-14 22-30 32-44 32S20 72 6 50z" fill="#ffe9a8" stroke="#7a5416" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="50" r="15" fill="#2a2440"/>',
+  shield:  '<path d="M50 10l34 12v26c0 23-15 36-34 42-19-6-34-19-34-42V22z" fill="#8fd8ff" stroke="#1c5f8a" stroke-width="6" stroke-linejoin="round"/><path d="M50 10v80c19-6 34-19 34-42V22z" fill="#5fb6e8"/>',
+  bag:     '<path d="M34 34V26a16 16 0 0 1 32 0v8" fill="none" stroke="#7a5416" stroke-width="7"/><rect x="14" y="34" width="72" height="54" rx="10" fill="#c98f2e" stroke="#7a5416" stroke-width="6"/><rect x="14" y="52" width="72" height="12" fill="#e8b455"/>',
+  bell:    '<path d="M50 14a24 24 0 0 1 24 24v20l8 12H18l8-12V38a24 24 0 0 1 24-24z" fill="#e8b455" stroke="#7a5416" stroke-width="6" stroke-linejoin="round"/><path d="M40 76a10 10 0 0 0 20 0z" fill="#7a5416"/>',
+  gear:    '<path d="M50 14l7 10 12-3 3 12 11 5-5 11 8 10-10 7 1 12-12 1-6 11-10-6-10 6-6-11-12-1 1-12-10-7 8-10-5-11 11-5 3-12 12 3z" fill="#cfc8e0" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="52" r="12" fill="#4a4560"/>',
+  refresh: '<path d="M78 40A32 32 0 1 0 82 62" fill="none" stroke="#7bc46a" stroke-width="10" stroke-linecap="round"/><path d="M58 16l24 8-10 22z" fill="#7bc46a"/>',
+  install: '<rect x="26" y="8" width="48" height="84" rx="9" fill="#cfc8e0" stroke="#4a4560" stroke-width="6"/><rect x="36" y="20" width="28" height="48" rx="3" fill="#2a2440"/><path d="M50 26v26M40 42l10 12 10-12" fill="none" stroke="#7bc46a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>',
+  calendar:'<rect x="12" y="22" width="76" height="68" rx="8" fill="#e6e2f0" stroke="#4a4560" stroke-width="6"/><rect x="12" y="22" width="76" height="20" rx="8" fill="#e2572b" stroke="#4a4560" stroke-width="6"/><rect x="28" y="8" width="10" height="20" rx="5" fill="#4a4560"/><rect x="62" y="8" width="10" height="20" rx="5" fill="#4a4560"/><rect x="28" y="54" width="14" height="12" fill="#4a4560"/><rect x="58" y="54" width="14" height="12" fill="#4a4560"/>',
+  book:    '<path d="M10 20h32a10 10 0 0 1 8 5 10 10 0 0 1 8-5h32v58H58a8 8 0 0 0-8 5 8 8 0 0 0-8-5H10z" fill="#e6e2f0" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><path d="M50 25v58" stroke="#4a4560" stroke-width="6"/>',
+  scroll:  '<path d="M26 14h48a8 8 0 0 1 8 8v56a8 8 0 0 1-8 8H26z" fill="#ffe9a8" stroke="#7a5416" stroke-width="6" stroke-linejoin="round"/><path d="M26 14a8 8 0 0 0 0 16h10V14zM26 70a8 8 0 0 0 0 16h10V70z" fill="#e8b455" stroke="#7a5416" stroke-width="6"/><path d="M44 36h26M44 50h26M44 64h16" stroke="#7a5416" stroke-width="6" stroke-linecap="round"/>',
+  target:  '<circle cx="50" cy="50" r="36" fill="none" stroke="#e2572b" stroke-width="8"/><circle cx="50" cy="50" r="20" fill="none" stroke="#e2572b" stroke-width="8"/><circle cx="50" cy="50" r="7" fill="#e2572b"/>',
+  clip:    '<rect x="20" y="16" width="60" height="74" rx="8" fill="#e6e2f0" stroke="#4a4560" stroke-width="6"/><rect x="36" y="8" width="28" height="16" rx="5" fill="#9a93b0" stroke="#4a4560" stroke-width="6"/><path d="M34 46h32M34 62h32" stroke="#4a4560" stroke-width="7" stroke-linecap="round"/>',
+  cart:    '<path d="M10 18h12l12 44h40l10-30H30" fill="none" stroke="#7bc46a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="40" cy="80" r="9" fill="#7bc46a"/><circle cx="70" cy="80" r="9" fill="#7bc46a"/>',
+  abyss:   '<ellipse cx="50" cy="52" rx="40" ry="34" fill="#2a1b47" stroke="#6b4fa0" stroke-width="6"/><ellipse cx="50" cy="52" rx="24" ry="20" fill="#120b22"/><ellipse cx="50" cy="52" rx="10" ry="8" fill="#b06fe0" opacity=".55"/>',
+  flag:    '<path d="M26 10v82" stroke="#4a4560" stroke-width="8" stroke-linecap="round"/><path d="M34 16h48l-10 16 10 16H34z" fill="#e6e2f0" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/>',
+  tower:   '<path d="M50 6l8 20H42z" fill="#e2572b"/><path d="M38 26h24l10 30H28z" fill="#f08050" stroke="#7a2412" stroke-width="5" stroke-linejoin="round"/><path d="M28 56h44l12 36H16z" fill="#e6e2f0" stroke="#4a4560" stroke-width="5" stroke-linejoin="round"/>',
+  dice:    '<rect x="16" y="16" width="68" height="68" rx="12" fill="#e6e2f0" stroke="#4a4560" stroke-width="6"/><circle cx="36" cy="36" r="7" fill="#4a4560"/><circle cx="64" cy="36" r="7" fill="#4a4560"/><circle cx="50" cy="50" r="7" fill="#4a4560"/><circle cx="36" cy="64" r="7" fill="#4a4560"/><circle cx="64" cy="64" r="7" fill="#4a4560"/>',
+  tap:     '<path d="M44 54V22a9 9 0 0 1 18 0v26" fill="#ffe9a8" stroke="#7a5416" stroke-width="6" stroke-linejoin="round"/><path d="M62 48l16 6c6 2 8 7 7 13l-5 21H46L30 62c-3-5 2-11 7-8l7 5z" fill="#ffe9a8" stroke="#7a5416" stroke-width="6" stroke-linejoin="round"/>',
+  urn:     '<path d="M36 16h28v10l-6 6c14 5 22 17 22 30 0 17-14 26-30 26S20 79 20 62c0-13 8-25 22-30l-6-6z" fill="#d9a94e" stroke="#6b4a18" stroke-width="6" stroke-linejoin="round"/><path d="M30 60h40" stroke="#6b4a18" stroke-width="5"/>',
+  fire:    '<path d="M54 8c4 18 24 24 24 46a28 28 0 0 1-56 0c0-16 12-22 18-34 2 8 6 12 10 14 2-10 2-18 4-26z" fill="#f0864f" stroke="#7a2f1a" stroke-width="6" stroke-linejoin="round"/><path d="M52 44c2 10 12 12 12 22a14 14 0 0 1-28 0c0-9 12-12 16-22z" fill="#ffe08a"/>',
+  moai:    '<path d="M28 20c0-8 10-14 22-14s22 6 22 14v46c0 10-10 16-22 16s-22-6-22-16z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><rect x="24" y="80" width="52" height="14" rx="4" fill="#7a7a88" stroke="#4a4a58" stroke-width="5"/><path d="M34 40h14M52 40h14" stroke="#2a2a38" stroke-width="7" stroke-linecap="round"/><path d="M42 60h16" stroke="#2a2a38" stroke-width="6" stroke-linecap="round"/>',
+  wolf:    '<path d="M18 22l12 14h40l12-14 6 30c0 24-16 38-38 38S12 76 12 52z" fill="#9fb4c8" stroke="#3a4a5a" stroke-width="6" stroke-linejoin="round"/><circle cx="36" cy="50" r="7" fill="#2a3444"/><circle cx="64" cy="50" r="7" fill="#2a3444"/><path d="M42 70h16l-8 10z" fill="#2a3444"/>',
+  scorpion:'<path d="M20 62c0-14 13-22 30-22s30 8 30 22-13 22-30 22-30-8-30-22z" fill="#c98f2e" stroke="#6b4a18" stroke-width="6"/><path d="M80 56c10-6 12-18 6-26-5-7-14-6-16 2" fill="none" stroke="#6b4a18" stroke-width="8" stroke-linecap="round"/><path d="M26 44l-12-8M74 44l12-8" stroke="#6b4a18" stroke-width="7" stroke-linecap="round"/>',
+  swords:  '<path d="M16 16l14 2 44 44-10 10-44-44z" fill="#cfc8e0" stroke="#4a4560" stroke-width="5" stroke-linejoin="round"/><path d="M84 16l-14 2-44 44 10 10 44-44z" fill="#cfc8e0" stroke="#4a4560" stroke-width="5" stroke-linejoin="round"/><path d="M14 78l12-12 8 8-12 12zM86 78L74 66l-8 8 12 12z" fill="#e8b455" stroke="#7a5416" stroke-width="5" stroke-linejoin="round"/>',
+  gacha:   '<rect x="14" y="30" width="72" height="58" rx="10" fill="#b06fe0" stroke="#4a2a70" stroke-width="6"/><circle cx="50" cy="48" r="18" fill="#f1e3ff" stroke="#4a2a70" stroke-width="5"/><circle cx="50" cy="48" r="7" fill="#e2572b"/><rect x="36" y="70" width="28" height="12" rx="4" fill="#4a2a70"/><path d="M50 30V14" stroke="#4a2a70" stroke-width="7" stroke-linecap="round"/>',
+  puzzle:  '<path d="M16 16h28a8 8 0 1 1 12 0h28v28a8 8 0 1 0 0 12v28H56a8 8 0 1 0-12 0H16V56a8 8 0 1 1 0-12z" fill="#7bc46a" stroke="#2f6a2a" stroke-width="6" stroke-linejoin="round"/>',
+  house:   '<path d="M50 10l42 36H78v42H22V46H8z" fill="#f0864f" stroke="#7a2f1a" stroke-width="6" stroke-linejoin="round"/><rect x="40" y="58" width="20" height="30" fill="#ffe08a" stroke="#7a2f1a" stroke-width="5"/>',
+  castle:  '<path d="M12 90V40l10-8 10 8V28l18-14 18 14v12l10-8 10 8v50z" fill="#9fb4c8" stroke="#3a4a5a" stroke-width="6" stroke-linejoin="round"/><rect x="42" y="62" width="16" height="28" fill="#2a3444"/><path d="M50 14l-4 10h8z" fill="#e2572b"/>',
+  pick:    '<path d="M8 40C28 14 72 14 92 40 70 32 30 32 8 40z" fill="#cfc8e0" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><path d="M46 36l10 54" stroke="#c98f2e" stroke-width="12" stroke-linecap="round"/>',
+  flask:   '<path d="M38 10h24v24l20 44c3 7-2 14-10 14H28c-8 0-13-7-10-14l20-44z" fill="#cfe8f5" stroke="#2a6f8f" stroke-width="6" stroke-linejoin="round"/><path d="M24 64h52l6 14c3 7-2 14-10 14H28c-8 0-13-7-10-14z" fill="#7ecbe8"/><rect x="34" y="6" width="32" height="10" rx="4" fill="#4a4560"/>',
+  hammer:  '<path d="M20 26l22-12 26 20-18 18z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><path d="M48 50L82 86" stroke="#8a5f16" stroke-width="11" stroke-linecap="round"/>',
+  orb:     '<circle cx="50" cy="44" r="30" fill="#b06fe0" stroke="#4a2a70" stroke-width="6"/><circle cx="40" cy="34" r="9" fill="#f1e3ff" opacity=".8"/><path d="M22 76h56l6 14H16z" fill="#c98f2e" stroke="#6b4a18" stroke-width="6" stroke-linejoin="round"/>',
+  tube:    '<rect x="34" y="8" width="32" height="10" rx="4" fill="#4a4560"/><path d="M38 18h24v52a12 12 0 0 1-24 0z" fill="#cfe8f5" stroke="#2a6f8f" stroke-width="6" stroke-linejoin="round"/><path d="M38 52h24v18a12 12 0 0 1-24 0z" fill="#7bc46a"/>',
+  money:   '<path d="M40 10h20l-8 14h12c16 6 26 20 26 36 0 18-14 28-40 28S10 78 10 60c0-16 10-30 26-36h12z" fill="#d9a94e" stroke="#6b4a18" stroke-width="6" stroke-linejoin="round"/><path d="M42 50h16M42 62h16M50 42v30" stroke="#6b4a18" stroke-width="6" stroke-linecap="round"/>',
+  gem4:    '<path d="M50 10 L90 50 L50 90 L10 50 Z" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6" stroke-linejoin="round"/><path d="M50 30 L70 50 L50 70 L30 50 Z" fill="#dff7ff"/>',
+  seed:    '<path d="M50 90V48" stroke="#2f6a2a" stroke-width="8" stroke-linecap="round"/><path d="M50 50C34 50 22 40 22 24c18 0 28 10 28 26zM50 56c16 0 28-10 28-26-18 0-28 10-28 26z" fill="#7bc46a" stroke="#2f6a2a" stroke-width="5" stroke-linejoin="round"/>',
+  fast:    '<path d="M10 18l36 32-36 32z" fill="#8fd8ff" stroke="#1c5f8a" stroke-width="6" stroke-linejoin="round"/><path d="M52 18l36 32-36 32z" fill="#8fd8ff" stroke="#1c5f8a" stroke-width="6" stroke-linejoin="round"/>',
+  build:   '<path d="M10 86h80" stroke="#7a5416" stroke-width="8" stroke-linecap="round"/><path d="M24 78V24h10v54zM34 24h40v10H34z" fill="#e8b455" stroke="#7a5416" stroke-width="5" stroke-linejoin="round"/><path d="M68 34v18" stroke="#7a5416" stroke-width="6"/><rect x="56" y="52" width="26" height="26" fill="#c98f2e" stroke="#7a5416" stroke-width="5"/>',
+  map:     '<path d="M10 22l26-10 28 10 26-10v66l-26 10-28-10-26 10z" fill="#d9c89a" stroke="#6b4a18" stroke-width="6" stroke-linejoin="round"/><path d="M36 12v66M64 22v66" stroke="#6b4a18" stroke-width="5"/><circle cx="50" cy="48" r="7" fill="#e2572b"/>',
+  up:      '<circle cx="50" cy="50" r="38" fill="#7bc46a" stroke="#2f6a2a" stroke-width="6"/><path d="M50 28L30 54h13v20h14V54h13z" fill="#eaffe0"/>',
+  party:   '<path d="M14 88l26-56 24 24z" fill="#f0864f" stroke="#7a2f1a" stroke-width="6" stroke-linejoin="round"/><circle cx="74" cy="20" r="6" fill="#ffe08a"/><circle cx="86" cy="44" r="5" fill="#8fd8ff"/><circle cx="60" cy="12" r="5" fill="#7bc46a"/>',
+  check:   '<circle cx="50" cy="50" r="38" fill="#7bc46a" stroke="#2f6a2a" stroke-width="6"/><path d="M30 52l14 14 26-30" fill="none" stroke="#eaffe0" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>',
+  leaf:    '<path d="M84 16C44 16 16 36 16 66c0 8 4 14 10 18C34 58 52 42 76 36 56 46 38 62 32 88c6 2 12 2 18 0 26-8 38-38 34-72z" fill="#7bc46a" stroke="#2f6a2a" stroke-width="5" stroke-linejoin="round"/>',
+  compass: '<circle cx="50" cy="50" r="38" fill="#cfe8f5" stroke="#2a6f8f" stroke-width="6"/><path d="M68 32L42 42 32 68l26-10z" fill="#e2572b" stroke="#7a2412" stroke-width="4" stroke-linejoin="round"/>',
+  // 戦闘中の重なり表示
+  moon_new:  '<circle cx="50" cy="50" r="36" fill="#2a2440" stroke="#9a93b0" stroke-width="6"/>',
+  moon_half: '<circle cx="50" cy="50" r="36" fill="#2a2440" stroke="#9a93b0" stroke-width="6"/><path d="M50 14a36 36 0 0 1 0 72z" fill="#e6e2f0"/>',
+  moon_full: '<circle cx="50" cy="50" r="36" fill="#e6e2f0" stroke="#9a93b0" stroke-width="6"/>',
+  tree:    '<path d="M50 88V60" stroke="#6b4a18" stroke-width="10" stroke-linecap="round"/><path d="M50 8l26 34H60l18 26H22l18-26H24z" fill="#7bc46a" stroke="#2f6a2a" stroke-width="5" stroke-linejoin="round"/>',
+  anger:   '<path d="M22 20l20 18-6-24 22 20-4-24 20 22" fill="none" stroke="#e2572b" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 54l20 18-6-24 22 20-4-24 20 22" fill="none" stroke="#e2572b" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>',
+  hat:     '<path d="M30 12h40v44H30z" fill="#5a5272" stroke="#cfc8e0" stroke-width="6" stroke-linejoin="round"/><rect x="28" y="36" width="44" height="12" fill="#e2572b"/><rect x="8" y="56" width="84" height="14" rx="7" fill="#5a5272" stroke="#cfc8e0" stroke-width="6"/>',
+  fox:     '<path d="M14 18l16 16h40l16-16 6 34c0 22-16 36-42 36S8 74 8 52z" fill="#f0864f" stroke="#7a2f1a" stroke-width="6" stroke-linejoin="round"/><circle cx="36" cy="48" r="6" fill="#2a1a10"/><circle cx="64" cy="48" r="6" fill="#2a1a10"/><path d="M50 62l-6 6h12z" fill="#2a1a10"/>',
+  drum:    '<ellipse cx="50" cy="34" rx="34" ry="14" fill="#ffe9a8" stroke="#7a2412" stroke-width="6"/><path d="M16 34v28c0 8 15 14 34 14s34-6 34-14V34" fill="#e2572b" stroke="#7a2412" stroke-width="6" stroke-linejoin="round"/>',
+  wind:    '<path d="M10 32h46a12 12 0 1 0-12-12M10 54h58a12 12 0 1 1-12 12M10 74h34a10 10 0 1 1-10 10" fill="none" stroke="#9fd8ff" stroke-width="8" stroke-linecap="round"/>',
+  talk:    '<path d="M12 22h76v48H52L30 88V70H12z" fill="#e6e2f0" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><circle cx="34" cy="46" r="6" fill="#4a4560"/><circle cx="50" cy="46" r="6" fill="#4a4560"/><circle cx="66" cy="46" r="6" fill="#4a4560"/>',
+  mask:    '<path d="M10 30h80v22c0 20-18 34-40 34S10 72 10 52z" fill="#cfc8e0" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><circle cx="34" cy="50" r="8" fill="#2a2440"/><circle cx="66" cy="50" r="8" fill="#2a2440"/>',
+  menu:    '<rect x="12" y="22" width="76" height="12" rx="6" fill="#cfc8e0"/><rect x="12" y="44" width="76" height="12" rx="6" fill="#cfc8e0"/><rect x="12" y="66" width="76" height="12" rx="6" fill="#cfc8e0"/>',
+};
+const UI_ICON_LABEL = {
+  warn:'注意', lock:'未解放', unlock:'解放', skull:'ハード', person:'プレイヤー', gift:'プレゼント',
+  helper:'お助け', elem:'属性相性', trophy:'PVPポイント', ribbon:'フレンドポイント', pause:'一時停止',
+  dust:'ルーンの粉', crown:'ボス', eye:'狙われやすい', shield:'守られている', bag:'アイテム欄', bell:'お知らせ',
+  gear:'設定', refresh:'更新', install:'ホーム画面に追加', calendar:'ログインボーナス', book:'モンスター',
+  scroll:'ミッション', target:'対象', clip:'ミッション', cart:'ショップ', abyss:'深淵回廊', flag:'降参',
+  tower:'試験場', dice:'振り直す', tap:'タップ', urn:'遺物', fire:'炎', moai:'石像', wolf:'狼', scorpion:'蠍',
+  swords:'探索', gacha:'ガチャ', puzzle:'育成', house:'ホーム', castle:'拠点', pick:'採掘', flask:'研究所',
+  hammer:'工房', orb:'錬金術', tube:'EXP', money:'ゴールド', gem4:'霊素', seed:'解放', fast:'倍速',
+  build:'拡張', map:'メインクエスト', up:'レベルアップ', party:'クリア', check:'受取済み', leaf:'葉', compass:'羅針',
+  menu:'メニュー', moon_new:'新月', moon_half:'半月', moon_full:'満月', tree:'木', anger:'怒り', hat:'帽子', fox:'狐',
+  drum:'太鼓', wind:'風', talk:'口上', mask:'仮面',
+};
+const UI_ICON = Object.fromEntries(Object.keys(UI_SVG_BODY).map(k =>
+  [k, dataIcon(`ui_${k}`, UI_SVG_BODY[k], `ico-ui ico-${k}`, UI_ICON_LABEL[k] || '')]));
+
 // generic item icons (rewards/inventory): same pixel-art-ready fallback as currency above.
 const ITEM_SVG_BODY = {
   // イベントメダル(イベントごとに色を変える)
@@ -3795,7 +3887,7 @@ const EVENTS = [
     key: 'ev_kyubi',
     econV2: true,   // 新しい経済(ソウル・EXの雑魚ドロップ・ショップの値段)
     name: '紅蓮の九尾',
-    icon: '🔥',
+    icon: UI_ICON.fire,
     startAt: '2026-09-18T00:00:00+09:00',
     endAt: '2026-10-07T23:59:59+09:00',
     addonAt: EVENT_ADDON_AT,   // EX・同時ピックアップ★4・星刻が開く時刻
@@ -3824,7 +3916,7 @@ const EVENTS = [
     key: 'ev_titan',
     econV2: true,   // 新しい経済(ソウル・EXの雑魚ドロップ・ショップの値段)
     name: '黄金の巨神',
-    icon: '🗿',
+    icon: UI_ICON.moai,
     startAt: '2026-09-18T00:00:00+09:00',
     endAt: '2026-10-07T23:59:59+09:00',
     addonAt: EVENT_ADDON_AT,
@@ -3853,7 +3945,7 @@ const EVENTS = [
     key: 'ev_fenrir',
     econV2: true,   // 新しい経済(ソウル・EXの雑魚ドロップ・ショップの値段)
     name: '嵐呼ぶ神狼',
-    icon: '🐺',
+    icon: UI_ICON.wolf,
     startAt: '2026-09-28T19:00:00+09:00',
     endAt: '2026-10-12T23:59:59+09:00',
     pickup: 'm68',
@@ -3885,7 +3977,7 @@ const EVENTS = [
     key: 'ev_abaddon',
     econV2: true,   // 新しい経済(ソウル・EXの雑魚ドロップ・ショップの値段)
     name: '奈落の王',
-    icon: '🦂',
+    icon: UI_ICON.scorpion,
     startAt: '2026-09-28T19:00:00+09:00',
     endAt: '2026-10-12T23:59:59+09:00',
     pickup: 'm139',
@@ -6335,7 +6427,7 @@ function buyShopItem(currency, sku){
    unlike the gold/PVP-point shops above, these aren't capped to 1/day - they're meant
    to be repeatable, like a stamina potion. ---- */
 const SHOP_CRYSTAL_ITEMS = [
-  { sku: 'pvp_ticket', label: 'PVP挑戦券', icon: '🏆', price: 180, qty: 3 },
+  { sku: 'pvp_ticket', label: 'PVP挑戦券', icon: UI_ICON.trophy, price: 180, qty: 3 },
 ];
 // 周回券はショップでは売らない(配布だけ)。仕組みは SWEEP_TICKETS / runSweep にある
 /* ---- スタミナ回復: 1日8回まで。回すたびに値上がりする(1回目は無料)。
@@ -6382,12 +6474,12 @@ function buyCrystalItem(sku){
 /* ---- base facilities (idle production, up to 24 h) ---- */
 const IDLE_MAX_MS = 24 * 3600 * 1000;
 const FACILITIES = {
-  mine: { name: '鉱山', icon: '⛏️', desc: 'ゴールドを生産します', perHour: [0, 1000, 2000, 4000, 7000, 10000] },
-  lab: { name: '研究所', icon: '⚗️', desc: 'EXPポットを生産します(EXP換算)', perHour: [0, 5, 15, 40, 100, 200], maxTier: [0, 1, 1, 2, 3, 3] },
-  smithy: { name: '霊素工房', icon: '🔨', desc: '霊素鉱とコアを生産します',
+  mine: { name: '鉱山', icon: UI_ICON.pick, desc: 'ゴールドを生産します', perHour: [0, 1000, 2000, 4000, 7000, 10000] },
+  lab: { name: '研究所', icon: UI_ICON.flask, desc: 'EXPポットを生産します(EXP換算)', perHour: [0, 5, 15, 40, 100, 200], maxTier: [0, 1, 1, 2, 3, 3] },
+  smithy: { name: '霊素工房', icon: UI_ICON.hammer, desc: '霊素鉱とコアを生産します',
     // 経済見直し: 霊素鉱は2倍・霊素核Iは半分(以前は [0,4,8,16,28,45] / [0,1/3,2/3,1.25,2,3])
     perHour: [0, 8, 16, 32, 56, 90], corePerHour: [0, 1 / 6, 1 / 3, 0.625, 1, 1.5] },
-  alchemy: { name: '錬金術', icon: '🔮', desc: 'ワザ強化素材と霊素核を錬成します(下位5個 → 上位1個)。TierIII以上はここでしか作れません' },
+  alchemy: { name: '錬金術', icon: UI_ICON.orb, desc: 'ワザ強化素材と霊素核を錬成します(下位5個 → 上位1個)。TierIII以上はここでしか作れません' },
 };
 const FACILITY_MAX_LV = 5;
 const FACILITY_UPGRADE_GOLD = [0, 0, 10000, 50000, 200000, 600000]; // to reach that level
@@ -6949,11 +7041,11 @@ const RELIC_SORT_KEYS = [
 const RELIC_FILTER_GROUPS = [
   { key:'star', title:'レアリティ', items:() => [5, 4, 3, 2, 1].map(s => ({ key:String(s), icon:'★', label:`${s}` })) },
   { key:'channel', title:'入手方法', items:() => [
-    { key:'gacha', icon:'🎰', label:'ガチャ' },
-    { key:'distributed', icon:'🎁', label:'配布' },
+    { key:'gacha', icon:UI_ICON.gacha, label:'ガチャ' },
+    { key:'distributed', icon:UI_ICON.gift, label:'配布' },
   ] },
   { key:'dupe', title:'共鳴', items:() => [0, 1, 2, 3, 4].map(n => ({
-    key:String(n), icon:'💠', label: n === 0 ? '未共鳴' : `共鳴${n}${n === RELIC_MAX_DUPE_USE ? '(MAX)' : ''}`,
+    key:String(n), icon:UI_ICON.gem4, label: n === 0 ? '未共鳴' : `共鳴${n}${n === RELIC_MAX_DUPE_USE ? '(MAX)' : ''}`,
   })) },
 ];
 /* かぶって手に入れた同じ遺物は「〇〇の共鳴石」になる。経済見直し(α0.4.000)から、モンスターのソウルと同じく
@@ -7459,8 +7551,8 @@ function migrateLegacyRunes(){
     const dust = old.reduce((a, r) => a + runeDustValue({ tier: Math.min(RUNE_TIERS, r.tier | 0 || 1), rarity: Math.min(4, r.rarity | 0) }) * 2, 0);
     STATE.runes = [];
     STATE.runeDust += dust;
-    queueAnnouncement({ kind: 'notice', key: 'rune_legacy', icon: '💎', title: 'ルーンをルーンの粉に交換しました',
-      body: `ルーンの仕様を見直したため、以前に手に入れたルーン${old.length}個は、分解したときの2倍のルーンの粉(✨${dust.toLocaleString()})に交換しました。装備していた分は外れています。` });
+    queueAnnouncement({ kind: 'notice', key: 'rune_legacy', icon: UI_ICON.dust, title: 'ルーンをルーンの粉に交換しました',
+      body: `ルーンの仕様を見直したため、以前に手に入れたルーン${old.length}個は、分解したときの2倍のルーンの粉(${UI_ICON.dust}${dust.toLocaleString()})に交換しました。装備していた分は外れています。` });
   }else STATE.runes = [];
   STATE.runeSpecVer = RUNE_SPEC_VER;
 }
@@ -7739,7 +7831,7 @@ function runeIconHtml(r, opts){
   const o = opts || {};
   if(r.sealed) return `<span class="rune-ic sealed ${o.cls || ''}">${runeSealedSvg(r.tier)}</span>`;
   const used = o.used !== undefined ? o.used : (r.uid ? runeUsers(r.uid).length > 0 : false);
-  return `<span class="rune-ic ${o.cls || ''}">${runeIconSvg(r)}${r.lock ? '<i class="rune-lock">🔒</i>' : ''}${used ? '<i class="rune-used">E</i>' : ''}</span>`;
+  return `<span class="rune-ic ${o.cls || ''}">${runeIconSvg(r)}${r.lock ? `<i class="rune-lock">${UI_ICON.lock}</i>` : ''}${used ? '<i class="rune-used">E</i>' : ''}</span>`;
 }
 function runeSubsHtml(r){
   return r.subs.length ? r.subs.map(s => `<span class="rune-sub" style="--c:${RUNE_STATS[s.stat].color}">${runeStatText(s.stat, runeSubValue(s, r.tier))}</span>`).join('') : '<span class="rune-sub none">サブ効果なし</span>';
@@ -7782,7 +7874,7 @@ function renderRunesScreen(){
     </div>
     <div class="rune-head">
       <span class="${all.length >= RUNE_MAX ? 'full' : ''}">所持 <b>${all.length}</b> / ${RUNE_MAX}</span>
-      <span>✨ルーンの粉 <b>${STATE.runeDust.toLocaleString()}</b></span>
+      <span>${UI_ICON.dust}ルーンの粉 <b>${STATE.runeDust.toLocaleString()}</b></span>
     </div>
     <div class="screen-sub" style="margin-bottom:8px;">ルーンは育成クエストの「ルーン採掘」で手に入ります。モンスター詳細の「ルーン」枠に、編成ごとに装備できます(枠はモンスターの★1・★4・★6・★9で1つずつ開きます)。形はレア度、色は効果、中の数字はTierです。ルーンは攻撃型(STR・SPD・会心)と防御型(HP・防御)の2タイプで、同じTier・同じタイプのルーン${RUNE_FUSE_COUNT - 1}個を材料にすると、土台のルーンのTierが1つ上がります(最大Ⅹ。レア度とサブ効果はそのまま)。分解で得たルーンの粉は、サブ効果の振り直しやショップでの交換に使えます。</div>
     ${runeFilterChipsHtml(runeFilter, 'data-rune-filter')}
@@ -7870,7 +7962,7 @@ function renderRuneDetail(){
           <div class="rd-main" style="--c:${RUNE_STATS[r.main].color}">${runeStatText(r.main, runeMainValue(r))}</div>
         </div>
       </div>`;
-  const lockBtn = `<button class="rd-lock ${r.lock ? 'on' : ''}" data-rune-lock="${r.uid}" aria-pressed="${r.lock ? 'true' : 'false'}" aria-label="${r.lock ? 'ロック中(タップで解除)' : 'ロックする'}" title="${r.lock ? 'ロック中' : 'ロックしていません'}">${r.lock ? '🔒' : '🔓'}</button>`;
+  const lockBtn = `<button class="rd-lock ${r.lock ? 'on' : ''}" data-rune-lock="${r.uid}" aria-pressed="${r.lock ? 'true' : 'false'}" aria-label="${r.lock ? 'ロック中(タップで解除)' : 'ロックする'}" title="${r.lock ? 'ロック中' : 'ロックしていません'}">${r.lock ? UI_ICON.lock : UI_ICON.unlock}</button>`;
   // 合成の画面: 「合成する」を押すと、持っているルーンから材料を選ぶ画面に切り替わる
   if(runeDetail.view === 'fuse'){
     layer.innerHTML = `
@@ -7896,13 +7988,13 @@ function renderRuneDetail(){
       ${flash ? `<div class="rd-flash">${flash}</div>` : ''}
       ${r.subs.length ? `<div class="rr-list">${r.subs.map((x, i) => `<div class="rr-row" style="--c:${RUNE_STATS[x.stat].color}">
           <span>${runeStatText(x.stat, runeSubValue(x, r.tier))}</span>
-          <button class="rr-btn" data-rune-reroll="${i}" ${canReroll ? '' : 'disabled'} aria-label="${RUNE_STATS[x.stat].label}を振り直す">🎲 振り直す</button></div>`).join('')}</div>
-        <div class="rr-cost">振り直し 1回 ✨${rerollCost.toLocaleString()}(所持 ✨${STATE.runeDust.toLocaleString()})・種類と値を引き直します</div>`
+          <button class="rr-btn" data-rune-reroll="${i}" ${canReroll ? '' : 'disabled'} aria-label="${RUNE_STATS[x.stat].label}を振り直す">${UI_ICON.dice} 振り直す</button></div>`).join('')}</div>
+        <div class="rr-cost">振り直し 1回 ${UI_ICON.dust}${rerollCost.toLocaleString()}(所持 ${UI_ICON.dust}${STATE.runeDust.toLocaleString()})・種類と値を引き直します</div>`
         : '<div class="fs-note">白のルーンにはサブ効果がありません。</div>'}
       <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
       <div class="rd-vbtns">
         <button class="btn btn-block" data-rune-view="fuse" ${maxed ? 'disabled' : ''}>${maxed ? `Tier${RUNE_ROMAN[RUNE_TIERS - 1]}は最大です` : `合成する(Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}〜)`}</button>
-        <button class="btn btn-ghost btn-block" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解する(✨${runeDustValue(r)})${runeCanDismantle(r) ? '' : `<small>${r.lock ? 'ロック中' : '装備中'}は分解できません</small>`}</button>
+        <button class="btn btn-ghost btn-block" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解する(${UI_ICON.dust}${runeDustValue(r)})${runeCanDismantle(r) ? '' : `<small>${r.lock ? 'ロック中' : '装備中'}は分解できません</small>`}</button>
       </div>
     </div>`;
   layer.classList.add('show');
@@ -8010,7 +8102,7 @@ function runeGainHtml(runes, dust){
   return `<div class="rune-gain">
     ${runes.length ? `<div class="rg-head">ルーン ×${runes.length}${runeFull() ? `<span class="rg-full">所持がいっぱいです(${RUNE_MAX})</span>` : ''}</div>
     <div class="rg-list">${sortRunes(runes, 'rarity').map(r => `<span class="rg-item">${runeIconHtml(r, { used: false })}<small style="color:${RUNE_STATS[r.main].color}">${RUNE_STATS[r.main].label}</small></span>`).join('')}</div>` : ''}
-    ${dust ? `<div class="rg-dust">✨ルーンの粉 ×${dust}</div>` : ''}
+    ${dust ? `<div class="rg-dust">${UI_ICON.dust}ルーンの粉 ×${dust}</div>` : ''}
   </div>`;
 }
 
@@ -8027,7 +8119,7 @@ function renderRuneBulk(){
       <h3>まとめて分解</h3>
       <p class="fs-note">選んだレア度のルーンを分解して、ルーンの粉にします。装備中・ロック中のルーンは分解しません。</p>
       <div class="rb-rars">${RUNE_RARITIES.map((x, i) => `<button class="rf-chip ${runeBulk.rar.includes(i) ? 'on' : ''}" data-rune-bulk-rar="${i}" style="--c:${x.color}"><i></i>${x.label}</button>`).join('')}</div>
-      <div class="rb-sum">${targets.length}個 → ✨${dust.toLocaleString()}</div>
+      <div class="rb-sum">${targets.length}個 → ${UI_ICON.dust}${dust.toLocaleString()}</div>
       <button class="btn btn-block" data-rune-bulk-go="1" ${targets.length ? '' : 'disabled'}>分解する</button>
     </div>`;
   layer.classList.add('show');
@@ -8350,9 +8442,9 @@ function sweepLogEntry(r, mvp, win){
 }
 function sweepDropIcon(d){
   return d.kind === 'rune' ? runeIconHtml(d.rune, { used: false })
-    : d.kind === 'relic' ? `<span class="rf-ic">${RELICS[d.key] ? RELICS[d.key].icon : '🏺'}</span>`
+    : d.kind === 'relic' ? `<span class="rf-ic">${RELICS[d.key] ? RELICS[d.key].icon : UI_ICON.urn}</span>`
     : d.kind === 'item' ? itemIcon(d.key)
-    : d.kind === 'dust' ? '<span class="rf-ic">✨</span>'
+    : d.kind === 'dust' ? `<span class="rf-ic">${UI_ICON.dust}</span>`
     : `<img src="${imgSrc(d.id)}" alt="">`;
 }
 function sweepDropName(d){
@@ -8540,7 +8632,7 @@ function showRareFlash(rare, next){
   const layer = document.getElementById('modal-layer');
   const one = r => r.kind === 'join' ? `<div class="rf-one"><img src="${imgSrc(r.id)}" alt=""><b>${MON_BY_ID[r.id].name} が仲間になった!</b></div>`
     : r.kind === 'soul' ? `<div class="rf-one"><img src="${imgSrc(r.id)}" alt=""><b>★5 ${MON_BY_ID[r.id].name} のソウル +${r.n}</b></div>`
-    : r.kind === 'relic' ? `<div class="rf-one"><span class="rf-ic">${RELICS[r.key] ? RELICS[r.key].icon : '🏺'}</span><b>${RELICS[r.key] ? RELICS[r.key].name : '遺物'}</b></div>`
+    : r.kind === 'relic' ? `<div class="rf-one"><span class="rf-ic">${RELICS[r.key] ? RELICS[r.key].icon : UI_ICON.urn}</span><b>${RELICS[r.key] ? RELICS[r.key].name : '遺物'}</b></div>`
     : `<div class="rf-one"><span class="rf-ic">${itemIcon(r.key)}</span><b>${itemName(r.key)} ×${r.n}</b></div>`;
   layer.innerHTML = `<div class="rare-flash" role="status"><div class="rf-tag">RARE</div>${rare.map(one).join('')}</div>`;
   layer.classList.add('show');
@@ -8557,7 +8649,7 @@ function autoRunHud(){
     <div class="ar-hud">
       <div class="ar-ring" style="--p:${pct};"><span>${a.done}<small>/${a.total}</small></span></div>
       <div class="ar-mid">
-        <div class="ar-line">⚡${STATE.stamina} ・ ${autoRunElapsed()}秒 ・ ${a.wins}勝${a.done - a.wins ? `${a.done - a.wins}敗` : ''}</div>
+        <div class="ar-line">${ITEM_ICON.stamina}${STATE.stamina} ・ ${autoRunElapsed()}秒 ・ ${a.wins}勝${a.done - a.wins ? `${a.done - a.wins}敗` : ''}</div>
         <div class="ar-loot">
           ${a.gold ? `<span class="ar-chip">${goldText(a.gold)}</span>` : ''}
           ${items.map(([k, n]) => `<span class="ar-chip" title="${itemName(k)}">${itemIcon(k)}${n}</span>`).join('')}
@@ -8585,7 +8677,7 @@ function showAutoRunResult(){
       <div class="ar-sum">
         <div><span>勝敗</span><b>${a.wins}勝 ${a.done - a.wins}敗</b></div>
         <div><span>連勝</span><b>${a.bestStreak}</b></div>
-        <div><span>使ったスタミナ</span><b>⚡${a.staminaUsed}</b></div>
+        <div><span>使ったスタミナ</span><b>${ITEM_ICON.stamina}${a.staminaUsed}</b></div>
         <div><span>かかった時間</span><b>${Math.floor(secs / 60)}分${secs % 60}秒</b></div>
       </div>
       ${mvpRef ? `<div class="ar-mvp">
@@ -8601,7 +8693,7 @@ function showAutoRunResult(){
         ${souls.map(([id, n]) => `<div class="soul-row"><img src="${imgSrc(id)}" alt=""><div class="sr-body"><div class="sr-name">${MON_BY_ID[id].name}</div>
           ${a.joined.includes(id) ? '<span class="sr-join">仲間になった!</span>' : STATE.owned[id] ? `<span class="sr-have">ソウル ${STATE.owned[id].souls}</span>` : `<span class="sr-pend">${pendSoulText(id)}</span>`}
           </div><div class="sr-n">◆+${n}</div></div>`).join('')}` : ''}
-      <div class="br-stamina" style="margin-top:10px;">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>
+      <div class="br-stamina" style="margin-top:10px;">スタミナ ${ITEM_ICON.stamina} ${STATE.stamina} / ${STAMINA_MAX}</div>
       <div class="br-actions">
         <button class="btn btn-block" data-sweep-open="${stage.id}">もう一度周回する</button>
         <button class="btn btn-ghost btn-block" id="close-result">閉じる</button>
@@ -8641,9 +8733,9 @@ function renderSweepModal(){
     <div class="result-modal sweep-modal" role="dialog" aria-label="周回">
       <h3>周回:${stage.name}</h3>
       <div class="sw-stamina">
-        <div class="row-between"><span>今のスタミナ</span><b>⚡${STATE.stamina} / ${STAMINA_MAX}</b></div>
+        <div class="row-between"><span>今のスタミナ</span><b>${ITEM_ICON.stamina}${STATE.stamina} / ${STAMINA_MAX}</b></div>
         <div class="soul-bar"><div class="soul-fill" style="width:${stamPct}%;"></div></div>
-        <div class="promo-note">1回 ⚡${stage.stamina}・いまは最大 ${max}回${
+        <div class="promo-note">1回 ${ITEM_ICON.stamina}${stage.stamina}・いまは最大 ${max}回${
           STATE.stamina >= STAMINA_MAX ? '' : `・全回復まで ${formatDuration(msToFullStamina())}`}</div>
       </div>
       <div class="sw-reward">1回の報酬 ${goldText(stage.gold || 0)}${pots ? `・${ITEM_ICON.pot}EXP×${pots}` : ''}${drops ? `・素材 約${drops}個` : ''}${stage.boss ? '・ボスのソウル×1' : ''}・モンスターが仲間になることも</div>
@@ -8666,10 +8758,10 @@ function renderSweepModal(){
         <button class="sw-step" data-sweep-times="10" ${times < max ? '' : 'disabled'}>＋10</button>
         <button class="sw-step max ${times === max ? 'on' : ''}" data-sweep-times="max">最大<small>${max}</small></button>
       </div>
-      <div class="promo-note">${sweepTicket ? `券${times}枚 → 残り ${tkHave - times}枚` : `⚡${times * stage.stamina} → 残り ⚡${STATE.stamina - times * stage.stamina}`}</div>
+      <div class="promo-note">${sweepTicket ? `券${times}枚 → 残り ${tkHave - times}枚` : `${ITEM_ICON.stamina}${times * stage.stamina} → 残り ${ITEM_ICON.stamina}${STATE.stamina - times * stage.stamina}`}</div>
       ${t4Over ? `<div class="alc-warn">TierIVは1日${MAT_T4_DAILY_CAP}個までです(本日あと${t4Left}個)。${times}回だとおよそ${t4Exp.toFixed(1)}個ぶんなので、<b>上限を超えます</b>。超えたぶんは出ません(TierI〜TierIIIはそのまま落ちます)</div>` : ''}
       <button class="btn btn-block" data-sweep-run="${times}">${times}回 周回する</button>`
-        : `<div class="soul-none">${sweepTicket ? '周回券が足りません' : `スタミナが足りません(1回 ⚡${stage.stamina})`}</div>`}
+        : `<div class="soul-none">${sweepTicket ? '周回券が足りません' : `スタミナが足りません(1回 ${ITEM_ICON.stamina}${stage.stamina})`}</div>`}
       <button class="btn btn-ghost btn-block" id="close-result">やめる</button>
     </div>`;
   layer.classList.add('show');
@@ -8691,7 +8783,7 @@ function showSweepResult(stage, t){
         ${souls.map(([id, n]) => `<div class="soul-row"><img src="${imgSrc(id)}" alt=""><div class="sr-body"><div class="sr-name">${MON_BY_ID[id].name}</div>
           ${t.joined.includes(id) ? '<span class="sr-join">仲間になった!</span>' : STATE.owned[id] ? `<span class="sr-have">ソウル ${STATE.owned[id].souls}</span>` : `<span class="sr-pend">${pendSoulText(id)}</span>`}
           </div><div class="sr-n">◆+${n}</div></div>`).join('')}` : ''}
-      <div class="br-stamina" style="margin-top:10px;">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>
+      <div class="br-stamina" style="margin-top:10px;">スタミナ ${ITEM_ICON.stamina} ${STATE.stamina} / ${STAMINA_MAX}</div>
       <div class="br-actions">
         <button class="btn btn-block" data-sweep-open="${stage.id}">もう一度周回する</button>
         <button class="btn btn-ghost btn-block" id="close-result">閉じる</button>
@@ -8716,19 +8808,19 @@ const DUNGEON_TIER_UNLOCK = ['tu5', 'q1_10', 'q2_05', 'q3_05', 'q3_10'];
 const DUNGEON_BASE_LV = [1, 30, 50, 80, 120];
 const DUNGEONS = {
   exp: {
-    name: 'EXPの泉', icon: '🧪', desc: 'EXPポットが手に入ります',
+    name: 'EXPの泉', icon: UI_ICON.tube, desc: 'EXPポットが手に入ります',
     enemies: [['m06', 'm34'], ['m33', 'm36', 'm06'], ['m34', 'm35', 'm33'], ['m36', 'm06', 'm35', 'm34'], ['m73', 'm36', 'm35', 'm33']],
     rewards: [{ exp1: 10 }, { exp1: 25, exp2: 3 }, { exp1: 20, exp2: 10 }, { exp1: 40, exp2: 20, exp3: 5 }, { exp1: 60, exp2: 30, exp3: 10 }],
   },
   gold: {
-    name: '黄金の洞窟', icon: '💰', desc: 'ゴールドが手に入ります',
+    name: '黄金の洞窟', icon: UI_ICON.money, desc: 'ゴールドが手に入ります',
     enemies: [['m21', 'm21'], ['m21', 'm40', 'm21'], ['m21', 'm40', 'm46'], ['m46', 'm21', 'm40', 'm21'], ['m46', 'm40', 'm21', 'm40']],
     rewards: [{ gold: 2100 }, { gold: 5600 }, { gold: 10500 }, { gold: 21000 }, { gold: 35000 }],   // 経済見直し: 3割カット(5段で1⚡あたり1,750G)
   },
   // 遺物の強化素材(霊素鉱・霊素核)。遺物Lv200には霊素鉱が20万個ほど要るので、
   // 工房の放置生産(最大1,080/日)だけでは足りない。ここが主な入手先になる
   relic: {
-    name: '霊素の鉱脈', icon: '💠', desc: '霊素鉱と霊素核が手に入ります',
+    name: '霊素の鉱脈', icon: UI_ICON.gem4, desc: '霊素鉱と霊素核が手に入ります',
     enemies: [['m71', 'm36'], ['m13', 'm71', 'm36'], ['m72', 'm73', 'm13'], ['m74', 'm27', 'm72', 'm13'], ['m74', 'm20', 'm27', 'm73']],
     // 霊素核はメインクエストの素材と同じく確率で出る(chance = 1回あたりの平均の個数。rollDropCount で振る)。
     // 以前は5段で TierI 4個・TierII 2個が必ず出ていて、遺物スキルLvがすぐ上がりきっていた(α0.4.013で約1/7に)
@@ -8742,7 +8834,7 @@ const DUNGEONS = {
   },
   // 素材ダンジョンの枠を置き換え。段階ごとにTierが1つずつ上がる(Ⅰ〜Ⅵ)。段階と推奨Lvは他と別
   rune: {
-    name: 'ルーン採掘', icon: '⛏️', desc: 'ルーンとルーンの粉が手に入ります',
+    name: 'ルーン採掘', icon: UI_ICON.pick, desc: 'ルーンとルーンの粉が手に入ります',
     unlock: ['tu5', 'q1_10', 'q2_10', 'q3_10', 'q4_10', 'q5_10', 'q6_10'],
     baseLv: [5, 30, 60, 100, 150, 200, 250],
     enemies: [['m14', 'm29'], ['m16', 'm70', 'm14'], ['m03', 'm02', 'm16'], ['m13', 'm04', 'm02', 'm14'], ['m27', 'm20', 'm04', 'm02'], ['m27', 'm20', 'm13', 'm04'], ['m27', 'm20', 'm13', 'm04', 'm16']],
@@ -9050,7 +9142,7 @@ function stageBossSoulText(st, boss, daily){
     const qty = st.ex ? exPickupSoulQtyText(ev, st.ex) : '1個';
     return `◆ ${boss.name}のソウル ${pctText(rate)}で${qty}・仲間になるのはガチャから`;
   }
-  return `🤝 仲間になる ${pctText(recruitChanceOf(boss, false, st))}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)`;
+  return `${UI_ICON.helper} 仲間になる ${pctText(recruitChanceOf(boss, false, st))}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)`;
 }
 function giveSouls(id, n){
   const mon = MON_BY_ID[id];
@@ -9343,7 +9435,7 @@ function rewardHtml(list){
     if(r.type === 'gold') return `<span class="rw">${goldText(r.n)}</span>`;
     if(r.type === 'monster'){ const m = MON_BY_ID[r.id]; return `<span class="rw rw-mon"><img src="${imgSrc(m.id)}" alt="">★${m.rarity} ${m.name}</span>`; }
     if(r.type === 'relic'){ const d = RELICS[r.key]; return `<span class="rw" title="${d.name}">${d.icon}★${d.star} ${d.name}</span>`; }
-    if(r.type === 'stamina') return `<span class="rw">⚡${r.n}</span>`;
+    if(r.type === 'stamina') return `<span class="rw">${ITEM_ICON.stamina}${r.n}</span>`;
     if(r.type === 'resonance') return `<span class="rw" title="無形の共鳴石">${RESONANCE_ICON}${r.n}</span>`;
     return '';
   }).join('');
@@ -9503,24 +9595,24 @@ const DEBUG_TOOLS = false;               // test buttons (stamina refill) on the
 const QUEST_TIERS = [
   { key: 'tu', label: 'チュートリアル', short: '入門', lv: [1, 1],   star: [1, 1], bossStar: 1, skill: 1,  waves: 3 },
   { key: 'q1', label: '初級',   lv: [1, 28],    star: [1, 1], bossStar: 4, skill: 1,  waves: 3, drops: [4, 0, 0, 0], pots: { exp1: 5 } },
-  { key: 'q1h', label: '初級ハード', short: '💀初級', lv: [1, 28],  star: [4, 4], bossStar: 5, skill: 1, waves: 3, hard: 'q1' },
+  { key: 'q1h', label: '初級ハード', short: `${UI_ICON.skull}初級`, lv: [1, 28],  star: [4, 4], bossStar: 5, skill: 1, waves: 3, hard: 'q1' },
   { key: 'q2', label: '中級',   lv: [30, 58],   star: [2, 2], bossStar: 4, skill: 3,  waves: 3, drops: [5, 0.8, 0, 0], pots: { exp1: 8, exp2: 2 } },
-  { key: 'q2h', label: '中級ハード', short: '💀中級', lv: [30, 58], star: [4, 4], bossStar: 5, skill: 3, waves: 3, hard: 'q2' },
+  { key: 'q2h', label: '中級ハード', short: `${UI_ICON.skull}中級`, lv: [30, 58], star: [4, 4], bossStar: 5, skill: 3, waves: 3, hard: 'q2' },
   { key: 'q3', label: '上級',   lv: [60, 96],   star: [3, 3], bossStar: 4, skill: 5,  waves: 3, drops: [5, 0.9, 0.04, 0.02], pots: { exp2: 4 } },
-  { key: 'q3h', label: '上級ハード', short: '💀上級', lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
+  { key: 'q3h', label: '上級ハード', short: `${UI_ICON.skull}上級`, lv: [60, 96], star: [5, 5], bossStar: 5, skill: 5, waves: 3, hard: 'q3' },
   // 通常クエストは雑魚★1-4・ボス★5が上限。★6以上はハードモード専用(HARD_STAR_MAPで
   // ノーマルの★を変換)。超上級以降はレベル/スキルLvだけで難度を積み増す。
   // レベル帯は星刻の上限Lvに合わせている: 極上級 150(★5上限)〜200(★7上限)、
   // 伝説級 210〜250(★8上限230が真ん中)、神話級 260(★9上限)〜300(★10上限)。
   // 上位3ティアの境目は10レベルずつ空けてある。神話級は★8〜★10の解放が前提。
   { key: 'q4', label: '超上級', lv: [100, 146], star: [2, 4], bossStar: 5, skill: 8,  waves: 4, drops: [5.5, 1.2, 0.06, 0.03], pots: { exp2: 6, exp3: 1 } },
-  { key: 'q4h', label: '超上級ハード', short: '💀超上級', lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
+  { key: 'q4h', label: '超上級ハード', short: `${UI_ICON.skull}超上級`, lv: [100, 146], star: [5, 6], bossStar: 6, skill: 8, waves: 4, hard: 'q4' },
   { key: 'q5', label: '極上級', lv: [150, 200], star: [2, 4], bossStar: 5, skill: 10, waves: 4, drops: [6, 1.3, 0.08, 0.045], pots: { exp3: 3 } },
-  { key: 'q5h', label: '極上級ハード', short: '💀極上級', lv: [150, 200], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
+  { key: 'q5h', label: '極上級ハード', short: `${UI_ICON.skull}極上級`, lv: [150, 200], star: [5, 6], bossStar: 6, skill: 10, waves: 4, hard: 'q5' },
   { key: 'q6', label: '伝説級', lv: [210, 250], star: [2, 4], bossStar: 5, skill: 11, waves: 4, drops: [6.5, 1.55, 0.10, 0.06], pots: { exp3: 5 } },
-  { key: 'q6h', label: '伝説級ハード', short: '💀伝説級', lv: [210, 250], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
+  { key: 'q6h', label: '伝説級ハード', short: `${UI_ICON.skull}伝説級`, lv: [210, 250], star: [5, 6], bossStar: 6, skill: 11, waves: 4, hard: 'q6' },
   { key: 'q7', label: '神話級', lv: [260, 300], star: [2, 4], bossStar: 5, skill: 12, waves: 4, drops: [7, 1.7, 0.12, 0.075], pots: { exp3: 8 } },
-  { key: 'q7h', label: '神話級ハード', short: '💀神話級', lv: [260, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
+  { key: 'q7h', label: '神話級ハード', short: `${UI_ICON.skull}神話級`, lv: [260, 300], star: [5, 6], bossStar: 6, skill: 12, waves: 4, hard: 'q7' },
 ];
 const QUEST_TIERS_ACTIVE = QUEST_TIERS.filter(t => !t.disabled);
 const HARD_TIERS = QUEST_TIERS_ACTIVE.filter(t => t.hard);
@@ -9791,7 +9883,7 @@ function claimTierChest(key, stars){
   grantRewards([{ type: 'crystal', n: chest.crystals }]);
   track('upgrade');
   playSfx('confirm');
-  toast(`💎${chest.crystals}を受け取りました`);
+  toastHtml(`${CRYSTAL_ICON}${chest.crystals}を受け取りました`);
   saveState();
   render();
 }
@@ -9801,8 +9893,8 @@ function renderTierChests(key, stars){
       ${TIER_STAR_CHESTS.map(c => {
         const claimed = tierChestClaimed(key, c.stars);
         const ready = !claimed && stars >= c.stars;
-        return `<button class="tier-chest ${claimed ? 'done' : ready ? 'ready' : 'locked'}" data-tier-chest="${key}:${c.stars}" ${ready ? '' : 'disabled'} title="★${c.stars}で💎${c.crystals}">
-          <span class="tc-ic">${claimed ? '✅' : '🎁'}</span>
+        return `<button class="tier-chest ${claimed ? 'done' : ready ? 'ready' : 'locked'}" data-tier-chest="${key}:${c.stars}" ${ready ? '' : 'disabled'} title="★${c.stars}で星結晶${c.crystals}">
+          <span class="tc-ic">${claimed ? UI_ICON.check : UI_ICON.gift}</span>
           <span class="tc-star">★${c.stars}</span>
         </button>`;
       }).join('')}
@@ -10232,7 +10324,7 @@ function frameRowHtml(f){
   const pct = pr ? Math.round(Math.min(1, pr[0] / Math.max(1, pr[1])) * 100) : 0;
   const av = profileAvatar();
   return `<div class="tl-row ${own ? 'own' : ''} ${on ? 'on' : ''} ${!own && st === 'ended' ? 'ended' : ''}">
-    <span class="tl-frame${frameClass(f.key)}">${av ? `<img src="${imgSrc(av)}" alt="">` : '👤'}${frameBadgeHtml(f.key)}</span>
+    <span class="tl-frame${frameClass(f.key)}">${av ? `<img src="${imgSrc(av)}" alt="">` : UI_ICON.person}${frameBadgeHtml(f.key)}</span>
     <div class="tl-body"><b>${f.name}</b><small>${f.how}</small>
       ${pr && st !== 'ended' ? `<span class="tl-bar"><i style="width:${pct}%"></i></span><span class="tl-prog">${pr[0].toLocaleString()} / ${pr[1].toLocaleString()}</span>` : ''}</div>
     <div class="tl-side">${own ? (on ? '<span class="tl-on">付けている</span>' : `<button class="btn btn-sm" data-set-frame="${f.key}">付ける</button>`)
@@ -10355,11 +10447,11 @@ function registerFrames(){
     registerFrame(`fr_${style}`, `${nm}のフレーム`, style, `テイマーランクが${n}になる`, () => lv() >= n, { progress: () => [Math.min(lv(), n), n] }));
   // 極みの枠: やりこみの頂点。四すみに飾りが付く(orn: 飾りの絵文字・hue: 色を回す)
   const abyss = () => (STATE.abyss && STATE.abyss.bestEver) || 0;
-  [['fr_m_dex', '葉冠のフレーム', 'green', 'モンスターを130体集める', () => ownedCount(), 130, '🍃'],
-   ['fr_m_star', '星冠のフレーム', 'star', '★10のモンスターを育てる', () => maxOwned('star'), 10, '⭐'],
-   ['fr_m_main', '羅針のフレーム', 'sky', 'メインクエストで★を400個獲得する', () => mainStarsGot(), 400, '🧭'],
-   ['fr_m_abyss', '黒炎のフレーム', 'abyss', '深淵回廊で200階に到達する', abyss, 200, '🔥', 'purple'],
-   ['fr_m_pvp', '覇剣のフレーム', 'crimson', 'PVPで1,000回勝つ', () => stat('pvpWin'), 1000, '⚔️'],
+  [['fr_m_dex', '葉冠のフレーム', 'green', 'モンスターを130体集める', () => ownedCount(), 130, UI_ICON.leaf],
+   ['fr_m_star', '星冠のフレーム', 'star', '★10のモンスターを育てる', () => maxOwned('star'), 10, UI_ICON.crown],
+   ['fr_m_main', '羅針のフレーム', 'sky', 'メインクエストで★を400個獲得する', () => mainStarsGot(), 400, UI_ICON.compass],
+   ['fr_m_abyss', '黒炎のフレーム', 'abyss', '深淵回廊で200階に到達する', abyss, 200, UI_ICON.fire, 'purple'],
+   ['fr_m_pvp', '覇剣のフレーム', 'crimson', 'PVPで1,000回勝つ', () => stat('pvpWin'), 1000, UI_ICON.swords],
   ].forEach(([key, name, style, how, val, n, orn, hue]) =>
     registerFrame(key, name, style, how, () => val() >= n, { group: 'master', orn, hue, progress: () => [Math.min(val(), n), n] }));
   // イベントの枠: イベントの色で、右下にそのイベントのピックアップ★5が小さくいる
@@ -10800,7 +10892,7 @@ function showAbyssGiveUpConfirm(){
   const layer = document.getElementById('modal-layer');
   layer.innerHTML = `
     <div class="result-modal abyss-giveup" role="dialog" aria-label="諦める">
-      <h3>⚠️ 諦めますか?</h3>
+      <h3>${UI_ICON.warn} 諦めますか?</h3>
       <p>諦めると<b>チェックポイントからやり直し</b>になります。</p>
       <ul>
         <li>いまの<b>${a.floor}階</b>から、<b>${restart}階</b>(${a.checkpoint ? `${a.checkpoint}階のチェックポイントの次` : '最初'})に戻ります</li>
@@ -10829,7 +10921,7 @@ function renderAbyssTab(){
   return `
     <div class="panel abyss-card">
       <div class="row-between" style="margin-bottom:4px;">
-        <div class="mc-head">🕳️ 深淵回廊</div>
+        <div class="mc-head">${UI_ICON.abyss} 深淵回廊</div>
         <div class="mc-reset">リセットまで ${formatDaysHours(abyssSeasonEnd(a.season) - Date.now())}</div>
       </div>
       <div class="ev-period">今期のテーマ属性 ${theme.map(e => `${ELEM_ICON[e]}${ELEM_LABEL[e]}`).join('・')}(敵にこの属性が多い)</div>
@@ -10847,7 +10939,7 @@ function renderAbyssTab(){
       </div>
       ${sortieFormationHtml()}
       <button class="btn btn-block" data-start-stage="ab_${a.floor}">${a.floor}階に挑戦する</button>
-      ${abyssCanGiveUp() ? `<button class="btn btn-ghost btn-block btn-sm ab-giveup" data-abyss-giveup="1">🏳️ 諦めて${a.checkpoint + 1}階(チェックポイント)からやり直す</button>` : ''}
+      ${abyssCanGiveUp() ? `<button class="btn btn-ghost btn-block btn-sm ab-giveup" data-abyss-giveup="1">${UI_ICON.flag} 諦めて${a.checkpoint + 1}階(チェックポイント)からやり直す</button>` : ''}
     </div>
     ${renderAbyssRewardChart(a)}`;
 }
@@ -10879,7 +10971,7 @@ function renderAbyssRewardChart(a){
   }
   return `
     <div class="panel ab-chart">
-      <div class="mc-head">🎁 階層報酬</div>
+      <div class="mc-head">${UI_ICON.gift} 階層報酬</div>
       <div class="screen-sub" style="margin:4px 0 8px;">各階を初めて突破したときに貰えます(2週間ごとのリセットで受け取り直せます)。<br>
         毎階: ${rewardHtml([{ type:'gold', n: 1000 }, { type:'item', key:'exp2', n: 2 }])} から、階が進むほど増えます(ゴールド+100/階・EXPポット+1/10階)</div>
       <ol class="ab-timeline">${rows.join('')}</ol>
@@ -10932,11 +11024,11 @@ let dexOwnedOnly = false;
 // handler below, which moves to the neighboring entry in this array).
 // 下のメニューは5つ。関係の近い画面は、画面の上のタブ(NAV_GROUPS)で切り替える
 const NAV = [
-  { key: 'gacha', label: 'ガチャ', icon: '🎰' },
-  { key: 'party', label: '育成', icon: '🧩' },
-  { key: 'home', label: 'ホーム', icon: '🏠' },
-  { key: 'battle', label: '探索', icon: '⚔️' },
-  { key: 'base', label: '拠点', icon: '🏯' },
+  { key: 'gacha', label: 'ガチャ', icon: UI_ICON.gacha },
+  { key: 'party', label: '育成', icon: UI_ICON.puzzle },
+  { key: 'home', label: 'ホーム', icon: UI_ICON.house },
+  { key: 'battle', label: '探索', icon: UI_ICON.swords },
+  { key: 'base', label: '拠点', icon: UI_ICON.castle },
 ];
 // 下のメニュー1つの中にある画面(画面の上にタブで並ぶ)。先頭がそのメニューを押したときの画面
 const NAV_GROUPS = {
@@ -11072,7 +11164,7 @@ function renderPvpFormEditGrid(kind){
     const penalty = slotRowIn(f, i) === 'back' && isMeleeRole(m.role);
     return `<div class="party-slot ${sel} ${penalty ? 'penalty' : ''}" ${pos} ${slotAttr}>
       <img src="${imgSrc(m.id)}" alt="${m.name}">
-      ${penalty ? '<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">⚠</span>' : ''}
+      ${penalty ? `<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">${UI_ICON.warn}</span>` : ''}
       <span class="role-mini">${tagsHtml(m)}</span>
       <div class="remove-x" data-pvp-form-remove="${i}" aria-label="${m.name} を外す">×</div>
     </div>`;
@@ -11163,7 +11255,7 @@ function renderPvp(){
   return `
     <div class="screen-head">
       <div class="screen-title">PVP</div>
-      <div class="head-right"><div class="base-wallet">🏆${(STATE.pvpPoints || 0).toLocaleString()}</div>${guideHelpBtn('pvp')}</div>
+      <div class="head-right"><div class="base-wallet">${UI_ICON.trophy}${(STATE.pvpPoints || 0).toLocaleString()}</div>${guideHelpBtn('pvp')}</div>
     </div>
     <div class="panel">
       <div class="row-between">
@@ -11242,7 +11334,7 @@ function renderBase(){
     const st = STATE.base[key];
     if(!facilityUnlocked(key)){
       return `<div class="panel facility locked"><div class="fc-head">
-          <span class="fc-ic">🔒</span>
+          <span class="fc-ic">${UI_ICON.lock}</span>
           <div class="fc-body"><div class="fc-name">${f.name}</div>
           <div class="fc-line">メインステージ「${STAGE_BY_ID[FACILITY_UNLOCK[key]].name}」をクリアすると解放</div></div>
         </div></div>`;
@@ -11288,13 +11380,13 @@ function renderBase(){
   const fam = ALCHEMY_FAMILIES[alchemyFam];
   const alchemy = !facilityUnlocked('alchemy')
     ? `<div class="panel facility locked"><div class="fc-head">
-          <span class="fc-ic">🔒</span>
+          <span class="fc-ic">${UI_ICON.lock}</span>
           <div class="fc-body"><div class="fc-name">錬金術</div>
           <div class="fc-line">メインステージ「${STAGE_BY_ID[FACILITY_UNLOCK.alchemy].name}」をクリアすると解放</div></div>
         </div></div>`
     : `
       <div class="panel facility" data-open-alchemy="1" role="button">
-        <div class="fc-head"><span class="fc-ic">🔮</span>
+        <div class="fc-head"><span class="fc-ic">${UI_ICON.orb}</span>
           <div class="fc-body"><div class="fc-name">錬金術</div>
           <div class="fc-line">下位Tierの素材から上位Tierの素材を作ります</div></div>
           <button class="btn btn-sm">開く ›</button>
@@ -11333,14 +11425,14 @@ function renderShop(){
     return `
       <div class="shop-row ${bought ? 'sold' : ''}">
         <span class="shop-item">${itemIcon(def.itemKey)}<span class="shop-item-name">${itemName(def.itemKey)}<small>${def.qty > 1 ? `${def.qty}個` : '1個'}</small></span></span>
-        <span class="shop-price">🏆${def.price}<small class="ev-left">${bought ? '本日ぶん購入済み' : '本日あと1'}</small></span>
+        <span class="shop-price">${UI_ICON.trophy}${def.price}<small class="ev-left">${bought ? '本日ぶん購入済み' : '本日あと1'}</small></span>
         <button class="btn btn-sm ${bought || (STATE.pvpPoints || 0) < def.price ? 'btn-ghost' : ''}" data-shop-buy="pvp:${def.sku}" ${bought ? 'disabled' : ''}>${bought ? '購入済み' : '購入'}</button>
       </div>`;
   };
   const stamPrice = staminaRefillPrice();
   const staminaRefillRow = () => `
       <div class="shop-row stam-row">
-        <span class="shop-item">⚡<span class="shop-item-name">スタミナ回復<small>+${STAMINA_REFILL_QTY}</small></span></span>
+        <span class="shop-item">${ITEM_ICON.stamina}<span class="shop-item-name">スタミナ回復<small>+${STAMINA_REFILL_QTY}</small></span></span>
         <span class="shop-price">${stamPrice === null ? '本日終了' : stamPrice === 0 ? '<b class="stam-free">無料</b>' : `${CRYSTAL_ICON}${stamPrice}`}<small class="ev-left">本日あと${staminaRefillLeft()}回</small></span>
         <button class="btn btn-sm ${stamPrice !== null && (STATE.crystals || 0) >= stamPrice ? '' : 'btn-ghost'}" data-stamina-refill="1" ${stamPrice === null ? 'disabled' : ''}>${stamPrice === 0 ? '受け取る' : '購入'}</button>
       </div>
@@ -11358,7 +11450,7 @@ function renderShop(){
   return `
     <div class="screen-head">
       <div class="screen-title">ショップ</div>
-      <div class="head-right"><div class="base-wallet">${goldText(STATE.gold || 0)}　🏆${STATE.pvpPoints || 0}　${CRYSTAL_ICON}${STATE.crystals || 0}</div>${guideHelpBtn('shop')}</div>
+      <div class="head-right"><div class="base-wallet">${goldText(STATE.gold || 0)}　${UI_ICON.trophy}${STATE.pvpPoints || 0}　${CRYSTAL_ICON}${STATE.crystals || 0}</div>${guideHelpBtn('shop')}</div>
     </div>
     <div class="shop-tabs">
       <button class="stage-tab ${shopTab === 'gold' ? 'on' : ''}" data-shop-tab="gold">ゴールドショップ</button>
@@ -11370,7 +11462,7 @@ function renderShop(){
     ${shopTab === 'gold' ? `
       <div class="screen-sub">商品は1日1回だけ購入できます(毎日${DAY_RESET_HOUR}時リセット)。特売品は毎日3品(${SHOP_SALE_DISCOUNTS.map(d => `${Math.round(d * 100)}%`).join('・')}引き)。</div>
       <div class="shop-refresh">
-        <span>🔄 ショップ更新<small>商品がまた買えるようになり、特売品も入れ替わります(本日あと${refreshLeft}回)</small></span>
+        <span>${UI_ICON.refresh} ショップ更新<small>商品がまた買えるようになり、特売品も入れ替わります(本日あと${refreshLeft}回)</small></span>
         <button class="btn btn-sm ${refreshCost !== null && (STATE.crystals || 0) >= refreshCost ? '' : 'btn-ghost'}" data-shop-refresh="1" ${refreshCost === null ? 'disabled' : ''}>${refreshCost === null ? '本日終了' : `更新 ${CRYSTAL_ICON}${refreshCost}`}</button>
       </div>
       <div class="panel facility">${SHOP_GOLD_ITEMS.slice().sort((a, b) => (sale[b.sku] || 0) - (sale[a.sku] || 0)).map(goldRow).join('')}</div>
@@ -11453,12 +11545,12 @@ function renderRuneShop(){
   const max = runeShopTier();
   if(!max) return '<div class="screen-sub">育成クエストの「ルーン採掘」が開くと交換できます。</div>';
   return `
-    <div class="screen-sub">ルーンの粉で<b>未鑑定のルーン</b>と交換できます(分解で集めるより割高です)。決まっているのはTierだけで、レア度と効果は開封するまでわかりません(出方はそのTierのルーン採掘と同じ)。Tierはルーン採掘で開いているステージまで選べます。<br>所持 ✨${ensureRunes() && STATE.runeDust.toLocaleString()}・ルーン ${STATE.runes.length}/${RUNE_MAX}</div>
+    <div class="screen-sub">ルーンの粉で<b>未鑑定のルーン</b>と交換できます(分解で集めるより割高です)。決まっているのはTierだけで、レア度と効果は開封するまでわかりません(出方はそのTierのルーン採掘と同じ)。Tierはルーン採掘で開いているステージまで選べます。<br>所持 ${UI_ICON.dust}${ensureRunes() && STATE.runeDust.toLocaleString()}・ルーン ${STATE.runes.length}/${RUNE_MAX}</div>
     <div class="panel facility">${[...Array(max).keys()].map(i => i + 1).reverse().map(tier => {
       const price = runeShopPrice(tier);
       return `<div class="shop-row">
         <span class="shop-item">${runeIconHtml({ tier, sealed: true }, { cls: 'shop-rune' })}<span class="shop-item-name">未鑑定のルーン Tier${RUNE_ROMAN[tier - 1]}<small class="shop-rune-sub">レア度・効果は開封してのお楽しみ</small></span></span>
-        <span class="shop-price">✨${price.toLocaleString()}</span>
+        <span class="shop-price">${UI_ICON.dust}${price.toLocaleString()}</span>
         <button class="btn btn-sm ${STATE.runeDust < price || runeFull() ? 'btn-ghost' : ''}" data-rune-shop-buy="${tier}">交換</button>
       </div>`;
     }).join('')}</div>`;
@@ -11702,7 +11794,7 @@ function renderAlchemy(){
     <div class="result-modal bag-modal alchemy-modal" role="dialog" aria-label="錬金術">
       <div class="bag-top">
         <button class="btn btn-ghost btn-sm" data-alc-close="1">‹ 戻る</button>
-        <h3>🔮 錬金術</h3>
+        <h3>${UI_ICON.orb} 錬金術</h3>
         <span class="bag-count">${goldText(STATE.gold || 0)}</span>
       </div>
       ${recipe}
@@ -12045,6 +12137,14 @@ function screenBackBarHtml(){
 }
 // できなかったことを知らせるメッセージには「押せない」音を添える
 const TOAST_DENY_RE = /足りません|できません|いっぱい|まだ|必要です|最大です|解放すると|ありません/;
+// アイコン(<img>)を混ぜたいときはこちら。中身は自分で組み立てた文字列だけを渡すこと
+function toastHtml(html){
+  const el = document.getElementById('toast');
+  el.innerHTML = html;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 1600);
+}
 function toast(msg){
   if(TOAST_DENY_RE.test(msg)) playSfx('deny');
   const el = document.getElementById('toast');
@@ -12147,12 +12247,12 @@ function renderMissions(){
     const count = e.ratio ? `${Math.round(e.progress * 100)}%` : `${Math.max(0, e.progress)} / ${e.goal}`;
     const state = e.state === 'claim' ? '<span class="ms-state claim">受取</span>'
       : e.state === 'done' ? '<span class="ms-state">受取済</span>'
-      : e.state === 'locked' ? '<span class="ms-state">🔒</span>'
+      : e.state === 'locked' ? `<span class="ms-state">${UI_ICON.lock}</span>`
       : '<span class="ms-state">—</span>';
     return `
       <div class="mission ${e.state} ${e.bonus ? 'bonus' : ''}" ${e.state === 'claim' ? `data-claim="${e.key}" role="button" tabindex="0"` : ''}>
         <div class="ms-main">
-          <div class="ms-title">${e.stepNo ? `<span class="ms-step">${e.stepNo}</span>` : ''}${e.bonus ? '🎁 ' : ''}${e.label}${e.tierText ? `<span class="ms-tier">${e.tierText}</span>` : ''}</div>
+          <div class="ms-title">${e.stepNo ? `<span class="ms-step">${e.stepNo}</span>` : ''}${e.bonus ? `${UI_ICON.gift} ` : ''}${e.label}${e.tierText ? `<span class="ms-tier">${e.tierText}</span>` : ''}</div>
           ${e.state === 'progress' && e.hint ? `<div class="ms-hint">${e.hint}</div>` : ''}
           ${e.state !== 'locked' ? `<div class="ms-bar"><div class="ms-fill" style="width:${pct}%;"></div></div>` : '<div class="ms-bar"></div>'}
           <div class="ms-rewards">${rewardHtml(e.reward)}</div>
@@ -12216,7 +12316,7 @@ function nextAction(){
     return {
       eyebrow,
       title: `${next.name} に挑戦`,
-      sub: `推奨Lv${next.rec}・WAVE ${next.waves.length}・⚡${nextCost}${helperSurchargeNote(next)}${STATE.stamina < nextCost ? '(スタミナが足りません)' : ''}`,
+      sub: `推奨Lv${next.rec}・WAVE ${next.waves.length}・${ITEM_ICON.stamina}${nextCost}${helperSurchargeNote(next)}${STATE.stamina < nextCost ? '(スタミナが足りません)' : ''}`,
       main: { label: '出撃する', stage: next.id, disabled: STATE.stamina < nextCost },
       side: { label: '詳細', stageOpen: next.id },
     };
@@ -12332,7 +12432,7 @@ function renderBeginnerCard(){
   return `
     <div class="panel beginner-card" data-nav="missions" role="button">
       <div class="row-between" style="margin-bottom:8px;">
-        <div class="mc-head">🔰 はじめてガイド</div>
+        <div class="mc-head">${UI_ICON.elem} はじめてガイド</div>
         <div class="mc-reset">${done} / ${steps.length}</div>
       </div>
       <div class="mc-row">
@@ -12378,7 +12478,7 @@ function renderBeginnerLoginCard(){
           </button>`;
       }).join('')}
     </div>`;
-  return loginCardHtml('beginner', '🎁', 'はじめての7日ログインボーナス', ready, body);
+  return loginCardHtml('beginner', UI_ICON.gift, 'はじめての7日ログインボーナス', ready, body);
 }
 // home: the ongoing 10-day login bonus, always shown (see ensureDailyLogin).
 // only the current day's box is claimable; a missed day is simply skipped.
@@ -12398,7 +12498,7 @@ function renderDailyLoginCard(){
           </button>`;
       }).join('')}
     </div>`;
-  return loginCardHtml('daily', '📅', 'ログインボーナス', ready, body);
+  return loginCardHtml('daily', UI_ICON.calendar, 'ログインボーナス', ready, body);
 }
 
 function renderHome(){
@@ -12428,7 +12528,7 @@ function renderHome(){
 
     <div class="panel mission-card ${claim ? 'has-claim' : ''}" data-nav="missions" role="button">
       <div class="row-between" style="margin-bottom:8px;">
-        <div class="mc-head">📜 ミッション${claim ? `<span class="tab-dot">${claim}</span>` : ''}</div>
+        <div class="mc-head">${UI_ICON.scroll} ミッション${claim ? `<span class="tab-dot">${claim}</span>` : ''}</div>
         <div class="mc-reset">リセットまで ${formatDuration(msToDailyReset())}</div>
       </div>
       <div class="mc-list">
@@ -12451,7 +12551,7 @@ function renderHome(){
       <div class="row-between" style="margin-bottom:10px;">
         <div class="mc-head">編成<span class="home-fm">編成${STATE.formationIdx + 1}・${currentFormation().name}</span></div>
         <div class="home-party-btns">
-          <button class="btn btn-ghost btn-sm" data-nav="dex">📖 モンスター</button>
+          <button class="btn btn-ghost btn-sm" data-nav="dex">${UI_ICON.book} モンスター</button>
           <button class="btn btn-ghost btn-sm" data-nav="party">編成</button>
         </div>
       </div>
@@ -12461,7 +12561,7 @@ function renderHome(){
     ${canInstall() ? `
     <div class="panel panel-tight row-between" data-install="1" style="cursor:pointer;">
       <div>
-        <div class="mc-head">📲 ホーム画面に追加</div>
+        <div class="mc-head">${UI_ICON.install} ホーム画面に追加</div>
         <div class="acct-line">アプリのように全画面で遊べます</div>
       </div>
       <div class="mc-go">›</div>
@@ -12516,7 +12616,7 @@ function renderFriendGacha(){
     <div class="panel">
       <div class="row-between" style="margin-bottom:4px;">
         <div class="mc-head">フレンドガチャ</div>
-        <div class="base-wallet">🎗️${pts.toLocaleString()}</div>
+        <div class="base-wallet">${UI_ICON.ribbon}${pts.toLocaleString()}</div>
       </div>
       <div class="screen-sub">フレンドにポイントを送る(フレンド画面)と貯まる「フレンドポイント」で引けるガチャです。</div>
     </div>
@@ -12539,10 +12639,10 @@ function renderFriendGacha(){
     </div>
     <div class="gc-btns">
       <button class="btn gc-pull1" data-friend-pull="${friendGachaTab}:1" ${pts < cost ? 'disabled' : ''}>
-        1回<small>🎗️ ${cost}</small>
+        1回<small>${UI_ICON.ribbon} ${cost}</small>
       </button>
       <button class="btn gc-pull10" data-friend-pull="${friendGachaTab}:10" ${pts < cost * 10 ? 'disabled' : ''}>
-        10連<small>🎗️ ${cost * 10}</small>
+        10連<small>${UI_ICON.ribbon} ${cost * 10}</small>
       </button>
     </div>
   `;
@@ -13468,10 +13568,10 @@ function revealHeadHtml(g){
 // 卵(壺)が並んだら大きく「タップして割る!」。大物だけ残ったら「光る卵をタップ!」、全部割れたら消える
 function revealCallHtml(g){
   const closed = g.results.filter((r, i) => !g.open[i]);
-  if(!closed.length) return '<span>👆 タップして結果へ</span>';
+  if(!closed.length) return `<span>${UI_ICON.tap} タップして結果へ</span>`;
   const v = vesselName(g.kind);
   const bigOnly = g.results.length > 1 && closed.every(r => pullRarity(g.kind, r) >= 4);
-  return `<span>👆 ${bigOnly ? `残った${v}をタップ!` : `タップして${v}を割る!`}</span>`;
+  return `<span>${UI_ICON.tap} ${bigOnly ? `残った${v}をタップ!` : `タップして${v}を割る!`}</span>`;
 }
 function renderGachaStage(){
   const g = gachaSeq;
@@ -14426,8 +14526,8 @@ function kitLinesHtml(m, star, owned, after){
       <div class="skill-head"><span class="skill-tag-name"><span class="slot-tag t-${kind}">${tag}</span>${act.name}</span><span class="skill-ct">${meta}</span></div>
       <div class="skill-desc">${markTerms(act.desc || '')}</div>
       ${locked ? '' : scaledPowLine(kind, act, lv)}
-      ${act.tgt || act.tgtText ? `<div class="skill-desc elem-flavor">🎯 ${act.tgtText || TGT_TEXT[act.tgt] || ''}${act.atk && !act.tgtText ? `・${typeOf(act)}` : ''}</div>` : ''}
-      ${locked ? `<div class="skill-lock-note">🔒 ★${SECOND_SKILL_STAR}に星刻すると使えるようになります</div>` : (upgrade || '')}
+      ${act.tgt || act.tgtText ? `<div class="skill-desc elem-flavor">${UI_ICON.target} ${act.tgtText || TGT_TEXT[act.tgt] || ''}${act.atk && !act.tgtText ? `・${typeOf(act)}` : ''}</div>` : ''}
+      ${locked ? `<div class="skill-lock-note">${UI_ICON.lock} ★${SECOND_SKILL_STAR}に星刻すると使えるようになります</div>` : (upgrade || '')}
     </div>`;
   const skill2 = kit.skill2 || kit.skill1;
   const two = slots.length >= 2;
@@ -14764,7 +14864,7 @@ function showMonsterDetail(id){
       <div class="detail-level-box relic-box">
         <div class="mc-head" style="margin-bottom:8px;">遺物</div>
         <button class="relic-slot ${equippedRelicDef ? 'filled' : 'empty'}" data-relic-slot="${id}">
-          <span class="relic-ic">${equippedRelicDef ? equippedRelicDef.icon : '➕'}</span>
+          <span class="relic-ic">${equippedRelicDef ? equippedRelicDef.icon : '＋'}</span>
           <div class="relic-slot-body">
             <div class="relic-slot-name">${equippedRelicDef ? `${equippedRelicDef.name}<span class="relic-star">★${equippedRelicDef.star}</span>` : '未装備'}</div>
             <div class="relic-slot-sub">${equippedRelicDef ? `Lv${equippedRelicSt.level} / スキルLv${equippedRelicSt.skillLv}` : 'タップして遺物を選ぶ'}</div>
@@ -14781,7 +14881,7 @@ function showMonsterDetail(id){
         <div class="rune-slots">
           ${runesOf(id).map((uid, i) => {
             const r = runeByUid(uid);
-            if(i >= runeSlotsOpen(id)) return `<div class="rune-slot locked" aria-label="ルーン枠${i + 1}(★${RUNE_SLOT_STARS[i]}で解放)"><span class="rs-plus">🔒</span><small>★${RUNE_SLOT_STARS[i]}で解放</small></div>`;
+            if(i >= runeSlotsOpen(id)) return `<div class="rune-slot locked" aria-label="ルーン枠${i + 1}(★${RUNE_SLOT_STARS[i]}で解放)"><span class="rs-plus">${UI_ICON.lock}</span><small>★${RUNE_SLOT_STARS[i]}で解放</small></div>`;
             return `<button class="rune-slot ${r ? 'filled' : ''}" data-rune-slot="${id}:${i}" aria-label="ルーン枠${i + 1}">
               ${r ? runeIconHtml(r, { used: false }) : '<span class="rs-plus">＋</span>'}
               <small ${r ? `style="color:${RUNE_STATS[r.main].color}"` : ''}>${r ? `${RUNE_STATS[r.main].short}+${runeMainValue(r)}${RUNE_STATS[r.main].pct ? '%' : ''}` : `枠${i + 1}`}</small>
@@ -14873,7 +14973,7 @@ function renderDex(){
         <div class="screen-title">モンスター</div>
         <div class="dex-count">${ownedCount} / ${MONSTERS.length} 体${promoCount ? `・★上げできる ${promoCount}体` : ''}</div>
       </div>
-      <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
+      <button class="btn btn-ghost btn-sm" data-affinity="1">${UI_ICON.elem} 属性相性表</button>
     </div>
 
     <div class="dex-elems">
@@ -14922,16 +15022,16 @@ function renderFormationGrid(compact, src){
     const relicDef = relicId ? RELICS[relicId] : null;
     return `<div class="party-slot ${sel} ${menuOpen ? 'menu-open' : ''} ${penalty ? 'penalty' : ''} ${isHelp ? 'helped' : ''}" ${pos} ${slotAttr}>
       <img src="${imgSrc(m.id)}" alt="${m.name}">
-      ${isHelp ? '<span class="help-mini" title="お助けモンスター">🤝</span>' : ''}
+      ${isHelp ? `<span class="help-mini" title="お助けモンスター">${UI_ICON.helper}</span>` : ''}
       ${menuOpen ? `
         <div class="slot-menu" role="menu" aria-label="${m.name} の操作">
-          <div class="sm-name">${m.name}${isHelp ? ' 🤝' : ''}</div>
+          <div class="sm-name">${m.name}${isHelp ? ` ${UI_ICON.helper}` : ''}</div>
           ${isHelp ? '' : `
           <button class="primary" role="menuitem" data-slot-action="detail" data-slot-idx="${i}">詳細</button>
           <button role="menuitem" data-slot-action="move" data-slot-idx="${i}">移動</button>`}
           <button class="danger" role="menuitem" data-slot-action="remove" data-slot-idx="${i}">外す</button>
         </div>` : ''}
-      ${penalty ? '<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">⚠</span>' : ''}
+      ${penalty ? `<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">${UI_ICON.warn}</span>` : ''}
       <span class="role-mini">${tagsHtml(m)}</span>
       ${relicDef ? `<span class="relic-mini" title="${relicDef.name}">${relicDef.icon}</span>` : ''}
       ${compact ? '' : `<div class="remove-x" data-remove="${i}" aria-label="${m.name} を外す">×</div>`}
@@ -15212,7 +15312,7 @@ function renderHelperRow(){
   if(m ? (!matchesRosterFilter(m, rosterFilter) || rosterPromoOnly) : filtered) return '';
   if(!m) return `
     <div class="roster-row helper-row">
-      <div class="helper-ic">🤝</div>
+      <div class="helper-ic">${UI_ICON.helper}</div>
       <div class="info">
         <div class="name">お助けモンスター</div>
         <div class="meta">フレンドから借りられます(お気に入り1枠目)。編成に入れると出撃時のスタミナ+${HELP_STAMINA_SURCHARGE}。レベルは自分の編成の平均に合わせられます</div>
@@ -15224,7 +15324,7 @@ function renderHelperRow(){
     <div class="roster-row helper-row ${placed ? 'selected' : ''}" style="--elem:${ELEM_COLOR[m.element]};">
       <img src="${imgSrc(m.id)}" alt="${m.name}">
       <div class="info">
-        <div class="name"><span class="helper-tag">🤝 お助け</span>${m.name} ${starsHtml(m.rarity, b.mon.star)}</div>
+        <div class="name"><span class="helper-tag">${UI_ICON.helper} お助け</span>${m.name} ${starsHtml(m.rarity, b.mon.star)}</div>
         <div class="meta"><span class="roster-bp">BP ${battlePower(HELP_SLOT_ID).toLocaleString()}</span>・${(() => { const o = borrowedOwnedLike(); return o.lentLevel ? `<b class="help-lv">Lv${o.level}</b><small class="help-lv-note">(元Lv${o.lentLevel}・編成の平均に合わせています)</small>` : `Lv${o.level}`; })()}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${escapeHtml(b.name)}から借用中</div>
       </div>
       <div class="helper-acts">
@@ -15256,7 +15356,7 @@ function renderParty(){
     <div class="row-between" style="margin:10px 0 4px;">
       <div class="screen-title" style="margin:0;">編成</div>
       <div class="home-party-btns">
-        <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 相性</button>
+        <button class="btn btn-ghost btn-sm" data-affinity="1">${UI_ICON.elem} 相性</button>
         ${guideHelpBtn('tut_form')}
       </div>
     </div>
@@ -15268,7 +15368,7 @@ function renderParty(){
     <div class="enemy-side-cap">▲ 敵側</div>
     ${renderFormationGrid(false)}
     <p class="formation-note">前衛が1体でも残っている間、<b>後衛は敵に狙われません</b>(一部の陣形無視スキルを除く)。前衛が全滅すると後衛が攻撃されます。</p>
-    ${penalized.length ? `<div class="warn-box" data-row-warn role="alert">⚠ 近接ロール(タンク・アタッカー)が後衛にいます。与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%: ${penalized.map(m => m.name).join('、')}</div>` : ''}
+    ${penalized.length ? `<div class="warn-box" data-row-warn role="alert">${UI_ICON.warn} 近接ロール(タンク・アタッカー)が後衛にいます。与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%: ${penalized.map(m => m.name).join('、')}</div>` : ''}
 
     <div class="panel panel-tight cover-card">
       <div class="row-between" style="margin-bottom:8px;">
@@ -15400,7 +15500,7 @@ function renderTierList(){
       return `
         <button class="tier-card ${open ? '' : 'locked'}" data-quest-tier="${t.key}" ${open ? '' : 'disabled'}>
           <div class="tc-main">
-            <div class="tc-name">${open ? '' : '🔒 '}${t.label}</div>
+            <div class="tc-name">${open ? '' : `${UI_ICON.lock} `}${t.label}</div>
             <div class="tc-sub">${t.key === 'tu' ? 'ゲームの遊び方を覚える(スタミナ不要)' : `推奨Lv${t.lv[0]}〜${t.lv[1]}　全${list.length}ステージ`}</div>
             ${open ? '' : `<div class="tc-sub">「${req ? req.name : ''}」クリアで解放</div>`}
           </div>
@@ -15422,8 +15522,8 @@ function renderStageRow(st){
       <span class="sr-body">
         <span class="sr-title">
           <span class="terrain-tag" style="background:${TERRAIN[st.terrain].color};">${TERRAIN[st.terrain].label}</span>
-          ${unlocked ? '' : '🔒 '}${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</span>
-        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・${stageStaminaCost(st) ? `⚡${stageStaminaCost(st)}` : 'スタミナ不要'}${helperSurchargeNote(st)}${stageRulesOf(st).some(r => r.label) ? '<span class="sr-rule-tag">特別ルール</span>' : ''}</span>
+          ${unlocked ? '' : `${UI_ICON.lock} `}${st.boss ? '<span class="boss-stage-tag">BOSS</span>' : ''}${st.name}</span>
+        <span class="sr-sub">推奨Lv${st.rec}・WAVE ${st.waves.length}・${stageStaminaCost(st) ? `${ITEM_ICON.stamina}${stageStaminaCost(st)}` : 'スタミナ不要'}${helperSurchargeNote(st)}${stageRulesOf(st).some(r => r.label) ? '<span class="sr-rule-tag">特別ルール</span>' : ''}</span>
         <span class="sr-state ${cleared ? 'done' : ''}">${cleared ? 'クリア済み' : unlocked ? `未クリア${st.boss ? '・ボスあり' : ''}` : '前のステージをクリアすると挑戦できます'}</span>
       </span>
       <span class="sr-right">${starsText(stageStars(st.id))}<span class="mc-go">›</span></span>
@@ -15500,7 +15600,7 @@ function renderStageSheet(){
       <div class="ss-actions">
         ${sweepButton(st)}
         <button class="btn ss-go ${disabled ? 'btn-ghost' : ''}" data-stage="${st.id}" ${disabled ? 'disabled' : ''}>
-          出撃する${stageStaminaCost(st) ? `<span class="go-cost">⚡${stageStaminaCost(st)}</span>` : ''}
+          出撃する${stageStaminaCost(st) ? `<span class="go-cost">${ITEM_ICON.stamina}${stageStaminaCost(st)}</span>` : ''}
         </button>
       </div>
     </div>`;
@@ -15512,7 +15612,7 @@ function renderDungeons(){
   const d = DUNGEONS[dungeonTab];
   const rewardText = (r, t) => [
     r.runes ? `ルーン(Tier${RUNE_ROMAN[t]})×${r.runes}` : '',
-    r.dust ? `✨×${r.dust}` : '',
+    r.dust ? `${UI_ICON.dust}×${r.dust}` : '',
     r.gold ? goldText(r.gold) : '',
     ...['exp1', 'exp2', 'exp3', 'relic_scrap', 'relic_core_1', 'relic_core_2', 'relic_core_3']
       .filter(k => r[k]).map(k => `${itemIcon(k)}×${r[k]}`),
@@ -15523,7 +15623,7 @@ function renderDungeons(){
       ${Object.entries(DUNGEONS).map(([k, x]) => `<button class="stage-tab ${dungeonTab === k ? 'on' : ''}" data-dungeon-tab="${k}" role="tab" aria-selected="${dungeonTab === k}">${x.icon} ${x.name.replace('ダンジョン', '')}</button>`).join('')}
     </div>
     ${sortieFormationHtml()}
-    <div class="screen-sub" style="margin-bottom:10px;">${d.desc}。何度でも挑戦でき、1回 ⚡${DUNGEON_STAMINA}。ステージはメインクエストを進めると解放されます。★3でクリアすると周回(スキップ)できます。</div>
+    <div class="screen-sub" style="margin-bottom:10px;">${d.desc}。何度でも挑戦でき、1回 ${ITEM_ICON.stamina}${DUNGEON_STAMINA}。ステージはメインクエストを進めると解放されます。★3でクリアすると周回(スキップ)できます。</div>
     ${dungeonTab === 'rune' ? `
       <div class="panel panel-tight today-mats rune-mine-info">
         <div class="row-between"><b>ルーン所持 ${ensureRunes().length} / ${RUNE_MAX}</b><button class="btn btn-ghost btn-sm" data-nav="runes">ルーン一覧 ›</button></div>
@@ -15537,7 +15637,7 @@ function renderDungeons(){
       return `
         <div class="stage-card dungeon ${unlocked ? '' : 'locked'}">
           <div class="row-between">
-            <h3>${unlocked ? '' : '🔒 '}${d.name} ステージ${t + 1}</h3>
+            <h3>${unlocked ? '' : `${UI_ICON.lock} `}${d.name} ステージ${t + 1}</h3>
             <div class="stage-lv">${starsText(stageStars(`dg_${dungeonTab}_${t}`))}<br>推奨Lv${dungeonBaseLv(dungeonTab, t)}</div>
           </div>
           <div class="stage-enemy-row">${[...new Set(d.enemies[t])].map(id => `<img src="${imgSrc(id)}" alt="" title="${MON_BY_ID[id].name}">`).join('')}</div>
@@ -15546,7 +15646,7 @@ function renderDungeons(){
             <div class="stage-btns">
               ${sweepButton(dungeonStage(dungeonTab, t))}
               <button class="btn btn-sm ${disabled ? 'btn-ghost' : ''}" data-stage="dg_${dungeonTab}_${t}" ${disabled ? 'disabled' : ''}>
-                ${unlocked ? `挑戦 ⚡${cost}` : `「${req ? req.name : '？'}」クリアで解放`}
+                ${unlocked ? `挑戦 ${ITEM_ICON.stamina}${cost}` : `「${req ? req.name : '？'}」クリアで解放`}
               </button>
             </div>
           </div>
@@ -15694,15 +15794,15 @@ function renderEventCard(ev){
   return `
     ${eventBannerHtml(ev)}
     <div class="ev-entries">
-      ${entry('quest', ev.icon || '⚔', '通常クエスト', `${ev.stageName}・全${ev.tiers.length}ステージ　★${starsGot}/${starsMax}`, '', false)}
-      ${exStagesOf(ev).length ? entry('ex', '🔥', 'EXクエスト', exOpen ? `スタミナ不要・${MON_BY_ID[ev.pickup].name}のソウルが出る` : `ステージ${EX_UNLOCK_TIER}クリアで解放`, '', !exOpen) : ''}
-      ${entry('mission', '📋', 'ミッション', '報酬と称号はここで受け取る', missionN ? String(missionN) : '', false)}
+      ${entry('quest', ev.icon || UI_ICON.swords, '通常クエスト', `${ev.stageName}・全${ev.tiers.length}ステージ　★${starsGot}/${starsMax}`, '', false)}
+      ${exStagesOf(ev).length ? entry('ex', UI_ICON.fire, 'EXクエスト', exOpen ? `スタミナ不要・${MON_BY_ID[ev.pickup].name}のソウルが出る` : `ステージ${EX_UNLOCK_TIER}クリアで解放`, '', !exOpen) : ''}
+      ${entry('mission', UI_ICON.clip, 'ミッション', '報酬と称号はここで受け取る', missionN ? String(missionN) : '', false)}
       ${medal ? `<button class="ev-entry" data-ev-shop-goto="${ev.key}">
-        <span class="ev-entry-ic">🛒</span>
+        <span class="ev-entry-ic">${UI_ICON.cart}</span>
         <span class="ev-entry-txt">イベントショップ<small>${medal.name} ${getItem(medal.key).toLocaleString()}個</small></span>
         <span class="et-arrow">›</span>
       </button>` : ''}
-      ${entry('bonus', '✨', 'ボーナスモンスター', `編成に入れると${medal ? medal.name : 'メダル'}が最大+${Math.round(EVENT_BONUS.cap * 100)}%`, '', false)}
+      ${entry('bonus', UI_ICON.dust, 'ボーナスモンスター', `編成に入れると${medal ? medal.name : 'メダル'}が最大+${Math.round(EVENT_BONUS.cap * 100)}%`, '', false)}
     </div>`;
 }
 function renderEventTab(){
@@ -15714,7 +15814,7 @@ function renderEventTab(){
     ${evs.length > 1 ? `<div class="tier-tabs" role="tablist">
       ${evs.map(e => {
         const n = evMissionClaimable(e);
-        return `<button class="tier-tab ${eventKey === e.key ? 'on' : ''}" data-event-tier="${e.key}" role="tab" aria-selected="${eventKey === e.key}">${e.icon || '✨'}${e.name}${n ? `<span class="tt-badge">${n}</span>` : ''}</button>`;
+        return `<button class="tier-tab ${eventKey === e.key ? 'on' : ''}" data-event-tier="${e.key}" role="tab" aria-selected="${eventKey === e.key}">${e.icon || UI_ICON.dust}${e.name}${n ? `<span class="tt-badge">${n}</span>` : ''}</button>`;
       }).join('')}
     </div>` : ''}
     ${renderEventCard(ev)}
@@ -15732,7 +15832,7 @@ function renderHardToggle(hardKey, unlocked){
   return `
     <div class="hard-toggle-row">
       <button class="hard-toggle ${hardMode && unlocked ? 'on' : ''}" data-hard-toggle="1" ${unlocked ? '' : 'disabled'}>
-        💀 ハードモード${unlocked ? '' : `<small>「${reqStage ? reqStage.name : '？'}」クリアで解放</small>`}
+        ${UI_ICON.skull} ハードモード${unlocked ? '' : `<small>「${reqStage ? reqStage.name : '？'}」クリアで解放</small>`}
       </button>
     </div>`;
 }
@@ -15760,16 +15860,16 @@ function renderBattleSelect(){
       <div class="head-right">
         ${stageTab === 'abyss' && abyssUnlocked() ? guideHelpBtn('abyss')
           : stageTab === 'dungeon' ? guideHelpBtn(dungeonTab === 'rune' ? 'runeMine' : 'dungeon') : ''}
-        <button class="btn btn-ghost btn-sm" data-affinity="1">🔰 属性相性表</button>
+        <button class="btn btn-ghost btn-sm" data-affinity="1">${UI_ICON.elem} 属性相性表</button>
       </div>
     </div>
     ${stageTab === 'menu' ? `<div class="explore-tabs">
       ${EXPLORE_MENU.map(t => {
         const open = t.key === 'abyss' ? abyssUnlocked() : t.key === 'main' || tutorialCleared();
-        const badge = t.key === 'event' && evCount ? `🔥${evCount}` : '';
+        const badge = t.key === 'event' && evCount ? `${UI_ICON.fire}${evCount}` : '';
         const sub = t.key === 'abyss' && !open ? '上級をクリアすると解放' : t.key === 'event' && !evCount ? '開催中のイベントはありません' : t.sub;
         return `<button class="stage-tab ${open ? '' : 'locked'}" data-stage-tab="${t.key}">
-          <span class="et-icon"><img src="${imgSrc(exploreMenuMon(t))}" alt="" draggable="false">${open ? '' : '<span class="et-lock">🔒</span>'}</span><span class="et-label">${t.label}<small>${sub}</small></span>${badge ? `<span class="et-badge">${badge}</span>` : ''}<span class="et-arrow">›</span></button>`;
+          <span class="et-icon"><img src="${imgSrc(exploreMenuMon(t))}" alt="" draggable="false">${open ? '' : `<span class="et-lock">${UI_ICON.lock}</span>`}</span><span class="et-label">${t.label}<small>${sub}</small></span>${badge ? `<span class="et-badge">${badge}</span>` : ''}<span class="et-arrow">›</span></button>`;
       }).join('')}
     </div>` : ''}
     ${stageTab === 'event' ? renderEventTab() : ''}
@@ -15781,7 +15881,7 @@ function renderBattleSelect(){
         const open = tierUnlocked(t.key);
         return `<button class="tier-tab ${questTier === t.key ? 'on' : ''} ${open ? '' : 'locked'}"
           data-quest-tier="${t.key}" ${open && !t.disabled ? '' : 'disabled'} role="tab" aria-selected="${questTier === t.key}">
-          ${open && !t.disabled ? '' : '🔒'}${t.short || t.label}</button>`;
+          ${open && !t.disabled ? '' : UI_ICON.lock}${t.short || t.label}</button>`;
       }).join('')}
     </div>
     ${hardKey ? renderHardToggle(hardKey, hardUnlocked) : ''}
@@ -16569,13 +16669,13 @@ function startPvpBattle(opponent){
   synergies.forEach(x => logLine(`${x.kind === 'element' ? `${ELEM_LABEL[x.key]}属性` : SPECIES_LABEL[x.key]}ボーナス(${x.n}体): ${bonusText(x.active.bonus)}`, 'wave'));
   logLine(`相手の陣形は「${enemyFormation.name}」`, 'wave');
   party.filter(u => u.penalty).forEach(u =>
-    logLine(`⚠ ${nm(u)} は後衛のため与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%`, 'debuff'));
+    logLine(`${UI_ICON.warn} ${nm(u)} は後衛のため与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%`, 'debuff'));
   [...party, ...battleUI.enemies].forEach(u => runPassive(u, 'onBattleStart'));
   [...party, ...battleUI.enemies].forEach(u => {
     const p = u.passive;
     if(!p || !p.name || typeof p.onBattleStart !== 'function') return;
     const stacks = Object.values(u.stacks || {}).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0);
-    logLine(`⚡${nm(u)} のパッシブ「${p.name}」${stacks ? `(${stacks}段)` : ''}${p.desc ? ` ${p.desc}` : ''}`, 'skill');
+    logLine(`${UI_ICON.up}${nm(u)} のパッシブ「${p.name}」${stacks ? `(${stacks}段)` : ''}${p.desc ? ` ${p.desc}` : ''}`, 'skill');
   });
   currentScreen = 'battle-fight';
   battleUI.transitioning = true;
@@ -16732,14 +16832,14 @@ function launchBattle(stage, formation, party, synergies, extra){
   synergies.forEach(x => logLine(`${x.kind === 'element' ? `${ELEM_LABEL[x.key]}属性` : SPECIES_LABEL[x.key]}ボーナス(${x.n}体): ${bonusText(x.active.bonus)}`, 'wave'));
   logLine(`敵の陣形は「${battleUI.enemyFormation.name}」`, 'wave');
   party.filter(u => u.penalty).forEach(u =>
-    logLine(`⚠ ${nm(u)} は後衛のため与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%`, 'debuff'));
+    logLine(`${UI_ICON.warn} ${nm(u)} は後衛のため与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%`, 'debuff'));
   [...party, ...battleUI.enemies].forEach(u => runPassive(u, 'onBattleStart'));
   // line-up passives settle now ("味方に水属性が2体いると…" など), so say what they came to
   [...party, ...battleUI.enemies].forEach(u => {
     const p = u.passive;
     if(!p || !p.name || typeof p.onBattleStart !== 'function') return;
     const stacks = Object.values(u.stacks || {}).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0);
-    logLine(`⚡${nm(u)} のパッシブ「${p.name}」${stacks ? `(${stacks}段)` : ''}${p.desc ? ` ${p.desc}` : ''}`, 'skill');
+    logLine(`${UI_ICON.up}${nm(u)} のパッシブ「${p.name}」${stacks ? `(${stacks}段)` : ''}${p.desc ? ` ${p.desc}` : ''}`, 'skill');
   });
   currentScreen = 'battle-fight';
   battleUI.transitioning = true;
@@ -16832,7 +16932,7 @@ const unsealCheck = u => {
   logLine(`${nm(u)} の札が外れた!`, 'ko');
 };
 const moonPhase = u => ['new', 'half', 'full'][u.stacks.moon || 0];
-const MOON_ICON = { new:'🌑', half:'🌓', full:'🌕' };
+const MOON_ICON = { new:UI_ICON.moon_new, half:UI_ICON.moon_half, full:UI_ICON.moon_full };
 
 const MONSTER_KITS = {
   /* ---- existing monsters (design doc, 53-monster edition) ---- */
@@ -16897,7 +16997,7 @@ const MONSTER_KITS = {
     passive: { name:'年輪', desc:'自分のターンが来るたびに、物理防御・魔法防御+2.5(最大+15%)',
       onTurnStart: u => { u.stacks.rings = Math.min(10, (u.stacks.rings || 0) + 1); },
       defBonus: u => Math.min(pv(u, 15), (u.stacks.rings || 0) * pv(u, 2.5)),
-      stackIcon: u => u.stacks.rings ? `🌳${u.stacks.rings}` : '' },
+      stackIcon: u => u.stacks.rings ? `${UI_ICON.tree}${u.stacks.rings}` : '' },
     ult: { name:'世界樹の雫', sp:100, tgt:'allies', effects:[{ to:'allies', buff:'regen', v:0.06, flat:true, turns:3 }, { to:'allies', cleanse:true }], desc:'3ターン、毎ターン最大HPの6%を回復。味方全体の状態異常を1つ解除' },
   },
   m13: { // ロックゴーレム
@@ -16919,7 +17019,7 @@ const MONSTER_KITS = {
         u.stacks.rage = Math.min(5, (u.stacks.rage || 0) + 1);
       },
       strBonus: u => (u.stacks.rage || 0) * pv(u, 0.05),
-      stackIcon: u => u.stacks.rage ? `💢${u.stacks.rage}` : '' },
+      stackIcon: u => u.stacks.rage ? `${UI_ICON.anger}${u.stacks.rage}` : '' },
     ult: { name:'ベアクラッシュ', sp:100, atk:'phys', tgt:'single', pow:3.8, desc:'威力380%' },
   },
   m17: { // ヘルハウンド
@@ -17256,7 +17356,7 @@ const MONSTER_KITS = {
     passive: { name:'札の封印', desc:'HPが50%より多いあいだ、STR-20%。HPが50%を下回ると札が外れ、戦闘終了までSTR+40%・SPD+15', onDamaged: u => unsealCheck(u),
       strBonus: u => u.flags.unsealed ? pv(u, 0.4) : -0.2,
       spdBonus: u => u.flags.unsealed ? 15 : 0,
-      stackIcon: u => u.flags.unsealed ? '📜' : '' },
+      stackIcon: u => u.flags.unsealed ? UI_ICON.scroll : '' },
     ult: { name:'雷霆跳躍', effects:[{ to:'foeTopHp', st:'stun' }], desc:'威力150%。札が外れているときは威力+50%。HPが一番高い敵を必ず気絶', sp:90, atk:'mag', tgt:'all', pow:1.5, bonusIf:[{ cond:'selfUnsealed', add:0.5 }] },
   },
   m97: { // マミー
@@ -17444,7 +17544,7 @@ const MONSTER_KITS = {
     skill2: { name:'血に飢えた狂気', desc:'STR+30%・物理防御-6', ct:4, tgt:'self', effects:[{ to:'self', buff:'strUp', v:0.3 }, { to:'self', buff:'pdefDown', v:6 }] },
     passive: { name:'赤い帽子', desc:'敵を倒すたびにSTR+10%（最大+30%）', onKill: u => { u.stacks.cap = Math.min(3, (u.stacks.cap || 0) + 1); },
       strBonus: u => (u.stacks.cap || 0) * pv(u, 0.1),
-      stackIcon: u => u.stacks.cap ? `🎩${u.stacks.cap}` : '' },
+      stackIcon: u => u.stacks.cap ? `${UI_ICON.hat}${u.stacks.cap}` : '' },
     ult: { name:'ブラッドハント', desc:'威力330%', sp:100, atk:'phys', tgt:'lowestAny', pow:3.3 },
   },
   m67: { // ケルベロス
@@ -17492,7 +17592,7 @@ const MONSTER_KITS = {
         for(let i = 0; i < times; i++){ const t = pickRandomFoe(u); if(!t) continue; strike(ctx, t, { pow: pv(u, 0.25), atk: 'mag', fx: 'fire', noOnHit: true }); if(u.foxBurn && t.alive) applyStatus(t, 'burn', u); }
         if(times) logLine(`${nm(u)} の狐火が${times}回舞った`, 'skill');
       },
-      stackIcon: u => `🦊${u.stacks.fox || 0}` },
+      stackIcon: u => `${UI_ICON.fox}${u.stacks.fox || 0}` },
     skill1: { name:'狐火生成', ct:3, atk:'mag', tgt:'single', pow:1.8, desc:'威力180%。狐火+1',
       run: ctx => { dealHits(ctx); addFox(ctx.actor, 1); } },
     skill2: { name:'幻炎の舞', ct:4, atk:'mag', tgt:'backAll', pow:1.2, onHit:[{ st:'burn', chance:0.5 }], desc:'敵後衛全体に威力120%。50%でやけど' },
@@ -17548,7 +17648,7 @@ const MONSTER_KITS = {
     passive: { name:'雷鼓の鼓動', desc:'スキルを使うたびに太鼓+1(最大5)。太鼓1つにつきSTR+5%',
       onSkillUsed: u => { u.stacks.drum = Math.min(5, (u.stacks.drum || 0) + 1); },
       strBonus: u => (u.stacks.drum || 0) * pv(u, 0.05),
-      stackIcon: u => u.stacks.drum ? `🥁${u.stacks.drum}` : '' },
+      stackIcon: u => u.stacks.drum ? `${UI_ICON.drum}${u.stacks.drum}` : '' },
     ult: { name:'轟雷', sp:120, atk:'mag', tgt:'all', pow:2.5, desc:'敵全体に威力250%(魔法)。太鼓をすべて使い、1つにつき威力+20%',
       run: ctx => { const d = ctx.actor.stacks.drum || 0; dealHits(ctx, { pow: 2.5 * (1 + 0.2 * d) }); ctx.actor.stacks.drum = 0; } },
   },
@@ -17901,7 +18001,7 @@ const MONSTER_KITS = {
         pushFx(u, u.hp, 'heal', { fx: 'heal' });
         logLine(`${nm(u)} が灰の中からよみがえった!(HP50%)`, 'heal');
       },
-      stackIcon: u => u.stacks.ash ? `🔥${5 - u.stacks.ash}` : '' },
+      stackIcon: u => u.stacks.ash ? `${UI_ICON.fire}${5 - u.stacks.ash}` : '' },
     ult: { name:'不死鳥の羽ばたき', sp:110, atk:'mag', tgt:'all', pow:1.8, onHit:[{ st:'burn' }], desc:'敵全体に威力180%(魔法)。必ずやけど' },
   },
   m142: { // メデューサ
@@ -17934,7 +18034,7 @@ const MONSTER_KITS = {
         if(u.flags.bracedUsed){ u.flags.braced = false; u.flags.bracedUsed = false; }
         if(!u.flags.braced && chance(0.2)) u.flags.braced = true;
       },
-      stackIcon: u => u.flags.braced ? '🔨' : '' },
+      stackIcon: u => u.flags.braced ? UI_ICON.hammer : '' },
     ult: { name:'神槌の一撃', sp:110, atk:'phys', tgt:'single', pow:3.2, onHit:[{ debuff:'pdefDown', v:8 }], desc:'威力320%。物理防御-8(2ターン)' },
   },
   m145: { // ヘパイストス
@@ -17955,7 +18055,7 @@ const MONSTER_KITS = {
         u.stacks.wind = Math.min(5, (u.stacks.wind || 0) + 1);
       },
       allySpdAura: u => (u.stacks.wind || 0) * pv(u, 0.05),
-      stackIcon: u => u.stacks.wind ? `🌬${u.stacks.wind}` : '' },
+      stackIcon: u => u.stacks.wind ? `${UI_ICON.wind}${u.stacks.wind}` : '' },
     ult: { name:'風袋解放', sp:110, atk:'mag', tgt:'all', pow:2.2, desc:'敵全体に威力220%(魔法)。SPD-25%(2ターン)',
       run: ctx => {
         dealHits(ctx);
@@ -18040,7 +18140,7 @@ const MONSTER_KITS = {
       onEvade: u => { u.flags.glib = true; },
       dmgBonus: u => u.flags.glib ? pv(u, 0.3) : 0,
       onHitTarget: u => { u.flags.glib = false; },
-      stackIcon: u => u.flags.glib ? '💬' : '' },
+      stackIcon: u => u.flags.glib ? UI_ICON.talk : '' },
     ult: { name:'暁までの問答', sp:90, atk:'phys', tgt:'single', pow:2.5, onHit:[{ st:'bind', turns:2 }], desc:'威力250%。拘束(2ターン)' },
   },
   m155: { // 土蜘蛛
@@ -18111,7 +18211,7 @@ const MONSTER_KITS = {
     skill2: { name:'なりすまし', ct:4, tgt:'single', foeOnly:true, effects:[{ to:'foe', steal:true }], desc:'敵単体のバフを1つ奪って自分のものにする' },
     passive: { name:'正体不明', desc:'最初に受ける攻撃を必ず回避する',
       forceEvade: u => { if(u.flags.unmasked) return 0; u.flags.unmasked = true; return 1; },
-      stackIcon: u => u.flags.unmasked ? '' : '👤' },
+      stackIcon: u => u.flags.unmasked ? '' : UI_ICON.mask },
     ult: { name:'百鬼夜行', sp:90, atk:'phys', tgt:'all', pow:2.3, onHit:[{ debuff:'panic', v:0.3, turns:1 }], desc:'敵全体に威力230%。必ず恐慌(命中率-30%・1ターン)' },
   },
   m162: { // コカトリス
@@ -18145,7 +18245,7 @@ const MONSTER_KITS = {
         if(g) pushFx(u, g, 'heal', { fx: 'heal' });
       },
       strBonus: u => (u.stacks.reap || 0) * pv(u, 0.1),
-      stackIcon: u => u.stacks.reap ? `💀${u.stacks.reap}` : '' },
+      stackIcon: u => u.stacks.reap ? `${UI_ICON.skull}${u.stacks.reap}` : '' },
     ult: { name:'終焉の刈り入れ', sp:120, atk:'phys', tgt:'all', pow:2.4, bonusIf:[{ cond:'low30', add:1.0 }], lifesteal:0.3, desc:'敵全体に威力240%。HPが30%以下の相手には威力+100%。与ダメージ合計の30%を吸収' },
   },
 
@@ -18391,7 +18491,7 @@ const MONSTER_PERKS = {
           if(x.flags.bracedUsed){ x.stacks.brace = Math.max(0, (x.stacks.brace || 0) - 1); x.flags.bracedUsed = false; }
           if((x.stacks.brace || 0) < 2 && chance(0.2)) x.stacks.brace = (x.stacks.brace || 0) + 1;
         };
-        pa.stackIcon = x => x.stacks.brace ? '🔨'.repeat(x.stacks.brace) : '';
+        pa.stackIcon = x => x.stacks.brace ? UI_ICON.hammer.repeat(x.stacks.brace) : '';
         pa.desc = '攻撃を受けたとき、20%で次に受けるダメージ-30%(2回ぶんまで溜まる)'; } },
     8: { desc:'挑発しているあいだ 受けるダメージ-15%',
       apply: u => addHook(ownPassive(u), 'cutBonus', x => hasBuff(x, 'taunt') ? 0.15 : 0) },
@@ -18476,7 +18576,7 @@ function playWaveIntro(b, done){
       title: `ウェーブ ${idx + 1}`,
       sub: idx === 0 ? `味方「${b.formation.name}」 VS 敵「${b.enemyFormation.name}」` : `敵の陣形「${b.enemyFormation.name}」`,
       rare: b.enemies.filter(u => u.rare).map(u => u.name),
-      warn: idx === 0 && penalized.length ? `⚠ 後衛の近接ロールは与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%` : '',
+      warn: idx === 0 && penalized.length ? `${UI_ICON.warn} 後衛の近接ロールは与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%` : '',
       duration: 1300,
     }, done);
   };
@@ -19868,7 +19968,7 @@ function finishBattle(win){
       if(!battleUI.prevRank){
         battleUI.tutorialJustDone = true;
         const n = battleUI.stage.firstClear || 0;
-        if(n) queueAnnouncement({ kind: 'crystal', icon: '🎉', title: 'チュートリアルクリア!',
+        if(n) queueAnnouncement({ kind: 'crystal', icon: UI_ICON.party, title: 'チュートリアルクリア!',
           body: 'おつかれさま!これからの冒険のおともに、星結晶を受け取ってね。', crystal: n });
       }
     }
@@ -20013,7 +20113,7 @@ function showBattleResult(tab){
     const gainChips = [
       r.gold ? `<span class="gain-chip">${goldText(r.gold)}</span>` : '',
       ...r.items.map(m => `<span class="gain-chip" title="${itemName(m.key)}">${itemIcon(m.key)} ×${m.n}</span>`),
-      r.dust ? `<span class="gain-chip">✨ルーンの粉 ×${r.dust}</span>` : '',
+      r.dust ? `<span class="gain-chip">${UI_ICON.dust}ルーンの粉 ×${r.dust}</span>` : '',
       r.crystals ? `<span class="gain-chip first">初回クリア ${CRYSTAL_ICON}${r.crystals}</span>` : '',
       r.v2Crystals ? `<span class="gain-chip first">新バトルシステム ${CRYSTAL_ICON}${r.v2Crystals}</span>` : '',
       ...(r.firstItems || []).map(x => `<span class="gain-chip first">${rewardHtml([x])}</span>`),
@@ -20098,16 +20198,16 @@ function showBattleResult(tab){
       </div>
       ${resultTab === 'report' ? renderBattleReport(b) : body}
       <div class="br-actions">
-        ${isAbyss ? '' : `<div class="br-stamina">スタミナ ⚡ ${STATE.stamina} / ${STAMINA_MAX}</div>`}
+        ${isAbyss ? '' : `<div class="br-stamina">スタミナ ${ITEM_ICON.stamina} ${STATE.stamina} / ${STAMINA_MAX}</div>`}
         ${!isAbyss && helperSurchargeNote(nextStage || b.stage) ? `<div class="fs-note" style="margin:-4px 0 4px;">お助けモンスターを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
-        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">${isAbyss ? `${nextStage.floor}階へ進む` : '次のステージへ'}${isAbyss ? '' : `<span class="go-cost">⚡${stageStaminaCost(nextStage)}</span>`}</button>` : ''}
+        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">${isAbyss ? `${nextStage.floor}階へ進む` : '次のステージへ'}${isAbyss ? '' : `<span class="go-cost">${ITEM_ICON.stamina}${stageStaminaCost(nextStage)}</span>`}</button>` : ''}
         ${b.win && sweepAllowed(b.stage).ok ? `<button class="btn btn-ghost btn-block" data-sweep-open="${b.stage.id}">周回する</button>` : ''}
         ${b.win ? '' : '<button class="btn btn-ghost btn-block" data-result-nav="party">編成を強化する</button>'}
         <div class="br-buttons">
           <button class="btn btn-ghost" data-result-nav="battle">戻る</button>
           ${isAbyss ? (b.win ? '' : `<button class="btn" data-start-stage="ab_${ensureAbyss().floor}">${ensureAbyss().floor}階から再挑戦</button>`) : `
           <button class="btn ${b.win && nextStage ? 'btn-ghost' : ''}" data-start-stage="${b.stage.id}">
-            ${b.win ? 'もう一度' : '再挑戦'}<span class="go-cost">⚡${stageStaminaCost(b.stage)}</span>
+            ${b.win ? 'もう一度' : '再挑戦'}<span class="go-cost">${ITEM_ICON.stamina}${stageStaminaCost(b.stage)}</span>
           </button>`}
         </div>
       </div>
@@ -20143,7 +20243,7 @@ function confirmLeaveBattle(target){
   layer.innerHTML = `
     <div class="result-modal confirm-modal" role="alertdialog" aria-label="戦闘を中断しますか">
       <h3>戦闘を中断しますか?</h3>
-      <p>中断すると、この戦闘の報酬は手に入りません。${battleUI.staminaSpent ? `使ったスタミナ(⚡${battleUI.staminaSpent})は戻ります。` : ''}</p>
+      <p>中断すると、この戦闘の報酬は手に入りません。${battleUI.staminaSpent ? `使ったスタミナ(${ITEM_ICON.stamina}${battleUI.staminaSpent})は戻ります。` : ''}</p>
       <div class="br-actions">
         <button class="btn btn-block" data-leave-battle="no">戦闘を続ける</button>
         <button class="btn btn-ghost btn-block" data-leave-battle="yes" data-target="${target}">中断する</button>
@@ -20297,8 +20397,8 @@ function renderBattleFight(){
         ${isReserved ? '<div class="ready-badge reserved-badge">発動!</div>' : ''}
         ${u.boss ? '<div class="boss-badge">BOSS</div>' : ''}
         ${u.rare ? '<div class="boss-badge rare-badge">RARE</div>' : ''}
-        ${isAggro ? '<div class="aggro-mark" title="敵に狙われやすい">👁</div>' : ''}
-        ${warn ? `<div class="warn-mark" title="後衛の近接ロール: 与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%">⚠</div>` : ''}
+        ${isAggro ? `<div class="aggro-mark" title="敵に狙われやすい">${UI_ICON.eye}</div>` : ''}
+        ${warn ? `<div class="warn-mark" title="後衛の近接ロール: 与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%">${UI_ICON.warn}</div>` : ''}
         ${hitFx}
         ${popups}
         ${u.vanished ? '<div class="vanish-tag">離脱中</div>' : ''}
@@ -20325,7 +20425,7 @@ function renderBattleFight(){
     const frontAlive = units.some(u => u.alive && u.row === 'front');
     return `<div class="bf-grid">${rows.map((row, r) => {
       const shielded = row === 'back' && frontAlive && units.some(u => u.alive && u.row === 'back');
-      const tag = `<div class="bf-row-tag ${row}" style="grid-row:${r + 1}; grid-column:1;">${row === 'front' ? '前' : '後'}${shielded ? '<span class="shield" title="前衛に守られている">🛡</span>' : ''}</div>`;
+      const tag = `<div class="bf-row-tag ${row}" style="grid-row:${r + 1}; grid-column:1;">${row === 'front' ? '前' : '後'}${shielded ? '<span class="shield" title="前衛に守られている">${UI_ICON.shield}</span>' : ''}</div>`;
       const cells = slotsOfRow(f, row).map(i => {
         const u = units.find(x => x.slot === i);
         const pos = `style="grid-row:${r + 1}; grid-column:${slotHalfCol(f, i) + 1} / span 2;"`;
@@ -20340,7 +20440,7 @@ function renderBattleFight(){
     if(i < b.waveIndex) cls = 'done';
     else if(i === b.waveIndex) cls = 'current';
     const isBossWave = b.stage.waves[i].some(e => e.boss);
-    return `<div class="wave-dot ${cls} ${isBossWave?'boss':''}">${isBossWave ? '👑' : i+1}</div>`;
+    return `<div class="wave-dot ${cls} ${isBossWave?'boss':''}">${isBossWave ? UI_ICON.crown : i+1}</div>`;
   });
   const waveRow = waveDots.map((dot, i) => i < waveDots.length - 1
     ? dot + `<div class="wave-line ${i < b.waveIndex ? 'done':''}"></div>`
@@ -20378,7 +20478,7 @@ function renderBattleFight(){
       <div class="battle-field">
         ${b.paused && !b.finished && !b.tutorialPause ? `
           <div class="pause-banner" role="status">
-            <div class="pb-title">⏸ 一時停止中</div>
+            <div class="pb-title">${UI_ICON.pause} 一時停止中</div>
             <div class="pb-sub">モンスターをタップして奥義を発動できます</div>
             <button class="btn btn-sm" id="resume-btn">▶ 再開する</button>
           </div>` : ''}
@@ -20401,7 +20501,7 @@ function renderBattleFight(){
       ` : `
         <div class="battle-controls three">
           <button class="btn ${b.paused ? '' : 'btn-ghost'} pause-btn" id="pause-btn" aria-pressed="${!!b.paused}" aria-label="${b.paused ? '再開する' : '一時停止する'}" title="一時停止(スペースキー)">
-            ${b.paused ? '▶' : '⏸'}
+            ${b.paused ? '▶' : UI_ICON.pause}
           </button>
           <button class="btn ${STATE.autoUlt ? '' : 'btn-ghost'}" id="auto-ult-btn" aria-pressed="${STATE.autoUlt}">
             奥義: ${STATE.autoUlt ? 'オート' : '手動'}
@@ -20420,7 +20520,7 @@ function renderDmgPopup(e, idx){
   const style = `style="--pop-i:${idx}; top:calc(var(--pop-top) + ${idx * 18}px);"`;
   if(e.kind === 'stun') return `<div class="dmg-popup small stun-popup" ${style}>気絶!</div>`;
   if(e.kind === 'miss') return `<div class="dmg-popup small miss-popup" ${style}>MISS</div>`;
-  if(e.kind === 'shield') return `<div class="dmg-popup small shield-popup" ${style}>💠+${e.amount}</div>`;
+  if(e.kind === 'shield') return `<div class="dmg-popup small shield-popup" ${style}>${UI_ICON.shield}+${e.amount}</div>`;
   if(e.kind === 'buff') return `<div class="dmg-popup small buff-popup" ${style}>${e.label || '強化'}</div>`;
   if(e.kind === 'heal') return `<div class="dmg-popup heal" ${style}>+${e.amount}</div>`;
   if(e.kind === 'burn') return `<div class="dmg-popup burn" ${style}>${e.label ? `<span class="dp-tag">${e.label}</span>` : ''}${e.amount}</div>`;
@@ -20694,7 +20794,7 @@ function handlePhoneClick(ev){
     const disEl = t.closest('[data-rune-dismantle]');
     if(disEl){
       const res = dismantleRunes([disEl.dataset.runeDismantle]);
-      if(res.n){ playSfx('dismantle'); toast(`分解して ✨ルーンの粉を${res.dust}個 手に入れました`); saveState(); }
+      if(res.n){ playSfx('dismantle'); toastHtml(`分解して ${UI_ICON.dust}ルーンの粉を${res.dust}個 手に入れました`); saveState(); }
       closeRuneDetail();
       return;
     }
@@ -20725,7 +20825,7 @@ function handlePhoneClick(ev){
       const res = dismantleRunes(runeBulkTargets().map(r => r.uid));
       runeBulk = null; closeModal();
       if(res.n) playSfx('dismantle');
-      toast(`${res.n}個を分解して ✨ルーンの粉を${res.dust}個 手に入れました`);
+      toastHtml(`${res.n}個を分解して ${UI_ICON.dust}ルーンの粉を${res.dust}個 手に入れました`);
       saveState(); render();
       return;
     }
@@ -21535,16 +21635,16 @@ function renderTopBar(){
   const goldText2 = shortNum(g);
   return `
     <button class="tb-profile" data-overlay="profile" aria-label="プロフィール">
-      <span class="tb-avatar${myFrameClass()}">${profileAvatar() ? `<img src="${imgSrc(profileAvatar())}" alt="">` : '👤'}${myFrameBadge()}</span>
+      <span class="tb-avatar${myFrameClass()}">${profileAvatar() ? `<img src="${imgSrc(profileAvatar())}" alt="">` : UI_ICON.person}${myFrameBadge()}</span>
       <span class="tb-name">${escapeHtml(ACCOUNT ? ACCOUNT.name : 'テイマー')}
         <small>Lv.${tamerLevel().lv}・所持 ${Object.keys(STATE.owned).length}体</small></span>
     </button>
     <span class="tb-gap"></span>
-    <span class="tb-pill stam" title="スタミナ">⚡${STATE.stamina}</span>
-    <span class="tb-pill gold" title="ゴールド">💰${goldText2}</span>
+    <span class="tb-pill stam" title="スタミナ">${ITEM_ICON.stamina}${STATE.stamina}</span>
+    <span class="tb-pill gold" title="ゴールド">${GOLD_ICON}${goldText2}</span>
     <span class="tb-pill gem" title="星結晶 ${(STATE.crystals || 0).toLocaleString()}">${CRYSTAL_ICON}${shortNum(STATE.crystals || 0)}</span>
-    <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">🎒</button>
-    <button class="tb-btn" data-overlay="menu" aria-label="メニュー">☰${
+    <button class="tb-btn" data-open-bag="1" aria-label="アイテム欄">${UI_ICON.bag}</button>
+    <button class="tb-btn" data-overlay="menu" aria-label="メニュー">${UI_ICON.menu}${
       menuTodoTotal() ? `<span class="tb-dot">${menuTodoTotal()}</span>` : ''}</button>`;
 }
 function updateSoundButton(){ /* the gear lives in the top bar now; render() keeps it in step */ }
@@ -21703,7 +21803,7 @@ function renderAffinitySheet(){
   layer.innerHTML = `
     <div class="result-modal affinity-sheet" role="dialog" aria-label="属性相性表">
       <button class="fs-close" data-close-affinity="1" aria-label="閉じる">×</button>
-      <h3>🔰 属性相性表</h3>
+      <h3>${UI_ICON.elem} 属性相性表</h3>
       <p class="fs-note">有利 ×${ELEM_UP} / 不利 ×${ELEM_DOWN} / それ以外 ×1.0</p>
       ${cycleRow(['fire', 'grass', 'water'])}
       ${cycleRow(['earth', 'thunder', 'wind'])}
@@ -21959,7 +22059,7 @@ function checkTamerLevelUp(){
   const ups = lv - STATE.tamerLvSeen;
   STATE.tamerLvSeen = lv;
   grantStamina(ups * TAMER_LEVELUP_STAMINA, 'テイマーレベルアップ');
-  queueAnnouncement({ kind: 'level', icon: '⬆️', title: `テイマーLv.${lv}にアップ!`,
+  queueAnnouncement({ kind: 'level', icon: UI_ICON.up, title: `テイマーLv.${lv}にアップ!`,
     body: `レベルアップのお祝いにスタミナが${ups * TAMER_LEVELUP_STAMINA}回復しました。`, stamina: ups * TAMER_LEVELUP_STAMINA });
   playSfx('promote');
 }
@@ -21971,29 +22071,29 @@ function unlockDefs(){
   const st = id => STAGE_BY_ID[id] ? `「${STAGE_BY_ID[id].name}」` : '';
   const has = id => STATE.clearedStages.includes(id);
   const defs = [
-    { key: 'tutorial', icon: '🌱', title: '育成クエスト・イベントが解放', body: '探索メニューから、EXP・ゴールド・素材を集める「育成クエスト」と、期間限定の「イベント」に挑戦できるようになりました。', ok: tutorialCleared() },
-    { key: 'speed', icon: '⏩', title: '倍速が解放', body: '戦闘を2倍速・3倍速で進められるようになりました。戦闘中の速度ボタンや設定から切り替えられます。', ok: speedUnlocked() },
-    { key: 'abyss', icon: '🌀', title: '深淵回廊が解放', body: 'スタミナを使わない無限の回廊に挑めるようになりました。探索メニューの「深淵回廊」からどうぞ。', ok: abyssUnlocked() },
+    { key: 'tutorial', icon: UI_ICON.seed, title: '育成クエスト・イベントが解放', body: '探索メニューから、EXP・ゴールド・素材を集める「育成クエスト」と、期間限定の「イベント」に挑戦できるようになりました。', ok: tutorialCleared() },
+    { key: 'speed', icon: UI_ICON.fast, title: '倍速が解放', body: '戦闘を2倍速・3倍速で進められるようになりました。戦闘中の速度ボタンや設定から切り替えられます。', ok: speedUnlocked() },
+    { key: 'abyss', icon: UI_ICON.abyss, title: '深淵回廊が解放', body: 'スタミナを使わない無限の回廊に挑めるようになりました。探索メニューの「深淵回廊」からどうぞ。', ok: abyssUnlocked() },
   ];
   ['lab', 'alchemy', 'smithy'].forEach(k => {
     if(FACILITY_UNLOCK[k]) defs.push({ key: `fac_${k}`, icon: FACILITIES[k].icon, title: `拠点に「${FACILITIES[k].name}」が解放`,
       body: `${st(FACILITY_UNLOCK[k])}のクリアで、拠点の${FACILITIES[k].name}が使えるようになりました。${FACILITIES[k].desc}。`, ok: has(FACILITY_UNLOCK[k]) });
   });
   FACILITY_LV_UNLOCK.forEach((id, lv) => {
-    if(id) defs.push({ key: `faclv_${lv}`, icon: '🏗️', title: `拠点の施設をLv${lv}まで拡張できるように`,
+    if(id) defs.push({ key: `faclv_${lv}`, icon: UI_ICON.build, title: `拠点の施設をLv${lv}まで拡張できるように`,
       body: '鉱山・研究所・工房をさらに拡張できます。拡張するほど放置で溜まる量が増えます。', ok: has(id) });
   });
   DUNGEON_TIER_UNLOCK.forEach((id, i) => {
-    if(i > 0) defs.push({ key: `dg_${i + 1}`, icon: '🌱', title: `育成クエストの段階${i + 1}が解放`,
+    if(i > 0) defs.push({ key: `dg_${i + 1}`, icon: UI_ICON.seed, title: `育成クエストの段階${i + 1}が解放`,
       body: 'EXP・ゴールドのダンジョンに、報酬の多い上の段階が追加されました。', ok: has(id) });
   });
   DUNGEONS.rune.unlock.forEach((id, i) => {
     defs.push(i === 0
-      ? { key: 'rune_1', icon: '💎', title: 'ルーンが解放', body: '育成クエストの「ルーン採掘」でルーンが手に入るようになりました。モンスター詳細の「ルーン」枠に、編成ごとに装備できます(枠はモンスターの★1・★4・★6・★9で1つずつ開きます)。同じTier・同じタイプのルーン2つを材料にした合成(Tierが上がる)・分解・サブ効果の振り直しは モンスター → ルーン から。', ok: has(id) }
-      : { key: `rune_${i + 1}`, icon: '⛏️', title: `ルーン採掘 ステージ${i + 1}が解放`, body: `ルーン採掘でTier${RUNE_ROMAN[i]}のルーンが出るようになりました(推奨Lv${DUNGEONS.rune.baseLv[i]})。`, ok: has(id) });
+      ? { key: 'rune_1', icon: UI_ICON.gem4, title: 'ルーンが解放', body: '育成クエストの「ルーン採掘」でルーンが手に入るようになりました。モンスター詳細の「ルーン」枠に、編成ごとに装備できます(枠はモンスターの★1・★4・★6・★9で1つずつ開きます)。同じTier・同じタイプのルーン2つを材料にした合成(Tierが上がる)・分解・サブ効果の振り直しは モンスター → ルーン から。', ok: has(id) }
+      : { key: `rune_${i + 1}`, icon: UI_ICON.pick, title: `ルーン採掘 ステージ${i + 1}が解放`, body: `ルーン採掘でTier${RUNE_ROMAN[i]}のルーンが出るようになりました(推奨Lv${DUNGEONS.rune.baseLv[i]})。`, ok: has(id) });
   });
   QUEST_TIERS_ACTIVE.filter(t => t.key !== 'tu' && !t.hidden).forEach(t => {
-    defs.push({ key: `tier_${t.key}`, icon: t.hard ? '💀' : '🗺️', title: t.hard ? `ハードモード「${t.label}」が解放` : `メインクエスト「${t.label}」が解放`,
+    defs.push({ key: `tier_${t.key}`, icon: t.hard ? UI_ICON.skull : UI_ICON.map, title: t.hard ? `ハードモード「${t.label}」が解放` : `メインクエスト「${t.label}」が解放`,
       body: t.hard ? '敵がぐっと強くなる代わりに報酬が豪華なハードモードに挑めます。クエスト画面の「ハードモード」から切り替えられます。'
         : `新しい難易度「${t.label}」のクエストに挑めるようになりました(推奨Lv${t.lv[0]}〜)。`, ok: tierUnlocked(t.key) });
   });
@@ -22030,7 +22130,7 @@ function showAnnouncements(){
       <div class="an-list">${list.map(a => `
         <div class="an-item ${a.kind}">
           <span class="an-icon">${a.icon}</span>
-          <div class="an-body"><b>${a.title}</b><p>${a.body}</p>${a.stamina ? `<div class="an-stam">⚡ +${a.stamina}(いまのスタミナ ${STATE.stamina})</div>` : ''}${a.crystal ? `<div class="an-stam">${CRYSTAL_ICON} +${a.crystal.toLocaleString()}(いまの星結晶 ${(STATE.crystals || 0).toLocaleString()})</div>` : ''}</div>
+          <div class="an-body"><b>${a.title}</b><p>${a.body}</p>${a.stamina ? `<div class="an-stam">${ITEM_ICON.stamina} +${a.stamina}(いまのスタミナ ${STATE.stamina})</div>` : ''}${a.crystal ? `<div class="an-stam">${CRYSTAL_ICON} +${a.crystal.toLocaleString()}(いまの星結晶 ${(STATE.crystals || 0).toLocaleString()})</div>` : ''}</div>
         </div>`).join('')}</div>
       <button class="btn btn-block" id="close-result">OK</button>
     </div>`;
@@ -22111,7 +22211,7 @@ function renderProfileOverlay(){
       <div class="ov-body">
         <div class="pf-card">
           <button class="pf-avatar${myFrameClass()}" data-pick="avatar" aria-label="アバターを変える">
-            ${av ? `<img src="${imgSrc(av)}" alt="">` : '<span>👤</span>'}
+            ${av ? `<img src="${imgSrc(av)}" alt="">` : `<span>${UI_ICON.person}</span>`}
             ${myFrameBadge()}
             <span class="pf-avatar-tag">変更</span>
           </button>
@@ -22178,7 +22278,7 @@ function renderProfileOverlay(){
 
         <div class="ov-links">
           <button class="ov-link" data-share-id="1">フレンドコードを共有</button>
-          <button class="ov-link" data-overlay="settings">⚙ 設定を開く</button>
+          <button class="ov-link" data-overlay="settings">${UI_ICON.gear} 設定を開く</button>
         </div>
       </div>
     </div>`;
@@ -22386,10 +22486,10 @@ function renderMenuOverlay(){
       ${overlayHead('メニュー')}
       <div class="ov-body">
         <div class="ov-links">
-          <button class="ov-link" data-overlay="notices">🔔 お知らせ${unreadNotices() ? `<span class="rank-new">${unreadNotices()}</span>` : ''}</button>
-          <button class="ov-link" data-overlay="gifts">🎁 プレゼントボックス${STATE.presentBox.length ? `<span class="rank-new">${STATE.presentBox.length}</span>` : ''}</button>
-          <button class="ov-link" data-overlay="friends">🤝 フレンド${menuTodoCounts().friends ? `<span class="rank-new">ポイント ${menuTodoCounts().friends}人</span>` : STATE.friends.length ? `<span class="soc-tag">${STATE.friends.length}</span>` : ''}</button>
-          <button class="ov-link" data-overlay="settings">⚙️ 設定</button>
+          <button class="ov-link" data-overlay="notices">${UI_ICON.bell} お知らせ${unreadNotices() ? `<span class="rank-new">${unreadNotices()}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="gifts">${UI_ICON.gift} プレゼントボックス${STATE.presentBox.length ? `<span class="rank-new">${STATE.presentBox.length}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="friends">${UI_ICON.helper} フレンド${menuTodoCounts().friends ? `<span class="rank-new">ポイント ${menuTodoCounts().friends}人</span>` : STATE.friends.length ? `<span class="soc-tag">${STATE.friends.length}</span>` : ''}</button>
+          <button class="ov-link" data-overlay="settings">${UI_ICON.gear} 設定</button>
         </div>
       </div>
     </div>`;
@@ -22413,7 +22513,7 @@ function socialRowHtml(f, mode){
   return `
     <div class="soc-row">
       <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer; align-items:center;">
-        <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}${frameBadgeHtml(f.frame)}</div>
+        <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : UI_ICON.person}${frameBadgeHtml(f.frame)}</div>
         <div class="fc-body">
           ${otherTitleHtml(f.title)}
           <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
@@ -22454,7 +22554,7 @@ function renderFollowersView(){
   return `
     <div class="row-between" style="margin:4px 2px 8px;">
       <div class="mc-head">フォロワー(${STATE.followerCount || 0})</div>
-      <button class="btn btn-ghost btn-sm" data-followers-reload="1" ${st.loading ? 'disabled' : ''}>${st.loading ? '読み込み中…' : '🔄 再読み込み'}</button>
+      <button class="btn btn-ghost btn-sm" data-followers-reload="1" ${st.loading ? 'disabled' : ''}>${st.loading ? '読み込み中…' : `${UI_ICON.refresh} 再読み込み`}</button>
     </div>
     <div class="screen-sub" style="margin:-2px 2px 8px;">あなたをフレンドに追加している人です。「フレンドを返す」でお互いのフレンドになれます。</div>
     ${st.error ? `<div class="ui-warn">${st.error}。通信の状態を確かめて「再読み込み」を押してください。</div>` : ''}
@@ -22471,7 +22571,7 @@ function renderFriendsOverlay(){
   const title = friendsView === 'add' ? 'フレンドを追加' : friendsView === 'followers' ? 'フォロワー' : 'フレンド';
   return `
     <div class="ov-screen">
-      ${overlayHead(title, `${avail ? `<span class="base-wallet" style="margin:0 0 0 auto;">🎗️${(STATE.friendPoints || 0).toLocaleString()}</span>` : ''}${friendsView === 'list' ? guideHelpBtn('friends') : ''}`)}
+      ${overlayHead(title, `${avail ? `<span class="base-wallet" style="margin:0 0 0 auto;">${UI_ICON.ribbon}${(STATE.friendPoints || 0).toLocaleString()}</span>` : ''}${friendsView === 'list' ? guideHelpBtn('friends') : ''}`)}
       <div class="ov-body">
         ${!avail ? '<div class="screen-sub" style="margin:16px 0;">この機能はログイン中のみ利用できます。</div>'
         : friendsView === 'add' ? renderFriendAddView()
@@ -22500,7 +22600,7 @@ function renderFriendsOverlay(){
           <div class="panel facility" style="margin-bottom:8px;">
             <div class="fc-head">
               <div class="fc-clickable" data-view-friend="${f.uid}" style="display:flex; gap:10px; flex:1; min-width:0; cursor:pointer;">
-                <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : '👤'}${frameBadgeHtml(f.frame)}</div>
+                <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : UI_ICON.person}${frameBadgeHtml(f.frame)}</div>
                 <div class="fc-body">
                   ${otherTitleHtml(f.title)}
                   <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
@@ -22533,7 +22633,7 @@ function renderFriendProfileOverlay(){
       ${overlayHead(friend ? 'フレンドのプロフィール' : 'プロフィール')}
       <div class="ov-body">
         <div class="pf-card">
-          <div class="pf-avatar${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="">` : '<span>👤</span>'}${frameBadgeHtml(f.frame)}</div>
+          <div class="pf-avatar${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="">` : `<span>${UI_ICON.person}</span>`}${frameBadgeHtml(f.frame)}</div>
           <div class="pf-main">
             ${otherTitleHtml(f.title, 'pf-name-title')}
             <div class="pf-name-row"><div class="pf-name">${escapeHtml(f.name)}</div></div>
@@ -22808,7 +22908,7 @@ function renderAccountModal(){
       <div class="snd-row"><span>ログイン方法</span><b>${PROVIDER_LABEL[a.provider] || '-'}</b></div>
       ${a.email ? `<div class="snd-row"><span>メール</span><b>${escapeHtml(a.email)}</b></div>` : ''}
       <div class="snd-row"><span>データ同期</span><b>${syncLabel()}</b></div>
-      ${canInstall() ? '<button class="btn btn-ghost btn-block" data-install="1">📲 ホーム画面に追加</button>' : ''}
+      ${canInstall() ? '<button class="btn btn-ghost btn-block" data-install="1">${UI_ICON.install} ホーム画面に追加</button>' : ''}
       ${guest ? `
         <p class="title-note">GoogleかメールアドレスにすればプレイヤーIDと進行状況をそのまま引き継げて、ほかの端末でも続きから遊べます。</p>
         <button class="btn btn-block" data-account="link-google">Googleに引き継ぐ</button>
@@ -23263,7 +23363,7 @@ function labEnemyHtml(part){
   const st = babelStage(lab.tower, lab.floor, part);
   return st.waves.map((w, wi) => `<div class="lab-wave"><span class="lab-wl">W${wi + 1}</span>${w.map(e => {
     const m = MON_BY_ID[e.ref];
-    return `<span class="lab-en ${e.boss ? 'boss' : ''}"><img src="${imgSrc(e.ref)}" alt=""><small>${e.boss ? '👑' : ''}${m.name}</small><i>${ELEM_LABEL[m.element]}・★${e.star}</i></span>`;
+    return `<span class="lab-en ${e.boss ? 'boss' : ''}"><img src="${imgSrc(e.ref)}" alt=""><small>${e.boss ? UI_ICON.crown : ''}${m.name}</small><i>${ELEM_LABEL[m.element]}・★${e.star}</i></span>`;
   }).join('')}</div>`).join('');
 }
 function labSlotHtml(p, i){
@@ -23303,7 +23403,7 @@ function renderLab(){
   const hintText = kind => { const h = fl[kind]; return h ? `${BABEL_GROW[h[0]].name}` : ''; };
   const parts = two ? [0, 1] : [0];
   return `<div class="lab">
-    <div class="lab-head"><b>🗼 バベル試験場</b><small>試作。本番のデータは使いません。全モンスターを好きな育ちで試せます(レベルは全員200)。組んだ編成はこの端末にだけ覚えます。</small></div>
+    <div class="lab-head"><b>${UI_ICON.tower} バベル試験場</b><small>試作。本番のデータは使いません。全モンスターを好きな育ちで試せます(レベルは全員200)。組んだ編成はこの端末にだけ覚えます。</small></div>
     <div class="lab-tabs">${BABEL_TOWERS.map(t => `<button class="lab-tab ${t.key === lab.tower ? 'on' : ''}" data-lab="tower:${t.key}">${t.name}<small>${t.note}</small></button>`).join('')}</div>
     <div class="lab-floors">${[...Array(10).keys()].map(i => `<button class="lab-fl ${lab.floor === i + 1 ? 'on' : ''}" data-lab="floor:${i + 1}">${i + 1}${BABEL_FLOORS[lab.tower][i].halves ? '<small>2P</small>' : ''}</button>`).join('')}</div>
     <div class="panel lab-card">
@@ -23604,8 +23704,8 @@ const GUIDE_CONTENT = {
       { body: '前衛が全部倒れると後衛がねらわれるよ。前を守れる子を置くのが大事なんだ。' },
       { body: `ロールには向き不向きがあるよ。${ROLE_ICON.tank}タンクと${ROLE_ICON.attacker}アタッカーは<b>前衛向き</b>、`
           + `${ROLE_ICON.support}サポート・${ROLE_ICON.shooter}シューター・${ROLE_ICON.trickster}トリックスターは<b>後衛向き</b>だよ。` },
-      { body: `近接ロール(タンク・アタッカー)を後衛に置くと<b>与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%</b>になって、編成に⚠が出るんだ。`
-          + '陣形は「育成 → 編成」からいつでも変えられるから、⚠が出たら前衛の人数を変えてみてね。' },
+      { body: `近接ロール(タンク・アタッカー)を後衛に置くと<b>与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%</b>になって、編成に${UI_ICON.warn}が出るんだ。`
+          + `陣形は「育成 → 編成」からいつでも変えられるから、${UI_ICON.warn}が出たら前衛の人数を変えてみてね。` },
     ],
   },
   tut_element: {
@@ -23617,7 +23717,7 @@ const GUIDE_CONTENT = {
       { title: '種族', visual: () => speciesIconsSample(),
         body: '種族は10種類。同じ属性や同じ種族でそろえると、ボーナスも付くよ。' },
       { title: 'タップで詳しく', body: '戦闘中、盤面のモンスターをタップすると、<b>ステータス・属性・種族・ワザ</b>と、いまかかっている<b>強化や弱体</b>がその場で見られるよ。敵も見られるんだ。' },
-      { body: '相性は右上の「🔰 属性相性表」でもいつでも確かめられるよ。' },
+      { body: `相性は右上の「${UI_ICON.elem} 属性相性表」でもいつでも確かめられるよ。` },
     ],
   },
   tut_gacha: {
@@ -23650,7 +23750,7 @@ const GUIDE_CONTENT = {
     steps: [
       { title: 'ようこそ', body: 'ようこそ、Monstercollectへ旅の方。Monstercollect(モンコレ)では、さまざまなモンスターを収集することをお楽しみいただけますよ。' },
       { body: '下のメニューから、ガチャ・育成・ホーム・探索・拠点をいつでも行き来できます。編成やモンスターの強化は「育成」からどうぞ。まずは探索から始めてみましょう。', highlight: '#nav' },
-      { body: '最後にひとつ。ホーム画面の「📲 ホーム画面に追加」から、アプリのように全画面で、オフラインでも遊べるようになりますよ。よろしければぜひ。', installOnly: true },
+      { body: '最後にひとつ。ホーム画面の「${UI_ICON.install} ホーム画面に追加」から、アプリのように全画面で、オフラインでも遊べるようになりますよ。よろしければぜひ。', installOnly: true },
     ],
   },
   monsterDetail: {
@@ -24058,7 +24158,7 @@ const TUT_FLOW = {
       { body: `ロールには<b>前衛向き・後衛向き</b>があるんだ。${ROLE_ICON.tank}タンクと${ROLE_ICON.attacker}アタッカーは近づいて殴るから前衛向き。`
           + `${ROLE_ICON.support}サポート・${ROLE_ICON.shooter}シューター・${ROLE_ICON.trickster}トリックスターは離れていても届くから後衛向きだよ。`,
         spot: '.formation', dim: true },
-      { body: `近接ロールを後衛に置くと、届かないぶん<b>与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%</b>になって⚠が出るんだ。気をつけてね!`,
+      { body: `近接ロールを後衛に置くと、届かないぶん<b>与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%</b>になって${UI_ICON.warn}が出るんだ。気をつけてね!`,
         spot: '.formation', dim: true },
       { body: '仲間になったホーンラビットはアタッカー。前衛の席がもう1つ必要だから、前衛3人の「鶴翼の陣」にしよう。',
         spot: '[data-formation="f3"]', await: 'tap',
@@ -24068,13 +24168,13 @@ const TUT_FLOW = {
         skipIf: () => getPartyIds().includes('m11') },
       { body: 'オオコウモリはシューターだから後衛に入るよ。押してね!', spot: '.roster-row[data-toggle="m02"]', await: 'tap',
         skipIf: () => getPartyIds().includes('m02') },
-      { body: '5体そろったね!前衛に3体、後衛に2体。ロールの向きもぴったりで、⚠は出ていないよ。', spot: '.formation', dim: true },
+      { body: `5体そろったね!前衛に3体、後衛に2体。ロールの向きもぴったりで、${UI_ICON.warn}は出ていないよ。`, spot: '.formation', dim: true },
       { body: 'ためしに「一枚盾の陣」を押してみて。前衛が1人だけの陣形だよ。',
         spot: '[data-formation="f1"]', await: 'tap' },
-      { body: `ほら⚠が出た!前衛が1人になったから、ゴブリンとホーンラビットが後衛に下がって与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%になっちゃったんだ。`,
+      { body: `ほら${UI_ICON.warn}が出た!前衛が1人になったから、ゴブリンとホーンラビットが後衛に下がって与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%になっちゃったんだ。`,
         spot: '[data-row-warn]', dim: true,
         skipIf: () => !penalizedIds().length },
-      { body: '「鶴翼の陣」に戻しておこう。これで⚠が消えて、みんな力を出しきれるよ。',
+      { body: `「鶴翼の陣」に戻しておこう。これで${UI_ICON.warn}が消えて、みんな力を出しきれるよ。`,
         spot: '[data-formation="f3"]', await: 'tap',
         skipIf: () => STATE.formationKey === 'f3' },
       { body: 'いいね!それじゃあ探索に戻ろう。', spot: '.nav-btn[data-nav="battle"]', await: 'tap' },
@@ -24425,7 +24525,7 @@ function wireGlobalEvents(){
     const before = STATE.stamina;
     refreshStamina();
     const chip = document.querySelector('#statusbar .tb-pill.stam');
-    if(chip) chip.textContent = `⚡${STATE.stamina}`;
+    if(chip) chip.innerHTML = `${ITEM_ICON.stamina}${STATE.stamina}`;
     if(currentScreen === 'battle' && !document.getElementById('modal-layer').classList.contains('show')){
       const next = document.querySelector('.sp-next');
       if(next) next.textContent = STATE.stamina >= STAMINA_MAX ? '満タン' : `次の回復 ${formatDuration(msToNextStamina())}・全回復 ${formatDuration(msToFullStamina())}`;

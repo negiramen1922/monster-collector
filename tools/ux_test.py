@@ -73,11 +73,15 @@ async def main():
             await pg.evaluate("() => showMonsterDetail('m128')")
             await pg.wait_for_timeout(400)
             order = await pg.evaluate("() => [...document.querySelectorAll('.detail-modal > div')].map(d => d.className)")
-            check('レベルアップが詳細の一番上にある',
-                  order[0].startswith('detail-head') and 'lv-card' in order[1]
-                  and all('lv-card' not in c for c in order[2:]), str(order[:4]))
+            # 育成/装備のタブを挟むようになったので、レベルアップは「中身の一番上」
+            check('レベルアップが中身の一番上にある(タブのすぐ下)',
+                  order[0].startswith('detail-head') and 'detail-tabs' in order[1] and 'lv-card' in order[2]
+                  and all('lv-card' not in c for c in order[3:]), str(order[:4]))
             # HP/STR/物防/魔防/SPD の5つ + 会心率・会心倍率(α0.2.008で追加)の2つ
             check('レベルで変わる数字が色つき', await pg.evaluate("() => document.querySelectorAll('.detail-stats .lv-stat').length") == 7)
+            # ワザは折りたたみが既定。開いてから中身を見る
+            await pg.evaluate("() => document.querySelector('[data-skill-toggle]').click()")
+            await pg.wait_for_timeout(250)
             check('スキル説明の下に強化ボタンがある',
                   await pg.evaluate("() => document.querySelectorAll('.detail-skill-box .skill-upgrade [data-skill-up]').length") == 3)
 
