@@ -4199,37 +4199,10 @@ function slotOwnedLike(id){
   return id === HELP_SLOT_ID && STATE.borrowed ? borrowedOwnedLike() : STATE.owned[id];
 }
 const TUTORIAL_REPLAY_STAMINA = 10; // 初回無料。2回目以降は通常ステージと同じ消費にする
-/* 新バトルシステムでのクリア記録。1ステージにつき1回だけ、お試しのスタミナ0と
-   テスト協力ぶんの星結晶に使う。EXはステージを作り直すので、初回クリア報酬ごと配り直す。 */
-function ensureV2Cleared(){
-  if(typeof STATE === 'undefined' || !STATE) return [];   // セーブを読む前に呼ばれることがある
-  if(!Array.isArray(STATE.v2Cleared)) STATE.v2Cleared = [];
-  return STATE.v2Cleared;
-}
-function v2ClearedHas(id){ return ensureV2Cleared().includes(id); }
-function battleV2ClearCrystal(stage){
-  if(!stage || stage.tier === 'tu') return 0;
-  if(stage.ex) return BATTLE_V2_CLEAR_CRYSTAL_EX[stage.ex - 1] || BATTLE_V2_CLEAR_CRYSTAL.event;
-  if(stage.type === 'event') return BATTLE_V2_CLEAR_CRYSTAL.event;
-  if(stage.type === 'main') return BATTLE_V2_CLEAR_CRYSTAL.main;
-  return 0;   // 育成クエスト・深淵・PVPは対象外
-}
-/* 新バトルシステムでの初クリアを記録して、お礼の星結晶を返す。
-   メインもイベントも育成クエストも、必ずここを通す(通し忘れるとスタミナ0が続いてしまう)。
-   周回(結果だけ)では呼ばない。実際に戦った人にだけ配る。 */
-function markBattleV2Clear(stage, opts){
-  if(!battleV2() || !stage || (opts && opts.sweep) || v2ClearedHas(stage.id)) return 0;
-  ensureV2Cleared().push(stage.id);
-  const n = battleV2ClearCrystal(stage);
-  if(n) STATE.crystals += n;
-  return n;
-}
 function stageStaminaCost(stage){
   // tutorial: free only the first time. Once cleared, farming it for its firstClear
   // reward would otherwise be free forever, so it costs the normal amount after that.
   if(stage.tier === 'tu') return STATE.clearedStages.includes(stage.id) ? TUTORIAL_REPLAY_STAMINA : 0;
-  // 新バトルシステムのお試し。1ステージにつき1回だけタダで挑める(2回目からは通常どおり)
-  if(battleV2() && !v2ClearedHas(stage.id)) return 0;
   if(!stage.stamina) return 0;
   return stage.stamina + (STATE.slots.includes(HELP_SLOT_ID) ? HELP_STAMINA_SURCHARGE : 0);
 }
@@ -5694,8 +5667,6 @@ const DEFAULT_STATE = () => ({
   presentBox: [],          // [{ id, label, reward:[...], receivedAt }] - claimable gifts (stamina overflow, compensation, etc.)
   presentBoxSeq: 0,        // next presentBox entry id
   giftsGranted: {},        // COMPENSATION_GIFTS id → true once delivered to this save's presentBox
-  battleV2: true,          // 新バトルシステム。false で旧に戻る(設定 →「バトルシステム」)
-  v2Cleared: [],           // 新バトルシステムでクリアずみのステージid。初回だけスタミナ0＋星結晶
 });
 
 let STATE = null;
@@ -5772,6 +5743,8 @@ function normalizeState(){
   if(!STATE.presentBox) STATE.presentBox = [];
   if(!STATE.presentBoxSeq) STATE.presentBoxSeq = 0;
   if(!STATE.giftsGranted) STATE.giftsGranted = {};
+  // α0.5: 旧バトルシステムとお試し(初回スタミナ0＋お礼の星結晶)はなくなった
+  delete STATE.battleV2; delete STATE.v2Cleared;
   // skill2Lv is new: seed it from the existing (shared) skillLv so nobody's skill2 gets
   // weaker the moment this ships - they diverge only from here on as the player upgrades.
   Object.values(STATE.owned).forEach(o => { if(o.skill2Lv === undefined) o.skill2Lv = o.skillLv || 1; });
@@ -8691,7 +8664,7 @@ function autoRunCollect(b){
   const r = b.rewards || {};
   if(r.medal && ITEM_ICON[r.medal.icon]) a.medalIcon = `<span class="item-ic">${ITEM_ICON[r.medal.icon]}</span>`;
   a.gold += r.gold || 0;
-  a.crystals += (r.crystals || 0) + (r.v2Crystals || 0);
+  a.crystals += (r.crystals || 0);
   a.dust += r.dust || 0;
   a.runes.push(...(r.runes || []));
   (r.items || []).forEach(x => { a.items[x.key] = (a.items[x.key] || 0) + x.n; });
@@ -9005,10 +8978,7 @@ function grantDungeonRewards(stage, opts){
   }
   track('dungeonClear');
   track('exploreClear');
-  // 育成クエストはお礼の星結晶の対象外(battleV2ClearCrystal が0を返す)だが、
-  // 記録は必ず残す。残さないと「初回だけスタミナ0」が永久に続いてしまう
-  const v2Crystals = markBattleV2Clear(stage, opts);
-  return { items, gold, souls: [], crystals: 0, runes, dust, v2Crystals };
+  return { items, gold, souls: [], crystals: 0, runes, dust };
 }
 
 /* ---------------- stat scaling ---------------- */
@@ -9030,13 +9000,9 @@ const BATTLE_V2_ULT_MIN    = 40;
 const WAVE_LV_RAMP         = 1 / 6;  // 最終ウェーブ=推奨Lv、第1ウェーブはそこから比で下げる(推奨300なら-50)
 const BATTLE_V2_SHIELD_CAP = 1.0;    // シールドの上限(旧は0.5)
 const BATTLE_V2_BP_HP      = 0.3;    // BPのHPの重み(旧は0.6)。HP2倍ぶんを表示で打ち消す
-const BATTLE_V2_CLEAR_CRYSTAL = { main: 10, event: 20 };    // テスト協力のお礼
-const BATTLE_V2_CLEAR_CRYSTAL_EX = [100, 300, 500];        // EXは難しいので1〜3で厚くする
-function battleV2(){ return typeof STATE !== 'undefined' && STATE ? STATE.battleV2 !== false : true; }
-function hpScale(){ return battleV2() ? BATTLE_V2_HP_SCALE : 1; }
-function shieldCapRatio(){ return battleV2() ? BATTLE_V2_SHIELD_CAP : SHIELD_CAP_RATIO; }
+function hpScale(){ return BATTLE_V2_HP_SCALE; }
+function shieldCapRatio(){ return BATTLE_V2_SHIELD_CAP; }
 function ultSpCostFor(role, sp){
-  if(!battleV2()) return sp;
   return Math.max(BATTLE_V2_ULT_MIN, sp + (BATTLE_V2_ULT_ADJ[role] || 0));
 }
 // 被弾SPの基準になるHP。「そのレベル・★の平均的なモンスター」のHP。
@@ -9650,7 +9616,7 @@ function battlePower(id){
   // 会心はSTRの期待値として少しだけ乗せる(基本の会心率・倍率ぶんは全員同じなので入れない)
   // 防御は「%カット」なので、レベルでは伸びない小さな数字(素で2〜33・ルーンこみで50前後)。
   // 4倍のままだとBPに乗らなくなるので、HPを2倍にしたときと同じように重みを直した
-  const base = (st.hp * (battleV2() ? BATTLE_V2_BP_HP : 0.6) + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * BP_DEF_WEIGHT + st.spd * 1.5);
+  const base = (st.hp * BATTLE_V2_BP_HP + st.str * 4 * (1 + (st.critRate || 0) * 0.5 + (st.critDmg || 0) * 0.15) + (st.pdef + st.mdef) * BP_DEF_WEIGHT + st.spd * 1.5);
   const kit = 1
     + ((o.skillLv || 1) - 1) * 0.04
     + ((o.skill2Lv || 1) - 1) * 0.04
@@ -16053,9 +16019,6 @@ const SPEED_3X_VIP_ONLY = false;
 
 // ---- SP ----
 const SP_ON_ACTION = 10;
-const SP_ON_HIT = 5;
-const SP_HIT_CAP_PER_ROUND = 10;
-const SP_ON_KILL = 15;
 
 // ---- damage ----
 // raw = STR × (1 + STR buffs) × power × (1 + damage bonuses) × element × crit × random
@@ -16091,7 +16054,6 @@ const POISON_HP_RATIO = 0.02;  // per layer, of the victim's max HP
 const POISON_TURNS = 5;
 const POISON_MAX_LAYERS = 5;
 const POISON_CAP_RATIO = 0.20; // per layer per turn: ≤ 20% of the applier's max HP (recorded per layer)
-const SHIELD_CAP_RATIO = 0.50; // total shields ≤ 50% of max HP
 const FOLLOW_UP_POWER = 0.30;  // thunder follow-up (magic)
 
 const ATK_TYPE_LABEL = { phys:'物理', mag:'魔法' };
@@ -16350,11 +16312,9 @@ function skillSlotsOf(mon, star){
   return skillSlotsFor(star || mon.rarity) >= 2 ? [kit.skill1, kit.skill2 || kit.skill1] : [kit.skill1];
 }
 function skillCt(unit, slot){ return Math.max(1, unit.skills[slot].ct - (unit.ctReduce || 0)); }
-// 旧: スキル1は初回CTの半分から、スキル2はCT+1(=ほぼ出番が来ない)
-// 新: どちらも開幕から使える。出す順番は takeTurn のローテーションで決まる
+// どちらも開幕から使える。出す順番は takeTurn のローテーションで決まる
 function initialSkillCds(unit){
-  if(battleV2()) return unit.skills.map(() => 0);
-  return unit.skills.map((_, i) => i === 0 ? Math.ceil(skillCt(unit, 0) / 2) : skillCt(unit, i) + 1);
+  return unit.skills.map(() => 0);
 }
 
 /* ---- 凸ボーナス(★6〜★10) ----
@@ -16471,7 +16431,7 @@ function waveEnemyLv(stage, waveIndex){
 /* ステージ画面の「敵Lv◯〜◯」用 */
 function stageEnemyLevels(stage){
   const waves = stage.waves || [];
-  return battleV2() ? waves.map((w, i) => waveEnemyLv(stage, i)) : waves.flat().map(e => e.level);
+  return waves.map((w, i) => waveEnemyLv(stage, i));
 }
 function spawnWave(stage, waveIndex){
   const f = waveFormationOf(stage, waveIndex);
@@ -16483,7 +16443,7 @@ function spawnWave(stage, waveIndex){
     if(!e) return;
     const sk = stage.enemySkill || 1;
     // 新バトルシステム: ウェーブごとに上がり、最終ウェーブが推奨レベル
-    const lv = stage.flatLv ? e.level : battleV2() ? waveEnemyLv(stage, waveIndex) : e.level;   // バベルは全WAVEがLv200
+    const lv = stage.flatLv ? e.level : waveEnemyLv(stage, waveIndex);   // バベルは全WAVEがLv200
     const u = buildUnit(MON_BY_ID[e.ref], lv, true, e.rare ? null : (e.star || null), e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: sk });
     u.rare = !!e.rare;
     u.gimmick = e.gimmick || null;
@@ -16734,8 +16694,6 @@ function setPvpDefense(){
   render();
 }
 function startPvpBattle(opponent){
-  // 記録が混ざるので、PVPは新バトルシステムでしか戦わない
-  if(!battleV2()){ toast('PVPは新バトルシステムでのみ挑戦できます(設定 → バトルシステム)'); return; }
   if(!hasPvpForm('attack')){ toast('PVP攻撃編成を設定してください'); return; }
   if(pvpChallengesLeft() <= 0){ toast('本日の挑戦回数は使い切りました'); return; }
   const defense = sanitizeDefense(opponent.defense);
@@ -16878,7 +16836,6 @@ function startBattle(stageId, opts){
   if(stage.type === 'dungeon' ? !dungeonTierUnlocked(stage.tier, stage.dungeon) : !stageUnlocked(stage)){ toast('前のステージをクリアすると挑戦できます'); return; }
   if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。モンスター → ルーン で分解してください`); return; }
   if(stage.type === 'abyss'){
-    if(!battleV2()){ toast('深淵回廊は新バトルシステムでのみ挑戦できます(設定 → バトルシステム)'); return; }
     if(!abyssUnlocked()){ toast('上級をクリアすると挑戦できます'); return; }
     if(stage.floor !== ensureAbyss().floor){ toast(`${ensureAbyss().floor}階から挑戦できます`); return; }
   }
@@ -19126,7 +19083,7 @@ function healUnit(healer, target, amount, opts){
     else healer.report.healAlly += gained;
   }
   // 新バトルシステム: 味方を回復した側にもSPが入る(サポートの蛇口。被弾と同じ上限枠)
-  if(battleV2() && healer && healer !== target && gained > 0) gainSp(healer, BATTLE_V2_SP_HEAL, 'hit');
+  if(healer && healer !== target && gained > 0) gainSp(healer, BATTLE_V2_SP_HEAL, 'hit');
   if(healer && opts && opts.bySkill && healer.passive.cleanseOnHeal) cleanseOne(target);
   return gained;
 }
@@ -19144,7 +19101,7 @@ function gainSp(unit, amount, source){
   if(!unit.alive || amount <= 0) return;
   if(unit.ultLock) return;   // 奥義中は入らない(奥義の効果のSPは gainSp を通らない)
   if(source === 'hit'){
-    const room = (battleV2() ? BATTLE_V2_HIT_CAP : SP_HIT_CAP_PER_ROUND) - unit.spHitRound;
+    const room = BATTLE_V2_HIT_CAP - unit.spHitRound;
     if(room <= 0) return;
     amount = Math.min(amount, room);
     unit.spHitRound += amount;
@@ -19245,7 +19202,7 @@ function strike(ctx, target, o){
   addHate(actor, Math.min(HATE_DAMAGE_CAP_PCT, dmg / target.maxHp * 100) * HATE_PER_DAMAGE_PCT);
   pushFx(target, dmg, 'hit', { crit, eff: effectivenessOf(actor, target), fx: o.fx || hitEffectFor(actor, kind, atk),
     el: (kind !== 'normal' || atk === 'mag') && actor.element !== 'none' ? actor.element : null });
-  gainSp(target, battleV2() ? spFromDamage(target, dmg) : SP_ON_HIT, 'hit');
+  gainSp(target, spFromDamage(target, dmg), 'hit');
   if(crit){ runPassive(actor, 'onCrit'); sideOf(actor).forEach(a => { if(a !== actor && a.alive) runPassive(a, 'onAllyCrit', actor); }); }
   if(actor.flags.frenzy && actor.alive) healUnit(actor, actor, dmg * 0.2);
   if(!o.noOnHit) runPassive(actor, 'onHitTarget', target);
@@ -19332,7 +19289,7 @@ function performAction(actor, kind, act, slot){
   actor.flags.turnedOnAllies = false;
   if(kind === 'ult' && actor.report) actor.report.ults += 1;
   if(kind === 'skill') runPassive(actor, 'onSkillUsed', act);
-  if(b.killedThisAction) gainSp(actor, battleV2() ? BATTLE_V2_SP_KILL : SP_ON_KILL, 'kill');
+  if(b.killedThisAction) gainSp(actor, BATTLE_V2_SP_KILL, 'kill');
   if(ctx.hits.length){
     const crit = ctx.hits.some(h => h.crit) ? '会心の一撃!' : '';
     const parts = summarizeHits(ctx.hits);
@@ -19815,17 +19772,15 @@ function takeTurn(u){
     }
   }else{
     let slot = -1;
-    if(battleV2()){
+    {
       // スキル1 → スキル2 → スキル1 … と順番に使う(前回使った次のスロットから探す)
       const n = u.skills.length, from = ((u.lastSlot == null ? n - 1 : u.lastSlot) + 1) % n;
       for(let k = 0; k < n; k++){ const i = (from + k) % n; if(u.skillCd[i] <= 0){ slot = i; break; } }
       if(slot >= 0) u.lastSlot = slot;
-    }else{
-      for(let i = 0; i < u.skills.length; i++){ if(u.skillCd[i] <= 0){ slot = i; break; } }
     }
     const skill = slot >= 0 ? u.skills[slot] : null;
     if(skill && (hasFoe || skill.tgt === 'self' || String(skill.tgt).startsWith('ally'))){
-      u.skillCd[slot] = skillCt(u, slot) + (battleV2() || slot === 0 ? 0 : 1);
+      u.skillCd[slot] = skillCt(u, slot);
       u.skillCdMax[slot] = u.skillCd[slot];
       performAction(u, 'skill', skill, slot);
     }else if(bound){
@@ -20043,8 +19998,8 @@ function advanceWave(){
       u.hp = Math.min(u.maxHp, u.hp + heal);
     }
   });
-  if(battleV2()) battleUI.party.forEach(u => { if(u !== battleUI.lastUltBy) gainSp(u, BATTLE_V2_SP_WAVE, 'wave'); });
-  logLine(battleV2() ? 'パーティは体勢を立て直した(HPとSPが一部回復)' : 'パーティは体勢を立て直した(HP一部回復)', 'heal');
+  battleUI.party.forEach(u => { if(u !== battleUI.lastUltBy) gainSp(u, BATTLE_V2_SP_WAVE, 'wave'); });
+  logLine('パーティは体勢を立て直した(HPとSPが一部回復)', 'heal');
   renderBattleScreenOnly();
 
   const b = battleUI;
@@ -20249,7 +20204,6 @@ function showBattleResult(tab){
       ...r.items.map(m => `<span class="gain-chip" title="${itemName(m.key)}">${itemIcon(m.key)} ×${m.n}</span>`),
       r.dust ? `<span class="gain-chip">${UI_ICON.dust}ルーンの粉 ×${r.dust}</span>` : '',
       r.crystals ? `<span class="gain-chip first">初回クリア ${CRYSTAL_ICON}${r.crystals}</span>` : '',
-      r.v2Crystals ? `<span class="gain-chip first">新バトルシステム ${CRYSTAL_ICON}${r.v2Crystals}</span>` : '',
       ...(r.firstItems || []).map(x => `<span class="gain-chip first">${rewardHtml([x])}</span>`),
     ].filter(Boolean).join('');
     const newJoins = r.souls.filter(x => x.joined);
@@ -20460,9 +20414,6 @@ function grantStageRewards(stage, spawned, party, opts){
   const souls = Object.entries(soulTotals).map(([id, n]) => ({ ...giveSouls(id, n), rare: spawned.some(u => u.ref === id && u.rare), boss: spawned.some(u => u.ref === id && u.boss), recruit: recruited.includes(id) }));
   souls.filter(x => x.joined).forEach(x => logEvent('monster_join', { monster: x.id, rarity: MON_BY_ID[x.id].rarity, how: x.recruit ? 'recruit' : 'souls' }));
 
-  // 新バトルシステムでの初クリア。テスト協力ぶんの星結晶
-  const v2Crystals = markBattleV2Clear(stage, opts);
-
   // first clear
   let crystals = 0;
   const firstItems = [];
@@ -20480,7 +20431,7 @@ function grantStageRewards(stage, spawned, party, opts){
   track('exploreClear');   // デイリー「探索を3回」: 周回・育成クエストも同じく数える
   if(stage.boss) track('bossClear');
   souls.filter(x => x.joined).forEach(() => track('befriend'));
-  return { items, gold, souls, crystals, firstItems, medal: medalGot, v2Crystals };
+  return { items, gold, souls, crystals, firstItems, medal: medalGot };
 }
 
 function renderBattleFight(){
@@ -22476,13 +22427,6 @@ function renderSettingsOverlay(){
           </div>
           <div class="set-row"><div class="set-k wide">奥義オート</div>${toggle('autoUlt', !!STATE.autoUlt)}</div>
           <div class="set-row"><div class="set-k wide">ダメージ数値を表示</div>${toggle('showDamage', STATE.showDamage !== false)}</div>
-          <div class="set-row"><div class="set-k wide">新バトルシステム</div>${toggle('battleV2', battleV2())}</div>
-          <div class="screen-sub set-hint" style="margin:-4px 0 0;">
-            ワザ・奥義・HPの仕組みを作り直したものです。オフにすると前の戦闘に戻せます。<br>
-            新バトルシステムでステージを初めてクリアすると、スタミナ0で挑めて星結晶がもらえます
-            (メイン ${BATTLE_V2_CLEAR_CRYSTAL.main}・イベント ${BATTLE_V2_CLEAR_CRYSTAL.event}・EX ${BATTLE_V2_CLEAR_CRYSTAL_EX.join('/')})。<br>
-            深淵回廊とPVPは新バトルシステムのみです。
-          </div>
         </div>
 
         <div class="panel set-list">
@@ -22824,11 +22768,6 @@ async function handleOverlayAction(el){
     if(set === 'sfx'){ const s = sfxSettings(); s.on = !s.on; if(s.on) playSfx('tap'); }
     if(set === 'autoUlt') STATE.autoUlt = !STATE.autoUlt;
     if(set === 'showDamage') STATE.showDamage = STATE.showDamage === false;
-    if(set === 'battleV2'){
-      STATE.battleV2 = !battleV2();
-      // HPの目盛りが変わるので、今のHPが最大値を超えないように丸める
-      toast(STATE.battleV2 ? '新バトルシステムにしました' : '旧バトルシステムに戻しました');
-    }
     saveState();
     render();
     return;
