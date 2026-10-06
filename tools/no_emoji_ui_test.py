@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""画面に絵文字を出していないかの回帰テスト。
+"""画面に出してはいけない文字の回帰テスト(絵文字と、下書きの目印)。
 
 絵文字はフォント任せで端末ごとに形も色も変わり、ゲームのドット絵とも合わない。
 ぜんぶ UI_ICON(インラインSVG)に寄せたので、主要な画面を一通り開いて
 絵文字が1文字も出ていないことを確かめる。
 
 ★ → ✓ などの幾何学記号は絵文字ではない(どの環境でも同じ字形)ので対象外。
+
+あわせて、テンプレートの書き損じ(「${UI_ICON.shield}」がそのまま出ていた)や
+undefined が画面に出ていないかも、同じ巡回のついでに見る。
 
 使い方: CHROMIUM_PATH=/path/to/chrome python3 tools/no_emoji_ui_test.py
 """
@@ -16,6 +19,8 @@ from _serve import game_url, use_mock_auth, start_as_guest
 OUT = pathlib.Path(os.environ.get('SHOT_DIR', '/tmp'))
 LAUNCH = {'executable_path': os.environ['CHROMIUM_PATH']} if os.environ.get('CHROMIUM_PATH') else {}
 EMOJI = re.compile('[\U0001F000-\U0001FAFF☀-⛿✀-➿⬀-⯿⏩-⏺]')
+# 書き損じの目印。'${' はシングルクォートの中にテンプレートを書いた時にそのまま出る
+LEAK = re.compile(r'\$\{|undefined|\[object |NaN|TODO')
 # 字形が環境で変わらない記号は絵文字ではないので見逃す
 PLAIN = set('★✓✕✗✦→←↑↓▲▼▶◀◆◯○')
 bad = 0
@@ -71,14 +76,17 @@ async def main():
                 clearGuideToast(true); closeModal(); }""")
             await pg.wait_for_timeout(400)
 
-            found = {}
+            found, leaks = {}, {}
             for name, js in VIEWS:
                 await pg.evaluate(js)
                 await pg.wait_for_timeout(400)
                 txt = await pg.evaluate("() => document.getElementById('phone').innerText")
                 hit = sorted({c for c in txt if EMOJI.match(c) and c not in PLAIN})
                 if hit: found[name] = hit
+                bad_lines = [l.strip() for l in txt.split('\n') if LEAK.search(l)]
+                if bad_lines: leaks[name] = bad_lines[:3]
             check('どの画面にも絵文字が出ない', found == {}, found)
+            check('どの画面にも書き損じ(${...}・undefined など)が出ない', leaks == {}, leaks)
 
             # UI_ICON そのものの健全性
             info = await pg.evaluate("""() => {
