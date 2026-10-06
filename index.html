@@ -20559,7 +20559,7 @@ function renderBattleFight(){
     const frontAlive = units.some(u => u.alive && u.row === 'front');
     return `<div class="bf-grid">${rows.map((row, r) => {
       const shielded = row === 'back' && frontAlive && units.some(u => u.alive && u.row === 'back');
-      const tag = `<div class="bf-row-tag ${row}" style="grid-row:${r + 1}; grid-column:1;">${row === 'front' ? '前' : '後'}${shielded ? '<span class="shield" title="前衛に守られている">${UI_ICON.shield}</span>' : ''}</div>`;
+      const tag = `<div class="bf-row-tag ${row}" style="grid-row:${r + 1}; grid-column:1;">${row === 'front' ? '前' : '後'}${shielded ? `<span class="shield" title="前衛に守られている">${UI_ICON.shield}</span>` : ''}</div>`;
       const cells = slotsOfRow(f, row).map(i => {
         const u = units.find(x => x.slot === i);
         const pos = `style="grid-row:${r + 1}; grid-column:${slotHalfCol(f, i) + 1} / span 2;"`;
