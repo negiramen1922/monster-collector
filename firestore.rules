@@ -46,6 +46,13 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // アンケートの回答(α0.5〜)。surveys/{アンケートのid}/answers/{uid} に本人が1回だけ作れる。
+    // プレイヤーからは読めない・書き換えられない(答えは Firebase コンソールか tools/survey_export.js で読む)
+    match /surveys/{surveyId}/answers/{uid} {
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow read, update, delete: if false;
+    }
+
     // フレンドコード → uid の対応表。自分のuidで新規作成だけ許可し、他人のコードは奪えない
     match /playerIds/{code} {
       allow read: if request.auth != null;

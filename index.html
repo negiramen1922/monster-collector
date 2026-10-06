@@ -832,6 +832,34 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   padding:18px;
 }
 .result-modal h3{ margin:0 0 12px; font-size:14px; text-align:center; color:var(--gold); }
+/* アンケート(α0.5)。字が背景に埋もれないように、ここだけ背景を少し明るく・字を少し落とす(見本: docs/提案資料/アンケート画面の見本.html) */
+.survey-modal{ --sv-panel:#241e3c; --sv-block:#2d2649; --sv-field:#363056; --sv-text:#ebe4d6; --sv-sub:#c6bcdc; --sv-gold:#e3b35f; --sv-err:#f29aa7;
+  background:var(--sv-panel); color:var(--sv-text); position:relative; }
+.survey-modal h3{ color:var(--sv-gold); font-size:16px; text-align:left; margin:0 30px 6px 0; }
+.survey-modal .sv-lead{ margin:0 0 12px; font-size:13px; color:var(--sv-sub); line-height:1.75; }
+.survey-modal form{ display:flex; flex-direction:column; gap:10px; }
+.survey-modal fieldset, .survey-modal .sv-field{ border:0; margin:0; min-width:0; display:flex; flex-direction:column; gap:10px; background:var(--sv-block); border-radius:12px; padding:14px; }
+.survey-modal .sv-label{ font-size:14px; font-weight:700; line-height:1.6; }
+.survey-modal .sv-label small{ font-weight:400; color:var(--sv-sub); font-size:12px; margin-left:4px; }
+.survey-modal .sv-req{ color:var(--sv-err); font-size:11.5px; margin-left:6px; font-weight:700; }
+.survey-modal .sv-err{ box-shadow:inset 0 0 0 1px var(--sv-err); }
+.survey-modal .sv-opts{ display:flex; flex-direction:column; gap:10px; }
+.survey-modal .sv-opts.row{ flex-direction:row; flex-wrap:wrap; gap:10px 20px; }
+.survey-modal .sv-opts label{ display:flex; align-items:center; gap:8px; font-size:14px; line-height:1.4; cursor:pointer; }
+.survey-modal input[type=radio], .survey-modal input[type=checkbox]{ accent-color:var(--sv-gold); width:18px; height:18px; margin:0; }
+.survey-modal .sv-ends{ display:flex; justify-content:space-between; font-size:12px; color:var(--sv-sub); }
+.survey-modal textarea{ width:100%; min-height:80px; resize:vertical; border-radius:10px; border:1px solid transparent; background:var(--sv-field); color:var(--sv-text); font-family:inherit; font-size:14px; line-height:1.65; padding:10px 12px; }
+.survey-modal textarea::placeholder{ color:var(--sv-sub); opacity:.75; }
+.survey-modal textarea:disabled{ opacity:.4; }
+.survey-modal .sv-count{ font-size:12px; color:var(--sv-sub); text-align:right; font-variant-numeric:tabular-nums; }
+.survey-modal .sv-count.short{ color:var(--sv-err); }
+.survey-modal .btn{ background:var(--sv-gold); color:#2a2140; margin-top:6px; }
+.survey-modal .btn:disabled{ opacity:.45; }
+.survey-modal .btn-ghost{ background:transparent; color:var(--sv-text); }
+.survey-modal .sv-hint{ font-size:12px; color:var(--sv-sub); text-align:center; margin:0; }
+.survey-modal .sv-center{ display:flex; flex-direction:column; gap:12px; text-align:center; }
+.survey-modal .sv-center p{ margin:0; font-size:14px; line-height:1.8; }
+.survey-modal .sv-center p small{ color:var(--sv-sub); font-size:12.5px; }
 .result-grid{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin-bottom:14px;}
 .result-card{
   background:var(--panel2);
@@ -4205,7 +4233,10 @@ const TUTORIAL_REPLAY_STAMINA = 10; // 初回無料。2回目以降は通常ス�
 function stageStaminaCost(stage){
   // tutorial: free only the first time. Once cleared, farming it for its firstClear
   // reward would otherwise be free forever, so it costs the normal amount after that.
-  if(stage.tier === 'tu') return STATE.clearedStages.includes(stage.id) ? TUTORIAL_REPLAY_STAMINA : 0;
+  if(stage.tier === 'tu'){
+    if(STATE.tutReplay && TUT_STAGES[STATE.tutReplay.at] === stage.id) return 0;   // 遊び直しの今の1本はタダ
+    return STATE.clearedStages.includes(stage.id) ? TUTORIAL_REPLAY_STAMINA : 0;
+  }
   if(!stage.stamina) return 0;
   return stage.stamina + (STATE.slots.includes(HELP_SLOT_ID) ? HELP_STAMINA_SURCHARGE : 0);
 }
@@ -4831,6 +4862,11 @@ const firebaseBackend = {
   async sendGift(toUid, fromUid, amount, reason){
     const { fs, db } = await this.load();
     await fs.addDoc(fs.collection(db, 'players', toUid, 'gifts'), { from: fromUid, amount, reason: reason || 'send', at: Date.now() });
+  },
+  // アンケートの回答。surveys/{surveyId}/answers/{uid} に1人1件(作るだけ。読めない・書き換えられない。firestore.rules)
+  async submitSurvey(surveyId, uid, data){
+    const { fs, db } = await this.load();
+    await fs.setDoc(fs.doc(db, 'surveys', surveyId, 'answers', uid), data);
   },
   async fetchGifts(uid){
     const { fs, db } = await this.load();
@@ -5670,6 +5706,9 @@ const DEFAULT_STATE = () => ({
   presentBox: [],          // [{ id, label, reward:[...], receivedAt }] - claimable gifts (stamina overflow, compensation, etc.)
   presentBoxSeq: 0,        // next presentBox entry id
   giftsGranted: {},        // COMPENSATION_GIFTS id → true once delivered to this save's presentBox
+  tutReplayRewarded: true, // チュートリアルの遊び直しのお礼(星結晶360)を受け取ったか。新しく始めた人は対象外なので true から
+  tutDoneV2: false,        // 新しいチュートリアル(α0.5でお披露目)を最後まで遊んだか。アンケートに答えられる
+  surveyDone: {},          // 答えたアンケートの id → true
   lvSys: 2,                // スキルLv・パッシブLvの制度の版。2 = α0.5(スキル上限10・パッシブ上限5)。古いセーブは migrateLvSystem で移す
 });
 
@@ -5783,6 +5822,9 @@ function normalizeState(){
   // α0.5: 旧バトルシステムとお試し(初回スタミナ0＋お礼の星結晶)はなくなった
   delete STATE.battleV2; delete STATE.v2Cleared;
   if(!(STATE.lvSys >= 2)) migrateLvSystem();
+  // α0.5: チュートリアルの遊び直しのお礼とアンケート。前からいる人は、お礼の対象
+  if(STATE.tutReplayRewarded === undefined) STATE.tutReplayRewarded = false;
+  if(!STATE.surveyDone) STATE.surveyDone = {};
   // skill2Lv is new: seed it from the existing (shared) skillLv so nobody's skill2 gets
   // weaker the moment this ships - they diverge only from here on as the player upgrades.
   Object.values(STATE.owned).forEach(o => { if(o.skill2Lv === undefined) o.skill2Lv = o.skillLv || 1; });
@@ -20109,6 +20151,7 @@ function finishBattle(win){
     if(battleUI.stage.id === TUTORIAL_LAST_STAGE){
       logEvent('tutorial_complete', {});
       if(!battleUI.prevRank){
+        STATE.tutDoneV2 = true;   // 新しいチュートリアルを最後まで遊んだ(アンケートに答えられる)
         battleUI.tutorialJustDone = true;
         const n = battleUI.stage.firstClear || 0;
         if(n) queueAnnouncement({ kind: 'crystal', icon: UI_ICON.party, title: 'チュートリアルクリア!',
@@ -20356,6 +20399,12 @@ function showBattleResult(tab){
     </div>
   `;
   layer.classList.add('show');
+  // チュートリアルの遊び直し: 今の1本を勝ったら次へ。最後の1本ならお礼とアンケートへ
+  if(b.win && STATE.tutReplay && TUT_STAGES[STATE.tutReplay.at] === b.stage.id){
+    STATE.tutReplay.at += 1;
+    saveState();
+    if(STATE.tutReplay.at >= TUT_STAGES.length){ finishTutorialReplay(); return; }
+  }
   // チュートリアルのステージをクリアしたら、リザルト画面で続きの案内を出す
   if(b.win && b.stage.tier === 'tu') startTutorialPost(b.stage.id);
 }
@@ -20766,6 +20815,10 @@ function handlePhoneClick(ev){
   if(t.closest('[data-open-delete-data]')){ acctView = 'delete-data'; renderAccountModal(); playSfx('open'); return; }
   if(t.closest('[data-view-tutorial]')){ stageTab = 'main'; questTier = 'tu'; goto('battle'); return; }
   if(t.closest('[data-resume-tutorial]')){ resumeTutorial(); return; }
+  if(t.closest('[data-tut-replay]')){ startTutorialReplay(); return; }
+  if(t.closest('[data-open-survey]')){ openSurvey(); return; }
+  if(t.closest('[data-close-survey]')){ closeModal(); return; }
+  if(t.closest('[data-open-present]')){ closeModal(); openOverlay('gifts'); return; }
   const ovEl = t.closest('[data-overlay]');
   if(ovEl){ openOverlay(ovEl.dataset.overlay); playSfx('open'); return; }
   if(t.closest('[data-overlay-close]')){ closeOverlay(); return; }
@@ -22489,7 +22542,11 @@ function renderSettingsOverlay(){
           <div class="set-item"><div class="set-k wide">言語</div><div class="set-val">日本語</div></div>
           <div class="set-item" data-view-tutorial="1"><div class="set-k wide">チュートリアルを見る</div>
             <div class="set-val"></div><div class="set-go">›</div></div>
-          ${tutorialCleared() ? '' : `
+          ${tutorialCleared() ? `
+            <div class="set-item" data-tut-replay="1"><div class="set-k wide">チュートリアルを最初から遊ぶ</div>
+              <div class="set-val">${STATE.tutReplay ? `つづき ${(STAGE_BY_ID[tutorialNextStage()] || {}).name || '-'}` : (!STATE.tutReplayRewarded && tutCampaignOpen() ? 'お礼 星結晶360' : '')}</div><div class="set-go">›</div></div>
+            ${surveyOpen() && !surveyAnswered() ? `<div class="set-item" data-open-survey="1"><div class="set-k wide">チュートリアルのアンケート</div>
+              <div class="set-val">お礼 召喚券10枚</div><div class="set-go">›</div></div>` : ''}` : `
             <div class="set-item" data-resume-tutorial="1"><div class="set-k wide">チュートリアルを再開</div>
               <div class="set-val">${STATE.tutorialSkipped ? 'スキップ中' : `次は ${(STAGE_BY_ID[tutorialNextStage()] || {}).name || '-'}`}</div><div class="set-go">›</div></div>`}
           <a class="set-item" href="${COMMUNITY.discord}" target="_blank" rel="noopener noreferrer"><div class="set-k wide">Discord</div>
@@ -24417,6 +24474,7 @@ function tutorialReplayListHtml(){
     </div>`;
 }
 function tutorialNextStage(){
+  if(STATE && STATE.tutReplay) return TUT_STAGES[STATE.tutReplay.at] || null;   // 遊び直し中は、遊び直しの進み具合で決める
   if(!STATE || STATE.tutorialSkipped) return null;
   return TUT_STAGES.find(id => !(STATE.clearedStages || []).includes(id)) || null;
 }
@@ -24566,6 +24624,7 @@ function askSkipTutorial(){
 function answerSkipTutorial(yes){
   closeModal();
   if(!yes){ renderGuideToastStep(); return; }   // 暗転を引き直す
+  if(STATE.tutReplay){ endTutorialReplay(); guideOwner = null; clearGuideToast(true); saveState(); toast('チュートリアルの遊び直しをやめました'); render(); return; }
   STATE.tutorialSkipped = true;
   guideOwner = null;
   clearGuideToast(true);
@@ -24580,6 +24639,186 @@ function resumeTutorial(){
   goto('battle');
   render();
   startTutorialPre();
+}
+
+/* ================= チュートリアルの遊び直し・アンケート(α0.5) =================
+   docs/提案資料/チュートリアルのお披露目とアンケート_実装指示書.md
+   - 「チュートリアルを最初から遊ぶ」: 0-1〜0-5 を、もう一度同じ案内で遊ぶ。スタミナ0・初回クリアの石は出ない。
+     進み具合は clearedStages ではなく STATE.tutReplay.at で持つ
+   - 最後まで遊んだら、前からいる人に1回だけ星結晶360(プレゼントボックス)
+   - 新しいチュートリアルを最後まで遊んだ人は、アンケートに答えられる(召喚券10枚・1回だけ) */
+const TUT_CAMPAIGN = { from: '2026-10-08T12:00:00+09:00' };
+const TUT_REPLAY_REWARD = [{ type: 'crystal', n: 360 }];
+const SURVEY = { id: 'tutorial_2026_10', from: '2026-10-08T12:00:00+09:00', until: '2026-10-22T23:59:59+09:00',
+  reward: [{ type: 'item', key: 'gacha_char', n: 10 }], minChars: 20, maxChars: 500 };
+function tutCampaignOpen(){ return Date.now() >= new Date(TUT_CAMPAIGN.from).getTime(); }
+function surveyOpen(){ const now = Date.now(); return now >= new Date(SURVEY.from).getTime() && now <= new Date(SURVEY.until).getTime(); }
+function surveyEligible(){ return !!STATE && !!STATE.tutDoneV2; }
+function surveyAnswered(){ return !!(STATE && STATE.surveyDone && STATE.surveyDone[SURVEY.id]); }
+function startTutorialReplay(){
+  if(!tutorialCleared()){ resumeTutorial(); return; }
+  STATE.tutReplay = { at: 0, autoUlt: !!STATE.autoUlt };
+  STATE.tutorialSkipped = false;
+  saveState();
+  closeModal();
+  overlayView = null;
+  goto('battle');
+  render();
+  startTutorialPre();
+}
+function endTutorialReplay(){
+  const r = STATE.tutReplay;
+  if(!r) return;
+  STATE.autoUlt = r.autoUlt;   // 0-3 で奥義オートを切るので、もとに戻す
+  delete STATE.tutReplay;
+}
+function finishTutorialReplay(){
+  endTutorialReplay();
+  STATE.tutDoneV2 = true;
+  let gave = false;
+  if(!STATE.tutReplayRewarded && tutCampaignOpen()){
+    addPresentBoxGift('チュートリアルを遊んでくれたお礼', TUT_REPLAY_REWARD);
+    STATE.tutReplayRewarded = true;
+    gave = true;
+  }
+  guideOwner = null;
+  clearGuideToast(true);
+  saveState();
+  const layer = document.getElementById('modal-layer');
+  if(!layer) return;
+  const canSurvey = surveyOpen() && !surveyAnswered();
+  layer.innerHTML = `
+    <div class="result-modal survey-modal" role="dialog" aria-label="チュートリアルを遊んでくれてありがとう">
+      <div class="sv-center">
+        <h3 style="text-align:center;margin:0">遊んでくれてありがとう!</h3>
+        <p>${gave ? `お礼の${CRYSTAL_ICON}星結晶360をプレゼントボックスに送りました。` : 'チュートリアルを最後まで遊びました。'}
+          ${canSurvey ? '<br><small>よければアンケートに答えてください。答えてくれた方には、モンスター召喚券10枚をお送りします。</small>' : ''}</p>
+        ${canSurvey ? '<button class="btn btn-block" data-open-survey="1">アンケートに答える</button>' : ''}
+        <button class="btn btn-ghost btn-block" data-close-survey="1">閉じる</button>
+      </div>
+    </div>`;
+  layer.classList.add('show');
+}
+const SURVEY_Q3 = [['flow', '戦闘の流れ'], ['wave', 'ウェーブ'], ['ult', '奥義'], ['formation', '陣形'], ['element', '属性と種族'], ['gacha', 'ガチャと星刻'], ['relic', '遺物とルーン'], ['none', 'とくになし']];
+function surveyScaleHtml(name, lo, hi){
+  return `<div class="sv-opts row">${[1, 2, 3, 4, 5].map(n => `<label><input type="radio" name="${name}" id="${name}-${n}" value="${n}">${n}</label>`).join('')}</div>
+    <div class="sv-ends"><span>1 ${lo}</span><span>5 ${hi}</span></div>`;
+}
+function openSurvey(){
+  const layer = document.getElementById('modal-layer');
+  if(!layer) return;
+  let body;
+  if(surveyAnswered()){
+    body = `<div class="sv-center"><h3 style="text-align:center;margin:0">送信ずみです</h3><p>ご協力ありがとうございました。</p>
+      <button class="btn btn-ghost btn-block" data-close-survey="1">閉じる</button></div>`;
+  }else if(!surveyEligible()){
+    body = `<div class="sv-center"><h3 style="text-align:center;margin:0">チュートリアルのアンケート</h3>
+      <p>チュートリアルを最後(0-5)まで遊ぶと答えられます。<br><small>設定の「チュートリアルを最初から遊ぶ」から遊べます。${STATE.tutReplayRewarded ? '' : '最後まで遊ぶと星結晶360のお礼もあります。'}</small></p>
+      <button class="btn btn-block" data-tut-replay="1">チュートリアルを最初から遊ぶ</button>
+      <button class="btn btn-ghost btn-block" data-close-survey="1">閉じる</button></div>`;
+  }else{
+    body = `
+      <h3>チュートリアルのアンケート</h3>
+      <p class="sv-lead">答えてくれた方に、お礼としてモンスター召喚券10枚をお送りします。1回だけ・10/22(木) 23:59まで。</p>
+      <form id="survey-form" novalidate>
+        <fieldset id="sv-q1"><span class="sv-label">1. チュートリアルは分かりやすかったですか<span class="sv-req">必須</span></span>${surveyScaleHtml('q1', '分かりにくい', '分かりやすい')}</fieldset>
+        <fieldset id="sv-q2"><span class="sv-label">2. チュートリアルの長さはどうでしたか<span class="sv-req">必須</span></span>
+          <div class="sv-opts row">${[['short', '短い'], ['good', 'ちょうどよい'], ['long', '長い']].map(([v, l]) => `<label><input type="radio" name="q2" id="q2-${v}" value="${v}">${l}</label>`).join('')}</div></fieldset>
+        <fieldset id="sv-q3"><span class="sv-label">3. 分かりにくかったところ<small>いくつでも</small><span class="sv-req">必須</span></span>
+          <div class="sv-opts">${SURVEY_Q3.map(([v, l]) => `<label><input type="checkbox" name="q3" id="q3-${v}" value="${v}">${l}</label>`).join('')}</div></fieldset>
+        <div class="sv-field" id="sv-q4"><label class="sv-label" for="q4-text">4. 3で選んだところは、どう分かりにくかったですか<span class="sv-req" id="q4-req">必須</span></label>
+          <textarea id="q4-text" maxlength="${SURVEY.maxChars}" placeholder="${SURVEY.minChars}文字以上"></textarea><div class="sv-count" id="q4-count">0 / ${SURVEY.minChars}</div></div>
+        <fieldset id="sv-q5"><span class="sv-label">5. 新しいバトルシステムはどうですか<span class="sv-req">必須</span></span>${surveyScaleHtml('q5', '遊びにくい', '遊びやすい')}</fieldset>
+        <div class="sv-field" id="sv-q6"><label class="sv-label" for="q6-text">6. いちばん直してほしいこと・足してほしいこと<span class="sv-req">必須</span></label>
+          <textarea id="q6-text" maxlength="${SURVEY.maxChars}" placeholder="${SURVEY.minChars}文字以上。ゲーム全体のことでもかまいません"></textarea><div class="sv-count" id="q6-count">0 / ${SURVEY.minChars}</div></div>
+        <div class="sv-field" id="sv-q7"><label class="sv-label" for="q7-text">7. そのほか、ご自由にどうぞ<small>任意</small></label>
+          <textarea id="q7-text" maxlength="${SURVEY.maxChars}"></textarea></div>
+        <button class="btn btn-block" type="submit" id="sv-send">送る</button>
+        <p class="sv-hint" id="sv-send-hint">必須の質問にすべて答えると送れます</p>
+      </form>`;
+  }
+  layer.innerHTML = `<div class="result-modal survey-modal" role="dialog" aria-label="チュートリアルのアンケート">
+    <button class="fs-close" data-close-survey="1" aria-label="閉じる">×</button>${body}</div>`;
+  layer.classList.add('show');
+  const form = document.getElementById('survey-form');
+  if(form && form.addEventListener){
+    form.addEventListener('input', surveyRefresh);
+    form.addEventListener('change', surveyRefresh);
+    form.addEventListener('submit', ev => { ev.preventDefault(); submitSurvey(); });
+    surveyRefresh();
+  }
+}
+// フォームの今の答え。DOM がない(テスト)ときは渡された answers をそのまま使う
+function surveyReadForm(){
+  const form = document.getElementById('survey-form');
+  const picked = n => [...form.querySelectorAll(`input[name="${n}"]:checked`)].map(i => i.value);
+  const text = id => (document.getElementById(id).value || '').trim();
+  return { q1: Number(picked('q1')[0]) || null, q2: picked('q2')[0] || null, q3: picked('q3'),
+    q4: text('q4-text'), q5: Number(picked('q5')[0]) || null, q6: text('q6-text'), q7: text('q7-text') };
+}
+function surveyNeedsQ4(a){ return a.q3.length > 0 && !(a.q3.length === 1 && a.q3[0] === 'none'); }
+function surveyCheck(a){
+  return { q1: !!a.q1, q2: !!a.q2, q3: a.q3.length > 0, q4: !surveyNeedsQ4(a) || a.q4.length >= SURVEY.minChars,
+    q5: !!a.q5, q6: a.q6.length >= SURVEY.minChars };
+}
+function surveyRefresh(){
+  const form = document.getElementById('survey-form');
+  if(!form) return;
+  const none = document.getElementById('q3-none');
+  form.querySelectorAll('input[name="q3"]').forEach(o => { if(o !== none){ o.disabled = none.checked; if(none.checked) o.checked = false; } });
+  const a = surveyReadForm(), need = surveyNeedsQ4(a);
+  document.getElementById('q4-text').disabled = !need;
+  document.getElementById('q4-req').hidden = !need;
+  [['q4-text', 'q4-count'], ['q6-text', 'q6-count']].forEach(([t, c]) => {
+    const n = (document.getElementById(t).value || '').trim().length, el = document.getElementById(c);
+    el.textContent = `${n} / ${SURVEY.minChars}`;
+    el.className = 'sv-count' + (n > 0 && n < SURVEY.minChars ? ' short' : '');
+  });
+  const ok = surveyCheck(a), left = Object.values(ok).filter(v => !v).length;
+  document.getElementById('sv-send').disabled = left > 0;
+  document.getElementById('sv-send-hint').textContent = left ? `あと${left}問答えると送れます` : '送れるのは1回だけです';
+  Object.keys(ok).forEach(k => { if(ok[k]) document.getElementById('sv-' + k).classList.remove('sv-err'); });
+}
+let surveySending = false;
+// 送る。answers を渡すとフォームを読まずにそれを送る(テスト用)
+async function submitSurvey(answers){
+  if(surveySending || surveyAnswered() || !surveyEligible() || !surveyOpen()) return false;
+  const a = answers || surveyReadForm();
+  const ok = surveyCheck(a);
+  const bad = Object.keys(ok).filter(k => !ok[k]);
+  if(bad.length){
+    if(!answers) bad.forEach(k => { const el = document.getElementById('sv-' + k); if(el) el.classList.add('sv-err'); });
+    return false;
+  }
+  const be = authBackend();
+  if(!ACCOUNT || !be || typeof be.submitSurvey !== 'function'){ toast('サーバーにつながらないため送れません。ログインしてからもう一度お試しください'); return false; }
+  const data = { ...a, q4: surveyNeedsQ4(a) ? a.q4.slice(0, SURVEY.maxChars) : '', q6: a.q6.slice(0, SURVEY.maxChars), q7: a.q7.slice(0, SURVEY.maxChars),
+    at: Date.now(), playerId: ACCOUNT.playerId || null, tamerLv: tamerLevel(),
+    cleared: (STATE.clearedStages || []).length, star5: Object.keys(STATE.owned || {}).filter(id => MON_BY_ID[id] && MON_BY_ID[id].rarity === 5).length,
+    version: GAME_VERSION };
+  surveySending = true;
+  try{
+    await be.submitSurvey(SURVEY.id, ACCOUNT.uid, data);
+  }catch(e){
+    surveySending = false;
+    // すでに送ってあるとき(作るだけのルールなので2回目は断られる)は、送れた扱いにしてお礼を出す
+    if(!(e && /permission/i.test(String(e.code || e.message)))){ toast('送れませんでした。通信を確かめて、もう一度お試しください'); return false; }
+  }
+  surveySending = false;
+  STATE.surveyDone[SURVEY.id] = true;
+  addPresentBoxGift('アンケートのお礼', SURVEY.reward);
+  saveState();
+  logEvent('survey_submit', { survey: SURVEY.id });
+  const layer = document.getElementById('modal-layer');
+  if(layer && !answers){
+    layer.innerHTML = `<div class="result-modal survey-modal" role="dialog" aria-label="送信しました"><div class="sv-center">
+      <h3 style="text-align:center;margin:0">送信しました</h3>
+      <p>ありがとうございました。<br>モンスター召喚券10枚をプレゼントボックスに送りました。</p>
+      <button class="btn btn-block" data-open-present="1">プレゼントボックスを開く</button>
+      <button class="btn btn-ghost btn-block" data-close-survey="1">閉じる</button></div></div>`;
+    layer.classList.add('show');
+  }
+  return true;
 }
 
 function reapplyGuideHighlight(){
