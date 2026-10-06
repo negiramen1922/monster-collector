@@ -13484,10 +13484,13 @@ function eggFace(r, i, state, kind){
   // state: 'egg' (closed) | 'open'
   const rarity = pullRarity(kind, r);
   const closed = state === 'egg';
+  // 壺もモンスターの卵と同じ色にする(★1〜2 青 / ★3〜4 金 / ★5 虹)。
+  // 以前は jarSvg(1) 固定で、遺物の★にかかわらず全部青い壺が並んでいた
+  const shown = eggShownRarity(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i]);
   return `
     <div class="egg-slot ${eggColorClass(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])} ${closed ? `closed ${eggHint(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])}` : `open r${Math.min(5, rarity)}`}" style="--i:${i}" ${closed ? `data-egg-open="${i}" role="button" aria-label="${i + 1}個目の${vesselName(kind)}を割る"` : ''}>
       ${closed && rarity >= 4 ? '<span class="egg-aura"></span>' : ''}
-      ${kind === 'relic' ? jarSvg(1) : (eggArt(eggShownRarity(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])) || eggSvg(eggShownRarity(rarity, gachaSeq && gachaSeq.fake && gachaSeq.fake[i])))}
+      ${kind === 'relic' ? jarSvg(shown) : (eggArt(shown) || eggSvg(shown))}
       ${pullIconHtml(kind, r, 'egg-mon')}
       <div class="egg-star r${Math.min(5, rarity)}">${'★'.repeat(rarity)}</div>
       ${!closed && r.isNew ? '<span class="egg-new">NEW</span>' : ''}

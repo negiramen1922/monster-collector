@@ -111,6 +111,35 @@ async def main():
             check('遺物: ★4までは虹にならない', await run([1,2,3,4,4], 'relic') == [])
             check('遺物: ★5の壺は虹になる', bool(await run([1,2,3,4,5], 'relic')))
 
+            # ---- 3. 壺もモンスターの卵と同じ色 ----
+            print('\n--- 3. 壺と卵の色がそろっている ---')
+            async def colors(kind, stars):
+                await pg.evaluate("""(a) => {
+                    const pm = s => MONSTERS.filter(m => m.rarity === s)[0];
+                    const pr = s => { const l = Object.values(RELICS).filter(x => x.star === s);
+                                      return (l.length ? l : Object.values(RELICS))[0]; };
+                    const results = a.stars.map(s => a.kind === 'relic'
+                      ? { def: pr(s), isNew: true } : { mon: pm(s), isNew: true, universal: 0 });
+                    showGachaEggs(results, { universal: 0, points: 0 }, a.kind);
+                    gachaSeq.fake = results.map(() => false);   // 偽の予兆は切って素の色だけ見る
+                    gachaSeq.phase = 'reveal'; renderGachaStage(); }""", {'kind': kind, 'stars': stars})
+                await pg.wait_for_timeout(600)
+                out = await pg.evaluate("""() => [...document.querySelectorAll('.reveal-grid .egg-slot')].map(e => {
+                    const svg = e.querySelector('.egg-svg');
+                    return [[...e.classList].find(c => /^egg-(blue|gold|rainbow)$/.test(c)),
+                            svg ? ([...svg.classList].find(c => /^egg-(blue|gold|rainbow)$/.test(c)) || '-') : '画像']; })""")
+                await pg.evaluate("() => { closeModal(); gachaSeq = null; }")
+                await pg.wait_for_timeout(200)
+                return out
+            stars = [1, 2, 3, 4, 5]
+            egg = await colors('mon', stars)
+            jar = await colors('relic', stars)
+            want = ['egg-blue', 'egg-blue', 'egg-gold', 'egg-gold', 'egg-rainbow']
+            check('卵の色が ★1〜2青・★3〜4金・★5虹', [c[0] for c in egg] == want, egg)
+            check('壺の色も卵とそろっている', [c[0] for c in jar] == want, jar)
+            check('壺の絵そのものにも色が付いている(枠の光だけでない)',
+                  [c[1] for c in jar] == want, jar)
+
             check('JSエラーなし', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')
