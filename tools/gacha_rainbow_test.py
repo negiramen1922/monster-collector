@@ -134,11 +134,20 @@ async def main():
             stars = [1, 2, 3, 4, 5]
             egg = await colors('mon', stars)
             jar = await colors('relic', stars)
-            want = ['egg-blue', 'egg-blue', 'egg-gold', 'egg-gold', 'egg-rainbow']
-            check('卵の色が ★1〜2青・★3〜4金・★5虹', [c[0] for c in egg] == want, egg)
+            want = ['egg-blue', 'egg-blue', 'egg-blue', 'egg-gold', 'egg-rainbow']
+            check('卵の色が ★3以下青・★4金・★5虹', [c[0] for c in egg] == want, egg)
             check('壺の色も卵とそろっている', [c[0] for c in jar] == want, jar)
             check('壺の絵そのものにも色が付いている(枠の光だけでない)',
                   [c[1] for c in jar] == want, jar)
+
+            chest = await pg.evaluate("""() => {
+                const col = s => SUMMON_COLORS[summonTarget('mon', [{ mon: { rarity: s } }])];
+                return { steps: SUMMON_COLORS, byStar: [1,2,3,4,5].map(col) }; }""")
+            check('宝箱も同じ3段(青→金→虹)', chest['steps'] == ['blue', 'gold', 'rainbow'], chest['steps'])
+            check('宝箱の色が器と同じ★で変わる',
+                  chest['byStar'] == ['blue', 'blue', 'blue', 'gold', 'rainbow'], chest['byStar'])
+            check('ピックアップかどうかでは色を変えない(割ってからのお楽しみ)',
+                  await pg.evaluate("() => !/isPickupResult/.test(summonTarget.toString())"))
 
             check('JSエラーなし', not errs, errs[:3])
             await b.close()

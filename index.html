@@ -818,6 +818,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .result-card img.ico{ width:100% !important; height:auto !important; aspect-ratio:1/1 !important; }
 .result-card .name{ font-size:9.5px; font-weight:700; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .result-card .star{ font-size:9px; color:var(--gold); font-weight:800; }
+.result-card.r1 .star{ color:var(--r1); } .result-card.r2 .star{ color:var(--r2); }
+.result-card.r3 .star{ color:var(--r3); } .result-card.r4 .star{ color:#d6a6ff; }
 .result-grid.many{ grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; }
 .result-card{ min-width:0; }
 .result-grid.many .result-card{ padding:6px 2px 5px; }
@@ -935,12 +937,14 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .reveal-grid .egg-slot.closed:active .egg-svg{ transform:scale(.92); }
 .egg-aura{ position:absolute; inset:-6% -10%; border-radius:50%; pointer-events:none; z-index:0; }
 .egg-slot .egg-svg, .egg-slot .egg-art{ position:relative; z-index:1; }
-.egg-slot.hint4 .egg-aura{ inset:-12% -18%; background:radial-gradient(circle, rgba(190,120,255,.85), rgba(190,120,255,0) 62%); animation:aura4 1.6s ease-in-out infinite; }
-.egg-slot.hint4 .egg-svg{ filter:drop-shadow(0 0 7px rgba(200,140,255,.95)); }
+/* 閉じた器のオーラも器の色と同じに。★4は金、★5は虹(aura5) */
+.egg-slot.hint4 .egg-aura{ inset:-12% -18%; background:radial-gradient(circle, rgba(255,214,110,.85), rgba(255,214,110,0) 62%); animation:aura4 1.6s ease-in-out infinite; }
+.egg-slot.hint4 .egg-svg{ filter:drop-shadow(0 0 7px rgba(255,224,140,.95)); }
 @keyframes aura4{ 0%,100%{ opacity:.25; transform:scale(.85); } 50%{ opacity:1; transform:scale(1.08); } }
 .egg-slot.hint5 .egg-aura{ inset:-18% -24%; background:
-    radial-gradient(circle, rgba(255,230,120,.8), rgba(255,200,80,0) 60%),
-    repeating-conic-gradient(from 0deg, rgba(255,236,160,.55) 0deg 6deg, rgba(255,236,160,0) 6deg 22deg);
+    radial-gradient(circle, rgba(255,255,255,.85), rgba(255,200,240,0) 60%),
+    repeating-conic-gradient(from 0deg, rgba(255,143,208,.5) 0deg 6deg, rgba(255,224,106,.5) 6deg 12deg,
+      rgba(126,224,122,.5) 12deg 18deg, rgba(111,183,255,.5) 18deg 24deg, rgba(255,143,208,0) 24deg 40deg);
   -webkit-mask:radial-gradient(circle, #000 30%, transparent 70%); mask:radial-gradient(circle, #000 30%, transparent 70%);
   animation:aura5 3.2s linear infinite; }
 @keyframes aura5{ 0%{ transform:rotate(0) scale(.95); opacity:.7; } 50%{ opacity:1; transform:rotate(180deg) scale(1.1); } 100%{ transform:rotate(360deg) scale(.95); opacity:.7; } }
@@ -950,6 +954,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* 割れたあと: レア度の色で光る */
 .egg-slot.open.r4 .egg-mon{ filter:drop-shadow(0 0 8px rgba(190,120,255,.9)); }
 .egg-slot.open.r5 .egg-mon{ filter:drop-shadow(0 0 10px rgba(255,220,110,1)); }
+/* ★の文字はゲーム共通のレア度色(★1灰・★2緑・★3青・★4紫・★5金)。器の色とは別の体系 */
+.egg-star.r1{ color:var(--r1); } .egg-star.r2{ color:var(--r2); } .egg-star.r3{ color:var(--r3); }
 .egg-star.r4{ color:#d6a6ff; } .egg-star.r5{ color:#ffe06a; text-shadow:0 0 6px rgba(255,224,106,.9); }
 .egg-slot.open.hatching.r4::before, .egg-slot.open.hatching.r5::before{ content:''; position:absolute; inset:-20%; border-radius:50%; z-index:0;
   animation:burst-ring .9s ease-out .7s backwards; }
@@ -975,7 +981,6 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .sil-text{ font-size:26px; color:#ffe06a; margin-top:8px; animation:flash .5s ease-in-out infinite; }
 /* 宝箱: 上からドスンと降ってきて、その色が最高レア度の予告(青/紫/金/虹)。星刻すると跳ねてUP!と色が変わる */
 .chest-wrap{ --sc:#5aa6e8; --sc2:rgba(90,166,232,.55); --c1:#6fb3ec; --c2:#2c5e9c; }
-.chest-wrap.sc-purple{ --sc:#c58cff; --sc2:rgba(179,108,240,.65); --c1:#b97ef0; --c2:#5b2c94; }
 .chest-wrap.sc-gold{ --sc:#ffd45e; --sc2:rgba(255,212,94,.75); --c1:#ffd36a; --c2:#a6700f; }
 .chest-wrap.sc-rainbow{ --sc:#fff; --sc2:rgba(255,200,240,.8); --c1:#ffffff; --c2:#b58cff; }
 .chest-wrap .chest{ animation:chest-drop .45s cubic-bezier(.55,0,1,.45) backwards, chest-land .35s ease-out .45s; }
@@ -13345,9 +13350,10 @@ function exchangeRelicSpark(){
   render();
 }
 
-// egg colours: ★1-2 blue / ★3-4 gold / ★5 rainbow
-function eggClass(rarity){ return rarity >= 5 ? 'egg-rainbow' : rarity >= 3 ? 'egg-gold' : 'egg-blue'; }
-function eggColor(rarity){ return rarity >= 5 ? 'rainbow' : rarity >= 3 ? 'gold' : 'blue'; }
+/* 器(宝箱・卵・壺)の色は3段で共通: 青 = ★3以下 / 金 = ★4 / 虹 = ★5。
+   ピックアップかどうかでは分けない(割ってからのお楽しみ) */
+function eggClass(rarity){ return rarity >= 5 ? 'egg-rainbow' : rarity >= 4 ? 'egg-gold' : 'egg-blue'; }
+function eggColor(rarity){ return rarity >= 5 ? 'rainbow' : rarity >= 4 ? 'gold' : 'blue'; }
 // pixel-art eggs are used as soon as they are added to icon-data (egg_<colour>_<part>)
 function eggArt(rarity){
   const c = eggColor(rarity);
@@ -13444,13 +13450,14 @@ function pullBannerTitle(kind){
 }
 
 /* ---- 第2弾: 宝箱の色の予告・星刻演出・ピックアップ演出 ----
-   上からドスンと降ってくる宝箱の色 = 今回いちばん高いレア度の予告(青: ★3以下 / 紫: ★4 / 金: ★5 / 虹: ピックアップの★5)。
+   上からドスンと降ってくる宝箱の色 = 今回いちばん高いレア度の予告。卵・壺とまったく同じ3段で、
+   青: ★3以下 / 金: ★4 / 虹: ★5。ピックアップかどうかは割ってからのお楽しみにする。
    色は本当の結果より上になることはない(ぬか喜びさせない)が、低い色から始まって途中で「星刻」することがある。
-   卵も同じで、★5の卵がたまに紫の予兆で並び、割るときに金へ星刻する。 */
-const SUMMON_COLORS = ['blue', 'purple', 'gold', 'rainbow'];
+   卵も同じで、★5の卵がたまに金の予兆で並び、割るときに虹へ星刻する。 */
+const SUMMON_COLORS = ['blue', 'gold', 'rainbow'];
 const SUMMON_UPGRADE_CHANCE = { 4: 0.3, 5: 0.45 };   // 宝箱が1段(以上)低い色で降ってくる確率
 const SUMMON_UPGRADE_TWO = 0.35;                     // ★5で星刻するとき、青から2段上がる割合
-const EGG_UPGRADE_CHANCE = 0.25;                     // ★5の卵が紫の予兆で並ぶ確率
+const EGG_UPGRADE_CHANCE = 0.25;                     // ★5の卵が金の予兆で並ぶ確率
 const SUMMON_STEP_MS = 750;
 // ピックアップ: モンスターはバナーのピックアップモンスター、遺物はそのモンスターの専用遺物
 function isPickupResult(kind, r){
@@ -13460,8 +13467,7 @@ function isPickupResult(kind, r){
 function vesselName(kind){ return kind === 'relic' ? '壺' : '卵'; }
 function summonTarget(kind, results){
   const top = Math.max(...results.map(r => pullRarity(kind, r)));
-  if(top >= 5) return results.some(r => pullRarity(kind, r) >= 5 && isPickupResult(kind, r)) ? 3 : 2;
-  return top === 4 ? 1 : 0;
+  return top >= 5 ? 2 : top === 4 ? 1 : 0;
 }
 // 宝箱の色の段階(例: ['blue', 'purple', 'gold'])
 function summonSteps(kind, results){
@@ -13475,8 +13481,8 @@ function summonSteps(kind, results){
   return SUMMON_COLORS.slice(start, target + 1);
 }
 /* 卵(壺)の見た目: 宝箱の色でその回のいちばん良いレア度はもう分かっているので、
-   卵も中身の色にして「どれが虹か」を探せるようにした(★1〜2 青 / ★3〜4 金 / ★5 虹)。
-   ★5が「偽の予兆」を出すときだけは金のままにして、割るまで分からないようにしてある */
+   卵も中身の色にして「どれが虹か」を探せるようにした(★3以下 青 / ★4 金 / ★5 虹)。
+   ★5が「偽の予兆」を出すときだけは1段下の金にして、割るまで分からないようにしてある */
 function eggHint(rarity, fake){ return rarity >= 5 ? (fake ? 'hint4' : 'hint5') : rarity === 4 ? 'hint4' : ''; }
 function eggShownRarity(rarity, fake){ return fake && rarity >= 5 ? 4 : rarity; }
 function eggColorClass(rarity, fake){ return eggClass(eggShownRarity(rarity, fake)); }

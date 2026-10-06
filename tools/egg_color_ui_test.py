@@ -34,13 +34,15 @@ async def main():
             check('全キットで SPD が割られていない', r['kits'] == [], r['kits'])
 
             # --- 卵の色 ---
+            # 器の色は3段: 青 = ★3以下 / 金 = ★4 / 虹 = ★5(宝箱・卵・壺で共通)
             col = await pg.evaluate("""() => ({
-              r1: eggColorClass(1, false), r3: eggColorClass(3, false),
+              r1: eggColorClass(1, false), r3: eggColorClass(3, false), r4: eggColorClass(4, false),
               r5: eggColorClass(5, false), fake5: eggColorClass(5, true) })""")
             check('★1は青', col['r1'] == 'egg-blue', col)
-            check('★3は金', col['r3'] == 'egg-gold', col)
+            check('★3も青', col['r3'] == 'egg-blue', col)
+            check('★4は金', col['r4'] == 'egg-gold', col)
             check('★5は虹', col['r5'] == 'egg-rainbow', col)
-            check('★5の偽の予兆は金のまま(割るまで分からない)', col['fake5'] == 'egg-gold', col)
+            check('★5の偽の予兆は1段下の金(割るまで分からない)', col['fake5'] == 'egg-gold', col)
 
             # 10連ぶんの演出のHTMLを直に作って、飛ぶ卵と並んだ卵の色を見る
             got = await pg.evaluate("""() => {
