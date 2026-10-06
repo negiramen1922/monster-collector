@@ -740,7 +740,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   font-size:8.5px; background:rgba(0,0,0,.5); padding:1px 4px; border-radius:7px;
   font-weight:700;
 }
-.mon-cell .name{ font-size:8.5px; margin-top:3px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* 名前は常に2行ぶんの高さを取る。1行に切り詰めると「ジャイアントスパイダー」のような長い名前が
+   削られて読めなくなり、高さを固定しないとマスごとに★の位置がずれる */
+.mon-cell .name{ font-size:8.5px; margin-top:3px; font-weight:800; line-height:1.15; min-height:2.3em;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .mon-cell .star{ display:block; font-size:8.5px; font-weight:800; letter-spacing:-.5px; margin-top:1px; }
 .mon-cell.r1 .star{ color:#8f8fa0; } .mon-cell.r2 .star{ color:#5cab52; } .mon-cell.r3 .star{ color:#3aa0d6; }
 .mon-cell.r4 .star{ color:var(--r4); }
@@ -1465,7 +1468,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-cell .relic-cell-badge{ position:absolute; top:3px; right:4px; font-size:8px; font-weight:800; padding:1px 5px; border-radius:7px; }
 .relic-cell .relic-cell-badge.gacha{ background:rgba(232,180,85,.18); color:var(--gold); }
 .relic-cell .relic-cell-badge.dist{ background:rgba(120,170,255,.18); color:#8ab4ff; }
-.relic-cell .name{ font-size:9.5px; margin-top:4px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* モンスター図鑑と同じく2行ぶん。1行だと390pxでも58個中20個が「ティルヴィング…」まで削られる */
+.relic-cell .name{ font-size:9.5px; margin-top:4px; font-weight:800; line-height:1.15; min-height:2.3em;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .relic-cell .star{ display:block; font-size:10px; font-weight:800; letter-spacing:-.3px; margin-top:2px; }
 .relic-cell.r1 .star{ color:#a3a3b3; } .relic-cell.r2 .star{ color:#79c96d; } .relic-cell.r3 .star{ color:#5cb8e8; }
 .relic-cell.r4 .star{ color:var(--r4); }
