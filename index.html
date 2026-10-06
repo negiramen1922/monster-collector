@@ -54,9 +54,19 @@
   --r1:#8f8fa0;
   --r2:#5cab52;
   --r3:#3aa0d6;
-  --r4:#b06fe0;
-  --r5:#e8b455;
+  /* レア度の色は器(宝箱・卵・壺)と同じ段: ★3以下は青系・★4は金・★5は虹。
+     虹は単色にできないので、代表色(--r5)と帯(--rainbow)の2つを持つ */
+  --r4:#e8b455;
+  --r5:#ffd9f0;
+  --rainbow:linear-gradient(120deg,#ff8fd0,#ffe06a 25%,#7ee07a 50%,#6fb7ff 75%,#c79bff);
+  --r5-glow:rgba(255,180,230,.75);
 }
+/* ★5の虹: 文字は塗りつぶし、枠は内側に下地を敷いて縁だけ虹にする */
+.rb-text{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text; color:transparent;
+  -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 6px rgba(255,200,240,.8)); }
+.rb-border{ border-color:transparent !important;
+  background-image:linear-gradient(var(--panel),var(--panel)), var(--rainbow);
+  background-origin:border-box; background-clip:padding-box,border-box; }
 
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 /* mobile-first default: fill the real visible viewport exactly, no page-level
@@ -706,8 +716,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .mon-cell.r1{ border-color:rgba(143,143,160,.45); }
 .mon-cell.r2{ border-color:rgba(92,171,82,.45); }
 .mon-cell.r3{ border-color:rgba(58,160,214,.45); }
-.mon-cell.r4{ border-color:rgba(176,111,224,.55); box-shadow:0 0 10px -4px rgba(176,111,224,.5);}
-.mon-cell.r5{ border-color:rgba(232,180,85,.65); box-shadow:0 0 12px -4px rgba(232,180,85,.55);}
+.mon-cell.r4{ border-color:rgba(232,180,85,.55); box-shadow:0 0 10px -4px rgba(232,180,85,.5);}
+.mon-cell.r5{ border-color:transparent; box-shadow:0 0 14px -4px var(--r5-glow);
+  background-image:linear-gradient(var(--panel),var(--panel)), var(--rainbow);
+  background-origin:border-box; background-clip:padding-box,border-box; }
 .mon-cell img{ width:100%; height:46px; object-fit:contain; image-rendering:pixelated; }
 .mon-cell .elem{ position:absolute; top:3px; left:4px; font-size:9.5px; line-height:1; }
 .mon-cell .lv{
@@ -718,7 +730,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .mon-cell .name{ font-size:8.5px; margin-top:3px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mon-cell .star{ display:block; font-size:8.5px; font-weight:800; letter-spacing:-.5px; margin-top:1px; }
 .mon-cell.r1 .star{ color:#8f8fa0; } .mon-cell.r2 .star{ color:#5cab52; } .mon-cell.r3 .star{ color:#3aa0d6; }
-.mon-cell.r4 .star{ color:#b06fe0; } .mon-cell.r5 .star{ color:var(--gold); }
+.mon-cell.r4 .star{ color:var(--r4); }
+.mon-cell.r5 .star{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent; }
 .mon-cell.locked{ opacity:.45; }
 .mon-cell.locked img{ filter:brightness(0) opacity(.55); }
 .mon-cell.locked .name{ color:#514a6a; }
@@ -819,7 +833,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .result-card .name{ font-size:9.5px; font-weight:700; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .result-card .star{ font-size:9px; color:var(--gold); font-weight:800; }
 .result-card.r1 .star{ color:var(--r1); } .result-card.r2 .star{ color:var(--r2); }
-.result-card.r3 .star{ color:var(--r3); } .result-card.r4 .star{ color:#d6a6ff; }
+.result-card.r3 .star{ color:var(--r3); } .result-card.r4 .star{ color:var(--r4); }
+.result-card.r5 .star{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent; }
 .result-grid.many{ grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; }
 .result-card{ min-width:0; }
 .result-grid.many .result-card{ padding:6px 2px 5px; }
@@ -952,14 +968,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 @keyframes egg-tremble{ 0%,70%,100%{ transform:rotate(0); } 74%{ transform:rotate(-10deg) translateX(-2px); } 78%{ transform:rotate(10deg) translateX(2px); }
   82%{ transform:rotate(-8deg); } 86%{ transform:rotate(8deg); } 90%{ transform:rotate(0); } }
 /* 割れたあと: レア度の色で光る */
-.egg-slot.open.r4 .egg-mon{ filter:drop-shadow(0 0 8px rgba(190,120,255,.9)); }
+.egg-slot.open.r4 .egg-mon{ filter:drop-shadow(0 0 8px rgba(255,214,110,.95)); }
 .egg-slot.open.r5 .egg-mon{ filter:drop-shadow(0 0 10px rgba(255,220,110,1)); }
 /* ★の文字はゲーム共通のレア度色(★1灰・★2緑・★3青・★4紫・★5金)。器の色とは別の体系 */
 .egg-star.r1{ color:var(--r1); } .egg-star.r2{ color:var(--r2); } .egg-star.r3{ color:var(--r3); }
-.egg-star.r4{ color:#d6a6ff; } .egg-star.r5{ color:#ffe06a; text-shadow:0 0 6px rgba(255,224,106,.9); }
+.egg-star.r4{ color:var(--r4); }
+.egg-star.r5{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 5px rgba(255,200,240,.9)); }
 .egg-slot.open.hatching.r4::before, .egg-slot.open.hatching.r5::before{ content:''; position:absolute; inset:-20%; border-radius:50%; z-index:0;
   animation:burst-ring .9s ease-out .7s backwards; }
-.egg-slot.open.hatching.r4::before{ background:radial-gradient(circle, rgba(200,140,255,.9), rgba(200,140,255,0) 60%); }
+.egg-slot.open.hatching.r4::before{ background:radial-gradient(circle, rgba(255,214,110,.9), rgba(255,214,110,0) 60%); }
 .egg-slot.open.hatching.r5::before{ background:radial-gradient(circle, rgba(255,236,150,1), rgba(255,236,150,0) 60%); }
 @keyframes burst-ring{ 0%{ opacity:0; transform:scale(.3); } 30%{ opacity:1; } 100%{ opacity:0; transform:scale(1.6); } }
 /* ★5の1段目: ほかの卵が暗くなり、その卵だけが激しく揺れて金色のヒビから光が漏れる */
@@ -978,7 +996,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 @keyframes sil-pulse{ 0%,100%{ transform:scale(.85); opacity:.6; } 50%{ transform:scale(1.1); opacity:1; } }
 .cut-mon.sil-mon{ width:232px; height:232px; filter:brightness(0) drop-shadow(0 0 3px #fff) drop-shadow(0 0 16px rgba(255,220,120,.9)); animation:sil-in 1.3s ease-out; }
 @keyframes sil-in{ 0%{ opacity:0; transform:scale(.6); } 40%{ opacity:1; } 100%{ transform:scale(1.05); } }
-.sil-text{ font-size:26px; color:#ffe06a; margin-top:8px; animation:flash .5s ease-in-out infinite; }
+/* ★5の合図なので、金ではなく虹の光で出す */
+.sil-text{ font-size:26px; color:#fff; margin-top:8px; animation:flash .5s ease-in-out infinite;
+  text-shadow:0 0 10px rgba(255,200,240,1), 0 0 20px rgba(126,224,122,.7); }
 /* 宝箱: 上からドスンと降ってきて、その色が最高レア度の予告(青/紫/金/虹)。星刻すると跳ねてUP!と色が変わる */
 .chest-wrap{ --sc:#5aa6e8; --sc2:rgba(90,166,232,.55); --c1:#6fb3ec; --c2:#2c5e9c; }
 .chest-wrap.sc-gold{ --sc:#ffd45e; --sc2:rgba(255,212,94,.75); --c1:#ffd36a; --c2:#a6700f; }
@@ -1006,14 +1026,34 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 @keyframes up-pop{ 0%{ opacity:0; transform:scale(2.6); } 25%{ opacity:1; transform:scale(1); } 75%{ opacity:1; transform:translateY(-6px); } 100%{ opacity:0; transform:translateY(-22px); } }
 /* 紫の予兆だった★5: ヒビの途中で紫→金に星刻 */
 .reveal-grid .egg-slot.crack5.crack-up .egg-svg{ animation:egg-violent .12s linear infinite, crack-up-col 1.15s linear forwards !important; }
-@keyframes crack-up-col{ 0%,50%{ filter:drop-shadow(0 0 14px rgba(200,140,255,1)) brightness(1.1); } 55%{ filter:drop-shadow(0 0 30px #fff) brightness(2.2); } 100%{ filter:drop-shadow(0 0 16px rgba(255,220,110,1)) brightness(1.3); } }
+@keyframes crack-up-col{ 0%,50%{ filter:drop-shadow(0 0 14px rgba(255,220,110,1)) brightness(1.1); } 55%{ filter:drop-shadow(0 0 30px #fff) brightness(2.2); } 100%{ filter:drop-shadow(0 0 18px rgba(255,180,230,1)) brightness(1.3); } }
 .reveal-grid .egg-slot.crack5.crack-up::after{ animation:crack-rays-up 1.15s ease-in forwards; }
 @keyframes crack-rays-up{ 0%{ opacity:0; transform:scale(.4); filter:hue-rotate(-90deg) saturate(1.6); } 50%{ opacity:.6; filter:hue-rotate(-90deg) saturate(1.6); }
   56%{ opacity:1; transform:scale(1.3); filter:none; } 100%{ opacity:1; transform:scale(1.5) rotate(90deg); } }
-/* ピックアップの★5: 虹色の背景と流れる帯 */
-.cut-stage.silhouette.pickup .sil-glow{ background:radial-gradient(circle, rgba(255,255,255,.7), rgba(255,143,208,.35) 35%, rgba(111,183,255,.2) 52%, rgba(0,0,0,0) 70%); }
-.cut-stage.legend.pickup{ background:radial-gradient(circle at 50% 46%, #ffffff 0%, #ffe6f6 14%, #ffb3de 28%, #b58cff 46%, #5a8fff 64%, #1a1640 100%); }
-.cut-stage.legend.pickup .cut-rays{ background:repeating-conic-gradient(from 0deg, rgba(255,255,255,.7) 0deg 4deg, rgba(255,255,255,0) 4deg 12deg); opacity:.6; }
+/* ★5の見せ場。ピックアップかどうかに関わらず、虹色の背景と光で出す
+   (ピックアップのときだけ、上に PICK UP! の帯とバッジが乗る) */
+.cut-stage.silhouette .sil-glow{ background:radial-gradient(circle, rgba(255,255,255,.7), rgba(255,143,208,.35) 35%, rgba(111,183,255,.2) 52%, rgba(0,0,0,0) 70%); }
+.cut-stage.legend{ background:radial-gradient(circle at 50% 46%, #ffffff 0%, #ffe6f6 14%, #ffb3de 28%, #b58cff 46%, #5a8fff 64%, #1a1640 100%); }
+.cut-stage.legend .cut-rays{ background:repeating-conic-gradient(from 0deg, rgba(255,255,255,.7) 0deg 4deg, rgba(255,255,255,0) 4deg 12deg); opacity:.6; }
+/* ★5の1段目: 属性だけ見せる段(--ec にその属性の色が入る) */
+.cut-stage.elemcut{ background:radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--ec) 55%, #000) 0%, #120d20 72%); }
+.ec-glow{ position:absolute; left:50%; top:46%; width:420px; height:420px; margin:-210px 0 0 -210px; border-radius:50%;
+  background:radial-gradient(circle, color-mix(in srgb, var(--ec) 75%, #fff) 0%, rgba(0,0,0,0) 62%);
+  animation:ec-pulse 1.1s ease-out both; }
+@keyframes ec-pulse{ 0%{ opacity:0; transform:scale(.3); } 35%{ opacity:1; transform:scale(1.08); } 100%{ opacity:.85; transform:scale(1); } }
+/* 光の筋もその属性の色に染める(白いままだと灰色の棒に見える) */
+.cut-stage.elemcut .cut-rays{ opacity:.5; animation-duration:5s;
+  background:repeating-conic-gradient(from 0deg,
+    color-mix(in srgb, var(--ec) 80%, #fff) 0deg 3deg, rgba(255,255,255,0) 3deg 13deg); }
+.ec-ring{ width:150px; height:150px; margin:0 auto; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  border:4px solid color-mix(in srgb, var(--ec) 70%, #fff); box-shadow:0 0 34px -4px var(--ec), inset 0 0 26px -6px var(--ec);
+  animation:ec-ring-in .5s cubic-bezier(.2,1.7,.4,1) both; }
+@keyframes ec-ring-in{ 0%{ opacity:0; transform:scale(2.4) rotate(-20deg); } 100%{ opacity:1; transform:scale(1) rotate(0); } }
+.ec-ring .ec-ic img.ico, .ec-ring .ec-ic{ width:88px !important; height:88px !important; }
+.ec-label{ font-size:30px; font-weight:900; margin-top:14px; color:#fff;
+  text-shadow:0 0 14px var(--ec), 0 0 3px #000; animation:name-slam .4s cubic-bezier(.2,1.6,.4,1) .25s backwards; }
+.ec-sub{ font-size:13px; color:rgba(255,255,255,.8); margin-top:4px; letter-spacing:.14em;
+  animation:fade-in .4s ease-out .55s backwards; }
 .pickup-band{ position:absolute; left:-10%; right:-10%; height:30px; overflow:hidden; white-space:nowrap; transform:rotate(-6deg); z-index:1;
   background:linear-gradient(90deg,#ff4f7a,#ffb23f,#ffe06a,#ff4f7a); box-shadow:0 0 16px rgba(255,120,120,.7); }
 .pickup-band.band-top{ top:12%; }
@@ -1027,13 +1067,22 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   margin-bottom:10px; box-shadow:0 0 16px rgba(255,120,120,.8); animation:pickup-in .5s cubic-bezier(.2,1.6,.4,1) .3s backwards; }
 @keyframes pickup-in{ from{ opacity:0; transform:scale(2.2) rotate(-8deg); } }
 .cut-stars{ display:flex; justify-content:center; gap:2px; margin-top:6px; font-size:24px; color:#fff; }
-.cut-stage.rare .cut-stars{ color:#e7c8ff; text-shadow:0 0 10px rgba(200,140,255,.9); }
-.cut-stage.legend .cut-stars{ font-size:30px; color:#ffe06a; text-shadow:0 0 12px rgba(255,224,106,1), 0 0 2px #fff; }
+/* 背景も金なので、★は明るくして濃い影で浮かせる */
+.cut-stage.rare .cut-stars{ color:#fff6d8; text-shadow:0 2px 4px rgba(70,45,0,.9), 0 0 12px rgba(255,224,106,1); }
+.cut-stage.rare .cut-name{ color:#fff; text-shadow:0 2px 6px rgba(70,45,0,.9), 0 0 16px rgba(70,45,0,.6); }
+.cut-stage.rare .cut-sub{ color:#fff; text-shadow:0 1px 4px rgba(70,45,0,.95); }
+.cut-stage.legend .cut-stars{ font-size:30px; color:#fff;
+  text-shadow:0 0 12px rgba(255,200,240,1), 0 0 24px rgba(126,224,122,.7), 0 0 2px #fff; }
 .cut-stars span{ display:inline-block; animation:star-stamp .32s cubic-bezier(.2,1.7,.4,1) backwards; }
 @keyframes star-stamp{ 0%{ opacity:0; transform:scale(3) rotate(-30deg); } 100%{ opacity:1; transform:scale(1) rotate(0); } }
 .cut-stage.legend .cut-name{ animation:name-slam .45s cubic-bezier(.2,1.6,.4,1) 1.2s backwards; letter-spacing:.04em; }
 @keyframes name-slam{ 0%{ opacity:0; transform:scale(2.4); filter:blur(4px); } 100%{ opacity:1; transform:scale(1); filter:blur(0); } }
 .cut-stage.legend .cut-sub, .cut-stage.legend .cut-badges{ animation:fade-in .4s ease-out 1.5s backwards; }
+/* ★5の背景は明るい虹色なので、白い字が沈まないように影を強める
+   (以前はピックアップのときだけ明るく、ふだんは暗い背景だった) */
+.cut-stage.legend .cut-name{ color:#fff; text-shadow:0 2px 6px rgba(40,10,60,.85), 0 0 18px rgba(60,20,90,.7); }
+.cut-stage.legend .cut-sub{ color:#fff; text-shadow:0 1px 4px rgba(40,10,60,.9), 0 0 12px rgba(40,10,60,.8); }
+.cut-stage.legend .cut-tap{ color:#fff; text-shadow:0 1px 4px rgba(40,10,60,.9); }
 .cut-stage.legend .cut-rays{ opacity:.55; animation-duration:8s; }
 .confetti{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
 .confetti i{ position:absolute; top:-12px; width:8px; height:13px; border-radius:2px; opacity:.95; animation:confetti-fall linear forwards; }
@@ -1045,7 +1094,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   55%{ transform:translate(7px,5px); } 70%{ transform:translate(-5px,3px); } 85%{ transform:translate(3px,-2px); } }
 @media (prefers-reduced-motion: reduce){ .gacha-shake, .gacha-shake-strong{ animation:none; } }
 .cut-stage{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; }
-.cut-stage.rare{ background:radial-gradient(circle at 50% 46%, #d8b6f5 0%, #8a55c9 22%, #3b2050 58%, #120f22 100%); }
+/* ★4は金。★5の虹と段をそろえる(以前は紫だった) */
+.cut-stage.rare{ background:radial-gradient(circle at 50% 46%, #fff3d2 0%, #e8b455 22%, #6a4a12 58%, #1a1206 100%); }
 .cut-stage.legend{ background:radial-gradient(circle at 50% 46%, #fff6dd 0%, #f0c6ef 18%, #a06fd8 42%, #4b2a70 72%, #140f24 100%); }
 .cut-rays{ position:absolute; inset:-40%; opacity:.35;
   background:repeating-conic-gradient(from 0deg, rgba(255,255,255,.55) 0deg 4deg, rgba(255,255,255,0) 4deg 12deg);
@@ -1138,6 +1188,16 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gr-title{ font-size:13px; color:var(--gold); text-align:center; }
 .gr-banner{ font-size:10.5px; color:var(--dim); text-align:center; margin:7px 0 12px; }
 .gr-best{ display:flex; align-items:center; gap:11px; text-align:left; margin-bottom:10px; border-color:rgba(232,180,85,.5); }
+/* いちばん良かった1体の枠と★も、レア度の色に合わせる(★4 金 / ★5 虹) */
+.gr-best.r1{ border-color:rgba(143,143,160,.5); } .gr-best.r2{ border-color:rgba(92,171,82,.5); }
+.gr-best.r3{ border-color:rgba(58,160,214,.5); } .gr-best.r4{ border-color:rgba(232,180,85,.6); }
+.gr-best.r5{ border-color:transparent; box-shadow:0 0 18px -4px var(--r5-glow);
+  background-image:linear-gradient(var(--panel2),var(--panel2)), var(--rainbow);
+  background-origin:border-box; background-clip:padding-box,border-box; }
+.gr-best.r1 .gr-best-top .star{ color:var(--r1); } .gr-best.r2 .gr-best-top .star{ color:var(--r2); }
+.gr-best.r3 .gr-best-top .star{ color:var(--r3); } .gr-best.r4 .gr-best-top .star{ color:var(--r4); }
+.gr-best.r5 .gr-best-top .star{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent; }
 .gr-best img{ width:78px; height:78px; flex:none; object-fit:contain; image-rendering:pixelated; }
 .gr-best img.ico{ width:78px !important; height:78px !important; }
 .gr-best-body{ flex:1; min-width:0; }
@@ -1159,10 +1219,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gr-plus{ flex:none; font-size:14px; font-weight:800; color:#dcc6f5; }
 .gr-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 .gr-new{ color:var(--ok); }
-.gacha-result.best5{ box-shadow:0 0 0 1px var(--r5), 0 0 40px -8px rgba(232,180,85,.7); }
-.gacha-result.best4{ box-shadow:0 0 0 1px var(--r4), 0 0 30px -10px rgba(176,111,224,.7); }
-.result-card.r4{ border-color:var(--r4); box-shadow:0 0 10px -2px rgba(176,111,224,.6);}
-.result-card.r5{ border-color:var(--r5); box-shadow:0 0 12px -1px rgba(232,180,85,.7);}
+.gacha-result.best5{ box-shadow:0 0 0 1px #ffd9f0, 0 0 40px -8px var(--r5-glow); }
+.gacha-result.best4{ box-shadow:0 0 0 1px var(--r4), 0 0 30px -10px rgba(232,180,85,.7); }
+.result-card.r4{ border-color:var(--r4); box-shadow:0 0 10px -2px rgba(232,180,85,.6);}
+.result-card.r5{ border-color:transparent; box-shadow:0 0 14px -1px var(--r5-glow);
+  background-image:linear-gradient(var(--panel2),var(--panel2)), var(--rainbow);
+  background-origin:border-box; background-clip:padding-box,border-box; }
 
 /* ---------- monster detail modal ---------- */
 .detail-modal{ position:relative; padding-top:36px; }
@@ -1365,8 +1427,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-cell.r1{ border-color:rgba(143,143,160,.55); }
 .relic-cell.r2{ border-color:rgba(92,171,82,.55); box-shadow:0 0 10px -5px rgba(92,171,82,.5); }
 .relic-cell.r3{ border-color:rgba(58,160,214,.6); box-shadow:0 0 11px -5px rgba(58,160,214,.55); }
-.relic-cell.r4{ border-color:rgba(176,111,224,.65); box-shadow:0 0 13px -4px rgba(176,111,224,.6);}
-.relic-cell.r5{ border-color:rgba(232,180,85,.75); box-shadow:0 0 15px -4px rgba(232,180,85,.65);}
+.relic-cell.r4{ border-color:rgba(232,180,85,.65); box-shadow:0 0 13px -4px rgba(232,180,85,.6);}
+.relic-cell.r5{ border-color:transparent; box-shadow:0 0 16px -4px var(--r5-glow);
+  background-image:linear-gradient(var(--panel),var(--panel)), var(--rainbow);
+  background-origin:border-box; background-clip:padding-box,border-box; }
 .relic-cell .relic-cell-ic{
   height:46px; display:flex; align-items:center; justify-content:center; margin:0 auto 2px;
   width:46px; border-radius:50%;
@@ -1375,8 +1439,8 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-cell.r1 .relic-cell-ic{ background:radial-gradient(circle, rgba(143,143,160,.22), rgba(255,255,255,0) 72%); }
 .relic-cell.r2 .relic-cell-ic{ background:radial-gradient(circle, rgba(92,171,82,.25), rgba(255,255,255,0) 72%); }
 .relic-cell.r3 .relic-cell-ic{ background:radial-gradient(circle, rgba(58,160,214,.28), rgba(255,255,255,0) 72%); }
-.relic-cell.r4 .relic-cell-ic{ background:radial-gradient(circle, rgba(176,111,224,.3), rgba(255,255,255,0) 72%); }
-.relic-cell.r5 .relic-cell-ic{ background:radial-gradient(circle, rgba(232,180,85,.32), rgba(255,255,255,0) 72%); }
+.relic-cell.r4 .relic-cell-ic{ background:radial-gradient(circle, rgba(232,180,85,.3), rgba(255,255,255,0) 72%); }
+.relic-cell.r5 .relic-cell-ic{ background:radial-gradient(circle, rgba(255,200,240,.34), rgba(255,255,255,0) 72%); }
 .relic-cell .relic-cell-ic img.ico{ width:36px !important; height:36px !important; }
 .relic-cell .relic-cell-lv{
   position:absolute; top:3px; right:4px;
@@ -1389,7 +1453,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-cell .name{ font-size:9.5px; margin-top:4px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .relic-cell .star{ display:block; font-size:10px; font-weight:800; letter-spacing:-.3px; margin-top:2px; }
 .relic-cell.r1 .star{ color:#a3a3b3; } .relic-cell.r2 .star{ color:#79c96d; } .relic-cell.r3 .star{ color:#5cb8e8; }
-.relic-cell.r4 .star{ color:#c493ea; } .relic-cell.r5 .star{ color:var(--gold); }
+.relic-cell.r4 .star{ color:var(--r4); }
+.relic-cell.r5 .star{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent; }
 .relic-cell.locked{ opacity:.55; }
 .relic-detail-modal{ text-align:left; }
 
@@ -1403,8 +1469,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .relic-detail-ic.r1{ border-color:rgba(143,143,160,.55); }
 .relic-detail-ic.r2{ border-color:rgba(92,171,82,.6); box-shadow:0 0 16px -6px rgba(92,171,82,.55); }
 .relic-detail-ic.r3{ border-color:rgba(58,160,214,.6); box-shadow:0 0 16px -6px rgba(58,160,214,.55); }
-.relic-detail-ic.r4{ border-color:rgba(176,111,224,.65); box-shadow:0 0 18px -6px rgba(176,111,224,.6); }
-.relic-detail-ic.r5{ border-color:rgba(232,180,85,.75); box-shadow:0 0 20px -6px rgba(232,180,85,.65); }
+.relic-detail-ic.r4{ border-color:rgba(232,180,85,.65); box-shadow:0 0 18px -6px rgba(232,180,85,.6); }
+.relic-detail-ic.r5{ border-color:transparent; box-shadow:0 0 22px -6px var(--r5-glow);
+  background-image:linear-gradient(var(--panel2),var(--panel2)), var(--rainbow);
+  background-origin:border-box; background-clip:padding-box,border-box; }
 .relic-detail-ic img.ico{ width:40px !important; height:40px !important; }
 .relic-detail-headtext{ flex:1; min-width:0; }
 .relic-detail-name{ font-size:16px; font-weight:800; color:var(--text); line-height:1.25; }
@@ -2897,7 +2965,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .gc-rate{ flex:1; text-align:center; padding:8px 0; border-radius:10px; background:var(--panel2); border:1px solid rgba(232,180,85,.14); }
 .gc-rate-star{ font-size:11px; font-weight:800; }
 .gc-rate-pct{ font-size:10.5px; color:var(--dim); margin-top:2px; }
-.gc-rate.r5 .gc-rate-star{ color:#e8b455; } .gc-rate.r4 .gc-rate-star{ color:#b06fe0; }
+.gc-rate.r5 .gc-rate-star{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent; }
+.gc-rate.r4 .gc-rate-star{ color:var(--r4); }
 .gc-rate.r3 .gc-rate-star{ color:#3aa0d6; } .gc-rate.r2 .gc-rate-star{ color:#5cab52; }
 .gc-rate.r1 .gc-rate-star{ color:#8f8fa0; }
 .gc-rate.top{ background:#3a2a1a; border-color:var(--gold); }
@@ -2906,8 +2976,12 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
   padding:5px; text-align:center; min-width:0; }
 .gc-recent-cell img{ width:100%; height:44px; object-fit:contain; image-rendering:pixelated; }
 .gc-recent-star{ font-size:9px; font-weight:800; }
-.gc-recent-cell.r5{ border-color:rgba(232,180,85,.55); } .gc-recent-cell.r5 .gc-recent-star{ color:#e8b455; }
-.gc-recent-cell.r4{ border-color:rgba(176,111,224,.5); } .gc-recent-cell.r4 .gc-recent-star{ color:#b06fe0; }
+.gc-recent-cell.r5{ border-color:transparent;
+  background-image:linear-gradient(var(--panel),var(--panel)), var(--rainbow);
+  background-origin:border-box; background-clip:padding-box,border-box; }
+.gc-recent-cell.r5 .gc-recent-star{ background:var(--rainbow); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent; }
+.gc-recent-cell.r4{ border-color:rgba(232,180,85,.5); } .gc-recent-cell.r4 .gc-recent-star{ color:var(--r4); }
 .gc-recent-cell.r3{ border-color:rgba(58,160,214,.4); } .gc-recent-cell.r3 .gc-recent-star{ color:#3aa0d6; }
 .gc-recent-cell.r2 .gc-recent-star{ color:#5cab52; } .gc-recent-cell.r1 .gc-recent-star{ color:#8f8fa0; }
 .gc-btns{ display:flex; gap:7px; padding-top:2px; }
@@ -13550,6 +13624,23 @@ function cutInHtml(r, phaseKind, kind){
       <div class="cut-tap">タップして続ける</div>
     </div>`;
 }
+/* ★5の1段目: まず属性だけ見せる(「何が来る?」の溜め)。
+   ピックアップかどうかに関係なく、★5はぜんぶ 属性 → シルエット → 本体 の順で出す。
+   遺物には属性がないので、遺物のときはこの段を飛ばす */
+function elementCutHtml(r, kind){
+  if(kind === 'relic' || !r.mon) return '';
+  const el = r.mon.element;
+  return `
+    <div class="cut-stage elemcut" style="--ec:${ELEM_COLOR[el]};">
+      <div class="ec-glow"></div>
+      <div class="cut-rays"></div>
+      <div class="cut-body">
+        <div class="ec-ring"><span class="ec-ic">${ELEM_ICON[el]}</span></div>
+        <div class="ec-label pixel">${ELEM_LABEL[el]}</div>
+        <div class="ec-sub">の気配…</div>
+      </div>
+    </div>`;
+}
 // ★5の2段目: 暗転してシルエットだけ見せる
 function silhouetteHtml(r, kind, pickup){
   return `
@@ -13594,6 +13685,8 @@ function renderGachaStage(){
       <div class="summon-cap"><div class="pixel">SUMMONING</div><div class="summon-tap">タップでスキップ</div></div>`;
   }else if(g.phase === 'rare' || g.phase === 'legend'){
     inner = cutInHtml(g.results[g.cut], g.phase, g.kind);
+  }else if(g.phase === 'element'){
+    inner = elementCutHtml(g.results[g.cut], g.kind);
   }else if(g.phase === 'silhouette'){
     inner = silhouetteHtml(g.results[g.cut], g.kind, isPickupResult(g.kind, g.results[g.cut]));
   }else{
@@ -14185,16 +14278,26 @@ function startLegend(i){
   }
   gachaTimer = setTimeout(() => {
     if(!gachaSeq || gachaSeq.phase !== 'crack') return;
-    gachaSeq.phase = 'silhouette';
+    const toSilhouette = () => {
+      if(!gachaSeq) return;
+      gachaSeq.phase = 'silhouette';
+      renderGachaStage();
+      gachaSfx('heartbeat');   // だんだん上がっていく音
+      gachaTimer = setTimeout(() => revealLegend(), 1300);
+    };
+    // 属性 → シルエット → 本体。遺物は属性がないので属性の段を飛ばす
+    const elHtml = elementCutHtml(gachaSeq.results[gachaSeq.cut], gachaSeq.kind);
+    if(!elHtml){ toSilhouette(); return; }
+    gachaSeq.phase = 'element';
     renderGachaStage();
-    // だんだん上がっていく音
-    gachaSfx('heartbeat');
-    gachaTimer = setTimeout(() => revealLegend(), 1300);
+    gachaSfx('rare');
+    gachaVibrate(90);
+    gachaTimer = setTimeout(() => { if(gachaSeq && gachaSeq.phase === 'element') toSilhouette(); }, 1100);
   }, 1150);
 }
 function revealLegend(){
   const g = gachaSeq;
-  if(!g || (g.phase !== 'crack' && g.phase !== 'silhouette')) return;
+  if(!g || (g.phase !== 'crack' && g.phase !== 'element' && g.phase !== 'silhouette')) return;
   clearTimeout(gachaTimer);
   g.phase = 'legend';
   bgmDuck(0, 150);
@@ -14244,7 +14347,7 @@ function tapGachaStage(){
   const g = gachaSeq;
   if(!g) return;
   if(g.phase === 'summon'){ clearTimeout(gachaTimer); g.phase = 'reveal'; renderGachaStage(); return; }
-  if(g.phase === 'crack' || g.phase === 'silhouette'){ revealLegend(); return; }
+  if(g.phase === 'crack' || g.phase === 'element' || g.phase === 'silhouette'){ revealLegend(); return; }
   if(g.phase === 'rare' || g.phase === 'legend'){ backToReveal(); return; }
   if(g.phase === 'done'){ clearTimeout(gachaTimer); finishGachaEggs(); return; }
   // reveal: 全部割れていれば、どこをタップしても結果へ。まだ残っていれば卵以外のタップでは進まない
