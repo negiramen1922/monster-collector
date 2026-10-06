@@ -38,9 +38,9 @@ E.startTutorialReplay(); E.finishTutorialReplay();
 ok('2回目はお礼が出ない', S.presentBox.length === gifts + 1, S.presentBox.length);
 
 // お披露目の前は、お礼を出さない
-S = old(); at('2026-10-08T11:00:00+09:00');
+S = old(); at('2026-10-07T11:00:00+09:00');
 E.startTutorialReplay(); E.finishTutorialReplay();
-ok('10/8 12:00 より前はお礼を出さない', S.presentBox.length === 0 && S.tutReplayRewarded === false);
+ok('10/7 12:00 より前はお礼を出さない', S.presentBox.length === 0 && S.tutReplayRewarded === false);
 at('2026-10-09T12:00:00+09:00');
 
 // 新しく始めた人はお礼の対象外
