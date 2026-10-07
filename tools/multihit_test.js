@@ -9,7 +9,8 @@ let bad = 0;
 const ok = (n, c, i) => { if(!c) bad++; console.log((c ? '✅' : '❌') + ' ' + n + (i !== undefined ? '  ' + JSON.stringify(i) : '')); };
 // 企画の資料で数値が決まっていて、採点式(tools/balance/power_lib.js)の予算に収めてあるもの。
 // イヌの奥義(150%×3・重さ2の予算で103%)は docs/提案資料/次回イベント案_モモタロウ.md の値。要確認として残す
-const MULTIHIT_EXCEPT = { 'イヌ:ult': true };
+// スコグルの矢の雨(20%×5・★3スキル2の予算で93%)は docs/提案資料/次回イベント案_フレイヤ.md の値。同じく要確認として残す
+const MULTIHIT_EXCEPT = { 'イヌ:ult': true, 'スコグル:skill2': true };
 const rows = [];
 for(const id in E.MONSTER_KITS){
   const k = E.MONSTER_KITS[id], m = E.MONSTERS.find(x => x.id === id);

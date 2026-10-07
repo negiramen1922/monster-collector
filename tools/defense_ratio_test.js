@@ -217,7 +217,10 @@ console.log('\n--- 8. ロール別の防御(そのままカット%) ---');
   });
   ok('タンクがいちばん硬い', stat.tank.p > Math.max(stat.attacker.p, stat.shooter.p, stat.support.p, stat.trickster.p));
   ok('シューターがいちばん柔らかい', stat.shooter.p <= Math.min(stat.attacker.p, stat.support.p, stat.trickster.p));
-  ok('タンクの素の防御は20前後まで', stat.tank.pMax <= 21, E.MONSTERS.filter(m => m.pdef > 21 || m.mdef > 21).map(m => m.name + ':' + m.pdef + '/' + m.mdef));
+  // ブリュンヒルド(フレイヤイベ・★3)は企画の資料で「物理防御30・魔法防御0」の極端な守り。★3タンクの予算(65)に収まる
+  // 物理防御26・魔法防御0(26×2.5=65)にして、この「20前後まで」からは外す(要確認)
+  const DEF_EXCEPT = new Set(['ブリュンヒルド']);
+  ok('タンクの素の防御は20前後まで', E.MONSTERS.filter(m => m.role === 'tank' && !DEF_EXCEPT.has(m.name)).every(m => m.pdef <= 21), E.MONSTERS.filter(m => !DEF_EXCEPT.has(m.name) && (m.pdef > 21 || m.mdef > 21)).map(m => m.name + ':' + m.pdef + '/' + m.mdef));
   ok('アタッカー・シューターの素は10以下', E.MONSTERS.filter(m => ['attacker', 'shooter'].includes(m.role)).every(m => m.pdef <= 10 && m.mdef <= 10),
      E.MONSTERS.filter(m => ['attacker', 'shooter'].includes(m.role) && (m.pdef > 10 || m.mdef > 10)).map(m => m.name));
 }
