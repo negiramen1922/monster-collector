@@ -4582,6 +4582,14 @@ const LAB_MODE = typeof location !== 'undefined' && /[?&]lab=babel\b/.test(locat
 /* チュートリアル試験場(index.html?lab=tutorial)。バベル試験場と違って本物のゲーム画面を使う
    (押させるボタンが本物でないと意味がないため)。セーブは使い捨てで、本番のセーブには書かない */
 const TUT_LAB = typeof location !== 'undefined' && /[?&]lab=tutorial\b/.test(location.search || '');
+/* 公開日まで隠す仕組み。モンスター(monster-data)と遺物(RELICS)に releaseAt(ISOの日時)を書くと、
+   その時刻まではガチャ・図鑑・選択チケットなど、プレイヤーに見える一覧に出さない。
+   毎回 Date.now() を見るので、画面を開き直せば公開時刻を過ぎた時点で出る(イベントの startAt と同じ考え方)。
+   試験場(?lab=...)では日付に関係なく全部見える。MON_BY_ID などIDから引く表は全部のまま */
+const ANY_LAB = typeof location !== 'undefined' && /[?&]lab=/.test(location.search || '');
+function isReleased(x){ return ANY_LAB || !x || !x.releaseAt || Date.now() >= new Date(x.releaseAt).getTime(); }
+function releasedMonsters(){ return MONSTERS.filter(isReleased); }
+function releasedRelicIds(){ return Object.keys(RELICS).filter(id => isReleased(RELICS[id])); }
 const SAVE_KEY = 'monster-game-state';           // also the key of pre-account saves
 const saveKeyFor = uid => `${SAVE_KEY}:${uid}`;
 const PROVIDER_LABEL = { google: 'Google', email: 'メールアドレス', guest: 'ゲスト' };
@@ -7179,7 +7187,7 @@ const RELICS = {
 };
 const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
 // distributed relics never appear in the gacha pool - they only come from missions/achievements.
-function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star && r.channel !== 'distributed'); }
+function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star && r.channel !== 'distributed' && isReleased(r)); }
 
 // イベントクエスト報酬で配る遺物: そのイベントの属性(element)に対応する★4属性遺物を自動選択。
 // 新しいイベントを追加する時もelementさえ設定すれば専用の配布遺物選びは不要になる。
@@ -7273,7 +7281,7 @@ function renderRelicFilterControls(){
     </div>
   `;
 }
-function relicFilterPool(){ return Object.keys(RELICS).filter(id => !relicOwnedOnly || (STATE.relics && STATE.relics[id])); }
+function relicFilterPool(){ return Object.keys(RELICS).filter(id => (isReleased(RELICS[id]) || (STATE.relics && STATE.relics[id])) && (!relicOwnedOnly || (STATE.relics && STATE.relics[id]))); }
 function renderRelicFilterSheet(){
   const d = relicFilterDraft;
   const pool = relicFilterPool();
@@ -7337,7 +7345,7 @@ function relicCell(id){
     </div>`;
 }
 function renderRelicsScreen(){
-  const ids = Object.keys(RELICS);
+  const ids = releasedRelicIds();
   const ownedCount = ids.filter(id => STATE.relics && STATE.relics[id]).length;
   const list = sortRelics(relicFilterPool().filter(id => matchesRelicFilter(id, relicFilter)), relicSort);
   return `
@@ -10960,7 +10968,7 @@ function abyssStage(floor, season){
   const lv = abyssEnemyLevel(floor);
   const star = abyssEnemyStar(floor);
   const minR = floor < 10 ? 3 : 4;
-  const pool = MONSTERS.filter(m => m.rarity >= minR && m.rarity <= 5 && m.element !== 'none');
+  const pool = releasedMonsters().filter(m => m.rarity >= minR && m.rarity <= 5 && m.element !== 'none');
   const themed = pool.filter(m => theme.includes(m.element));
   const pick = () => { const src = (rnd() < 0.7 && themed.length) ? themed : pool; return src[Math.floor(rnd() * src.length)]; };
   const count = Math.min(5, 3 + (floor >= 20 ? 1 : 0) + (boss ? 1 : 0));
@@ -12088,13 +12096,13 @@ function renderBag(){
 
   if(bagTicket){
     const star = Number(MON_TICKET_RE.exec(bagTicket.key)[1]);
-    const pool = MONSTERS.filter(m => m.rarity === star && (!bagTicket.elem || m.element === bagTicket.elem));
+    const pool = releasedMonsters().filter(m => m.rarity === star && (!bagTicket.elem || m.element === bagTicket.elem));
     chooser = `
       <div class="bag-chooser">
         <div class="bag-head">${itemName(bagTicket.key)}:受け取るモンスターを1体選んでください(持っているモンスターはソウル${DUP_SOULS[star]}になります)</div>
         <div class="dex-elems">
           <button class="dex-elem ${bagTicket.elem ? '' : 'on'}" data-ticket-elem="">全部</button>
-          ${ELEM_ORDER.filter(e => MONSTERS.some(m => m.rarity === star && m.element === e)).map(e => `<button class="dex-elem ${bagTicket.elem === e ? 'on' : ''}" data-ticket-elem="${e}">${ELEM_ICON[e]}${ELEM_LABEL[e]}</button>`).join('')}
+          ${ELEM_ORDER.filter(e => releasedMonsters().some(m => m.rarity === star && m.element === e)).map(e => `<button class="dex-elem ${bagTicket.elem === e ? 'on' : ''}" data-ticket-elem="${e}">${ELEM_ICON[e]}${ELEM_LABEL[e]}</button>`).join('')}
         </div>
         <div class="mon-grid ticket-grid">${pool.map(m => `
           <div class="mon-cell r${m.rarity} ${bagTicket.pick === m.id ? 'picked' : ''}" data-ticket-pick="${m.id}" role="button">
@@ -12498,7 +12506,7 @@ function homeBanners(){
   const pickup = MON_BY_ID[currentBanner().pickup];
   const daily = ensureDaily();
   const left = DAILY_MISSIONS.filter(m => !daily.claimed[m.id]).length;
-  const dungeonMon = MONSTERS.find(m => m.rarity === 4) || pickup;
+  const dungeonMon = releasedMonsters().find(m => m.rarity === 4) || pickup;
   const banners = [];
   activeEvents().forEach(ev => {
     banners.push({ tag: 'EVENT', cls: 'b-event', title: ev.name,
@@ -13071,7 +13079,7 @@ function renderMonGacha(){
 }
 // 常設バナー限定: 属性ごとに1体、★4/★5のセレクトピックアップを選んで排出率アップ対象にできる
 function renderSelectPickupPanel(){
-  const elems = ELEM_ORDER.filter(e => MONSTERS.some(m => m.element === e && m.rarity >= 4));
+  const elems = ELEM_ORDER.filter(e => releasedMonsters().some(m => m.element === e && m.rarity >= 4));
   return `
     <div class="panel">
       <div class="mc-head" style="margin-bottom:4px;">セレクトピックアップ</div>
@@ -13095,7 +13103,7 @@ function openSelectPicker(elem){ selectPicker = { elem }; renderSelectPickerShee
 function closeSelectPicker(){ selectPicker = null; closeModal(); }
 function renderSelectPickerSheet(){
   const { elem } = selectPicker;
-  const pool = MONSTERS.filter(m => m.element === elem && m.rarity >= 4)
+  const pool = releasedMonsters().filter(m => m.element === elem && m.rarity >= 4)
     .sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name, 'ja'));
   const current = STATE.selectPickup[elem];
   const layer = document.getElementById('modal-layer');
@@ -13156,14 +13164,14 @@ function pickMonsterOfRarity(rarity){
   if(rarity >= 4 && banner.key === 'default'){
     const selPool = selectPickupPool(rarity);
     if(selPool.length && Math.random() < PICKUP_SHARE) return selPool[Math.floor(Math.random() * selPool.length)];
-    const all = MONSTERS.filter(m => m.rarity === rarity);
+    const all = releasedMonsters().filter(m => m.rarity === rarity);
     if(all.length) return all[Math.floor(Math.random() * all.length)];
   }
   // 期間限定バナーの同時ピックアップ★4。★5と同じ決まりで、そのレアリティの
   // PICKUP_SHARE ぶんを featured の★4で分け合う(featured には主役の★5も入っている)
   if(rarity === 4 && banner.key !== 'default'){
     const subs = (banner.featured || []).map(id => MON_BY_ID[id]).filter(m => m && m.rarity === 4);
-    const others = MONSTERS.filter(m => m.rarity === 4 && !subs.includes(m));
+    const others = releasedMonsters().filter(m => m.rarity === 4 && !subs.includes(m));
     if(subs.length){
       if(others.length === 0 || Math.random() < PICKUP_SHARE) return subs[Math.floor(Math.random() * subs.length)];
       return others[Math.floor(Math.random() * others.length)];   // 外れたぶんは必ず他の★4から(★5と同じ作り)
@@ -13171,11 +13179,11 @@ function pickMonsterOfRarity(rarity){
   }
   if(rarity === 5){
     const pickup = MON_BY_ID[currentBanner().pickup];
-    const others = MONSTERS.filter(m => m.rarity === 5 && m.id !== currentBanner().pickup);
+    const others = releasedMonsters().filter(m => m.rarity === 5 && m.id !== currentBanner().pickup);
     if(pickup && (others.length === 0 || Math.random() < PICKUP_SHARE)) return pickup;
     return others[Math.floor(Math.random() * others.length)];
   }
-  const pool = MONSTERS.filter(m => m.rarity === rarity);
+  const pool = releasedMonsters().filter(m => m.rarity === rarity);
   if(pool.length === 0) return pickMonsterOfRarity(rarity - 1); // safety: empty tier
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -13274,7 +13282,7 @@ function doBeginnerGacha(){
   for(let i = 0; i < BEGINNER_GACHA_PULLS; i++){
     let res;
     if(lastRound && i === BEGINNER_GACHA_PULLS - 1 && !STATE.beginnerGachaHad5 && !results.some(r => r.mon.rarity === 5)){
-      const star5s = MONSTERS.filter(m => m.rarity === 5);
+      const star5s = releasedMonsters().filter(m => m.rarity === 5);
       res = pullOneForced(star5s[Math.floor(Math.random() * star5s.length)]);
     } else {
       const isGuaranteeSlot = i === BEGINNER_GACHA_PULLS - 1 && results.every(r => r.mon.rarity < TEN_PULL_MIN_STAR);
@@ -15152,7 +15160,7 @@ function openMonsterDetailOrPreview(id){
 
 
 function renderDex(){
-  const pool = MONSTERS.filter(m => (!dexOwnedOnly || STATE.owned[m.id]) && (!dexPromoOnly || canPromoteNow(m.id)));
+  const pool = releasedMonsters().filter(m => (!dexOwnedOnly || STATE.owned[m.id]) && (!dexPromoOnly || canPromoteNow(m.id)));
   const list = sortMonsters(pool.filter(m => matchesRosterFilter(m, dexFilter)), dexSort);
   const ownedChip = `<button class="btn btn-sm ${dexOwnedOnly ? '' : 'btn-ghost'}" data-owned-toggle="1" aria-pressed="${dexOwnedOnly}">所持のみ</button>`;
 
@@ -15163,7 +15171,7 @@ function renderDex(){
     <div class="screen-head">
       <div>
         <div class="screen-title">モンスター</div>
-        <div class="dex-count">${ownedCount} / ${MONSTERS.length} 体${promoCount ? `・★上げできる ${promoCount}体` : ''}</div>
+        <div class="dex-count">${ownedCount} / ${releasedMonsters().length} 体${promoCount ? `・★上げできる ${promoCount}体` : ''}</div>
       </div>
       <button class="btn btn-ghost btn-sm" data-affinity="1">${UI_ICON.elem} 属性相性表</button>
     </div>
@@ -15340,7 +15348,7 @@ function renderFilterControls(target, extra){
   const filter = target === 'dex' ? dexFilter : rosterFilter;
   const n = filterCount(filter);
   const promoOn = target === 'dex' ? dexPromoOnly : rosterPromoOnly;
-  const promoN = MONSTERS.filter(m => canPromoteNow(m.id)).length;
+  const promoN = releasedMonsters().filter(m => canPromoteNow(m.id)).length;
   const activeIcons = FILTER_GROUPS.flatMap(g => g.items().filter(it => filter[g.key].includes(it.key)).map(it => it.icon)).join('');
   return `
     <div class="sort-row" role="group" aria-label="並び替え">
@@ -15372,7 +15380,7 @@ function renderRosterControls(shown, total){
 
 function filterPool(){
   // the dex counts every monster, the party only the ones you own
-  if(filterTarget === 'dex') return MONSTERS.filter(m => !dexOwnedOnly || STATE.owned[m.id]);
+  if(filterTarget === 'dex') return releasedMonsters().filter(m => !dexOwnedOnly || STATE.owned[m.id]);
   return Object.keys(STATE.owned).map(id => MON_BY_ID[id]);
 }
 function renderFilterSheet(){
@@ -23000,9 +23008,9 @@ function renderProfileOverlay(){
 
         <div class="pf-stats">
           <div class="pf-stat" data-nav="dex" role="button"><div class="pf-stat-k">所持モンスター ›</div>
-            <div class="pf-stat-v">${Object.keys(STATE.owned).length}<small> / ${MONSTERS.length}</small></div></div>
+            <div class="pf-stat-v">${Object.keys(STATE.owned).length}<small> / ${releasedMonsters().length}</small></div></div>
           <div class="pf-stat" data-nav="relics" role="button"><div class="pf-stat-k">遺物 ›</div>
-            <div class="pf-stat-v">${relicCount}<small> / ${Object.keys(RELICS).length}</small></div></div>
+            <div class="pf-stat-v">${relicCount}<small> / ${releasedRelicIds().length}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">クリア済</div>
             <div class="pf-stat-v">${cleared}<small> / ${mains}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">パーティ総合BP</div>
@@ -23400,7 +23408,7 @@ function renderFriendProfileOverlay(){
         ${!friend && !(ACCOUNT && ACCOUNT.uid === f.uid) ? `<button class="btn btn-block" data-add-friend-uid="${f.uid}" style="margin-bottom:10px;">フレンドに追加</button>` : ''}
         <div class="pf-stats">
           <div class="pf-stat"><div class="pf-stat-k">所持モンスター</div>
-            <div class="pf-stat-v">${f.monsters || 0}<small> / ${MONSTERS.length}</small></div></div>
+            <div class="pf-stat-v">${f.monsters || 0}<small> / ${releasedMonsters().length}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">クリア済</div>
             <div class="pf-stat-v">${f.cleared || 0}<small> / ${mains}</small></div></div>
           <div class="pf-stat"><div class="pf-stat-k">深淵回廊(今期)</div>
@@ -23506,7 +23514,8 @@ const escapeHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g,
 // e.g. while typing in the login form, doesn't keep swapping the picture)
 let titleMonsterPick = null;
 function titleMonster(){
-  if(!titleMonsterPick) titleMonsterPick = MONSTERS[Math.floor(Math.random() * MONSTERS.length)];
+  if(!titleMonsterPick){ const pool = releasedMonsters(); titleMonsterPick = pool[Math.floor(Math.random() * pool.length)]; }
+
   return titleMonsterPick;
 }
 
