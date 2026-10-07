@@ -4024,6 +4024,9 @@ const DEFAULT_BANNER = {
    for the next event rather than replacing this one. ---- */
 /* 「紅蓮の九尾」「黄金の巨神」の追加ぶんが開く時刻 */
 const EVENT_ADDON_AT = '2026-10-01T16:00:00+09:00';
+/* モモタロウイベ(鬼ヶ島)の開始時刻。新キャラ・新遺物の releaseAt と星刻の from も同じ時刻にする。
+   企画の資料には「10/13ごろ」としか書いていないので、いまは仮の時刻(要確認) */
+const MOMOTARO_START_AT = '2026-10-13T15:00:00+09:00';
 const EVENTS = [
   {
     key: 'ev_kyubi',
@@ -19357,7 +19360,135 @@ const MONSTER_PERKS = {
         addHook(pa, 'dmgBonus', x => shieldTotal(x) > 0 ? 0.15 : 0);
         pa.desc += '。シールドを持っているあいだ、与ダメージ+15%'; } },
   },
+  /* ---- モモタロウイベの6体。★6 スキル1 → ★7 パッシブ → ★8 スキル2 → ★9 奥義 → ★10 コンセプト。
+     中身の正は docs/提案資料/次回イベント案_モモタロウ.md ---- */
+  m171: { // モモタロウ
+    from: MOMOTARO_START_AT,
+    6: { desc:'きびだんご: 付与した味方のスキルの残りCTを1短くする',
+      apply: u => { u.kibiCtCut = 1; ownSkill(u, 0).desc += '。付与した味方のスキルの残りCTを1短くする'; } },
+    7: { desc:'日本一の旗印: 数えるビーストが最大3体 → 4体',
+      apply: u => { u.beastCap = 4; ownPassive(u).desc = '味方のビースト1体につき、与ダメージ+6%(最大4体)'; } },
+    8: { desc:'鬼斬り刀: これで敵を倒すと、スキル1「きびだんご」のCTが0になる',
+      apply: u => { const a = ownSkill(u, 1);
+        a.run = ctx => { runGeneric(ctx); if(battleUI.killedThisAction && ctx.actor.alive) ctx.actor.skillCd[0] = 0; };
+        a.desc += '。これで敵を倒すと、きびだんごのCTが0になる'; } },
+    9: { desc:'鬼ヶ島攻め: 付与するきびだんごのターン数+1。きびだんご状態の味方1体につき威力+20%(最大3体)',
+      apply: u => { u.kibiUltTurns = 1; u.kibiUltPow = 0.2;
+        ownUlt(u).desc = '敵全体に威力160%(きびだんご状態の味方1体につき+20%、最大3体)。きびだんごが付いていない味方のビースト全員に「きびだんご」を3ターン付与する'; } },
+    10: { desc:'きびだんごの力を引き出す: きびだんごに「与ダメージ+20%(ビーストなら+30%)」が足される',
+      apply: u => { u.kibiDmg = [0.20, 0.30]; ownPassive(u).desc += '。配るきびだんごに与ダメージ+20%(ビーストなら+30%)が足される'; } },
+  },
+  m172: { // イヌ
+    from: MOMOTARO_START_AT,
+    6: { desc:'食らいつき: HPが一番低い敵を狙うようになる。物理防御低下(-10)を2ターン付与する',
+      apply: u => { const a = ownSkill(u, 0); a.tgt = 'lowest';
+        a.onHit = [...(a.onHit || []), { debuff:'pdefDown', v:10, flat:true, turns:2 }];
+        a.desc = `HPの割合が一番低い敵に威力${powPct(a)}%。物理防御低下(-10)を2ターン。自分に攻撃力上昇(+16%)を2ターン`; } },
+    7: { desc:'一番槍: 戦闘で自分の最初の攻撃は与ダメージ+50%(1戦闘に1回)',
+      apply: u => { const pa = ownPassive(u);
+        // 最初に攻撃した行動(連撃ならその全部)に乗る。行動の通し番号で見分ける
+        addHook(pa, 'dmgBonus', (x, t, act, kind) => {
+          if(!battleUI || kind === 'passive') return 0;
+          if(x.flags.firstAtk === undefined) x.flags.firstAtk = battleUI.actionSerial;
+          return x.flags.firstAtk === battleUI.actionSerial ? 0.5 : 0;
+        });
+        pa.desc += '。戦闘で自分の最初の攻撃は与ダメージ+50%'; } },
+    8: { desc:'忠犬の突撃: 攻撃力上昇状態なら、物理防御を50%無視する',
+      apply: u => { const a = ownSkill(u, 1); a.pierceIfStrUp = 0.5; a.desc += '。攻撃力上昇状態なら物理防御を50%無視'; } },
+    9: { desc:'鬼退治の牙: 攻撃力上昇状態なら、3回とも必ず会心',
+      apply: u => { const ul = ownUlt(u); ul.critIf = 'selfStrUp'; ul.desc += '。攻撃力上昇状態なら3回とも必ず会心'; } },
+    10: { desc:'忠犬: 自分に付く攻撃力上昇の量が1.5倍になる(きびだんご・ほかの味方のスキルなど、誰がかけたものでも)',
+      apply: u => { u.strUpMult = 1.5; ownPassive(u).desc += '。自分に付く攻撃力上昇の量が1.5倍'; } },
+  },
+  m173: { // サル
+    from: MOMOTARO_START_AT,
+    6: { desc:'身かわしの構え: 回避上昇のターン数+1',
+      apply: u => { const a = ownSkill(u, 0);
+        a.effects = a.effects.map(e => e.buff === 'evade' ? { ...e, turns: (e.turns || 2) + 1 } : e);
+        a.desc = a.desc.replace('回避上昇(+30%)を1ターン', '回避上昇(+30%)を2ターン'); } },
+    7: { desc:'身軽: 反撃の威力 60% → 100%',
+      apply: u => { u.counterPow = 1.0; const pa = ownPassive(u); pa.desc = pa.desc.replace('威力60%で反撃', '威力100%で反撃'); } },
+    8: { desc:'ちょろまかし: 奪った強化を、自分ではなく攻撃力が一番高い味方に付与する',
+      apply: u => { const a = ownSkill(u, 1);
+        a.onHit = (a.onHit || []).map(e => e.steal ? { stealTo: true } : e);
+        a.desc = `敵単体に威力${powPct(a)}%。その敵の強化を1つ奪い、STRが一番高い味方(自分以外)に付与する`; } },
+    9: { desc:'猿知恵: 解除する強化 1つ → 全部',
+      apply: u => { const ul = ownUlt(u);
+        ul.onHit = (ul.onHit || []).map(e => e.dispel ? { dispelAll: true } : e);
+        ul.desc = ul.desc.replace('強化を1つずつ解除', '強化をすべて解除'); } },
+    10: { desc:'猿の身のこなし: 回避するたびに上がる会心率の上限 +50% → +100%。反撃が会心したとき、その敵に命中低下(-16%)を2ターン付与する',
+      apply: u => { u.dodgeCritCap = 1.0; u.counterCritAcc = true;
+        const pa = ownPassive(u); pa.desc = pa.desc.replace('最大+50%', '最大+100%') + '。反撃が会心したら、その敵に命中低下(-16%)を2ターン'; } },
+  },
+  m174: { // キジ
+    from: MOMOTARO_START_AT,
+    6: { desc:'眼穿ち: 敵後衛単体 → 敵後衛全体',
+      apply: u => { const a = ownSkill(u, 0); a.tgt = 'backAll'; a.desc = a.desc.replace('敵後衛単体', '敵後衛全体'); } },
+    7: { desc:'先触れ: 味方全体のSP +10 → +20',
+      apply: u => { u.kijiSp = 20; const pa = ownPassive(u); pa.desc = pa.desc.replace('SP+10', 'SP+20'); } },
+    8: { desc:'錦の矢羽: 命中低下状態の敵には必ず会心',
+      apply: u => { const a = ownSkill(u, 1); a.critIf = 'accDown'; a.desc += '。命中低下状態の敵には必ず会心'; } },
+    9: { desc:'千羽時雨: 命中低下のターン数+1。撃ったあと味方全体のSP+15',
+      apply: u => { const ul = ownUlt(u);
+        ul.onHit = (ul.onHit || []).map(e => e.debuff === 'accDown' ? { ...e, turns: (e.turns || 2) + 1 } : e);
+        ul.run = ctx => { runGeneric(ctx); sideOf(ctx.actor).filter(a => a.alive).forEach(a => { a.sp = Math.min(a.spCost, a.sp + 15); }); logLine('味方全体のSP+15', 'ult'); };
+        ul.desc = ul.desc.replace('を2ターン', 'を3ターン') + '。撃ったあと味方全体のSP+15'; } },
+    10: { desc:'鬼の目を射抜く: 命中低下状態の敵への、味方全体の与ダメージ+15%',
+      apply: u => { const pa = ownPassive(u);
+        // allyDmgBonus は自分も受け取る(allyMod は自分を含む)
+        addHook(pa, 'allyDmgBonus', (x, ally, t) => t && hasBuff(t, 'accDown') ? 0.15 : 0);
+        pa.desc += '。命中低下状態の敵への、味方全体の与ダメージ+15%'; } },
+  },
+  m175: { // アカオニ
+    from: MOMOTARO_START_AT,
+    6: { desc:'金棒振り: CT3 → 2',
+      apply: u => { ownSkill(u, 0).ct = 2; } },
+    7: { desc:'激昂: HPが50%以下のときの与ダメージアップが、HP60%以下から乗るようになる',
+      apply: u => { u.rageAt = 0.6; const pa = ownPassive(u); pa.desc = pa.desc.replace('HPが50%以下', 'HPが60%以下'); } },
+    8: { desc:'鬼の怒り: 攻撃力上昇のターン数+1',
+      apply: u => { const a = ownSkill(u, 1);
+        a.effects = a.effects.map(e => e.buff === 'strUp' ? { ...e, turns: (e.turns || 2) + 1 } : e);
+        a.desc = a.desc.replace('を3ターン', 'を4ターン'); } },
+    9: { desc:'鬼の大暴れのあと、自分に攻撃力上昇(鬼の怒りと同じ値)を2ターン付与する',
+      apply: u => { const ul = ownUlt(u);
+        ul.run = ctx => {
+          runGeneric(ctx);
+          const x = ctx.actor;
+          if(x.alive){ addBuff(x, 'strUp', capRatio(0.2 * lvScale(x.skill2Lv || x.skillLv)), 2, x); logLine(`${nm(x)} に${BUFF_LABEL.strUp}・2ターン`, 'skill'); }
+        };
+        ul.desc += '。そのあと自分に攻撃力上昇(+20%)を2ターン'; } },
+    10: { desc:'泣いた赤鬼: 味方が倒れると、その戦闘のあいだ与ダメージ+30%',
+      apply: u => { const pa = ownPassive(u);
+        addHook(pa, 'onAllyDeath', x => { x.flags.redRage = true; });
+        addHook(pa, 'dmgBonus', x => x.flags.redRage ? 0.30 : 0);
+        pa.desc += '。味方が倒れると、その戦闘のあいだ与ダメージ+30%'; } },
+  },
+  m176: { // アオオニ
+    from: MOMOTARO_START_AT,
+    6: { desc:'仁王立ち: 挑発中、受けるダメージ-15%',
+      apply: u => { addHook(ownPassive(u), 'cutBonus', x => hasBuff(x, 'taunt') ? 0.15 : 0); ownSkill(u, 0).desc += '。挑発中、受けるダメージ-15%'; } },
+    7: { desc:'友を想う: かばえる回数 1ラウンドに1回 → 2回',
+      apply: u => { u.coverMax = 2; const pa = ownPassive(u); pa.desc = pa.desc.replace('1ラウンドに1回', '1ラウンドに2回'); } },
+    8: { desc:'金棒打ち: 敵単体 → 敵前衛全体',
+      apply: u => { const a = ownSkill(u, 1); a.tgt = 'frontAll'; a.desc = a.desc.replace('敵単体', '敵前衛全体'); } },
+    9: { desc:'鬼の結界の間、かばって受けたダメージの30%を自分のシールドにする',
+      apply: u => { u.coverShield = 0.3; ownUlt(u).desc += '。結界の間、かばって受けたダメージの30%を自分のシールドにする'; } },
+    10: { desc:'青鬼の覚悟: 1戦闘に1回、HPが0になる攻撃を受けてもHP1で耐え、味方全体に被ダメージ軽減(-20%)を2ターン付与する',
+      apply: u => { const pa = ownPassive(u);
+        const before = pa.survive;
+        pa.survive = x => {
+          if(before && before(x)) return true;
+          if(x.flags.blueResolve) return false;
+          x.flags.blueResolve = true;
+          logLine(`${nm(x)} は踏みとどまった!(青鬼の覚悟)`, 'heal');
+          sideOf(x).filter(a => a.alive).forEach(a => addBuff(a, 'cut', 0.2, 2, x));
+          logLine(`味方全体に${BUFF_LABEL.cut}-20%・2ターン`, 'skill');
+          return true;
+        };
+        pa.desc += '。1戦闘に1回、HPが0になる攻撃を受けてもHP1で耐え、味方全体に被ダメージ軽減(-20%)を2ターン'; } },
+  },
 };
+
 
 /* ---- full-screen stage banners ---- */
 

@@ -408,6 +408,140 @@ console.log('\n--- 敵にも付く ---');
   ok(en.magAsPhys === true && en.skills[0].tgt === 'any', '敵のタロース★7にも星刻が付く');
 }
 
+/* ---- モモタロウイベの6体(from: MOMOTARO_START_AT)。中身の正は docs/提案資料/次回イベント案_モモタロウ.md ---- */
+console.log('\n=== モモタロウイベの6体 ===');
+at('2026-10-12T00:00:00+09:00');
+ok(mk('モモタロウ', 10).perks === undefined && mk('イヌ', 10).strUpMult === undefined, '開始時刻の前は星刻が付かない');
+at('2026-10-14T00:00:00+09:00');
+const BEASTS = ['m172', 'm173', 'm174', 'm166'];
+console.log('--- モモタロウ ---');
+{
+  let s = setup('m171', 6, 1, BEASTS);
+  s.B.party.forEach(a => { if(a !== s.u) a.skillCd = [2, 2]; });
+  act(s.u, 'skill', s.u.skills[0], 0);
+  let got = s.B.party.find(a => a.buffs.kibi);
+  ok(got && got !== s.u && got.skillCd.every(c => c === 1), '★6 きびだんごを付けた味方のスキルの残りCTが1短くなる', got && got.skillCd);
+  let s5 = setup('m171', 5, 1, BEASTS);
+  s5.B.party.forEach(a => { if(a !== s5.u) a.skillCd = [2, 2]; });
+  act(s5.u, 'skill', s5.u.skills[0], 0);
+  got = s5.B.party.find(a => a.buffs.kibi);
+  ok(got && got.skillCd.every(c => c === 2), '★5は短くならない');
+  s = setup('m171', 7, 1, BEASTS); const d7 = T.passiveMod(s.u, 'dmgBonus', s.e);
+  s5 = setup('m171', 6, 1, BEASTS); const d6 = T.passiveMod(s5.u, 'dmgBonus', s5.e);
+  ok(Math.abs(d7 - 0.24) < 1e-9 && Math.abs(d6 - 0.18) < 1e-9, '★7 ビースト4体で与ダメージ+24%(★6は3体まで+18%)', [d7, d6]);
+  s = setup('m171', 8, 1, BEASTS); s.e.hp = 1; s.u.skillCd[0] = 3;
+  act(s.u, 'skill', s.u.skills[1], 1);
+  s5 = setup('m171', 7, 1, BEASTS); s5.e.hp = 1; s5.u.skillCd[0] = 3;
+  act(s5.u, 'skill', s5.u.skills[1], 1);
+  ok(!s.e.alive && s.u.skillCd[0] === 0 && s5.u.skillCd[0] === 3, '★8 鬼斬り刀で倒すと、きびだんごのCTが0になる');
+  const ultRun = star => {
+    const r = setup('m171', star, 1, BEASTS);
+    r.B.party.filter(a => a.ref === 'm172' || a.ref === 'm173').forEach(a => T.addBuff(a, 'kibi', 0.2, 3, r.u));
+    act(r.u, 'ult', r.u.ult);
+    const fresh = r.B.party.find(a => a.ref === 'm174');
+    return { dealt: 99999 - r.e.hp, turns: fresh.buffs.kibi && fresh.buffs.kibi.turns, str: r.u.str };
+  };
+  const u9 = ultRun(9), u8 = ultRun(8);
+  ok(u9.turns === u8.turns + 1, '★9 奥義で付けるきびだんごのターン数+1', [u8.turns, u9.turns]);
+  ok(u9.dealt / u9.str > u8.dealt / u8.str * 1.35, '★9 きびだんご状態の味方2体で奥義の威力+40%', [u8.dealt, u9.dealt]);
+  s = setup('m171', 10, 1, BEASTS); act(s.u, 'skill', s.u.skills[0], 0);
+  got = s.B.party.find(a => a.buffs.kibi);
+  ok(got && got.buffs.kibi.dmg === 0.30, '★10 ビーストのきびだんごに与ダメージ+30%', got && got.buffs.kibi.dmg);
+  s = setup('m171', 10, 1, ['m140', 'm88', 'm54']); act(s.u, 'skill', s.u.skills[0], 0);
+  got = s.B.party.find(a => a.buffs.kibi);
+  ok(got && got.buffs.kibi.dmg === 0.20, '★10 ビースト以外は+20%', got && got.buffs.kibi.dmg);
+}
+console.log('--- イヌ ---');
+{
+  let s = setup('m172', 6, 2); s.e2.row = 'front'; s.e.hp = 90000; s.e2.hp = 30000;
+  act(s.u, 'skill', s.u.skills[0], 0);
+  ok(s.u.skills[0].tgt === 'lowest' && s.e2.buffs.pdefDown && s.e2.buffs.pdefDown.v === 10 && !s.e.buffs.pdefDown, '★6 食らいつきがHPの低い敵を狙い、物理防御-10');
+  s = setup('m172', 7);
+  T.b.actionSerial = 5; const first = T.passiveMod(s.u, 'dmgBonus', s.e, s.u.normal, 'normal');
+  const again = T.passiveMod(s.u, 'dmgBonus', s.e, s.u.normal, 'normal');
+  T.b.actionSerial = 6; const next = T.passiveMod(s.u, 'dmgBonus', s.e, s.u.normal, 'normal');
+  ok(first === 0.5 && again === 0.5 && next === 0, '★7 戦闘で最初の攻撃(その行動の中)だけ与ダメージ+50%', [first, again, next]);
+  s = setup('m172', 8); let s7 = setup('m172', 7);
+  ok(s.u.skills[1].pierceIfStrUp === 0.5 && !s7.u.skills[1].pierceIfStrUp, '★8 忠犬の突撃が攻撃力上昇状態なら防御50%無視');
+  s = setup('m172', 9);
+  ok(s.u.ult.critIf === 'selfStrUp' && !T.MONSTER_KITS.m172.ult.critIf, '★9 鬼退治の牙が攻撃力上昇状態なら必ず会心');
+  s = setup('m172', 10); s7 = setup('m172', 9);
+  [s, s7].forEach(r => T.addBuff(r.u, 'strUp', 0.2, 2, r.u));
+  ok(Math.abs(T.effStr(s.u) / s.u.str - 1.3) < 1e-6 && Math.abs(T.effStr(s7.u) / s7.u.str - 1.2) < 1e-6, '★10 自分に付く攻撃力上昇が1.5倍(+20% → +30%)');
+}
+console.log('--- サル ---');
+{
+  let s = setup('m173', 6); act(s.u, 'skill', s.u.skills[0], 0); const ev6 = s.u.buffs.evade.turns;
+  let s5 = setup('m173', 5); act(s5.u, 'skill', s5.u.skills[0], 0);
+  ok(ev6 === s5.u.buffs.evade.turns + 1, '★6 回避上昇のターン数+1', [s5.u.buffs.evade.turns, s.u.buffs.evade.turns]);
+  s = setup('m173', 7); ok(s.u.counterPow === 1.0, '★7 反撃の威力100%');
+  s = setup('m173', 8, 1, ['m172', 'm02', 'm03']); T.addBuff(s.e, 'critUp', 0.3, 3, s.e);
+  act(s.u, 'skill', s.u.skills[1], 1);
+  const inu = s.B.party.find(a => a.ref === 'm172');
+  ok(!s.e.buffs.critUp && inu.buffs.critUp && !s.u.buffs.critUp, '★8 奪った強化はSTRが一番高い味方に渡る');
+  s = setup('m173', 9); ['strUp', 'critUp', 'regen'].forEach(k => T.addBuff(s.e, k, 0.1, 3, s.e)); act(s.u, 'ult', s.u.ult);
+  const left9 = Object.keys(s.e.buffs).length;
+  s5 = setup('m173', 8); ['strUp', 'critUp', 'regen'].forEach(k => T.addBuff(s5.e, k, 0.1, 3, s5.e)); act(s5.u, 'ult', s5.u.ult);
+  ok(left9 === 0 && Object.keys(s5.e.buffs).length === 2, '★9 猿知恵で強化をすべて解除(★8は1つ)', [Object.keys(s5.e.buffs)]);
+  s = setup('m173', 10); s.u.stacks.dodgeCrit = 0.95;
+  withRand(0.01, () => T.runPassive(s.u, 'onEvade', s.e));
+  ok(s.u.stacks.dodgeCrit === 1.0 && s.e.buffs.accDown && s.e.buffs.accDown.v === 0.16, '★10 会心率の上限+100%・反撃が会心したら命中低下', s.u.stacks.dodgeCrit);
+  s5 = setup('m173', 9); s5.u.stacks.dodgeCrit = 0.45; withRand(0.01, () => T.runPassive(s5.u, 'onEvade', s5.e));
+  ok(s5.u.stacks.dodgeCrit === 0.5 && !s5.e.buffs.accDown, '★9 までは上限+50%・命中低下なし');
+}
+console.log('--- キジ ---');
+{
+  let s = setup('m174', 6, 2); s.e.row = 'back'; s.e2.row = 'back';
+  act(s.u, 'skill', s.u.skills[0], 0);
+  ok(s.e.buffs.accDown && s.e2.buffs.accDown, '★6 眼穿ちが敵後衛全体に当たる');
+  s = setup('m174', 7); let s6 = setup('m174', 6);
+  const ally7 = s.B.party.find(a => a !== s.u), ally6 = s6.B.party.find(a => a !== s6.u);
+  ok(ally7.sp >= 20 && ally6.sp >= 10 && ally6.sp < 20, '★7 戦闘開始時の味方全体のSP+20(★6は+10)', [ally6.sp, ally7.sp]);
+  s = setup('m174', 8); ok(s.u.skills[1].critIf === 'accDown', '★8 錦の矢羽が命中低下の敵に必ず会心');
+  s = setup('m174', 9); s.B.party.forEach(a => { a.sp = 0; }); act(s.u, 'ult', s.u.ult);
+  const al9 = s.B.party.find(a => a !== s.u);
+  let s8 = setup('m174', 8); s8.B.party.forEach(a => { a.sp = 0; }); act(s8.u, 'ult', s8.u.ult);
+  const al8 = s8.B.party.find(a => a !== s8.u);
+  ok(s.e.buffs.accDown.turns === s8.e.buffs.accDown.turns + 1 && al9.sp >= 15 && al8.sp < 15, '★9 千羽時雨の命中低下+1ターン・撃ったあと味方全体SP+15', [s8.e.buffs.accDown.turns, s.e.buffs.accDown.turns, al9.sp]);
+  s = setup('m174', 10); T.addBuff(s.e, 'accDown', 0.2, 2, s.u);
+  const ally = s.B.party.find(a => a !== s.u);
+  ok(Math.abs(T.runPassive(s.u, 'allyDmgBonus', ally, s.e) - 0.15) < 1e-9, '★10 命中低下の敵への味方全体の与ダメージ+15%');
+}
+console.log('--- アカオニ ---');
+{
+  let s = setup('m175', 6); ok(s.u.skills[0].ct === 2 && T.MONSTER_KITS.m175.skill1.ct === 3, '★6 金棒振りのCT2');
+  s = setup('m175', 7); s.u.hp = s.u.maxHp * 0.55; const r7 = T.passiveMod(s.u, 'dmgBonus', s.e);
+  let s6 = setup('m175', 6); s6.u.hp = s6.u.maxHp * 0.55;
+  ok(r7 >= 0.2 && T.passiveMod(s6.u, 'dmgBonus', s6.e) === 0, '★7 激昂がHP60%以下から乗る');
+  s = setup('m175', 8); act(s.u, 'skill', s.u.skills[1], 1); const t8 = s.u.buffs.strUp.turns;
+  s6 = setup('m175', 7); act(s6.u, 'skill', s6.u.skills[1], 1);
+  ok(t8 === s6.u.buffs.strUp.turns + 1, '★8 鬼の怒りの攻撃力上昇+1ターン');
+  s = setup('m175', 9); act(s.u, 'ult', s.u.ult);
+  ok(s.u.buffs.strUp && s.u.buffs.strUp.turns === 2, '★9 鬼の大暴れのあと攻撃力上昇2ターン');
+  s = setup('m175', 10); const before = T.passiveMod(s.u, 'dmgBonus', s.e);
+  T.killUnit(s.ally, s.e);
+  ok(Math.abs(T.passiveMod(s.u, 'dmgBonus', s.e) - before - 0.3) < 1e-9, '★10 味方が倒れると与ダメージ+30%');
+}
+console.log('--- アオオニ ---');
+{
+  let s = setup('m176', 6); T.addBuff(s.u, 'taunt', 1, 2, s.u);
+  ok(T.passiveMod(s.u, 'cutBonus', 'phys') === 0.15, '★6 挑発中は受けるダメージ-15%');
+  s = setup('m176', 7); ok(s.u.coverMax === 2, '★7 かばえる回数が1ラウンドに2回');
+  s = setup('m176', 8, 2); s.e2.row = 'front'; act(s.u, 'skill', s.u.skills[1], 1);
+  ok(s.e.hp < 99999 && s.e2.hp < 99999, '★8 金棒打ちが敵前衛全体');
+  s = setup('m176', 9); act(s.u, 'ult', s.u.ult);
+  const weak = s.B.party.find(a => a !== s.u); weak.hp = 1; s.u.shields = []; delete s.u.buffs.taunt;
+  s.B.party.forEach(a => { if(a !== s.u && a !== weak) a.alive = false; }); weak.row = 'front'; s.u.row = 'back';
+  withRand(0.5, () => T.performAction(s.e, 'normal', { name: '攻撃', atk: 'phys', tgt: 'single', pow: 1 }));
+  ok(weak.hp === 1 && T.shieldTotal(s.u) > 0, '★9 結界の間、かばって受けたダメージの一部がシールドになる', T.shieldTotal(s.u));
+  s = setup('m176', 10); s.u.hp = 5; s.u.shields = [];
+  withRand(0.5, () => T.strike({ actor: s.e, act: { atk: 'phys' }, kind: 'normal' }, s.u, { pow: 50 }));
+  const allCut = s.B.party.filter(a => a.alive).every(a => a.buffs.cut && a.buffs.cut.v === 0.2);
+  ok(s.u.alive && s.u.hp === 1 && allCut, '★10 1度だけHP1で耐え、味方全体に被ダメージ軽減-20%');
+  s.u.hp = 5; withRand(0.5, () => T.strike({ actor: s.e, act: { atk: 'phys' }, kind: 'normal' }, s.u, { pow: 50 }));
+  ok(!s.u.alive, '★10 2度目は耐えない');
+}
+
 Date.now = realNow;
 console.log(fail ? `\n${fail}件 失敗` : '\nすべて通過');
 process.exit(fail ? 1 : 0);
