@@ -1,9 +1,12 @@
 {
- "note": "2026-10-07 に追加したモモタロウイベの立ち絵の対応(docs/提案資料/モモタロウイベ_実装指示書.md の2章)。tools/add_sprites.py tools/sprite_map_momotaro.json で取り込みずみ。サル・アカオニ・アオオニは指示書に絵の指定がないので、画像準備中の表示のまま。",
+ "note": "モモタロウイベの6体の立ち絵(2026-10-07。origin/main e03e9be で追加された直下の画像。対応はユーザー確認済み)。tools/add_sprites.py tools/sprite_map_momotaro.json で取り込みずみ。元画像はほかのイベントでも使うので動かさない。",
  "map": {
-  "モモタロウ": { "file": "dreamina-2026-09-25-5290_transparent.png", "sprite": "171" },
-  "イヌ":       { "file": "dreamina-2026-09-25-5833_transparent.png", "sprite": "172" },
-  "キジ":       { "file": "dreamina-2026-09-25-5245_transparent.png", "sprite": "174" }
+  "モモタロウ": { "file": "06_samurai.png",  "sprite": "171" },
+  "イヌ":       { "file": "04_dog.png",      "sprite": "172" },
+  "サル":       { "file": "02_monkey.png",   "sprite": "173" },
+  "キジ":       { "file": "01_rooster.png",  "sprite": "174" },
+  "アカオニ":   { "file": "13_red_oni.png",  "sprite": "175" },
+  "アオオニ":   { "file": "10_blue_oni.png", "sprite": "176" }
  },
- "missing": ["サル", "アカオニ", "アオオニ"]
+ "missing": []
 }
