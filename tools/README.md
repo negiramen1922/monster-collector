@@ -18,6 +18,13 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 | babel_tune.js | バベル各階の「塔の敵の底上げ」を二分探索で決める(`N=10 node babel_tune.js ten [階...]`) |
 | reflect_loop_test.js | シールド反射どうしが往復して止まらないこと |
 | ult_sp_lock_test.js | 奥義を撃っているあいだは本人にSPが入らない(奥義の効果のSPは入る) |
+| ult_sp_test.js | 奥義の必要SPが「重さ×ロール」の表どおり(140体) |
+| lv_system_test.js | スキルLv上限10・パッシブLv上限5、素材、古いセーブの移し替えと返却 |
+| passive_lv_test.js | すべてのパッシブがパッシブLvで伸びる |
+| tutorial_replay_survey_test.js | チュートリアルの遊び直しのお礼とアンケートの送信 |
+| survey_ui_test.py | アンケート画面(設定から開いて送るまで) |
+| survey_export.js | アンケートの答えをCSVと集計にする(Firebaseの管理用の鍵が要る) |
+| balance/revive_probe.js | 蘇生の価値を測る(採点式の蘇生の点の根拠) |
 | relic_core_drop_test.js | 霊素の鉱脈の霊素核が確率で出る(平均が表どおり) |
 | mech19.js / mech22.js / mech54.js | 戦闘の仕組みの検証(70項目) |
 | econ26.js | 育成の検証(32項目) |

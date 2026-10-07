@@ -39,21 +39,13 @@ kinds.forEach(k => {
      E.battleUI && E.battleUI.stage ? E.battleUI.stage.id : null);
 });
 
-// 必要スタミナの表示: 新バトルシステムの初回は0、2回目からは通常
+// 必要スタミナの表示: 初回から通常どおり(新バトルシステムのお試しは α0.5 でなくなった)
 api.STATE = E.DEFAULT_STATE();
 const S2 = api.STATE;
 S2.clearedStages = [...S.clearedStages];
 kinds.forEach(k => {
   const st = E.dungeonStage(k, 0);
-  ok(`dg_${k}_0 は新システムの初回だけ⚡0`, E.stageStaminaCost(st) === 0, E.stageStaminaCost(st));
-  S2.v2Cleared = [`dg_${k}_0`];
-  ok(`dg_${k}_0 は2回目から⚡${st.stamina}`, E.stageStaminaCost(st) === st.stamina, [E.stageStaminaCost(st), st.stamina]);
-  S2.v2Cleared = [];
-});
-S2.battleV2 = false;
-kinds.forEach(k => {
-  const st = E.dungeonStage(k, 0);
-  ok(`旧バトルシステムでは最初から⚡${st.stamina}`, E.stageStaminaCost(st) === st.stamina, E.stageStaminaCost(st));
+  ok(`dg_${k}_0 は初回から⚡${st.stamina}`, E.stageStaminaCost(st) === st.stamina, [E.stageStaminaCost(st), st.stamina]);
 });
 
 // 霊素の鉱脈の報酬が表示に乗るか(以前は空欄だった)

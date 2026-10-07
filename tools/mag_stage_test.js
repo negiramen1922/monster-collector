@@ -12,7 +12,7 @@
    使い方: python3 tools/extract.py してから  cd tools && node mag_stage_test.js
            N=200 node mag_stage_test.js */
 const load = require('./harness.js');
-const api = load('game.js', src => src.replace('battleV2: true,', 'battleV2: (global.__V2 !== false),') + `;global.__e={STAGE_BY_ID,MON_BY_ID,kitOf};
+const api = load('game.js', src => src + `;global.__e={STAGE_BY_ID,MON_BY_ID,kitOf,buildUnit,effDef,defCutOf,applyStatBonus};
 const __o = buildUnit;
 buildUnit = function(){
   const u = __o.apply(this, arguments);
@@ -70,25 +70,33 @@ ok('ハード側にも同じ編成が入っている', magShare('q5_08h') >= 0.9
 const phys = magShare('q5_04');
 ok('比較対象の q5_04(骨の玉座)は物理のまま', phys <= 0.1, Math.round(phys * 100) + '%');
 
-/* 防御の効きは「旧バトルシステム」で測る。
-   新バトルシステムはHPが2倍で味方が落ちにくく、防御を積むほど奥のウェーブまで進むので、
-   「1ラウンドあたりの被ダメージ」も勝率も、25%ぶんの防御の差より試行ごとのブレのほうが
-   大きくなってしまう(実測で符号すら安定しない)。
-   ここで見たいのは「このステージの敵編成なら魔防のほうが効くか」という編成の性質で、
-   それは新旧で変わらない。新バトルシステム側でも測れるようにするには、
-   戦闘をシミュレートせず1発ぶんのダメージを直接計算する作りに書き直す必要がある(やり残し参照)。 */
-global.__V2 = false;
-console.log('\n--- 2. 魔法防御が効くか(旧バトルシステムで測定・各' + N + '戦・Lv' + LV + ') ---');
+/* 防御の効きは、戦闘をシミュレートせず「1発ぶんのダメージ」を直接計算して見る。
+   (旧バトルシステムで測っていたが、α0.5 で旧がなくなった。戦闘で測ると、防御を積むほど
+   奥のウェーブまで進むので、ブレのほうが大きくなる)
+   ステージの敵の攻撃(威力×ヒット数で重みづけ)を、パーティ全員が受けたときの合計で比べる。 */
+function hitTotal(stageId, bonus){
+  const refs = E.STAGE_BY_ID[stageId].waves.flat().map(e => e.ref);
+  let phys = 0, mag = 0;
+  refs.forEach(r => {
+    const k = E.kitOf(E.MON_BY_ID[r]);
+    ['normal', 'skill1', 'skill2', 'ult'].forEach(n => {
+      const o = k[n]; if(!o || !o.pow) return;
+      const w = o.pow * (o.hits || 1);
+      if(o.atk === 'mag') mag += w; else phys += w;
+    });
+  });
+  const units = PARTY.map(id => { const u = E.buildUnit(E.MON_BY_ID[id], LV, false, UP.star, false, LV, UP); if(bonus) E.applyStatBonus(u, bonus); return u; });
+  return units.reduce((a, u) => a
+    + phys * (1 - E.defCutOf(E.effDef(u, 'phys')))
+    + mag  * (1 - E.defCutOf(E.effDef(u, 'mag'))), 0);
+}
+console.log('\n--- 2. 魔法防御が効くか(1発ぶんのダメージを直接計算・Lv' + LV + ') ---');
 [['q5_08', '精霊の坩堝(魔法)', true], ['q5_04', '骨の玉座(物理)', false]].forEach(([id, ja, wantMdef]) => {
-  const base = measure(id, null);
-  const p = measure(id, { pdef: V });
-  const m = measure(id, { mdef: V });
-  const cutP = (1 - p.taken / base.taken) * 100;
-  const cutM = (1 - m.taken / base.taken) * 100;
-  console.log(`   ${ja}  基準 1ラウンドあたり${Math.round(base.taken)}  物防+8→${cutP >= 0 ? '-' : '+'}${Math.abs(cutP).toFixed(1)}%  魔防+8→${cutM >= 0 ? '-' : '+'}${Math.abs(cutM).toFixed(1)}%`);
+  const base = hitTotal(id, null);
+  const cutP = (1 - hitTotal(id, { pdef: V }) / base) * 100;
+  const cutM = (1 - hitTotal(id, { mdef: V }) / base) * 100;
+  console.log(`   ${ja}  物防+${V}→-${cutP.toFixed(1)}%  魔防+${V}→-${cutM.toFixed(1)}%`);
   if(wantMdef){
-    /* 削減率の絶対値は試行ごとに 3〜16% とブレるので、同じ条件で測った物防との差で見る。
-       見たいのは「このステージでは魔防のほうが価値がある」という関係であって、絶対値ではない。 */
     ok('  魔法ステージでは魔法防御のほうが効く', cutM > cutP, [cutM.toFixed(1), cutP.toFixed(1)]);
     ok('  魔法防御が物理防御より3ポイント以上効く', cutM - cutP >= 3, (cutM - cutP).toFixed(1) + 'pt');
   }else{
@@ -101,8 +109,7 @@ console.log('\n--- 2. 魔法防御が効くか(旧バトルシステムで測定
    新バトルシステムでは、敵が開幕からワザを撃つぶんキャスター編成のこのステージだけ
    被ダメージが倍近くになる(約540 → 約1000)。それでも勝率は近隣と並んでいるので、
    被ダメの絶対値で見ると「壊れている」と誤検知する。 */
-global.__V2 = true;   // 難度は今の(新)システムで見る
-console.log('\n--- 3. 難度が前後から浮いていないか(新バトルシステム) ---');
+console.log('\n--- 3. 難度が前後から浮いていないか ---');
 const around = ['q5_06', 'q5_08', 'q5_09'].map(id => ({ id, r: measure(id, null) }));
 around.forEach(x => console.log(`   ${x.id}  勝率${Math.round(x.r.wr * 100)}%  1ラウンドあたり被ダメ${Math.round(x.r.taken)}`));
 const me = around.find(x => x.id === 'q5_08').r;

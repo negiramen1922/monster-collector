@@ -1,12 +1,11 @@
-/* 新バトルシステム(α0.3)の検証。
-   設定の battleV2 で旧/新が切り替わり、切り替えると表示(HP・BP)まで一緒に戻ることを見る。
+/* バトルシステムの検証(α0.5 で新バトルシステムだけになった)。
    使い方: cd tools && node battle_v2_test.js */
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
   MONSTERS, MON_BY_ID, scaledStats, battlePower, initialSkillCds, buildUnit, skillCt,
   ultSpCostFor, hpScale, shieldCapRatio, spFromDamage, avgBaseHp, addShield, shieldTotal,
   stageStaminaCost, grantStageRewards, grantDungeonRewards, sweepSpawned, findStage, statsWithRelic,
-  RELICS, newRelicState, BATTLE_V2_SP_KILL, SP_ON_KILL, SP_HIT_CAP_PER_ROUND, BATTLE_V2_HIT_CAP,
+  RELICS, newRelicState, BATTLE_V2_SP_KILL, BATTLE_V2_HIT_CAP, BATTLE_V2_HP_SCALE,
   WAVE_LV_RAMP, waveEnemyLv, spawnWave, STAGES,
 };`);
 const E = global.__e;
@@ -17,64 +16,27 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 api.STATE = api.DEFAULT_STATE();
 const S = api.STATE;
 const by = Object.fromEntries(E.MONSTERS.map(m => [m.name, m.id]));
-const titan = E.MON_BY_ID[by['タイタン']];        // tank   ult sp 120
-const kyubi = E.MON_BY_ID[by['九尾の狐']];        // shooter ult sp 120
-const fenrir = E.MON_BY_ID[by['フェンリル']];     // attacker ult sp 120
-const v2 = on => { api.STATE.battleV2 = on; };
+const titan = E.MON_BY_ID[by['タイタン']];
+const kyubi = E.MON_BY_ID[by['九尾の狐']];
+const fenrir = E.MON_BY_ID[by['フェンリル']];
 
-/* ---- 既定は新 ---- */
-check('既定で新バトルシステム', api.DEFAULT_STATE().battleV2 === true);
-
-/* ---- HPが2倍、旧に戻すと元通り ---- */
-v2(false); const hpOld = E.scaledStats(titan, 5, 250).hp;
-v2(true);  const hpNew = E.scaledStats(titan, 5, 250).hp;
-check('新でHPが2倍', near(hpNew, hpOld * 2, 2), `${hpOld} → ${hpNew}`);
-v2(false); check('旧に戻すとHPも戻る', E.scaledStats(titan, 5, 250).hp === hpOld);
-v2(true);
-check('STRは変わらない', E.scaledStats(titan, 5, 250).str === (v2(false), E.scaledStats(titan, 5, 250).str));
-v2(true);
-
-/* ---- BPはHPの重みで打ち消されて据え置き ---- */
-S.owned[titan.id] = { star: 5, souls: 0, level: 250, skillLv: 10, ultLv: 10, passiveLv: 10 };
-S.slots = [titan.id, null, null, null, null];
-v2(false); const bpOld = E.battlePower(titan.id);
-v2(true);  const bpNew = E.battlePower(titan.id);
-check('BPは新旧でほぼ同じ(±3%)', near(bpNew, bpOld, bpOld * 0.03), `${bpOld} → ${bpNew}`);
-
-/* ---- 遺物のHP固定値も2倍 ---- */
-const relicWithHp = Object.values(E.RELICS).find(r => r.base && r.base.hp);
-if(relicWithHp){
-  S.relics[relicWithHp.id] = E.newRelicState();
-  S.relics[relicWithHp.id].level = 80;
-  S.relics[relicWithHp.id].equippedTo = titan.id;
-  v2(false); const withOld = E.statsWithRelic(titan, 5, 250, relicWithHp.id, null).hp;
-  v2(true);  const withNew = E.statsWithRelic(titan, 5, 250, relicWithHp.id, null).hp;
-  check('遺物の固定値HPも2倍になる', near(withNew, withOld * 2, 3), `${withOld} → ${withNew}`);
-  delete S.relics[relicWithHp.id];
-}
+/* ---- 旧に戻す設定はもうない ---- */
+check('セーブに battleV2 を持たない', !('battleV2' in api.DEFAULT_STATE()));
+check('セーブに v2Cleared を持たない', !('v2Cleared' in api.DEFAULT_STATE()));
+check('HPの倍率は2', E.hpScale() === 2 && E.BATTLE_V2_HP_SCALE === 2);
 
 /* ---- 初期CT ---- */
 const mk = (mon, enemy, boss) => E.buildUnit(mon, 100, !!enemy, 5, !!boss, 250, { skillLv: 10, skill2Lv: 10, ultLv: 10, passiveLv: 10 });
-v2(true);
 let u = mk(kyubi);
-check('新: 初期CTは全部0', u.skillCd.every(c => c === 0), u.skillCd);
-v2(false);
-u = mk(kyubi);
-check('旧: スキル1はCTの半分', u.skillCd[0] === Math.ceil(E.skillCt(u, 0) / 2), u.skillCd);
-check('旧: スキル2はCT+1', u.skillCd[1] === E.skillCt(u, 1) + 1, u.skillCd);
+check('初期CTは全部0', u.skillCd.every(c => c === 0), u.skillCd);
 
 /* ---- 必要SP ---- */
-v2(true);
-check('タンクの必要SPは-30', mk(titan).spCost === titan && 0 || E.ultSpCostFor('tank', 120) === 90, E.ultSpCostFor('tank', 120));
-check('シューターの必要SPは-20', E.ultSpCostFor('shooter', 120) === 100, E.ultSpCostFor('shooter', 120));
-check('アタッカーは据え置き', E.ultSpCostFor('attacker', 120) === 120);
-check('サポートは据え置き', E.ultSpCostFor('support', 110) === 110);
-check('下限40を割らない', E.ultSpCostFor('tank', 60) === 40, E.ultSpCostFor('tank', 60));
-v2(false);
-check('旧はどのロールも変わらない', E.ultSpCostFor('tank', 120) === 120 && E.ultSpCostFor('shooter', 120) === 120);
+// α0.5: ロールの差は ult.sp に入れたので、戦闘中には足し引きしない(ult_sp_test.js)
+check('タンクも必要SPはデータのまま', E.ultSpCostFor('tank', 70) === 70, E.ultSpCostFor('tank', 70));
+check('シューターも必要SPはデータのまま', E.ultSpCostFor('shooter', 80) === 80, E.ultSpCostFor('shooter', 80));
+check('下限40を割らない', E.ultSpCostFor('tank', 30) === 40, E.ultSpCostFor('tank', 30));
 
 /* ---- 被弾SPは「平均HP」基準 ---- */
-v2(true);
 const tu = mk(titan), ku = mk(kyubi);
 check('基準HPは自分のHPではなく平均HP', tu.spRefHp !== tu.maxHp && near(tu.spRefHp, ku.spRefHp, 2), `${tu.spRefHp} / ${ku.spRefHp}`);
 check('タンクの方がHPは多い', tu.maxHp > ku.maxHp, `${tu.maxHp} / ${ku.maxHp}`);
@@ -85,15 +47,12 @@ check('1発で基準HP超えても100%ぶんで頭打ち', E.spFromDamage(tu, tu
 
 /* ---- 撃破SPと被弾SPの上限 ---- */
 check('撃破SPは25', E.BATTLE_V2_SP_KILL === 25);
-check('旧の撃破SPは15のまま', E.SP_ON_KILL === 15);
-check('被弾SPの上限は60', E.BATTLE_V2_HIT_CAP === 60 && E.SP_HIT_CAP_PER_ROUND === 10);
+check('被弾SPの上限は60', E.BATTLE_V2_HIT_CAP === 60);
 
 /* ---- シールドの上限 ---- */
-v2(true);  check('新のシールド上限は100%', E.shieldCapRatio() === 1.0);
-v2(false); check('旧のシールド上限は50%', E.shieldCapRatio() === 0.5);
+check('シールド上限は100%', E.shieldCapRatio() === 1.0);
 
 /* ---- 敵のレベル(ウェーブごとに上がり、最終ウェーブが推奨Lv) ---- */
-v2(true);
 const stage = E.STAGES.find(st => st.type === 'main' && (st.waves || []).length >= 3 && (st.waves || []).some(w => w.some(e => e.boss)));
 if(stage){
   const n = stage.waves.length;
@@ -113,53 +72,18 @@ check('1ウェーブなら推奨レベルちょうど', E.waveEnemyLv({ rec: 300
 // 推奨Lvが低いステージでもレベル1に潰れない
 check('推奨Lv6でも第1ウェーブは1より上', E.waveEnemyLv({ rec: 6, waves: [[], [], []] }, 0) === 5, E.waveEnemyLv({ rec: 6, waves: [[], [], []] }, 0));
 
-/* ---- スタミナ0とクリア報酬 ---- */
-v2(true);
+/* ---- お試し(初回スタミナ0＋お礼の星結晶)は α0.5 でなくなった ---- */
 api.STATE = api.DEFAULT_STATE();
 const S2 = api.STATE;
 [titan.id, kyubi.id, fenrir.id].forEach(id => { S2.owned[id] = { star: 5, souls: 0, level: 250, skillLv: 10, ultLv: 10, passiveLv: 10 }; });
 S2.slots = [titan.id, kyubi.id, fenrir.id, null, null];
 S2.clearedStages = E.STAGES.map(x => x.id);
 const st = E.findStage('q4_05');
-check('新システムの初回はスタミナ0', E.stageStaminaCost(st) === 0, E.stageStaminaCost(st));
+check('初回からスタミナがかかる', E.stageStaminaCost(st) === st.stamina, E.stageStaminaCost(st));
 const before = S2.crystals;
 const r = E.grantStageRewards(st, [], [{ ref: titan.id }]);
-check('新システムの初クリアで星結晶10', r.v2Crystals === 10 && S2.crystals === before + 10, `${r.v2Crystals} / ${S2.crystals - before}`);
-check('2回目はスタミナがかかる', E.stageStaminaCost(st) === st.stamina, E.stageStaminaCost(st));
-const r2 = E.grantStageRewards(st, [], [{ ref: titan.id }]);
-check('2回目は星結晶を配らない', !r2.v2Crystals, r2.v2Crystals);
-
-const ev = E.STAGES.find(x => x.type === 'event' && !x.ex);
-if(ev){
-  const r3 = E.grantStageRewards(ev, [], [{ ref: titan.id }]);
-  check('イベントは20', r3.v2Crystals === 20, r3.v2Crystals);
-}
-const ex = E.STAGES.find(x => x.ex);
-if(ex){
-  const r4 = E.grantStageRewards(ex, [], [{ ref: titan.id }]);
-  check('EXはクリア済みでも初回クリア扱いに戻す', !S2.clearedStages.includes(ex.id) || r4.firstItems.length >= 0);
-}
-const st2 = E.findStage('q4_06');
-const r5 = E.grantStageRewards(st2, [], [{ ref: titan.id }], { sweep: true });
-check('周回(結果だけ)では配らない', !r5.v2Crystals, r5.v2Crystals);
-
-/* ---- 育成クエストも「初回だけスタミナ0」 ---- */
+check('お礼の星結晶は出ない', !('v2Crystals' in r) && S2.crystals === before, S2.crystals - before);
 const dg = E.findStage('dg_exp_1');
-if(dg){
-  check('育成クエストも新システムの初回はスタミナ0', E.stageStaminaCost(dg) === 0, E.stageStaminaCost(dg));
-  const cr = S2.crystals;
-  const rd = E.grantDungeonRewards(dg);
-  check('育成クエストでは星結晶は出ない', !rd.v2Crystals && S2.crystals === cr, rd.v2Crystals);
-  check('育成クエストも2回目からはスタミナがかかる', E.stageStaminaCost(dg) === dg.stamina, [E.stageStaminaCost(dg), dg.stamina]);
-}
-const dg2 = E.findStage('dg_gold_1');
-if(dg2){
-  E.grantDungeonRewards(dg2, { sweep: true });
-  check('育成クエストの周回では初回ぶんを使い切らない', E.stageStaminaCost(dg2) === 0, E.stageStaminaCost(dg2));
-}
-
-/* ---- 旧に戻すとスタミナも元通り ---- */
-v2(false);
-check('旧はスタミナを消費する', E.stageStaminaCost(E.findStage('q5_01')) === E.findStage('q5_01').stamina);
+if(dg) check('育成クエストも初回からスタミナがかかる', E.stageStaminaCost(dg) === dg.stamina, [E.stageStaminaCost(dg), dg.stamina]);
 
 console.log(ng ? `❌${ng}` : 'すべて通過');
