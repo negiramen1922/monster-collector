@@ -3830,6 +3830,9 @@ const RELIC_SVG_BODY = {
   rel_seraph_plume: '<path d="M50 84 C22 70 14 42 22 16 C34 34 44 40 50 42 C56 40 66 34 78 16 C86 42 78 70 50 84 Z" fill="#fff4b0" stroke="#c9a832" stroke-width="5" stroke-linejoin="round"/><circle cx="50" cy="26" r="7" fill="none" stroke="#ffd34d" stroke-width="4"/>',
   rel_nightmare_mane: '<path d="M24 20c20 0 46 10 52 36 4 18-6 30-14 30 4-12-2-22-10-26 2 10-2 18-10 20 4-10-2-20-10-24-2 8-6 12-12 12 4-16-2-34 4-48z" fill="#3a2a5a" stroke="#14102a" stroke-width="5" stroke-linejoin="round"/><circle cx="60" cy="40" r="4" fill="#b27cf2"/>',
   rel_giant_blood: '<path d="M50 14c12 18 24 32 24 48a24 24 0 0 1-48 0c0-16 12-30 24-48z" fill="#b23a3a" stroke="#5a1a1a" stroke-width="6"/><path d="M40 60h20M50 50v20" stroke="#f4d0d0" stroke-width="6" stroke-linecap="round"/>',
+  // 日の丸桃剣: 日の丸の鍔の刀 / 日の丸の鉢巻: 赤い丸の入った白い鉢巻
+  rel_hinomaru_touken: '<path d="M78 14 L84 20 L40 64 L34 58 Z" fill="#e8eef4" stroke="#4a5868" stroke-width="4" stroke-linejoin="round"/><circle cx="34" cy="64" r="11" fill="#fff" stroke="#4a5868" stroke-width="4"/><circle cx="34" cy="64" r="5.5" fill="#d23a3a"/><path d="M28 70 L14 84" stroke="#7a3a2a" stroke-width="9" stroke-linecap="round"/><path d="M80 18 L60 38" stroke="#ffc8d8" stroke-width="2" opacity=".8"/>',
+  rel_hinomaru_hachimaki: '<path d="M10 44 C30 36 70 36 90 44 L90 58 C70 50 30 50 10 58 Z" fill="#f6f2ea" stroke="#8a8478" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="47" r="8" fill="#d23a3a"/><path d="M84 56 L94 78 M86 54 L80 80" stroke="#f6f2ea" stroke-width="6" stroke-linecap="round"/>',
   rel_goddess_veil: '<path d="M22 22 C40 16 60 16 78 22 C74 46 78 66 84 84 C62 76 38 76 16 84 C22 66 26 46 22 22 Z" fill="#f4f1ea" stroke="#9a9488" stroke-width="5" stroke-linejoin="round"/><path d="M34 40c10 6 22 6 32 0" fill="none" stroke="#c9a832" stroke-width="4" stroke-linecap="round"/>',
 };
 const RELIC_ICON = Object.fromEntries(Object.keys(RELIC_SVG_BODY).map(k =>
@@ -7197,6 +7200,22 @@ const RELICS = {
       { stat:'hp', pct:0.15, cond:{ type:'species', value:'machina' } },
       { stat:'pdef', pct:6.6, cond:{ type:'mon', value:'m140' } },
     ] },
+  // ---- モモタロウイベ(releaseAt でイベント開始まで隠す)。中身の正は docs/提案資料/次回イベント案_モモタロウ.md ----
+  rel_hinomaru_touken: { id:'rel_hinomaru_touken', name:'日の丸桃剣', star:5, icon:RELIC_ICON.rel_hinomaru_touken, releaseAt: MOMOTARO_START_AT, // m171 モモタロウ専用(バランス型B)
+    base:{ hp:85.4, atk:19.8 },
+    effects:[
+      { stat:'hp', pct:0.15, cond:null },
+      { stat:'atk', pct:0.15, cond:{ type:'element', value:'grass' } },
+      { stat:'skillDmg', pct:0.165, cond:{ type:'mon', value:'m171' } },
+    ] },
+  // イベント配布(ガチャに出さない)。イベントショップで本体と重複を売る(ev.relic)
+  rel_hinomaru_hachimaki: { id:'rel_hinomaru_hachimaki', name:'日の丸の鉢巻', star:4, icon:RELIC_ICON.rel_hinomaru_hachimaki, channel:'distributed', source:'eventShop', releaseAt: MOMOTARO_START_AT, // 草属性(殴る草向け・STR型E)
+    base:{ hp:34.4, atk:21.6 },
+    effects:[
+      { stat:'atk', pct:0.125, cond:null },
+      { stat:'skillDmg', pct:0.125, cond:{ type:'element', value:'grass' } },
+      { stat:'pierce', pct:0.125, cond:{ type:'element', value:'grass' } },
+    ] },
 };
 const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
 // distributed relics never appear in the gacha pool - they only come from missions/achievements.
@@ -7393,7 +7412,8 @@ function showRelicDetail(id){
         ${def.base ? `<div class="relic-eff-line"><span class="relic-eff-text">基礎ステータス(モンスターと同じ+3%/Lvで成長・凸で+${Math.round(RELIC_DUPE_BONUS * 100)}%/回)</span></div>` : ''}
         ${def.effects.map(e => `<div class="relic-eff-line"><span class="relic-eff-text">${relicEffectRangeText(e)}</span></div>`).join('')}
       </div>
-      <p class="fs-note">未所持です。${def.channel === 'distributed' ? 'イベントのステージクリア報酬で手に入ります。' : '遺物ガチャで入手できます。'}</p>
+      <p class="fs-note">未所持です。${def.source === 'eventShop' ? 'イベントショップで手に入ります。' : def.channel === 'distributed' ? 'イベントのステージクリア報酬で手に入ります。' : '遺物ガチャで入手できます。'}</p>
+
       ${def.channel !== 'distributed' ? `<button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : ''}
     </div>`;
   layer.classList.add('show');
@@ -10182,7 +10202,20 @@ const EVENT_RELIC_MATS = {
   7: [{ type:'item', key:'relic_scrap', n:4000 }, { type:'item', key:'relic_core_3', n:3 }],
   9: [{ type:'item', key:'relic_scrap', n:6000 }, { type:'item', key:'relic_core_3', n:5 }],
 };
+/* ev.relic を書いたイベント(モモタロウイベから)は、配布遺物を層の初回クリアで配らず、イベントショップで
+   本体(200メダル×1)と重複(200メダル×4)を売る。遺物を置いていた1・3・6・8・10層は、ほかの層と同じ強化素材にする。
+   量は前後の層の間をとって決めた(docs の資料に量の指定がないため) */
+const EVENT_RELIC_MATS_SHOPRELIC = {
+  1:  [{ type:'item', key:'relic_scrap', n:500 }, { type:'item', key:'relic_core_1', n:2 }],
+  3:  [{ type:'item', key:'relic_scrap', n:1200 }, { type:'item', key:'relic_core_1', n:3 }, { type:'item', key:'relic_core_2', n:1 }],
+  6:  [{ type:'item', key:'relic_scrap', n:3000 }, { type:'item', key:'relic_core_2', n:3 }, { type:'item', key:'relic_core_3', n:1 }],
+  8:  [{ type:'item', key:'relic_scrap', n:5000 }, { type:'item', key:'relic_core_3', n:4 }],
+  10: [{ type:'item', key:'relic_scrap', n:8000 }, { type:'item', key:'relic_core_3', n:6 }],
+};
+// そのイベントの配布遺物(ev.relic があればそれ、なければ属性で決まる★4遺物)
+function eventRelicOf(ev){ return (ev && ev.relic) || EVENT_ELEMENT_RELIC[ev && ev.element] || null; }
 function eventStageRelicReward(ev, n){
+  if(ev.relic) return EVENT_RELIC_MATS[n] || EVENT_RELIC_MATS_SHOPRELIC[n] || [];
   const relicId = EVENT_ELEMENT_RELIC[ev.element];
   if(!relicId) return [];
   if(EVENT_RELIC_LAYERS.includes(n)) return [{ type:'relic', key: relicId }];
@@ -10273,7 +10306,7 @@ function eventBoxPrice(tier){ return eventMatPrice(BOX_CONTENT.sel[tier] * matT1
 function eventShopItems(ev){
   const pick = ev.pickup;
   const subs = featuredOf(ev).filter(id => id !== pick);   // 同時ピックアップの★4(時刻前は空)
-  const relic = EVENT_ELEMENT_RELIC[ev.element];
+  const relic = eventRelicOf(ev);
   const mats = eventSkillMats(ev);
   return [
     // econV2 のイベントは 1回10個×上限30回(合計300個)。回数を増やして1回を軽くしただけで総量は同じ
@@ -10288,8 +10321,12 @@ function eventShopItems(ev){
           give: () => giveSouls(id, 20) }))
       : [{ sku:'soul_sub', name:'同時ピックアップ★4のソウル', qty:'各20個(2体ぶん40個)', price:80, limit:10,
           hide: !subs.length, give: () => subs.forEach(id => giveSouls(id, 20)) }]),
-    { sku:'relic_dupe', name:`${RELICS[relic] ? RELICS[relic].name : '配布遺物'}(重複)`, qty:'1個', price:200, limit:2,
+    // ev.relic のイベントは本体も売る(層の初回クリアでは配らないため)。重複は4回(本体＋4個で完凸)
+    ...(ev.relic ? [{ sku:'relic_body', name:`${RELICS[relic] ? RELICS[relic].name : '配布遺物'}(本体)`, qty:'1個', price:200, limit:1,
+      hide: !RELICS[relic], give: () => grantRelic(RELICS[relic]) }] : []),
+    { sku:'relic_dupe', name:`${RELICS[relic] ? RELICS[relic].name : '配布遺物'}(重複)`, qty:'1個', price:200, limit: ev.relic ? 4 : 2,
       hide: !relic, give: () => grantRelic(RELICS[relic]) },
+
     { sku:'gacha_char', name:'モンスター召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_char', 1) },
     { sku:'gacha_relic',name:'遺物召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_relic', 1) },
     // 素材とBOXの値段は TierI 換算から決める(econV2 のイベントだけ。公開ずみは据え置き)
@@ -11677,7 +11714,7 @@ function evShopIconHtml(ev, it){
   // econV2 では抱き合わせ★4を1体ずつの商品に分けたので soul_sub1 / soul_sub2 になる
   const sub = /^soul_sub([0-9]+)$/.exec(it.sku);
   if(sub && subs[Number(sub[1]) - 1]) return `<span class="shop-ic">${mon(subs[Number(sub[1]) - 1])}</span>`;
-  if(it.sku === 'relic_dupe'){ const r = RELICS[EVENT_ELEMENT_RELIC[ev.element]]; return `<span class="shop-ic shop-relic">${r ? r.icon : ''}</span>`; }
+  if(it.sku === 'relic_dupe' || it.sku === 'relic_body'){ const r = RELICS[eventRelicOf(ev)]; return `<span class="shop-ic shop-relic">${r ? r.icon : ''}</span>`; }
   const mt = /^mat([1-4])$/.exec(it.sku);
   if(mt){ const m = eventSkillMats(ev); return `<span class="shop-ic">${itemIcon(matKey(m.el[0], m.el[1], Number(mt[1])))}</span>`; }
   const key = { gacha_char:'gacha_char', gacha_relic:'gacha_relic', box1:'box_sel_1', box2:'box_sel_2', box3:'box_sel_3', box4:'box_sel_4',
