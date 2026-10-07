@@ -1,0 +1,9 @@
+{
+ "note": "2026-10-07 に追加したモモタロウイベの立ち絵の対応(docs/提案資料/モモタロウイベ_実装指示書.md の2章)。tools/add_sprites.py tools/sprite_map_momotaro.json で取り込みずみ。サル・アカオニ・アオオニは指示書に絵の指定がないので、画像準備中の表示のまま。",
+ "map": {
+  "モモタロウ": { "file": "dreamina-2026-09-25-5290_transparent.png", "sprite": "171" },
+  "イヌ":       { "file": "dreamina-2026-09-25-5833_transparent.png", "sprite": "172" },
+  "キジ":       { "file": "dreamina-2026-09-25-5245_transparent.png", "sprite": "174" }
+ },
+ "missing": ["サル", "アカオニ", "アオオニ"]
+}
