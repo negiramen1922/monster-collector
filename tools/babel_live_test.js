@@ -1,7 +1,7 @@
-// バベルの本番側: 解放・初回報酬・2パーティ戦の流れ。
+// バベルの本番側: 解放・初回報酬・5階(ステージ効果)と10階(特殊ステージ)。
 // 使い方: node tools/babel_live_test.js
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__b={babelStage,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
+const api = load('game.js', s => s + ';global.__b={babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
 const B = global.__b;
 let bad = 0;
 const ok = (name, cond, info) => { bad += cond ? 0 : 1; console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
@@ -49,31 +49,39 @@ ok('2階が開く', B.stageUnlocked(B.findStage('bb_order_2')) && B.babelOpenFlo
 const c2 = api.STATE.crystals;
 ok('同じ階をもう一度勝っても報酬は出ない', fight('bb_order_1') === true && api.STATE.crystals === c2, api.STATE.crystals - c2);
 
-console.log('\n--- 4. 2パーティ戦 ---');
+console.log('\n--- 4. 5階(ステージ効果)と10階(特殊ステージ) ---');
 // 5階まで進める(2〜4階をクリア扱いにする)
 for(let f = 2; f <= 4; f++) api.STATE.clearedStages.push(B.babelLastId('order', f));
-ok('5階の前半は挑める', B.stageUnlocked(B.findStage('bb_order_5_0')));
-ok('5階の後半は前半に勝つまで挑めない', !B.stageUnlocked(B.findStage('bb_order_5_1')));
-put('ペルセウス・ユニコーン・カーバンクル・オルペウス・セラミックゴーレム');
+ok('5階に挑める', B.stageUnlocked(B.findStage('bb_order_5')));
+ok('5階にはステージ効果がある', B.findStage('bb_order_5').rules.length >= 3,
+   B.findStage('bb_order_5').rules.map(r => r.label));
+ok('1〜4階はステージ効果なし(塔の敵の底上げだけ)',
+   [1, 2, 3, 4].every(f => B.BABEL_FLOORS.order[f - 1].rules.length === 0));
+ok('6〜9階もステージ効果なし',
+   [6, 7, 8, 9].every(f => B.BABEL_FLOORS.order[f - 1].rules.length === 0));
 const c5 = api.STATE.crystals;
-ok('前半に勝てる', fight('bb_order_5_0') === true);
-ok('前半だけでは階のクリアにならない', !B.babelFloorCleared('order', 5));
-ok('前半だけでは星結晶は出ない', api.STATE.crystals === c5, api.STATE.crystals - c5);
-ok('後半が開く', B.stageUnlocked(B.findStage('bb_order_5_1')));
-ok('前半で出した子は後半に出せない', B.babelPartyProblem('order', 1).includes('前半で出した'), B.babelPartyProblem('order', 1));
-put('ユミル・アイスゴーレム・ウンディーネ・セイレーン・マーメイド');
-ok('別の5体なら後半に出せる', B.babelPartyProblem('order', 1) === '', B.babelPartyProblem('order', 1));
-ok('後半に勝てる', fight('bb_order_5_1') === true);
-ok('階のクリアになる', B.babelFloorCleared('order', 5));
+put('タイタン・ブロック・グリーンマン・ノッカー・ドリュアス');
+ok('5階に勝てる', fight('bb_order_5') === true);
 ok('星結晶が100もらえる', api.STATE.crystals - c5 === B.BABEL_CRYSTAL[4], api.STATE.crystals - c5);
 ok('ワザ素材の選択BOXももらえる', ((api.STATE.items || {}).box_sel_3 || 0) === 1, (api.STATE.items || {}).box_sel_3);
+
+for(let f = 6; f <= 9; f++) api.STATE.clearedStages.push(B.babelLastId('order', f));
+const st10 = B.findStage('bb_order_10');
+const boss = st10.waves[st10.waves.length - 1].filter(u => u.boss);
+ok('10階は最終WAVEにボスが1体', boss.length === 1, boss.map(u => B.MON_BY_ID[u.ref].name));
+ok('10階はボスだけが大きく強化される',
+   st10.rules.some(r => r.who && r.who.ref === boss[0].ref && r.stat && r.stat.hp >= 3),
+   st10.rules.map(r => r.label));
+ok('2パーティ戦はもう無い',
+   B.BABEL_TOWERS.every(t => B.BABEL_FLOORS[t.key].every(fl => !fl.halves)));
+ok('ステージIDに _0 / _1 が付かない', B.findStage('bb_order_10').id === 'bb_order_10');
 
 console.log('\n--- 5. 報酬の形 ---');
 ok('どの階も同じ(5階ごとだけ倍)', B.BABEL_CRYSTAL.filter(n => n === 50).length === 8 && B.BABEL_CRYSTAL.filter(n => n === 100).length === 2, B.BABEL_CRYSTAL);
 let crys = 0;
 for(const t of B.BABEL_TOWERS) for(let f = 1; f <= 10; f++) crys += B.BABEL_CRYSTAL[f - 1];
 ok('3塔の星結晶は1,800', crys === 1800, crys);
-ok('スタミナを使わない', B.findStage('bb_chaos_10_1').stamina === 0);
+ok('スタミナを使わない', B.findStage('bb_chaos_10').stamina === 0);
 ok('味方もLv200(ステージの推奨Lv)', B.findStage('bb_chaos_1').rec === B.BABEL_LV);
 
 console.log(bad ? 'NG' : 'すべて通過');

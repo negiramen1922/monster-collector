@@ -96,22 +96,30 @@ async def main():
                 txt: document.querySelector('.bb-head').innerText })""")
             check('開いている階は出撃できる', r['id'] and r['id']['startStage'] == 'bb_order_3', r)
 
-            # ---- 5. 2パーティ戦の表示 ----
+            # ---- 5. 5階(ステージ効果)と10階(特殊ステージ) ----
             await pg.evaluate("""() => { STATE.clearedStages.push('bb_order_3', 'bb_order_4'); babelPickFloor = 5; render(); }""")
             await pg.wait_for_timeout(300)
             r = await pg.evaluate("""() => ({ head: document.querySelector('.bb-head').innerText,
-                id: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset.startStage })""")
-            check('5階は「2パーティ戦・前半」から', '前半' in r['head'] and r['id'] == 'bb_order_5_0', r)
-            await pg.evaluate("""() => { STATE.clearedStages.push('bb_order_5_0');
-                STATE.babelUsed = { stage: 'bb_order_5_0', ids: ['m05', 'm56', 'm148'] }; render(); }""")
+                id: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset.startStage,
+                rules: document.querySelectorAll('.bb-rule').length })""")
+            check('5階は「ステージ効果」と出て、効果が並ぶ',
+                  'ステージ効果' in r['head'] and r['id'] == 'bb_order_5' and r['rules'] >= 3, r)
+            await pg.evaluate("() => { babelPickFloor = 3; render(); }"); await pg.wait_for_timeout(250)
+            r = await pg.evaluate("""() => ({ head: document.querySelector('.bb-head').innerText,
+                rules: document.querySelectorAll('.bb-rule').length })""")
+            check('ふつうの階は印なし・ステージ効果は塔の底上げだけ',
+                  'ステージ効果' not in r['head'] and '特殊' not in r['head'] and r['rules'] <= 1, r)
+            await pg.evaluate("""() => { for(let f = 5; f <= 9; f++) STATE.clearedStages.push('bb_order_' + f);
+                babelPickFloor = 10; render(); }""")
             await pg.wait_for_timeout(300)
             r = await pg.evaluate("""() => ({ head: document.querySelector('.bb-head').innerText,
                 id: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset.startStage,
-                warn: (document.querySelector('.bb-problem') || {}).textContent || '',
-                used: document.querySelectorAll('.bb-used img').length })""")
-            check('前半に勝つと後半になり、前半で出した子が使えないと出る',
-                  '後半' in r['head'] and r['id'] == 'bb_order_5_1' and '前半で出した' in r['warn'] and r['used'] == 3, r)
-            await pg.screenshot(path=str(OUT / 'babel_live_two.png'), full_page=True)
+                boss: document.querySelectorAll('.bb-en.boss').length })""")
+            check('10階は「特殊ステージ」と出て、ボスが1体',
+                  '特殊ステージ' in r['head'] and r['id'] == 'bb_order_10' and r['boss'] == 1, r)
+            check('ステージIDに _0 / _1 が付かない',
+                  await pg.evaluate("() => !document.querySelector('[data-start-stage$=\\'_0\\']')"))
+            await pg.screenshot(path=str(OUT / 'babel_live_boss.png'), full_page=True)
 
             check('JSエラーなし', not errs, errs[:3])
             await b.close()

@@ -64,19 +64,22 @@ async def main():
             r = await pg.evaluate("() => lab.sim.rows.flatMap(x => x.parts).filter(p => p.error).length")
             check('超上級でも連続テストが動く', r == 0, r)
             await pg.click('[data-lab="close"]')
-            # 2パーティ戦: 前半と後半に同じ子がいると戦えない
+            # 5階はステージ効果つき、10階はボス1体＋取り巻きの特殊ステージ
             await pg.click('[data-lab="tower:bal"]'); await pg.click('[data-lab="floor:5"]'); await pg.wait_for_timeout(150)
             await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(150)
-            r = await pg.evaluate("() => ({ halves: document.querySelectorAll('.lab-party').length, ok: labProblem(0) + '|' + labProblem(1), en: document.querySelectorAll('.lab-half').length })")
-            check('5階は前半・後半の2つの編成と、それぞれの敵が出る', r['halves'] == 2 and r['en'] == 2 and r['ok'] == '|', r)
-            dup = await pg.evaluate("() => { lab.parties[1][0] = { ...lab.parties[0][0] }; return labProblem(1); }")
-            check('前半と後半に同じモンスターがいると戦えない', '同じモンスター' in dup, dup)
-            await pg.evaluate("() => { labHint('win'); render(); }")
-            await pg.click('[data-lab="sim:20"]')
-            await pg.wait_for_function("() => lab.sim && lab.sim.done === 20 && !labSimming", timeout=90000)
-            r = await pg.evaluate("() => ({ parts: lab.sim.rows.map(x => x.parts.length), err: lab.sim.rows.flatMap(x => x.parts).filter(p => p.error).length })")
-            check('2パーティ戦の連続テストは、前半に勝ったら後半も戦う', r['err'] == 0 and max(r['parts']) <= 2, r)
-            await pg.screenshot(path=str(OUT / 'lab_2p.png'), full_page=True)
+            r = await pg.evaluate("""() => ({ parties: document.querySelectorAll('.lab-party').length,
+                ok: labProblem(0), rules: document.querySelectorAll('.lab-rules div').length })""")
+            check('5階は編成が1つで、ステージ効果が出る', r['parties'] == 1 and r['ok'] == '' and r['rules'] >= 3, r)
+            await pg.click('[data-lab="floor:3"]'); await pg.wait_for_timeout(200)
+            r = await pg.evaluate("() => document.querySelector('.lab-rules').innerText")
+            check('ふつうの階は「ステージ効果なし」と出る', 'ステージ効果なし' in r, r[:40])
+            await pg.click('[data-lab="floor:10"]'); await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(200)
+            r = await pg.evaluate("""() => { const st = babelStage(lab.tower, 10);
+                const last = st.waves[st.waves.length - 1];
+                return { boss: last.filter(u => u.boss).length, rules: st.rules.map(r => r.label) }; }""")
+            check('10階はボスが1体で、ボスだけ大きく強化される',
+                  r['boss'] == 1 and any('ボス' in x and '+300%' in x for x in r['rules']), r)
+            await pg.screenshot(path=str(OUT / 'lab_boss.png'), full_page=True)
             # 観戦: 戦闘画面になり、終わると結果 → 試験場に戻る
             await pg.click('[data-lab="floor:1"]'); await pg.wait_for_timeout(150)
             await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(150)
