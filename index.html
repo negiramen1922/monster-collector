@@ -3347,6 +3347,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .fr-momotaro{ --f1:#ff9ab8; --f2:#f2c14e; animation:frMomo 2.4s ease-in-out infinite;
   box-shadow:0 0 0 2.5px var(--f1), 0 0 0 5px var(--f2), 0 0 14px 3px var(--f1), 0 0 22px 4px rgba(242,193,78,.55); }
 @keyframes frMomo{ 0%,100%{ --f1:#ff9ab8; } 50%{ --f1:#fff0a8; } }
+/* フレイヤイベ(HELLの★3): 金の麦と若葉の緑がゆっくり入れ替わる派手な枠 */
+.fr-freyja{ --f1:#f2c14e; --f2:#7cc46a; animation:frFreyja 2.8s ease-in-out infinite;
+  box-shadow:0 0 0 2.5px var(--f1), 0 0 0 5px var(--f2), 0 0 14px 3px var(--f1), 0 0 22px 4px rgba(124,196,106,.5); }
+@keyframes frFreyja{ 0%,100%{ --f1:#f2c14e; } 50%{ --f1:#fff6c8; } }
 
 .fr-rainbow{ animation:frRainbow 4s linear infinite; }
 @keyframes frRainbow{
@@ -3771,6 +3775,7 @@ const ITEM_SVG_BODY = {
   medal_dark: '<circle cx="50" cy="50" r="33" fill="#6b4fa0" stroke="#2a1b47" stroke-width="6"/><circle cx="50" cy="50" r="13" fill="#1a1230"/><circle cx="50" cy="50" r="33" fill="none" stroke="#e8b455" stroke-width="3" opacity=".8"/>',
   medal_fire: '<circle cx="50" cy="50" r="33" fill="#f0864f" stroke="#7a2f1a" stroke-width="6"/><path d="M50 28c7 10 14 13 14 22a14 14 0 0 1-28 0c0-9 7-12 14-22z" fill="#ffe08a" stroke="#7a2f1a" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
   medal_grass: '<circle cx="50" cy="50" r="33" fill="#f2a6b8" stroke="#7a3a4a" stroke-width="6"/><path d="M50 30c12 4 18 14 14 26-3 9-10 12-14 14-4-2-11-5-14-14-4-12 2-22 14-26z" fill="#ffe0e8" stroke="#7a3a4a" stroke-width="4"/><path d="M50 30c4-6 10-8 16-6-3 6-9 8-16 6z" fill="#6fbf5a" stroke="#2f5a2a" stroke-width="3"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
+  medal_harvest: '<circle cx="50" cy="50" r="33" fill="#8fbf5a" stroke="#3a5a1a" stroke-width="6"/><path d="M50 74 V36" stroke="#6a4a12" stroke-width="4" stroke-linecap="round"/><g fill="#f2c14e" stroke="#6a4a12" stroke-width="2.5"><ellipse cx="50" cy="28" rx="5" ry="8"/><ellipse cx="42" cy="40" rx="5" ry="8" transform="rotate(-30 42 40)"/><ellipse cx="58" cy="40" rx="5" ry="8" transform="rotate(30 58 40)"/><ellipse cx="42" cy="54" rx="5" ry="8" transform="rotate(-30 42 54)"/><ellipse cx="58" cy="54" rx="5" ry="8" transform="rotate(30 58 54)"/></g><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
   medal_earth: '<circle cx="50" cy="50" r="33" fill="#d9a94e" stroke="#6b4a18" stroke-width="6"/><path d="M34 60l10-18 8 12 6-8 8 14z" fill="#6b4a18"/><circle cx="50" cy="50" r="33" fill="none" stroke="#fff3c4" stroke-width="3" opacity=".6"/>',
   scrap: '<path d="M22 60 L34 30 L52 38 L60 22 L78 34 L70 58 L54 52 L46 74 L30 68 Z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="50" r="7" fill="#5a5a68"/>',
   core: '<circle cx="50" cy="50" r="32" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="40" cy="40" r="9" fill="#ffffff" opacity=".65"/>',
@@ -3785,7 +3790,7 @@ const ITEM_SVG_BODY = {
   ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { medal_grass:'鬼ヶ島の桃印', medal_wind:'神狼の牙', medal_dark:'奈落の刻印', medal_fire:'狐火の灯', medal_earth:'巨神の金片', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
+const ITEM_ICON_LABEL = { medal_grass:'鬼ヶ島の桃印', medal_harvest:'豊穣の麦印', medal_wind:'神狼の牙', medal_dark:'奈落の刻印', medal_fire:'狐火の灯', medal_earth:'巨神の金片', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const RESONANCE_ICON = `<span class="item-ic">${ITEM_ICON.resonance}</span>`;
@@ -4209,6 +4214,45 @@ const EVENTS = [
     // 最終ウェーブはボス(モモタロウ)の後ろに固定で並べる(★は護衛と同じ t.star)。m88 = ウンディーネ(回復役)
     finalWave: ['m172', 'm173', 'm174', 'm88'],
     tiers: [
+      { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+      { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
+      { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+      { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+      { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+      { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1%
+      { lv: 300, star: 5, bossStar: 5, rate: 0.002    }, // 0.2%
+      { lv: 350, star: 5, bossStar: 6, rate: 0.005    }, // 0.5%
+      { lv: 400, star: 5, bossStar: 7, rate: 0.01     }, // 1%
+    ],
+  },
+  {
+    // フレイヤイベ(豊穣の女神)。中身の正は docs/提案資料/次回イベント案_フレイヤ.md。startAt まではどこにも出ない
+    // (試験場 ?lab=freyja では日付に関係なく遊べる)。開始・終了日時は仮(鬼ヶ島の翌日から、同じ終了)
+    key: 'ev_freyja',
+    econV2: true,
+    name: '豊穣の女神',
+    icon: UI_ICON.seed,
+    startAt: FREYJA_START_AT,
+    endAt: FREYJA_END_AT,
+    pickup: 'm177',
+    featured: ['m177', 'm178', 'm179'],   // 同時ピックアップの★4: フレイ・ヒルディスヴィーニ
+    stageName: '黄金のフォールクヴァング',
+    terrain: 'field',
+    element: 'earth',
+    relic: 'rel_golden_ear',   // 配布遺物(層の初回クリアでは配らず、イベントショップで売る)
+    story: '戦死者の半分を館に迎える女神フレイヤが、館に迎える戦士を選ぶため、腕を試してくる。',
+    waveSizes: [3, 3, 4, 4, 5],
+    escorts: ['m181', 'm182', 'm183', 'm184', 'm180', 'm56', 'm144', 'm52'],
+    // ゴブリンは出さない。エインヘリャルとワルキューレを中心に、北欧の小人・巨人・妖精と土の魔物
+    escortPools: [
+      { from: 1, list: ['m180', 'm47', 'm70', 'm134', 'm133', 'm91'] },                 // ★1〜2: エインヘリャル・コボルト・ジャッカロープ・マッドモール・ピクシー・ウィスプ
+      { from: 5, list: ['m180', 'm181', 'm183', 'm184', 'm51', 'm153', 'm154'] },       // ★2〜3: エインヘリャル・ヒルデ・スコグル・ゲンドゥル・ヒルジャイアント・ドリュアス・アルヴィス
+      { from: 8, list: ['m181', 'm182', 'm183', 'm184', 'm180', 'm56', 'm144', 'm52'] }, // ★3〜4: ヒルデ・ブリュンヒルド・スコグル・ゲンドゥル・エインヘリャル・ミノタウロス・ブロック・ユミル
+    ],
+    // 最終ウェーブはボス(フレイヤ)の後ろに固定で並べる(★は護衛と同じ t.star)。フレイ・ヒルディスヴィーニ・ヒルデ(剣)・スコグル(弓)
+    finalWave: ['m178', 'm179', 'm181', 'm183'],
+    tiers: [   // モモタロウイベ(鬼ヶ島)と同じ10段
       { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
       { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
       { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
@@ -10380,6 +10424,7 @@ const EVENT_MEDAL = {
   ev_kyubi:   { key:'medal_ev_kyubi',   name:'狐火の灯',   icon:'medal_fire' },
   ev_titan:   { key:'medal_ev_titan',   name:'巨神の金片', icon:'medal_earth' },
   ev_momotaro: { key:'medal_ev_momotaro', name:'鬼ヶ島の桃印', icon:'medal_grass' },
+  ev_freyja:   { key:'medal_ev_freyja',   name:'豊穣の麦印',   icon:'medal_harvest' },
 };
 function medalOf(ev){ return EVENT_MEDAL[typeof ev === 'string' ? ev : ev && ev.key] || null; }
 function medalRunGain(tier){ return 10 + 4 * tier; }          // 1層14 … 10層50
@@ -10752,6 +10797,7 @@ const EVENT_TITLES = {
   ev_titan:   { evName:'黄金の巨神', pickup:'m54', deep:'巨神砕き', star:'黄金掘り', ex:'試練越え' },
   // hell: HELL(4段目)を★3でクリアした称号。HELLのあるイベントは、イベントの枠(フレーム)もHELLの★3でもらう
   ev_momotaro: { evName:'鬼ヶ島の腕試し', pickup:'m171', deep:'鬼退治', star:'日本一の旗持ち', ex:'鬼ヶ島の勇者', hell:'鬼神越え' },
+  ev_freyja:   { evName:'豊穣の女神', pickup:'m177', deep:'館の客人', star:'黄金の戦士', ex:'選ばれし戦士', hell:'女神越え' },
 };
 /* ---- アイコンフレーム ----
    プロフィールのアイコンの周りの枠。条件を満たすと自動でもらえて(checkFrames)、STATE.frames に残る。
@@ -11000,7 +11046,47 @@ EVENT_EX.ex_momotaro = [
     ['m176:front', 'm175:front', 'm170:front', 'm118:back', 'm156:back'],
     ['m171:front', 'm172:front', 'm173:front', 'm174:back', 'm88:back']] },
 ];
+/* フレイヤイベのEX(EX1〜EX3＋HELL)。各段10体まで(フレイヤ / フレイ・ヒルディスヴィーニ / ブロック・ミノタウロス /
+   エインヘリャル・ヒルデ・ブリュンヒルド・スコグル・ゲンドゥル)。主役以外の★5は入れない。
+   ステージ効果は段ごとに足す形(EX1の4本は EVENT_EX_RULES.ex_freyja、EX2から上は t.rules)。数値は仮 */
+const FREYJA_EX2_RULES = [{ side:'enemy', stat:{ pdef:50 }, label:'敵 物理防御+50' }];
+const FREYJA_EX3_RULES = [...FREYJA_EX2_RULES,
+  { side:'ally', dmgDealt:0.3, whenTarget:'strDown', label:'攻撃力低下状態の敵へ 与ダメージ+30%' },
+  { side:'ally', dmgTaken:0.3, when:'notShielded', label:'味方 シールドがないとき 受けるダメージ+30%' }];
+const FREYJA_FINAL_WAVE = ['m177:back', 'm178:front', 'm179:front', 'm181:front', 'm183:back'];
+EVENT_EX.ex_freyja = [
+  { ex:1, lv:80, boss:6, mob:4, sk:8, waves:[
+    ['m180:front', 'm182:front', 'm184:back'],
+    ['m144:front', 'm56:front', 'm181:front', 'm183:back'],
+    FREYJA_FINAL_WAVE] },
+  { ex:2, lv:200, boss:8, mob:5, sk:10, rules: FREYJA_EX2_RULES, waves:[
+    ['m182:front', 'm180:front', 'm181:front', 'm184:back'],
+    ['m144:front', 'm56:front', 'm180:front', 'm183:back', 'm184:back'],
+    FREYJA_FINAL_WAVE] },
+  { ex:3, lv:300, boss:10, mob:6, sk:10, rules: FREYJA_EX3_RULES, waves:[
+    ['m144:front', 'm182:front', 'm56:front', 'm184:back'],
+    ['m182:front', 'm56:front', 'm180:front', 'm183:back', 'm184:back'],
+    FREYJA_FINAL_WAVE] },
+  { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,
+    rules:[...FREYJA_EX3_RULES,
+      { who:{ ref:'m177' }, side:'enemy', stat:{ str:0.5, hp:0.5 }, label:'HELL 敵のフレイヤ 攻撃力・HP+50%' },
+      { who:{ ref:'m178' }, side:'enemy', stat:{ str:0.5, hp:0.5 }, label:'HELL 敵のフレイ 攻撃力・HP+50%' }],
+    waves:[
+    ['m144:front', 'm182:front', 'm56:front', 'm184:back'],
+    ['m182:front', 'm56:front', 'm180:front', 'm183:back', 'm184:back'],
+    FREYJA_FINAL_WAVE] },
+];
 const EVENT_EX_RULES = {
+  ex_freyja: {
+    name: '黄金のフォールクヴァング',
+    lead: '戦士を選ぶ女神の野。土と光の者、神々とエルフが力を増す。上の段では、弱らせた敵を叩き、守りを切らさない戦い方が求められる。',
+    rules: [
+      { who:{ element:'earth' },     side:'ally', stat:{ str:0.25, hp:0.25 }, label:'土属性の味方 攻撃力・HP+25%' },
+      { who:{ element:'light' },     side:'ally', stat:{ str:0.25, hp:0.25 }, label:'光属性の味方 攻撃力・HP+25%' },
+      { who:{ species:'celestia' },  side:'ally', stat:{ str:0.25 },          label:'セレスティアの味方 攻撃力+25%' },
+      { who:{ species:'elf' },       side:'ally', stat:{ str:0.25 },          label:'エルフの味方 攻撃力+25%' },
+    ],
+  },
   ex_momotaro: {
     name: '鬼ヶ島',
     lead: '桃太郎一行の島。ヒュームとビーストが力を増し、鬼は硬いが、弱ったところを叩けば崩れる。',
@@ -16137,6 +16223,7 @@ const EVENT_THEME = {
   ev_kyubi:   { bg1:'#2a0a08', bg2:'#5a1a10', ray:'rgba(255,170,110,.16)', accent:'#ffb07a' },
   ev_titan:   { bg1:'#2a1e06', bg2:'#5a4212', ray:'rgba(255,220,130,.16)', accent:'#ffd98a' },
   ev_momotaro: { bg1:'#0a1e2a', bg2:'#2a5a4a', ray:'rgba(255,180,200,.16)', accent:'#ffb4c8' },
+  ev_freyja:   { bg1:'#1a1c08', bg2:'#4a5a1e', ray:'rgba(255,224,130,.16)', accent:'#ffe08a' },
 };
 function eventTheme(ev){
   return EVENT_THEME[ev.key] || { bg1:'#14121e', bg2:'#2a2640', ray:'rgba(255,255,255,.10)', accent: ELEM_COLOR[ev.element] || '#cfd4dc' };
