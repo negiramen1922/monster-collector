@@ -11047,7 +11047,7 @@ function buildEventExStages(ev){
       // (EX3だけ敵を硬くする、のような段差を作るため)
       rules: t.rules ? [...meta.rules, ...t.rules] : meta.rules,
       rulesLead: meta.lead,
-      desc: `期間限定・${exLabel(t)}(推奨Lv${t.lv})。${t.hell ? 'クリアできるものならしてみろ、の段。' : ''}特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.econV2 ? '。ほかの敵のソウルも出る' : ''}。`,
+      desc: `期間限定・${exLabel(t)}(推奨Lv${t.lv})。${t.hell ? '最も手ごわい、腕に覚えのある者のための段。' : ''}特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.econV2 ? '。ほかの敵のソウルも出る' : ''}。`,
       waves,
     };
   });
