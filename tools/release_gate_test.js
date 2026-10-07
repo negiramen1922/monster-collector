@@ -121,12 +121,14 @@ Date.now = realNow;
 if(pre.ticketErr || pre.selectErr) console.log('render error', pre.ticketErr, pre.selectErr);
 
 ok('公開前: ガチャ(★3〜★5を各1500回)に新キャラが出ない', !hasNew(pre.gacha));
-ok('公開後: ガチャに新キャラが出る', NEW.every(m => post.gacha.includes(m.id)), NEW.filter(m => !post.gacha.includes(m.id)).map(m => m.id));
+// ガチャと選択チケットは★3〜★5だけ(★2のエインヘリャル=フレイヤイベは対象外)
+const NEW3 = NEW.filter(m => m.rarity >= 3);
+ok('公開後: ガチャに新キャラが出る', NEW3.every(m => post.gacha.includes(m.id)), NEW3.filter(m => !post.gacha.includes(m.id)).map(m => m.id));
 ok('公開前: ビギナーガチャの★5確定枠に新キャラが出ない', pre.beginner.length > 0 && !hasNew(pre.beginner), pre.beginner.length);
 const new5 = NEW.filter(m => m.rarity === 5);
 ok('公開後: ビギナーガチャの★5確定枠に新★5が出る', new5.every(m => post.beginner.includes(m.id)));
 ok('公開前: 選択チケットに新キャラが出ない', pre.ticket.length > 0 && !hasNew(pre.ticket), pre.ticket.length);
-ok('公開後: 選択チケットに新キャラが出る', NEW.every(m => post.ticket.includes(m.id)));
+ok('公開後: 選択チケットに新キャラが出る', NEW3.every(m => post.ticket.includes(m.id)));
 ok('公開前: セレクトピックアップに新キャラ(★4/★5)が出ない', pre.select.length > 0 && !hasNew(pre.select), pre.select.length);
 ok('公開後: セレクトピックアップに新★4/★5が出る', NEW.filter(m => m.rarity >= 4).every(m => post.select.includes(m.id)));
 ok('公開前: 図鑑に新キャラが出ない', !hasNew(pre.dexPool) && !hasNew(pre.dexHtml));
