@@ -3168,6 +3168,23 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .lab-fl{ padding:7px 0; border-radius:9px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-weight:900; font-size:12px; cursor:pointer; line-height:1.1; }
 .lab-fl small{ display:block; font-size:8px; color:#5fd0c0; }
 .lab-fl.on{ border-color:var(--gold); color:var(--gold); background:#3a2a1a; }
+/* ---- バベルの塔(本番側。試験場と同じ部品を使い回す) ---- */
+.lab-fl.done{ border-color:rgba(92,171,82,.6); color:#79c96d; }
+.lab-fl.locked{ opacity:.4; }
+.bb-towers{ margin-bottom:6px; }
+.bb-towers .lab-tab small{ font-size:8.5px; line-height:1.25; }
+.bb-stage{ background:var(--panel2); border:1px solid var(--line); border-radius:13px; padding:10px 12px; margin:8px 0; }
+.bb-head{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13.5px; margin-bottom:2px; }
+.bb-rule{ font-size:11px; color:#9fd8ff; line-height:1.5; margin-top:2px; }
+.bb-wave{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:6px; }
+.bb-wave > small{ font-size:9px; color:var(--dim); font-weight:800; width:18px; flex:none; }
+.bb-en{ display:flex; align-items:center; gap:1px; font-size:8.5px; font-weight:700; color:var(--dim);
+  background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:1px 4px 1px 1px; }
+.bb-en img{ width:22px; height:22px; object-fit:contain; image-rendering:pixelated; }
+.bb-en.boss{ border-color:var(--gold); color:var(--gold); }
+.bb-used{ font-size:10.5px; color:var(--dim); margin:6px 0 2px; display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+.bb-used img{ width:26px; height:26px; object-fit:contain; image-rendering:pixelated; opacity:.5; }
+.bb-problem{ font-size:11px; color:#ff9a9a; margin:6px 0; display:flex; align-items:center; gap:4px; }
 .lab-title{ font-size:15px; font-weight:900; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .lab-2p{ font-size:10px; padding:2px 7px; border-radius:7px; background:rgba(95,208,192,.18); color:#5fd0c0; }
 .lab-meta{ font-size:10.5px; color:var(--dim); margin-top:4px; }
@@ -11007,6 +11024,73 @@ function showAbyssGiveUpConfirm(){
     </div>`;
   layer.classList.add('show');
 }
+/* ---------------- バベルの塔(本番側。いまは ?babel=1 のときだけ出る) ----------------
+   進捗は clearedStages にそのまま乗せる(ステージIDが bb_<塔>_<階> なので、
+   解放は requires、初回報酬は firstClear/reward という既存の仕組みがそのまま効く)。
+   2パーティ戦は前半(_0)に勝つと後半(_1)が開き、後半に勝った時点で階のクリア。 */
+let babelTower = 'bal';
+let babelPickFloor = 0;   // 0 なら「いま挑める階」
+function babelCurrentFloor(){
+  const open = babelOpenFloor(babelTower);
+  const f = babelPickFloor || Math.min(open, 10);
+  return Math.max(1, Math.min(10, f));
+}
+// 後半で使えないモンスター(前半で出した子)。前半に勝った時点で覚える
+function babelUsedIds(){ return (STATE.babelUsed && STATE.babelUsed.ids) || []; }
+function babelPartyProblem(towerKey, half){
+  const ids = getPartyIds();
+  if(!ids.length) return '編成にモンスターを入れてください';
+  const bad = ids.filter(id => id !== HELP_SLOT_ID && !babelAllowed(towerKey, id));
+  if(bad.length) return `この塔では使えないモンスターがいます(${bad.map(id => MON_BY_ID[id].name).join('・')})`;
+  if(ids.includes(HELP_SLOT_ID)) return 'バベルではお助けモンスターを使えません';
+  if(half === 1){
+    const dup = ids.filter(id => babelUsedIds().includes(id));
+    if(dup.length) return `前半で出した子は後半に出せません(${dup.map(id => MON_BY_ID[id].name).join('・')})`;
+  }
+  return '';
+}
+function renderBabelTab(){
+  const tower = BABEL_TOWERS.find(t => t.key === babelTower) || BABEL_TOWERS[0];
+  const floor = babelCurrentFloor();
+  const fl = BABEL_FLOORS[babelTower][floor - 1];
+  const two = !!fl.halves;
+  const cleared = babelFloorCleared(babelTower, floor);
+  // 2パーティ戦は、前半に勝っていれば後半から
+  const half = two && STATE.clearedStages.includes(`bb_${babelTower}_${floor}_0`) && !cleared ? 1 : 0;
+  const st = babelStage(babelTower, floor, half);
+  const open = babelOpenFloor(babelTower);
+  const locked = floor > open;
+  const problem = locked ? '' : babelPartyProblem(babelTower, half);
+  const done = [...Array(10).keys()].filter(i => babelFloorCleared(babelTower, i + 1)).length;
+  const enemyRow = st.waves.map((w, i) => `<div class="bb-wave"><small>W${i + 1}</small>${w.map(e => {
+    const m = MON_BY_ID[e.ref];
+    return `<span class="bb-en ${e.boss ? 'boss' : ''}"><img src="${imgSrc(m.id)}" alt="" draggable="false">${ELEM_ICON[m.element]}★${e.star}</span>`;
+  }).join('')}</div>`).join('');
+  return `
+    <div class="panel bb-card">
+      <div class="lab-tabs bb-towers">${BABEL_TOWERS.map(t => {
+        const n = [...Array(10).keys()].filter(i => babelFloorCleared(t.key, i + 1)).length;
+        return `<button class="lab-tab ${t.key === babelTower ? 'on' : ''}" data-babel="tower:${t.key}">${t.name}<small>${n}/10 ・ ${t.note}</small></button>`;
+      }).join('')}</div>
+      <div class="lab-floors bb-floors">${[...Array(10).keys()].map(i => {
+        const f = i + 1, c = babelFloorCleared(babelTower, f), lk = f > open;
+        return `<button class="lab-fl ${f === floor ? 'on' : ''} ${c ? 'done' : ''} ${lk ? 'locked' : ''}" data-babel="floor:${f}">${f}${BABEL_FLOORS[babelTower][i].halves ? '<small>2P</small>' : ''}</button>`;
+      }).join('')}</div>
+      <div class="screen-sub" style="margin:8px 0 4px;">スタミナを使いません。何度でも挑戦できます。報酬は<b>各階の初回クリアのみ</b>です(${done}/10階クリア)</div>
+      <div class="bb-stage">
+        <div class="bb-head"><b>${floor}階「${fl.name}」</b>${two ? `<span class="sr-rare">2パーティ戦${half ? '・後半' : '・前半'}</span>` : ''}${cleared ? '<span class="cleared-tag">✓ クリア済み</span>' : ''}</div>
+        <div class="ev-period">全員Lv${BABEL_LV}・使えるのは ${tower.allow ? tower.note : '全モンスター'}</div>
+        ${st.rules.map(r => `<div class="bb-rule">・${r.label}</div>`).join('')}
+        ${enemyRow}
+        <div class="ab-reward">${cleared ? '報酬は受け取り済み' : `初回クリア ${rewardHtml([{ type: 'crystal', n: BABEL_CRYSTAL[floor - 1] }, ...babelFloorReward(babelTower, floor)])}`}</div>
+      </div>
+      ${locked ? `<div class="screen-sub" style="text-align:center;margin:14px 0;">${open}階をクリアすると開きます</div>` : `
+        ${two && half === 1 ? `<div class="bb-used">前半で出した子は使えません: ${babelUsedIds().map(id => `<img src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}" draggable="false">`).join('') || 'なし'}</div>` : ''}
+        ${sortieFormationHtml()}
+        ${problem ? `<div class="bb-problem">${UI_ICON.warn} ${problem}</div>` : ''}
+        <button class="btn btn-block" data-start-stage="${st.id}" ${problem ? 'disabled' : ''}>${floor}階${two ? (half ? 'の後半' : 'の前半') : ''}に挑戦する</button>`}
+    </div>`;
+}
 function renderAbyssTab(){
   if(!abyssUnlocked()) return `<div class="screen-sub" style="margin:28px 0;text-align:center;">上級「${STAGE_BY_ID[ABYSS_UNLOCK_STAGE].name}」をクリアすると挑戦できます</div>`;
   const a = ensureAbyss();
@@ -15547,13 +15631,17 @@ function renderParty(){
 
 // 探索画面: 'menu' は4つのメニュー(メインクエスト/育成クエスト/深淵回廊/イベント)を並べた入口
 let stageTab = 'menu';
+/* バベルの塔は作りかけなので、ふつうに開いたときは出さない。
+   index.html?babel=1 で開いたときだけ探索メニューに出る(開発者用) */
+const BABEL_DEV = typeof location !== 'undefined' && /[?&]babel=1\b/.test(location.search || '');
 const EXPLORE_MENU = [
   { key: 'main', mon: 'm129', label: 'メインクエスト', sub: 'ストーリーを進めて新しい地域へ' },    // ヒノコ
   { key: 'dungeon', mon: 'm86', label: '育成クエスト', sub: 'EXP・ゴールド・ワザ強化素材を集める' },  // ハノコ
   { key: 'abyss', mon: 'm149', label: '深淵回廊', sub: 'スタミナ不要・2週間ごとにリセット' },     // アヌビス(門番)
   { key: 'event', mon: null, label: 'イベント', sub: '期間限定のステージ' },                     // 開催中イベントのモンスターからランダム
   { key: 'pvp', mon: 'm05', label: 'PVP', sub: 'ほかのプレイヤーの防衛編成と戦う' },             // シルバーナイト
-];
+  { key: 'babel', mon: 'm140', label: 'バベルの塔', sub: 'Lv200固定・スタミナ不要。編成で攻略する', dev: true },  // タロース
+].filter(t => !t.dev || BABEL_DEV);
 // イベントの顔は開催中イベントのモンスターから1体を選び、画面を描き直すたびに変わらないよう覚えておく
 let exploreEventMon = null;
 function exploreMenuMon(t){
@@ -15578,6 +15666,7 @@ function maybeRuneGuide(){
 // 遊んだステージがどのメニューのものか(戦闘のあとにそのメニューへ戻るため)
 function stageTabOf(stage){
   if(!stage) return 'main';
+  if(stage.type === 'babel') return 'babel';
   if(stage.type === 'abyss') return 'abyss';
   if(stage.type === 'dungeon') return 'dungeon';
   if(stage.type === 'event') return 'event';
@@ -15999,7 +16088,7 @@ function renderBattleSelect(){
     </div>
     ${stageTab === 'menu' ? `<div class="explore-tabs">
       ${EXPLORE_MENU.map(t => {
-        const open = t.key === 'abyss' ? abyssUnlocked() : t.key === 'main' || tutorialCleared();
+        const open = t.key === 'abyss' ? abyssUnlocked() : t.key === 'main' || tutorialCleared();   // バベルはチュートリアル後
         const badge = t.key === 'event' && evCount ? `${UI_ICON.fire}${evCount}` : '';
         const sub = t.key === 'abyss' && !open ? '上級をクリアすると解放' : t.key === 'event' && !evCount ? '開催中のイベントはありません' : t.sub;
         return `<button class="stage-tab ${open ? '' : 'locked'}" data-stage-tab="${t.key}">
@@ -16008,6 +16097,7 @@ function renderBattleSelect(){
     </div>` : ''}
     ${stageTab === 'event' ? renderEventTab() : ''}
     ${stageTab === 'abyss' ? renderAbyssTab() : ''}
+    ${stageTab === 'babel' ? renderBabelTab() : ''}
     ${stageTab === 'dungeon' ? renderDungeons() : ''}
     ${stageTab === 'main' ? `
     <div class="tier-tabs" role="tablist">
@@ -16685,6 +16775,41 @@ const BABEL_FLOORS = {
       lose: [2, { a: 'アバドン・雷電・死神・デュラハン・フェンリル', b: '九尾の狐・メデューサ・バンシー・ゲヘナの騎士・シームルグ' }] },
   ],
 };
+/* バベルの報酬(初回クリアのみ・リセットなし)。星結晶は1塔660・3塔で1,980。
+   メインクエスト1本(10ステージ)が440なので、30階でその4.5本ぶん。
+   塔ごとの素材は性格に合わせて分ける(均衡=育てる / 秩序=遺物 / 混沌=ソウル) */
+const BABEL_CRYSTAL = [30, 30, 30, 30, 100, 60, 60, 60, 60, 200];
+const BABEL_TOWER_MAT = {
+  bal:   { s: [{ type: 'item', key: 'exp2', n: 3 }],         m: [{ type: 'item', key: 'exp3', n: 2 }],
+           l: [{ type: 'item', key: 'exp3', n: 5 }] },
+  order: { s: [{ type: 'item', key: 'relic_core_1', n: 2 }], m: [{ type: 'item', key: 'relic_core_2', n: 2 }],
+           l: [{ type: 'item', key: 'relic_core_3', n: 2 }, { type: 'resonance', n: 30 }] },
+  chaos: { s: [{ type: 'universal', n: 20 }],                m: [{ type: 'universal', n: 40 }],
+           l: [{ type: 'universal', n: 100 }] },
+};
+function babelFloorReward(towerKey, floorNo){
+  const mat = BABEL_TOWER_MAT[towerKey] || BABEL_TOWER_MAT.bal;
+  const out = [];
+  if(floorNo === 2 || floorNo === 4) out.push(...mat.s);
+  if(floorNo === 7 || floorNo === 9) out.push(...mat.m);
+  if(floorNo === 5) out.push({ type: 'item', key: 'box_sel_3', n: 1 });
+  if(floorNo === 10) out.push({ type: 'item', key: 'box_sel_4', n: 1 }, ...mat.l);
+  return out;
+}
+// その階を「クリアした」とみなすステージのID(2パーティ戦は後半に勝ったとき)
+function babelLastId(towerKey, floorNo){
+  const fl = BABEL_FLOORS[towerKey] && BABEL_FLOORS[towerKey][floorNo - 1];
+  return fl ? `bb_${towerKey}_${floorNo}${fl.halves ? '_1' : ''}` : null;
+}
+function babelFloorCleared(towerKey, floorNo){
+  const id = babelLastId(towerKey, floorNo);
+  return !!id && STATE.clearedStages.includes(id);
+}
+// いま挑める階(1階から順に、前の階をクリアすると次が開く)
+function babelOpenFloor(towerKey){
+  for(let f = 1; f <= 10; f++) if(!babelFloorCleared(towerKey, f)) return f;
+  return 11;
+}
 const MON_BY_NAME = Object.fromEntries(MONSTERS.map(m => [m.name, m.id]));
 function bbIds(text){
   return String(text).split('・').map(n => { const id = MON_BY_NAME[n]; if(!id) console.warn('babel: unknown monster', n); return id; }).filter(Boolean);
@@ -16704,6 +16829,12 @@ function babelStage(towerKey, floorNo, half){
   return {
     id: `bb_${towerKey}_${floorNo}${fl.halves ? `_${half || 0}` : ''}`, type: 'babel', tier: 'babel', babel: { tower: towerKey, floor: floorNo, half: fl.halves ? (half || 0) : null },
     name: `${tower.name} ${floorNo}階「${fl.name}」${fl.halves ? `・${part.label}` : ''}`,
+    // 前の階をクリアすると開く。2パーティ戦の後半は前半に勝ってから
+    requires: fl.halves && half === 1 ? `bb_${towerKey}_${floorNo}_0`
+      : floorNo > 1 ? babelLastId(towerKey, floorNo - 1) : null,
+    // 報酬は階の最後(2パーティ戦なら後半)にだけ付ける
+    firstClear: (!fl.halves || half === 1) ? BABEL_CRYSTAL[floorNo - 1] : 0,
+    reward: (!fl.halves || half === 1) ? babelFloorReward(towerKey, floorNo) : [],
     rec: BABEL_LV, flatLv: true, stamina: 0, power: 1, enemySkill: sk, boss: true, gold: 0,
     rules: [...(fl.rules || []), ...((fl.halves && part.rules) || []), ...babelBoostRules(part.boost || fl.boost)], waves,
   };
@@ -16902,6 +17033,10 @@ function startBattle(stageId, opts){
     if(!abyssUnlocked()){ toast('上級をクリアすると挑戦できます'); return; }
     if(stage.floor !== ensureAbyss().floor){ toast(`${ensureAbyss().floor}階から挑戦できます`); return; }
   }
+  if(stage.type === 'babel'){
+    const ng = babelPartyProblem(stage.babel.tower, stage.babel.half);
+    if(ng){ toast(ng); return; }
+  }
   const cost = stageStaminaCost(stage);
   if(!spendStamina(cost)){ toast(`スタミナが足りません(必要 ${cost})`); return; }
   track('staminaUsed', cost);
@@ -16919,7 +17054,7 @@ function startBattle(stageId, opts){
     if(!id) return;
     const m = MON_BY_ID[id];
     const owned = slotOwnedLike(id);
-    const u = buildUnit(m, 1, false, owned.star, false, owned.level, {
+    const u = buildUnit(m, 1, false, owned.star, false, stage.type === 'babel' ? BABEL_LV : owned.level, {
       skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
     });
     u.slot = i;
@@ -20493,6 +20628,10 @@ function grantStageRewards(stage, spawned, party, opts){
     STATE.clearedStages.push(stage.id);
     [...(stage.bossReward || []), ...(stage.reward || [])].forEach(r => { grantRewards([r]); firstItems.push(r); });
   }
+  // バベルの2パーティ戦: 前半に勝ったら、出した子を覚えて後半で出せないようにする
+  // (party は周回から呼ばれたときしか入らないので、編成そのものを見る)
+  if(stage.type === 'babel' && stage.babel.half === 0)
+    STATE.babelUsed = { stage: stage.id, ids: getPartyIds() };
   // イベントメダル。周回でもらえるぶんにはイベントボーナスが乗る。EXステージでは出ない
   const medalGot = grantEventMedal(stage, firstTime, party);
   trackEventClear(stage);
@@ -21605,6 +21744,13 @@ function handlePhoneClick(ev){
   if(t.closest('[data-abyss-giveup]')){ showAbyssGiveUpConfirm(); return; }
   if(t.closest('[data-abyss-giveup-ok]')){ closeModal(); if(abyssGiveUp()){ toast(`${ensureAbyss().floor}階からやり直します。HPは全回復しました`); render(); } return; }
   if(t.closest('[data-abyss-chart-more]')){ abyssChartMore += 50; render(); return; }
+  const bbEl = t.closest('[data-babel]');
+  if(bbEl){
+    const [k, v] = bbEl.dataset.babel.split(':');
+    if(k === 'tower'){ babelTower = v; babelPickFloor = 0; }
+    else babelPickFloor = Number(v);
+    playSfx('tap'); render(); return;
+  }
   const tabEl = t.closest('[data-stage-tab]');
   if(tabEl){
     const tab = tabEl.dataset.stageTab;
