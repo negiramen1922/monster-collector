@@ -36,17 +36,17 @@ async def main():
             check('20回まわすと勝率が出る(エラーなし)', not r['err'] and r['rate'] and r['screen'] == 'lab', r)
             check('本番のセーブには何も書かない', r['saved'] is None, r)
             await pg.screenshot(path=str(OUT / 'lab_sim.png'), full_page=True)
-            # 陽の塔: 使えないモンスターは選べない・編成にいたら警告
-            await pg.click('[data-lab="tower:yo"]'); await pg.wait_for_timeout(200)
+            # 秩序の塔: その塔の種族でないモンスターは選べない・編成にいたら警告
+            await pg.click('[data-lab="tower:order"]'); await pg.wait_for_timeout(200)
             await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(200)
             await pg.click('[data-lab="pick:0:0"]'); await pg.wait_for_timeout(200)
-            r = await pg.evaluate("""() => ({ dis: document.querySelector('[data-lab="set:m61"]').disabled, ok: document.querySelector('[data-lab="set:m15"]').disabled,
+            r = await pg.evaluate("""() => ({ dis: document.querySelector('[data-lab="set:m61"]').disabled, ok: document.querySelector('[data-lab="set:m05"]').disabled,
               editor: !!document.querySelector('.lab-editor') })""")
-            check('陽の塔では水属性(イエティ)は選べず、無属性(グリズリー)は選べる', r['editor'] and r['dis'] and not r['ok'], r)
-            await pg.click('[data-lab="set:m15"]'); await pg.wait_for_timeout(150)
+            check('秩序の塔ではビースト(イエティ)は選べず、マキナ(シルバーナイト)は選べる', r['editor'] and r['dis'] and not r['ok'], r)
+            await pg.click('[data-lab="set:m05"]'); await pg.wait_for_timeout(150)
             await pg.click('[data-lab="adj:star:1"]'); await pg.click('[data-lab="adj:sk:1"]'); await pg.click('[data-lab="adj:rune:1"]'); await pg.wait_for_timeout(150)
             r = await pg.evaluate("() => lab.parties[0][0]")
-            check('モンスターを入れ替えて、★・スキルLv・ルーンを1つずつ変えられる', r['id'] == 'm15' and r['star'] >= 4 and r['sk'] >= 2 and r['rune'] >= 1, r)
+            check('モンスターを入れ替えて、★・スキルLv・ルーンを1つずつ変えられる', r['id'] == 'm05' and r['star'] >= 4 and r['sk'] >= 2 and r['rune'] >= 1, r)
             await pg.screenshot(path=str(OUT / 'lab_editor.png'), full_page=True)
             # 超上級: ★10・スキルLv12・ルーンⅩ・遺物カンスト(合う遺物を自動で)
             await pg.click('[data-lab="grow:3"]'); await pg.wait_for_timeout(200)
@@ -65,7 +65,7 @@ async def main():
             check('超上級でも連続テストが動く', r == 0, r)
             await pg.click('[data-lab="close"]')
             # 2パーティ戦: 前半と後半に同じ子がいると戦えない
-            await pg.click('[data-lab="tower:ten"]'); await pg.click('[data-lab="floor:5"]'); await pg.wait_for_timeout(150)
+            await pg.click('[data-lab="tower:bal"]'); await pg.click('[data-lab="floor:5"]'); await pg.wait_for_timeout(150)
             await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(150)
             r = await pg.evaluate("() => ({ halves: document.querySelectorAll('.lab-party').length, ok: labProblem(0) + '|' + labProblem(1), en: document.querySelectorAll('.lab-half').length })")
             check('5階は前半・後半の2つの編成と、それぞれの敵が出る', r['halves'] == 2 and r['en'] == 2 and r['ok'] == '|', r)
