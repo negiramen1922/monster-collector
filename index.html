@@ -16775,25 +16775,23 @@ const BABEL_FLOORS = {
       lose: [2, { a: 'アバドン・雷電・死神・デュラハン・フェンリル', b: '九尾の狐・メデューサ・バンシー・ゲヘナの騎士・シームルグ' }] },
   ],
 };
-/* バベルの報酬(初回クリアのみ・リセットなし)。星結晶は1塔660・3塔で1,980。
-   メインクエスト1本(10ステージ)が440なので、30階でその4.5本ぶん。
+/* バベルの報酬(初回クリアのみ・リセットなし)。
+   階が進むほど報酬を大きくすると、後半が「やらないと損」になって重くなるので、
+   どの階も同じにした。5階ごと(2パーティ戦の階)だけ倍にしている。
+   星結晶は1塔600・3塔で1,800。メインクエスト1本(10ステージ)が440なので、30階で4本ぶん。
    塔ごとの素材は性格に合わせて分ける(均衡=育てる / 秩序=遺物 / 混沌=ソウル) */
-const BABEL_CRYSTAL = [30, 30, 30, 30, 100, 60, 60, 60, 60, 200];
+const BABEL_CRYSTAL = [50, 50, 50, 50, 100, 50, 50, 50, 50, 100];
 const BABEL_TOWER_MAT = {
-  bal:   { s: [{ type: 'item', key: 'exp2', n: 3 }],         m: [{ type: 'item', key: 'exp3', n: 2 }],
-           l: [{ type: 'item', key: 'exp3', n: 5 }] },
-  order: { s: [{ type: 'item', key: 'relic_core_1', n: 2 }], m: [{ type: 'item', key: 'relic_core_2', n: 2 }],
-           l: [{ type: 'item', key: 'relic_core_3', n: 2 }, { type: 'resonance', n: 30 }] },
-  chaos: { s: [{ type: 'universal', n: 20 }],                m: [{ type: 'universal', n: 40 }],
-           l: [{ type: 'universal', n: 100 }] },
+  bal:   { s: [{ type: 'item', key: 'exp2', n: 2 }],         m: [{ type: 'item', key: 'exp3', n: 3 }] },
+  order: { s: [{ type: 'item', key: 'relic_core_1', n: 2 }], m: [{ type: 'item', key: 'relic_core_2', n: 3 }] },
+  chaos: { s: [{ type: 'universal', n: 20 }],                m: [{ type: 'universal', n: 60 }] },
 };
 function babelFloorReward(towerKey, floorNo){
   const mat = BABEL_TOWER_MAT[towerKey] || BABEL_TOWER_MAT.bal;
   const out = [];
-  if(floorNo === 2 || floorNo === 4) out.push(...mat.s);
-  if(floorNo === 7 || floorNo === 9) out.push(...mat.m);
-  if(floorNo === 5) out.push({ type: 'item', key: 'box_sel_3', n: 1 });
-  if(floorNo === 10) out.push({ type: 'item', key: 'box_sel_4', n: 1 }, ...mat.l);
+  // ふつうの階は偶数階に素材が少し。5階ごとはワザ素材のBOXと、塔ごとの素材
+  if(floorNo % 5 !== 0 && floorNo % 2 === 0) out.push(...mat.s);
+  if(floorNo % 5 === 0) out.push({ type: 'item', key: floorNo === 10 ? 'box_sel_4' : 'box_sel_3', n: 1 }, ...mat.m);
   return out;
 }
 // その階を「クリアした」とみなすステージのID(2パーティ戦は後半に勝ったとき)

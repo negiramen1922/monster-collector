@@ -15,7 +15,18 @@ function fresh(){
   B.MONSTERS.forEach(m => { api.STATE.owned[m.id] = { star: 10, souls: 0, level: 200, skillLv: 12, ultLv: 12, passiveLv: 12, skill2Lv: 12 }; });
 }
 const put = names => { api.STATE.slots = [null, null, null, null, null, null]; names.split('・').forEach((n, i) => { api.STATE.slots[i] = B.MON_BY_NAME[n]; }); };
-function fight(id){ api.resetQueue(); B.startBattle(id, { skipIntro: true }); if(!B.battleUI) return null; api.drainQueue(); return B.battleUI.win; }
+/* 仕組みの確認が目的なので、勝つまでやり直す(バベルはスタミナを使わないので本番でも同じことができる)。
+   階ごとの勝率は babel_sim.js の担当。ここで1回の勝敗を見ると、たまたま負けてテストが落ちる */
+function fight(id, tries){
+  for(let k = 0; k < (tries || 20); k++){
+    api.resetQueue();
+    B.startBattle(id, { skipIntro: true });
+    if(!B.battleUI) return null;   // 出撃できていない(解放されていない等)
+    api.drainQueue();
+    if(B.battleUI.win) return true;
+  }
+  return false;
+}
 
 fresh();
 console.log('--- 1. 解放 ---');
@@ -33,7 +44,7 @@ console.log('\n--- 3. 初回クリアの報酬と解放 ---');
 const before = { c: api.STATE.crystals, exp2: (api.STATE.items || {}).exp2 || 0 };
 ok('1階に勝てる', fight('bb_order_1') === true);
 ok('クリアが記録される', B.babelFloorCleared('order', 1));
-ok('星結晶が30もらえる', api.STATE.crystals - before.c === B.BABEL_CRYSTAL[0], api.STATE.crystals - before.c);
+ok('星結晶が50もらえる', api.STATE.crystals - before.c === B.BABEL_CRYSTAL[0], api.STATE.crystals - before.c);
 ok('2階が開く', B.stageUnlocked(B.findStage('bb_order_2')) && B.babelOpenFloor('order') === 2);
 const c2 = api.STATE.crystals;
 ok('同じ階をもう一度勝っても報酬は出ない', fight('bb_order_1') === true && api.STATE.crystals === c2, api.STATE.crystals - c2);
@@ -57,10 +68,11 @@ ok('階のクリアになる', B.babelFloorCleared('order', 5));
 ok('星結晶が100もらえる', api.STATE.crystals - c5 === B.BABEL_CRYSTAL[4], api.STATE.crystals - c5);
 ok('ワザ素材の選択BOXももらえる', ((api.STATE.items || {}).box_sel_3 || 0) === 1, (api.STATE.items || {}).box_sel_3);
 
-console.log('\n--- 5. 報酬の合計 ---');
+console.log('\n--- 5. 報酬の形 ---');
+ok('どの階も同じ(5階ごとだけ倍)', B.BABEL_CRYSTAL.filter(n => n === 50).length === 8 && B.BABEL_CRYSTAL.filter(n => n === 100).length === 2, B.BABEL_CRYSTAL);
 let crys = 0;
 for(const t of B.BABEL_TOWERS) for(let f = 1; f <= 10; f++) crys += B.BABEL_CRYSTAL[f - 1];
-ok('3塔の星結晶は1,980', crys === 1980, crys);
+ok('3塔の星結晶は1,800', crys === 1800, crys);
 ok('スタミナを使わない', B.findStage('bb_chaos_10_1').stamina === 0);
 ok('味方もLv200(ステージの推奨Lv)', B.findStage('bb_chaos_1').rec === B.BABEL_LV);
 
