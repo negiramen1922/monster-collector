@@ -16569,7 +16569,7 @@ const BABEL_FLOORS = {
     { name: '焦熱の間', boost: { hp: 1.5, str: 0.9 }, rules: [{ side: 'ally', dmgDealt: 2.0, whenTarget: 'burned', label: '味方 やけど状態の敵へ 与ダメージ+200%' }, { who: { element: 'fire' }, side: 'ally', immune: ['burn'], stat: { str: 1.0, hp: 0.5 }, label: '火属性の味方 やけどにかからない・STR+100%・最大HP+50%' }, { side: 'enemy', dmgTaken: -0.8, when: 'unburned', label: '敵 やけど状態でないあいだ 受けるダメージ-80%' }],
       waves: ['ヒノコ・鬼火・フレイムリザード', 'ヘルハウンド・ボルケイノタートル・アグニ', 'スルト・キマイラ・サラマンダー'],
       win: [1, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・ブルーウィスプ'], lose: [2, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・ブルーウィスプ'] },
-    { name: '双子の門', boost: { hp: 1.1, str: 0.66 }, halves: [
+    { name: '双子の門', boost: { hp: 0.95, str: 0.57 }, halves: [
         { label: '前半(闇)', rules: [bbElem('light', 'dmgDealt', 1.0, '光属性の味方 与ダメージ+100%')], waves: ['スケルトン戦士・マミー・ヴェノムスライム・猫又', 'デュラハン・レッドキャップ・バンシー'] },
         { label: '後半(光)', rules: [bbElem('dark', 'dmgDealt', 1.0, '闇属性の味方 与ダメージ+100%')], waves: ['スカラベ・ウィスプ・ピクシー・ホーリースライム', 'ユニコーン・ムーンラビット・エオス'] }],
       win: [1, { a: 'エオス・ファラオ・ムーンラビット・シルバーナイト・ケンタウロス', b: 'バンシー・のっぺらぼう・サキュバス・スカーボア・レッドキャップ' }],
@@ -16678,8 +16678,8 @@ const BABEL_FLOORS = {
       waves: ['シルバーナイト・ガーゴイル・ロックゴーレム', 'アイスゴーレム・マグマゴーレム・ミスリルゴーレム・スカラベ', 'タイタン・タロース・ノーム'],
       win: [1, 'のっぺらぼう・サキュバス・猫又・ムーンラビット・キョンシー'],
       lose: [2, 'グリズリー・ヘルハウンド・イエティ・メリュジーヌ・シームルグ'] },
-    { name: '魔王の座', boost: { hp: 1.8, str: 1.08 }, halves: [
-        { label: '前半(癒やしの輪)', rules: [{ who: { role: 'shooter' }, side: 'ally', dmgDealt: 1.5, label: 'シューターの味方 与ダメージ+150%' }, { who: { roles: ['tank', 'attacker', 'support', 'trickster'] }, side: 'ally', dmgDealt: -0.7, label: 'シューター以外の味方 与ダメージ-70%' }, { who: { role: 'support' }, side: 'enemy', stat: { hp: 1.0 }, label: '敵のサポート 最大HP+100%' }], waves: ['ピクシー・ノッカー・ハノコ・マイコニド', 'オルペウス・ユニコーン・ウンディーネ'] },
+    { name: '魔王の座', boost: { hp: 1.6, str: 0.96 }, halves: [
+        { label: '前半(癒やしの輪)', rules: [{ who: { role: 'shooter' }, side: 'ally', dmgDealt: 1.5, label: 'シューターの味方 与ダメージ+150%' }, { who: { roles: ['tank', 'attacker', 'support', 'trickster'] }, side: 'ally', dmgDealt: -0.88, label: 'シューター以外の味方 与ダメージ-88%' }, { who: { role: 'support' }, side: 'enemy', stat: { hp: 1.0 }, label: '敵のサポート 最大HP+100%' }], waves: ['ピクシー・ノッカー・ハノコ・マイコニド', 'オルペウス・ユニコーン・ウンディーネ'] },
         { label: '後半(ボス1体)', rules: [{ who: { role: 'attacker' }, side: 'ally', stat: { str: 2.0 }, label: 'アタッカーの味方 STR+200%' }, { who: { roles: ['tank', 'support', 'shooter', 'trickster'] }, side: 'ally', dmgDealt: -0.8, label: 'アタッカー以外の味方 与ダメージ-80%' }], waves: ['タロース・グリーンマン・ノーム', 'タイタン'] }],
       win: [1, { a: '九尾の狐・メデューサ・バンシー・ゲヘナの騎士・シームルグ', b: 'アバドン・雷電・死神・デュラハン・フェンリル' }],
       lose: [2, { a: 'アバドン・雷電・死神・デュラハン・フェンリル', b: '九尾の狐・メデューサ・バンシー・ゲヘナの騎士・シームルグ' }] },
