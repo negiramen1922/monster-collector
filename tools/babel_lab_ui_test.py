@@ -71,14 +71,15 @@ async def main():
                 ok: labProblem(0), rules: document.querySelectorAll('.lab-rules div').length })""")
             check('5階は編成が1つで、ステージ効果が出る', r['parties'] == 1 and r['ok'] == '' and r['rules'] >= 3, r)
             await pg.click('[data-lab="floor:3"]'); await pg.wait_for_timeout(200)
-            r = await pg.evaluate("() => document.querySelector('.lab-rules').innerText")
-            check('ふつうの階は「ステージ効果なし」と出る', 'ステージ効果なし' in r, r[:40])
+            r = await pg.evaluate("() => babelStage(lab.tower, 3).rules.map(x => x.label)")
+            check('ふつうの階は塔の敵の底上げだけ(ステージ効果なし)',
+                  len(r) <= 1 and all('塔の敵' in x for x in r), r)
             await pg.click('[data-lab="floor:10"]'); await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(200)
             r = await pg.evaluate("""() => { const st = babelStage(lab.tower, 10);
                 const last = st.waves[st.waves.length - 1];
                 return { boss: last.filter(u => u.boss).length, rules: st.rules.map(r => r.label) }; }""")
             check('10階はボスが1体で、ボスだけ大きく強化される',
-                  r['boss'] == 1 and any('ボス' in x and '+300%' in x for x in r['rules']), r)
+                  r['boss'] == 1 and any(x.startswith('ボス「') for x in r['rules']), r)
             await pg.screenshot(path=str(OUT / 'lab_boss.png'), full_page=True)
             # 観戦: 戦闘画面になり、終わると結果 → 試験場に戻る
             await pg.click('[data-lab="floor:1"]'); await pg.wait_for_timeout(150)

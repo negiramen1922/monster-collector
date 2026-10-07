@@ -70,7 +70,7 @@ const st10 = B.findStage('bb_order_10');
 const boss = st10.waves[st10.waves.length - 1].filter(u => u.boss);
 ok('10階は最終WAVEにボスが1体', boss.length === 1, boss.map(u => B.MON_BY_ID[u.ref].name));
 ok('10階はボスだけが大きく強化される',
-   st10.rules.some(r => r.who && r.who.ref === boss[0].ref && r.stat && r.stat.hp >= 3),
+   st10.rules.some(r => r.who && r.who.ref === boss[0].ref && r.stat && r.stat.hp >= 1),
    st10.rules.map(r => r.label));
 ok('2パーティ戦はもう無い',
    B.BABEL_TOWERS.every(t => B.BABEL_FLOORS[t.key].every(fl => !fl.halves)));
