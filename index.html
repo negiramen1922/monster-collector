@@ -3326,6 +3326,11 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .fr-titan{ --f1:#e8b04a; --f2:#6b4a1a; }
 .fr-fenrir{ --f1:#5fe0c8; --f2:#e0f8ff; }
 .fr-abaddon{ --f1:#b07cff; --f2:#3a0a3a; }
+/* モモタロウイベ(HELLの★3): 桃色と金がゆっくり入れ替わる派手な枠 */
+.fr-momotaro{ --f1:#ff9ab8; --f2:#f2c14e; animation:frMomo 2.4s ease-in-out infinite;
+  box-shadow:0 0 0 2.5px var(--f1), 0 0 0 5px var(--f2), 0 0 14px 3px var(--f1), 0 0 22px 4px rgba(242,193,78,.55); }
+@keyframes frMomo{ 0%,100%{ --f1:#ff9ab8; } 50%{ --f1:#fff0a8; } }
+
 .fr-rainbow{ animation:frRainbow 4s linear infinite; }
 @keyframes frRainbow{
   0%{ --f1:#ff5a6a; } 17%{ --f1:#ffb84a; } 33%{ --f1:#f2f25a; } 50%{ --f1:#5fe07a; } 67%{ --f1:#5ab4ff; } 83%{ --f1:#b07cff; } 100%{ --f1:#ff5a6a; } }
@@ -3748,6 +3753,7 @@ const ITEM_SVG_BODY = {
   medal_wind: '<circle cx="50" cy="50" r="33" fill="#9fe8f0" stroke="#2f7a8a" stroke-width="6"/><path d="M30 52c9-10 18 8 28-2s14-6 14-6" fill="none" stroke="#123b47" stroke-width="6" stroke-linecap="round"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
   medal_dark: '<circle cx="50" cy="50" r="33" fill="#6b4fa0" stroke="#2a1b47" stroke-width="6"/><circle cx="50" cy="50" r="13" fill="#1a1230"/><circle cx="50" cy="50" r="33" fill="none" stroke="#e8b455" stroke-width="3" opacity=".8"/>',
   medal_fire: '<circle cx="50" cy="50" r="33" fill="#f0864f" stroke="#7a2f1a" stroke-width="6"/><path d="M50 28c7 10 14 13 14 22a14 14 0 0 1-28 0c0-9 7-12 14-22z" fill="#ffe08a" stroke="#7a2f1a" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
+  medal_grass: '<circle cx="50" cy="50" r="33" fill="#f2a6b8" stroke="#7a3a4a" stroke-width="6"/><path d="M50 30c12 4 18 14 14 26-3 9-10 12-14 14-4-2-11-5-14-14-4-12 2-22 14-26z" fill="#ffe0e8" stroke="#7a3a4a" stroke-width="4"/><path d="M50 30c4-6 10-8 16-6-3 6-9 8-16 6z" fill="#6fbf5a" stroke="#2f5a2a" stroke-width="3"/><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
   medal_earth: '<circle cx="50" cy="50" r="33" fill="#d9a94e" stroke="#6b4a18" stroke-width="6"/><path d="M34 60l10-18 8 12 6-8 8 14z" fill="#6b4a18"/><circle cx="50" cy="50" r="33" fill="none" stroke="#fff3c4" stroke-width="3" opacity=".6"/>',
   scrap: '<path d="M22 60 L34 30 L52 38 L60 22 L78 34 L70 58 L54 52 L46 74 L30 68 Z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="50" r="7" fill="#5a5a68"/>',
   core: '<circle cx="50" cy="50" r="32" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="40" cy="40" r="9" fill="#ffffff" opacity=".65"/>',
@@ -3762,7 +3768,7 @@ const ITEM_SVG_BODY = {
   ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { medal_wind:'神狼の牙', medal_dark:'奈落の刻印', medal_fire:'狐火の灯', medal_earth:'巨神の金片', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
+const ITEM_ICON_LABEL = { medal_grass:'鬼ヶ島の桃印', medal_wind:'神狼の牙', medal_dark:'奈落の刻印', medal_fire:'狐火の灯', medal_earth:'巨神の金片', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const RESONANCE_ICON = `<span class="item-ic">${ITEM_ICON.resonance}</span>`;
@@ -4144,6 +4150,44 @@ const EVENTS = [
       { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
       { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
       { lv: 50,  star: 2, bossStar: 4, rate: 0.00001  }, // 0.001% (3層だけ護衛の★を1段下げた。気絶パーティの勝率が8%まで落ちていたため)
+      { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
+      { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
+      { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
+      { lv: 250, star: 4, bossStar: 5, rate: 0.001    }, // 0.1%
+      { lv: 300, star: 5, bossStar: 5, rate: 0.002    }, // 0.2%
+      { lv: 350, star: 5, bossStar: 6, rate: 0.005    }, // 0.5%
+      { lv: 400, star: 5, bossStar: 7, rate: 0.01     }, // 1%
+    ],
+  },
+  {
+    // モモタロウイベ。中身の正は docs/提案資料/次回イベント案_モモタロウ.md。startAt まではどこにも出ない
+    // (試験場 ?lab=momotaro では日付に関係なく遊べる)。名前・終了日時は未定なので仮
+    key: 'ev_momotaro',
+    econV2: true,
+    name: '鬼ヶ島の腕試し(仮)',
+    icon: UI_ICON.swords,
+    startAt: MOMOTARO_START_AT,
+    endAt: '2026-10-26T23:59:59+09:00',
+    pickup: 'm171',
+    featured: ['m171', 'm172', 'm173', 'm174'],   // 同時ピックアップの★4: イヌ・サル・キジ
+    stageName: '鬼ヶ島',
+    terrain: 'sea',
+    element: 'grass',
+    relic: 'rel_hinomaru_hachimaki',   // 配布遺物(層の初回クリアでは配らず、イベントショップで売る)
+    story: '鬼退治を終えたモモタロウ一行が、鬼ヶ島で腕試しの相手を待っている。',
+    waveSizes: [3, 3, 4, 4, 5],
+    escorts: ['m175', 'm176', 'm118', 'm156', 'm155', 'm161', 'm170'],
+    escortPools: [
+      { from: 1, list: ['m127', 'm117', 'm115', 'm135', 'm10'] },                         // ★1〜2: 鬼火・河童・猫又・カマイタチ・マンドラゴラ
+      { from: 5, list: ['m127', 'm115', 'm117', 'm175', 'm176', 'm118', 'm161'] },        // ★2〜3: 鬼火・猫又・河童・アカオニ・アオオニ・天狗・のっぺらぼう
+      { from: 8, list: ['m175', 'm176', 'm118', 'm156', 'm155', 'm161', 'm170'] },        // ★3〜4: アカオニ・アオオニ・天狗・雷獣・土蜘蛛・のっぺらぼう・牛鬼
+    ],
+    // 最終ウェーブはボス(モモタロウ)の後ろに固定で並べる(★は護衛と同じ t.star)。m88 = ウンディーネ(回復役)
+    finalWave: ['m172', 'm173', 'm174', 'm88'],
+    tiers: [
+      { lv: 10,  star: 2, bossStar: 3, rate: 0.000001 }, // 0.0001%
+      { lv: 30,  star: 2, bossStar: 3, rate: 0.000005 }, // 0.0005%
+      { lv: 50,  star: 3, bossStar: 4, rate: 0.00001  }, // 0.001%
       { lv: 100, star: 3, bossStar: 4, rate: 0.00005  }, // 0.005%
       { lv: 150, star: 4, bossStar: 4, rate: 0.0001   }, // 0.01%
       { lv: 200, star: 4, bossStar: 4, rate: 0.0005   }, // 0.05%
@@ -7209,7 +7253,7 @@ const RELICS = {
       { stat:'skillDmg', pct:0.165, cond:{ type:'mon', value:'m171' } },
     ] },
   // イベント配布(ガチャに出さない)。イベントショップで本体と重複を売る(ev.relic)
-  rel_hinomaru_hachimaki: { id:'rel_hinomaru_hachimaki', name:'日の丸の鉢巻', star:4, icon:RELIC_ICON.rel_hinomaru_hachimaki, channel:'distributed', source:'eventShop', releaseAt: MOMOTARO_START_AT, // 草属性(殴る草向け・STR型E)
+  rel_hinomaru_hachimaki: { id:'rel_hinomaru_hachimaki', name:'日の丸の鉢巻', star:4, icon:RELIC_ICON.rel_hinomaru_hachimaki, channel:'event', source:'eventShop', releaseAt: MOMOTARO_START_AT, // 草属性(殴る草向け・STR型E)
     base:{ hp:34.4, atk:21.6 },
     effects:[
       { stat:'atk', pct:0.125, cond:null },
@@ -7219,7 +7263,8 @@ const RELICS = {
 };
 const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
 // distributed relics never appear in the gacha pool - they only come from missions/achievements.
-function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star && r.channel !== 'distributed' && isReleased(r)); }
+// channel:'event' はイベントショップで売る配布遺物(ガチャに出さない。数値はガチャ産と同じ枠)
+function relicsOfStar(star){ return Object.values(RELICS).filter(r => r.star === star && r.channel !== 'distributed' && r.channel !== 'event' && isReleased(r)); }
 
 // イベントクエスト報酬で配る遺物: そのイベントの属性(element)に対応する★4属性遺物を自動選択。
 // 新しいイベントを追加する時もelementさえ設定すれば専用の配布遺物選びは不要になる。
@@ -7274,7 +7319,7 @@ function migrateRelicReso(){
 }
 function matchesRelicFilter(id, f){
   const def = RELICS[id];
-  const channel = def.channel === 'distributed' ? 'distributed' : 'gacha';
+  const channel = def.channel === 'distributed' || def.channel === 'event' ? 'distributed' : 'gacha';
   const st = STATE.relics && STATE.relics[id];
   const dupeUsed = st ? (st.dupeUsed || 0) : 0;
   return (!f.star.length || f.star.includes(String(def.star)))
@@ -7370,7 +7415,7 @@ function relicCell(id){
     <div class="relic-cell r${def.star} ${owned ? '' : 'locked'}" data-relic-dex-row="${id}">
       ${owned
         ? `<span class="relic-cell-lv">Lv${st.level}</span>`
-        : `<span class="relic-cell-badge ${def.channel === 'distributed' ? 'dist' : 'gacha'}">${def.channel === 'distributed' ? '配布' : 'ガチャ'}</span>`}
+        : `<span class="relic-cell-badge ${def.channel === 'distributed' || def.channel === 'event' ? 'dist' : 'gacha'}">${def.channel === 'distributed' || def.channel === 'event' ? '配布' : 'ガチャ'}</span>`}
       <div class="relic-cell-ic">${def.icon}</div>
       <div class="name">${def.name}</div>
       <span class="star">${relicStarRowHtml(def, st)}</span>
@@ -7414,7 +7459,7 @@ function showRelicDetail(id){
       </div>
       <p class="fs-note">未所持です。${def.source === 'eventShop' ? 'イベントショップで手に入ります。' : def.channel === 'distributed' ? 'イベントのステージクリア報酬で手に入ります。' : '遺物ガチャで入手できます。'}</p>
 
-      ${def.channel !== 'distributed' ? `<button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : ''}
+      ${def.channel !== 'distributed' && def.channel !== 'event' ? `<button class="btn btn-block" data-goto-relic-gacha="1">遺物ガチャへ</button>` : ''}
     </div>`;
   layer.classList.add('show');
 }
@@ -10237,7 +10282,10 @@ function buildEventStages(ev){
       const next = w => ({ ref: pool[k++ % pool.length], level: rec, star: t.star });
       waves = ev.waveSizes.map((size, w) => {
         const last = w === ev.waveSizes.length - 1;
-        const list = Array.from({ length: last ? size - 1 : size }, () => next(w));
+        // finalWave: 最終ウェーブの護衛を固定で書く(モモタロウイベから)。★は護衛と同じ t.star
+        const list = last && ev.finalWave
+          ? ev.finalWave.map(ref => ({ ref, level: rec, star: t.star }))
+          : Array.from({ length: last ? size - 1 : size }, () => next(w));
         return last ? [{ ref: ev.pickup, level: rec + 2, star: t.bossStar, boss: true }, ...list] : list;
       });
     }else{
@@ -10281,6 +10329,7 @@ const EVENT_MEDAL = {
   // 周回回数のミッションも出ていなかった(α0.3.010で追加)
   ev_kyubi:   { key:'medal_ev_kyubi',   name:'狐火の灯',   icon:'medal_fire' },
   ev_titan:   { key:'medal_ev_titan',   name:'巨神の金片', icon:'medal_earth' },
+  ev_momotaro: { key:'medal_ev_momotaro', name:'鬼ヶ島の桃印', icon:'medal_grass' },
 };
 function medalOf(ev){ return EVENT_MEDAL[typeof ev === 'string' ? ev : ev && ev.key] || null; }
 function medalRunGain(tier){ return 10 + 4 * tier; }          // 1層14 … 10層50
@@ -10651,6 +10700,8 @@ const EVENT_TITLES = {
   ev_abaddon: { evName:'奈落の王',   pickup:'m139', deep:'奈落の住人', star:'奈落の覗き手', ex:'奈落の踏破者' },
   ev_kyubi:   { evName:'紅蓮の九尾', pickup:'m116', deep:'狐火鎮め', star:'紅蓮の主', ex:'宴の覇者' },
   ev_titan:   { evName:'黄金の巨神', pickup:'m54', deep:'巨神砕き', star:'黄金掘り', ex:'試練越え' },
+  // hell: HELL(4段目)を★3でクリアした称号。HELLのあるイベントは、イベントの枠(フレーム)もHELLの★3でもらう
+  ev_momotaro: { evName:'鬼ヶ島の腕試し(仮)', pickup:'m171', deep:'鬼退治', star:'日本一の旗持ち', ex:'鬼ヶ島の勇者', hell:'鬼神越え' },
 };
 /* ---- アイコンフレーム ----
    プロフィールのアイコンの周りの枠。条件を満たすと自動でもらえて(checkFrames)、STATE.frames に残る。
@@ -10678,8 +10729,9 @@ function registerFrames(){
     const ev = EVENTS.find(e => e.key === evKey);
     const nm = ev ? ev.name : tt.evName;
     const status = () => !ev || Date.now() > new Date(ev.endAt).getTime() ? 'ended' : Date.now() < new Date(ev.startAt).getTime() ? 'soon' : 'open';
-    registerFrame(`fr_${evKey}`, `${nm}のフレーム`, evKey.replace('ev_', ''), `「${nm}」EX3を★3でクリアする`, () => stageStars(`${evKey}_ex3`) >= 3,
-      { group: 'event', status, evKey, badge: (ev && ev.pickup) || tt.pickup, progress: ev ? () => [stageStars(`${evKey}_ex3`) >= 3 ? 1 : 0, 1] : null });
+    const top = tt.hell ? 'ex4' : 'ex3', topName = tt.hell ? 'HELL' : 'EX3';
+    registerFrame(`fr_${evKey}`, `${nm}のフレーム`, evKey.replace('ev_', ''), `「${nm}」${topName}を★3でクリアする`, () => stageStars(`${evKey}_${top}`) >= 3,
+      { group: 'event', status, evKey, badge: (ev && ev.pickup) || tt.pickup, progress: ev ? () => [stageStars(`${evKey}_${top}`) >= 3 ? 1 : 0, 1] : null });
   });
 }
 function checkFrames(){
@@ -10725,6 +10777,7 @@ function registerEventTitles(){
     registerTitle(evTitleKey(evKey, 'deep'), tt.deep, `「${nm}」ステージ${deep}をクリアする`, x(() => [evTierCleared(ev, deep) ? 1 : 0, 1]));
     registerTitle(evTitleKey(evKey, 'star'), tt.star, `「${nm}」で★を30個獲得する`, x(() => [Math.min(30, evStarsGot(ev)), 30]));
     registerTitle(evTitleKey(evKey, 'ex'),   tt.ex,   `「${nm}」EX3を★3でクリアする`, x(() => [stageStars(`${evKey}_ex3`) >= 3 ? 1 : 0, 1]));
+    if(tt.hell) registerTitle(evTitleKey(evKey, 'hell'), tt.hell, `「${nm}」HELLを★3でクリアする`, x(() => [stageStars(`${evKey}_ex4`) >= 3 ? 1 : 0, 1]));
   });
 }
 function evTitleKey(evKey, slot){ return `ti_${evKey}_${slot}`; }
@@ -10750,7 +10803,8 @@ function trackEventClear(stage){
 const EVENT_STAR_GOALS = [10, 20, 30];   // 10層×★3 = 30が満点
 const EVENT_STAR_CRYSTAL = [100, 150, 250];   // 経済見直し(以前は 400 / 800 / 1,300)
 // EXの星結晶は「EXステージの初回クリア」で出す(EX1 100 / EX2 200 / EX3 400)。ミッションは称号だけ
-const EX_FIRST_CLEAR_CRYSTAL = [100, 200, 400];
+// HELL(4段目)は 500。HELLのあるイベントだけ(モモタロウイベから)
+const EX_FIRST_CLEAR_CRYSTAL = [100, 200, 400, 500];
 function evStarsGot(ev){ return ev.stages.reduce((sum, st) => sum + stageStars(st.id), 0); }
 function evTierCleared(ev, n){ return STATE.clearedStages.includes(`${ev.key}_${n}`); }
 // 通常8本 + ★の3段 + EX3の★3(称号)
@@ -10779,6 +10833,12 @@ function eventMissions(ev){
   });
   (exStagesOf(ev).map(st => st.ex)).forEach(n => {
     // 経済見直し: EXの星結晶はステージの初回クリアに移した。ミッションはEX3を★3でクリアしたときの称号だけ
+    // HELL(4段目)を★3でクリアすると称号(とイベントの枠。枠は checkFrames が自動で渡す)
+    if(n === 4 && tt && tt.hell){
+      out.push({ id:'hellstar', kind:'ex', label:'HELLを★3でクリアする', value:stageStars(`${ev.key}_ex4`) >= 3 ? 1 : 0, goal:1,
+        reward:[], title: T('hell') });
+      return;
+    }
     if(n !== 3 || !tt) return;
     out.push({ id:'ex3star', kind:'ex', label:'EX3を★3でクリアする', value:stageStars(`${ev.key}_ex3`) >= 3 ? 1 : 0, goal:1,
       reward:[], title: T('ex') });
@@ -10825,14 +10885,14 @@ const EVENT_BOSS_SOUL_PER_STAGE = 0.02;
 function eventBossSoulRate(st){ return Math.round((st.evNo || 0) * EVENT_BOSS_SOUL_PER_STAGE * 100) / 100; }
 // 主役のソウルの落ちる率。econV2 のイベントはEX3を渋くして、そのぶん1度に1〜3個出す
 const EX_PICKUP_SOUL_RATE     = [0.20, 0.50, 1.00];   // 公開ずみのイベント(据え置き)
-const EX_PICKUP_SOUL_RATE_V2  = [0.20, 0.50, 0.50];   // econV2 のイベント
+const EX_PICKUP_SOUL_RATE_V2  = [0.20, 0.50, 0.50, 0.50];   // econV2 のイベント(4つ目は HELL。EX3と同じ)
 function exPickupSoulRate(ev, ex){
   const tbl = ev && ev.econV2 ? EX_PICKUP_SOUL_RATE_V2 : EX_PICKUP_SOUL_RATE;
   return tbl[ex - 1] || 0;
 }
 // EX3だけ、落ちたときの個数が 1個50% / 2個35% / 3個15%(期待 0.5×1.65 = 0.825個/クリア)。
 // 100%で1個より2倍遠くなるぶん、当たると気持ちがいい形にしている
-const EX_PICKUP_SOUL_QTY = { 3: [[1, 0.50], [2, 0.35], [3, 0.15]] };
+const EX_PICKUP_SOUL_QTY = { 3: [[1, 0.50], [2, 0.35], [3, 0.15]], 4: [[1, 0.50], [2, 0.35], [3, 0.15]] };
 // 画面に出す「1個」「1〜3個」の文
 function exPickupSoulQtyText(ev, ex){
   const tbl = ev && ev.econV2 ? EX_PICKUP_SOUL_QTY[ex] : null;
@@ -10857,6 +10917,7 @@ const EX_MOB_SOUL_RATE = {
   1: { sub: 0.40, other4: 0.20, low: 0.15 },
   2: { sub: 0.70, other4: 0.35, low: 0.25 },
   3: { sub: 1.00, other4: 0.50, low: 0.35 },
+  4: { sub: 1.00, other4: 0.50, low: 0.35 },   // HELL。EX3と同じ
 };
 function exMobSoulRate(ev, ex, mon){
   if(!ev || !ev.econV2 || !mon) return 0;
@@ -10867,7 +10928,41 @@ function exMobSoulRate(ev, ex, mon){
 }
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
 const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":10,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":10,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}],"ex_kyubi":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m72:front","m33:front","m129:back","m127:back"],["m72:front","m17:front","m151:back","m129:back"],["m116:back","m170:front","m59:front","m151:back","m127:back"]],"rules":[{"side":"enemy","stat":{"hp":1.2,"str":0.9},"label":"敵 最大HP+120%・STR+90%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"hp":0.5,"str":0.3},"label":"EX2から 敵 最大HP+50%・STR+30%"}],"waves":[["m72:front","m63:front","m151:back","m87:back"],["m67:front","m66:front","m87:back","m141:back"],["m116:back","m170:front","m53:front","m150:back","m145:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":10,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"pdef":40},"label":"EX3から 敵 物理防御+40(物理が通りにくい)"},{"side":"enemy","stat":{"hp":1.0,"str":0.4},"label":"EX3から 敵 最大HP+100%・STR+40%"}],"waves":[["m67:front","m53:front","m145:back","m87:back"],["m72:front","m66:front","m141:back","m151:back"],["m116:back","m170:front","m67:front","m150:back","m141:back"]]}],"ex_titan":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m51:front","m47:front","m134:back","m48:back"],["m13:front","m45:front","m154:back","m134:back"],["m54:front","m144:front","m53:front","m154:back","m48:back"]],"rules":[{"side":"enemy","stat":{"hp":0.9,"str":0.8},"label":"敵 最大HP+90%・STR+80%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","stat":{"hp":0.7,"str":0.6},"label":"EX2から 敵 最大HP+70%・STR+60%"}],"waves":[["m27:front","m123:front","m120:back","m153:back"],["m155:front","m56:front","m20:back","m154:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":10,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","shield":1.0,"label":"EX3から 敵 シールドの効果量+100%"},{"side":"enemy","stat":{"hp":0.6,"str":2.2},"label":"EX3から 敵 最大HP+60%・STR+220%"}],"waves":[["m89:front","m50:front","m20:back","m106:back"],["m52:front","m22:front","m154:back","m120:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]}]};
+/* モモタロウイベのEX(EX1〜EX3＋HELL)。各段10体まで(モモタロウ / イヌ・サル・キジ / 牛鬼・ウンディーネ /
+   アカオニ・アオオニ・天狗・雷獣)。主役以外の★5は入れない。HELLは雑魚も★10(星刻が敵にも付く) */
+EVENT_EX.ex_momotaro = [
+  { ex:1, lv:80, boss:6, mob:4, sk:8, waves:[
+    ['m176:front', 'm175:front', 'm118:back'],
+    ['m170:front', 'm175:front', 'm156:back', 'm118:back'],
+    ['m171:front', 'm172:front', 'm173:front', 'm174:back', 'm88:back']] },
+  { ex:2, lv:200, boss:8, mob:5, sk:10, waves:[
+    ['m176:front', 'm175:front', 'm156:back', 'm118:back'],
+    ['m170:front', 'm176:front', 'm175:front', 'm88:back'],
+    ['m171:front', 'm172:front', 'm173:front', 'm174:back', 'm88:back']] },
+  { ex:3, lv:300, boss:10, mob:6, sk:10, waves:[
+    ['m170:front', 'm175:front', 'm176:front', 'm156:back'],
+    ['m176:front', 'm175:front', 'm170:front', 'm118:back', 'm156:back'],
+    ['m171:front', 'm172:front', 'm173:front', 'm174:back', 'm88:back']] },
+  { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,
+    rules:[{ who:{ ref:'m171' }, side:'enemy', stat:{ hp:1.0 }, label:'HELL 敵のモモタロウ 最大HP+100%' }],
+    waves:[
+    ['m170:front', 'm175:front', 'm176:front', 'm156:back'],
+    ['m176:front', 'm175:front', 'm170:front', 'm118:back', 'm156:back'],
+    ['m171:front', 'm172:front', 'm173:front', 'm174:back', 'm88:back']] },
+];
 const EVENT_EX_RULES = {
+  ex_momotaro: {
+    name: '鬼ヶ島',
+    lead: '桃太郎一行の島。ヒュームとビーストが力を増し、鬼は硬いが、弱ったところを叩けば崩れる。',
+    rules: [
+      { who:{ species:'hume' },  side:'ally', stat:{ str:0.25, hp:0.25 },   label:'ヒュームの味方 STR・HP+25%' },
+      { who:{ species:'beast' }, side:'ally', stat:{ str:0.25, hp:0.25 },   label:'ビーストの味方 STR・HP+25%' },
+      { who:{ species:'demon' }, side:'ally', stat:{ str:-0.25, hp:-0.25 }, label:'デーモンの味方 STR・HP-25%' },
+      { side:'enemy', stat:{ hp:0.5 }, label:'敵 最大HP+50%' },
+      { side:'ally', dmgDealt:0.6, whenTarget:'lowHp50', label:'HPが50%以下の敵へ 与ダメージ+60%' },
+      { side:'enemy', dmgDealt:0.4, atk:'phys', label:'敵 物理ダメージ+40%' },
+    ],
+  },
   /* EX1〜EX3で共通のルール。EX2・EX3はここに EVENT_EX[].rules が1つずつ足される。
      共通ぶんは全部「味方側」にしてある。EX1はルールの旨みを覚える段で、縛りは上の段から乗る */
   ex_kyubi: {
@@ -10914,6 +11009,8 @@ function exKeyOf(ev){ const k = 'ex_' + String(ev.key || '').replace(/^ev_/, '')
 /* EXのステージは読み込み時に作ってしまう(作るのを時刻で止めると、16時になっても
    ページを開き直すまで出てこない)。出し入れはここで時計を見て決める */
 function exStagesOf(ev){ return ev && addonOpen(ev) ? (ev.exStages || []) : []; }
+// EXの段の呼び名。4段目は「HELL」
+function exLabel(t){ return t && (t.hell || t.ex === 4) ? 'HELL' : `EX${t.ex}`; }
 function buildEventExStages(ev){
   const key = exKeyOf(ev);
   const def = key && EVENT_EX[key];
@@ -10932,17 +11029,17 @@ function buildEventExStages(ev){
       });
     });
     return {
-      id: `${ev.key}_ex${t.ex}`, type: 'event', tier: 'event', eventKey: ev.key, ex: t.ex,
-      name: `${meta.name}・EX${t.ex}`,
+      id: `${ev.key}_ex${t.ex}`, type: 'event', tier: 'event', eventKey: ev.key, ex: t.ex, hell: !!t.hell,
+      name: `${meta.name}・${exLabel(t)}`,
       terrain: ev.terrain, element: ev.element, rec: t.lv,
       stamina: 0,                       // EXはスタミナを使わない
       power: 1, enemySkill: t.sk, boss: true, firstClear: EX_FIRST_CLEAR_CRYSTAL[t.ex - 1] || 0, gold: 0,
-      requires: `${ev.key}_${EX_UNLOCK_TIER}`,
+      requires: t.hell ? `${ev.key}_ex3` : `${ev.key}_${EX_UNLOCK_TIER}`,   // HELLはEX3クリアで開く
       // EXのルールは3面で共通。そこに、その面だけの追加ルール(t.rules)を足せる
       // (EX3だけ敵を硬くする、のような段差を作るため)
       rules: t.rules ? [...meta.rules, ...t.rules] : meta.rules,
       rulesLead: meta.lead,
-      desc: `期間限定・EX${t.ex}(推奨Lv${t.lv})。特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.econV2 ? '。ほかの敵のソウルも出る' : ''}。`,
+      desc: `期間限定・${exLabel(t)}(推奨Lv${t.lv})。${t.hell ? 'クリアできるものならしてみろ、の段。' : ''}特別なルールで戦う腕試し。スタミナを使わず(周回はできない)、クリアすると${Math.round(exPickupSoulRate(ev, t.ex) * 100)}%で「${MON_BY_ID[ev.pickup].name}」のソウルが${exPickupSoulQtyText(ev, t.ex)}出る${ev.econV2 ? '。ほかの敵のソウルも出る' : ''}。`,
       waves,
     };
   });
@@ -15917,6 +16014,7 @@ const EVENT_THEME = {
   ev_abaddon: { bg1:'#170a2c', bg2:'#3a1560', ray:'rgba(200,154,240,.16)', accent:'#c89af0' },
   ev_kyubi:   { bg1:'#2a0a08', bg2:'#5a1a10', ray:'rgba(255,170,110,.16)', accent:'#ffb07a' },
   ev_titan:   { bg1:'#2a1e06', bg2:'#5a4212', ray:'rgba(255,220,130,.16)', accent:'#ffd98a' },
+  ev_momotaro: { bg1:'#0a1e2a', bg2:'#2a5a4a', ray:'rgba(255,180,200,.16)', accent:'#ffb4c8' },
 };
 function eventTheme(ev){
   return EVENT_THEME[ev.key] || { bg1:'#14121e', bg2:'#2a2640', ray:'rgba(255,255,255,.10)', accent: ELEM_COLOR[ev.element] || '#cfd4dc' };
@@ -16541,7 +16639,7 @@ function perkTableOf(ref){
   const old = Date.now() < new Date(PERK_RELEASE_AT).getTime() ? MONSTER_PERKS_OLD[ref] : null;
   const t = old || MONSTER_PERKS[ref];
   if(!t) return null;
-  if(t.from && Date.now() < new Date(t.from).getTime()) return null;   // 公開時刻まで出さない
+  if(t.from && !ANY_LAB && Date.now() < new Date(t.from).getTime()) return null;   // 公開時刻まで出さない(試験場 ?lab= では出す)
   return t;
 }
 function perksOf(ref, star){

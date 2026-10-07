@@ -136,7 +136,7 @@ ok(`図鑑の分母: 公開後は${NEW.length}体ぶん増える`, post.dexDenom
 ok('公開前: 深淵回廊の敵に新キャラが出ない', !hasNew(pre.abyss));
 ok('公開後: 深淵回廊の敵に新キャラ(★3以上・無属性以外)が出る', NEW.filter(m => m.rarity >= 3 && m.element !== 'none').some(m => post.abyss.includes(m.id)));
 const NEW_R = new Set(NEW_RELICS.map(r => r.id));
-const gachaRelics = NEW_RELICS.filter(r => r.channel !== 'distributed');
+const gachaRelics = NEW_RELICS.filter(r => r.channel !== 'distributed' && r.channel !== 'event');
 ok('公開前: 遺物ガチャに新遺物が出ない', !pre.relicGacha.some(id => NEW_R.has(id)));
 ok('公開後: 遺物ガチャに(ガチャ用の)新遺物が出る', gachaRelics.every(r => post.relicGacha.includes(r.id)));
 ok('公開前: 遺物図鑑に新遺物が出ない', !pre.relicDex.some(id => NEW_R.has(id)));

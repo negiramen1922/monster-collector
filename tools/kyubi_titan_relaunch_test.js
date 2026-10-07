@@ -47,7 +47,8 @@ console.log('\n--- ガチャ: ★4のピックアップが確率に効く ---');
     ok(`${k}: ★4のうち約${E.PICKUP_SHARE * 100}%がピックアップ`, Math.abs(hit - E.PICKUP_SHARE) < 0.02,
        { 実測: +(hit * 100).toFixed(1), 内訳: SUBS[k].map(id => E.MON_BY_ID[id].name + ':' + (100 * got[id] / n).toFixed(1)) });
     // ピックアップ以外の★4も出る(外れたぶんが主役に吸われていないこと)
-    const others = E.MONSTERS.filter(m => m.rarity === 4 && !SUBS[k].includes(m.id));
+    // 公開日(releaseAt)の前のモンスターはガチャに出ないので数えない
+    const others = E.MONSTERS.filter(m => m.rarity === 4 && !SUBS[k].includes(m.id) && (!m.releaseAt || Date.now() >= new Date(m.releaseAt).getTime()));
     ok(`${k}: 他の★4も出る`, others.filter(m => got[m.id]).length >= others.length - 2,
        others.filter(m => !got[m.id]).map(m => m.name));
   });
