@@ -19178,7 +19178,7 @@ const MONSTER_KITS = {
      「回復を受けたとき」「HPが満タンのとき」など、誰と組んでも満たせる条件で作ってある */
   m177: { // フレイヤ(土・サポーター・セレスティア) 通常攻撃の代わりに回復し、強化とシールドで支える
     // 通常攻撃はしない。パッシブ「豊穣の恵み」で、HPの割合が一番低い味方の回復に置き換わる(回復量はパッシブLvで伸びる)
-    normal: { name:'豊穣の恵み', tgt:'allyLowest', healNormal:1.3, run: ctx => freyjaNormalHeal(ctx),
+    normal: { name:'豊穣の恵み', tgt:'allyLowest', run: ctx => freyjaNormalHeal(ctx),
       desc:'(通常攻撃をしない)HPの割合が一番低い味方を回復する(回復量130%)' },
     skill1: { name:'ブリーシンガメンの輝き', ct:3, tgt:'allyTopOthers',
       usable: u => sideOf(u).some(a => present(a) && a !== u),   // 自分しかいないときは使わない
@@ -19187,7 +19187,8 @@ const MONSTER_KITS = {
     skill2: { name:'黄金の涙', ct:4, tgt:'allyLowest',
       effects:[{ to:'allyLowest', heal:2.5 }, { to:'allyLowest', buff:'regen', v:0.06, turns:3 }],
       desc:'HPの割合が一番低い味方を回復する(回復量250%)。継続回復(毎ターン最大HPの6%)を3ターン付与する' },
-    passive: { name:'豊穣の恵み', desc:'通常攻撃をしない。代わりに、HPの割合が一番低い味方を回復する(回復量130%)' },
+    passive: { name:'豊穣の恵み', desc:'通常攻撃をしない。代わりに、HPの割合が一番低い味方を回復する(回復量130%)',
+      normalHeal: u => pv(u, 1.3) },   // 通常攻撃の代わりの回復量(STRに掛ける)
     ult: { name:'フォールクヴァングの実り', sp:80, tgt:'allies',
       effects:[{ to:'allies', heal:2.5 }, { to:'allies', shield:0.20, base:'maxHp', turns:2, growTurns:true }],
       desc:'味方全体を回復する(回復量250%)。味方全体に、それぞれの最大HPの20%のシールドを2ターン付与する' },
@@ -19230,7 +19231,7 @@ const MONSTER_KITS = {
       desc:'敵単体に威力140%の魔法攻撃を行う。自分に攻撃力上昇(+24%)を2ターン付与する' },
     // 自分のパッシブで復活したときは「倒れた」に数えない(selfReviveNoFall。★2・★3の「味方が1体も倒れない」に触れない)
     passive: { name:'蘇る戦士', desc:'1戦闘に1回、倒れたときにHP30%で復活する', selfReviveNoFall: true,
-      onDeath: u => einherjarRevive(u),
+      onDeath: u => einherjarRevive(u, pv(u, 0.3)),
       strBonus: u => (u.reviveStr || 0) * (u.stacks.revived || 0) },
     ult: { name:'終わらぬ戦い', sp:100, atk:'mag', tgt:'all', pow:1.8,
       run: ctx => dealHits(ctx, ctx.actor.revivedUltPow && ctx.actor.stacks.revived ? { pow: ctx.act.pow * (1 + ctx.actor.revivedUltPow) } : undefined),
@@ -20506,7 +20507,7 @@ function freyjaNormalHeal(ctx){
   const u = ctx.actor;
   const t = lowestHpRatio(sideOf(u).filter(present));
   if(!t) return;
-  const amount = effStr(u) * pv(u, ctx.act.healNormal || 1.3);
+  const amount = effStr(u) * (u.passive.normalHeal ? u.passive.normalHeal(u) : pv(u, 1.3));
   if(u.fullHealShield && t.hp >= t.maxHp){
     const add = addShield(t, amount * u.fullHealShield, 2, u);
     if(add > 0) logLine(`${nm(u)} の${ctx.act.name}! ${nm(t)} にシールド ${add}`, 'heal');
@@ -20540,11 +20541,11 @@ function freySwordHorn(ctx){
 }
 // エインヘリャルの「蘇る戦士」: 倒れたときに HP30% で復活(1戦闘に1回。★10で2回)。
 // ★7: 復活したとき、自分に最大HPの20%のシールド(2ターン)。★10: 復活するたび、その戦闘のあいだ攻撃力+20%
-function einherjarRevive(u){
+function einherjarRevive(u, ratio){
   const n = u.stacks.revived || 0;
   if(n >= (u.reviveMax || 1)) return false;
   u.stacks.revived = n + 1;
-  reviveUnit(u, pv(u, 0.3), '蘇った');
+  reviveUnit(u, ratio, '蘇った');
   if(u.reviveShield) addShield(u, u.maxHp * u.reviveShield, 2, u);
   return true;
 }
@@ -20584,7 +20585,7 @@ function effDef(u, type){
   if(type === 'mag' && u.magAsPhys) type = 'phys';   // 魔法攻撃も物理防御で受ける(タロースの星刻)
   const base = type === 'mag' ? u.mdef : u.pdef;
   const up = type === 'mag' ? buffV(u, 'mdefUp') - buffV(u, 'mdefDown') : buffV(u, 'pdefUp') - buffV(u, 'pdefDown');
-  return Math.min(DEF_POINT_CAP, Math.max(0, base + up + passiveMod(u, 'defBonus', type) + allyMod(u, 'allyDefBonus', type)));
+  return Math.min(DEF_POINT_CAP, Math.max(0, base + up + passiveMod(u, 'defBonus', type) + (battleUI ? allyMod(u, 'allyDefBonus', type) : 0)));
 }
 // damage cuts add up (max 80%); 被ダメージアップ subtracts from the total
 // allyCutBonus: 味方のパッシブが配る被ダメージ軽減(allyDmgBonus と対。牛鬼の星刻が使う)
