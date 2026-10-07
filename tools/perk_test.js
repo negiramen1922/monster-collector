@@ -8,7 +8,7 @@ const load = require('./harness.js');
 const api = load('game.js', s => s.replace('autoUlt: false,', 'autoUlt: true,')
   + `;global.__t={buildUnit,MONSTERS,MON_BY_ID,MONSTER_KITS,MONSTER_PERKS,MONSTER_PERKS_OLD,PERK_RELEASE_AT,perksOf,perkCardHtml,
     hasStatus,hasBuff,effSpd,effDef,effStr,passiveMod,runPassive,strike,performAction,takeTurn,killUnit,addBuff,addShield,
-    shieldTotal,applyStatus,conditionMet,addDrum,BATTLE_V2_SP_KILL,get b(){return battleUI}};`);
+    shieldTotal,applyStatus,conditionMet,addDrum,healUnit,BATTLE_V2_SP_KILL,get b(){return battleUI}};`);
 const T = global.__t;
 let fail = 0;
 const ok = (c, m, v) => { console.log((c ? '✅' : '❌') + ' ' + m + (v !== undefined ? '  ' + JSON.stringify(v) : '')); if (!c) fail++; };
@@ -540,6 +540,140 @@ console.log('--- アオオニ ---');
   ok(s.u.alive && s.u.hp === 1 && allCut, '★10 1度だけHP1で耐え、味方全体に被ダメージ軽減-20%');
   s.u.hp = 5; withRand(0.5, () => T.strike({ actor: s.e, act: { atk: 'phys' }, kind: 'normal' }, s.u, { pow: 50 }));
   ok(!s.u.alive, '★10 2度目は耐えない');
+}
+
+/* ---- フレイヤイベの8体(from: FREYJA_START_AT)。中身の正は docs/提案資料/次回イベント案_フレイヤ.md ---- */
+console.log('\n=== フレイヤイベの8体 ===');
+at('2026-10-13T11:59:00+09:00');
+ok(mk('フレイヤ', 10).perks === undefined && mk('ヒルデ', 10).execLow === undefined, '開始時刻の前は星刻が付かない');
+at('2026-10-14T00:00:00+09:00');
+const near2 = (a, b) => Math.abs(a - b) < 1e-6;
+console.log('--- フレイヤ ---');
+{
+  let s = setup('m177', 6, 1, ['m178', 'm179', 'm05', 'm02']); act(s.u, 'skill', s.u.skills[0], 0);
+  let s5 = setup('m177', 5, 1, ['m178', 'm179', 'm05', 'm02']); act(s5.u, 'skill', s5.u.skills[0], 0);
+  ok(s.B.party.filter(a => a.buffs.strUp).length === 3 && s5.B.party.filter(a => a.buffs.strUp).length === 2, '★6 ブリーシンガメンの輝きが3人(★5は2人)');
+  s = setup('m177', 7); s.B.party.forEach(a => { a.hp = a.maxHp; a.shields = []; }); act(s.u, 'normal', s.u.normal);
+  s5 = setup('m177', 6); s5.B.party.forEach(a => { a.hp = a.maxHp; a.shields = []; }); act(s5.u, 'normal', s5.u.normal);
+  const sh7 = s.B.party.reduce((n, a) => n + T.shieldTotal(a), 0), sh6 = s5.B.party.reduce((n, a) => n + T.shieldTotal(a), 0);
+  ok(sh7 > 0 && Math.abs(sh7 - Math.round(T.effStr(s.u) * 1.3 * 0.5)) <= 1 && sh6 === 0, '★7 HPが満タンの味方には回復量の半分をシールドに', [sh7, sh6]);
+  s = setup('m177', 8); ok(s.u.skills[1].ct === 3 && T.MONSTER_KITS.m177.skill2.ct === 4, '★8 黄金の涙のCT3');
+  s = setup('m177', 9); const al = s.B.party.find(a => a !== s.u);
+  T.applyStatus(al, 'poison', s.e); T.addBuff(al, 'strDown', 0.2, 3, s.e); T.addBuff(al, 'spdDown', 5, 3, s.e);
+  act(s.u, 'ult', s.u.ult);
+  s5 = setup('m177', 8); act(s5.u, 'ult', s5.u.ult);
+  ok(!al.statuses.poison && !al.buffs.strDown && !al.buffs.spdDown && al.shields[0].turns === s5.u.shields[0].turns + 1, '★9 状態異常と弱体化をすべて解除・シールド+1ターン', [al.shields[0].turns, s5.u.shields[0].turns]);
+  s = setup('m177', 10); const w = s.B.party.find(a => a !== s.u); w.hp = 5; w.shields = []; T.b.allyFell = false;
+  w.hp = w.maxHp; hitBy(s.e, w, 'phys');   // HPが残る攻撃では発動しない
+  const sv = w.alive && !s.u.flags.lastStandUsed; w.hp = 1; withRand(0.5, () => T.strike({ actor: s.e, act: { atk: 'phys' }, kind: 'normal' }, w, { pow: 50 }));
+  ok(sv && w.alive && Math.abs(w.hp - Math.round(w.maxHp * 0.5)) <= 1 && T.b.allyFell === false, '★10 味方がHP0になる攻撃を受けたらHP50%で踏みとどまる(倒れたことにならない)', [w.hp, w.maxHp]);
+  w.hp = 1; withRand(0.5, () => T.strike({ actor: s.e, act: { atk: 'phys' }, kind: 'normal' }, w, { pow: 50 }));
+  ok(!w.alive, '★10 1戦闘に1回まで');
+  s5 = setup('m177', 9); const w9 = s5.B.party.find(a => a !== s5.u); w9.hp = 1; w9.shields = [];
+  withRand(0.5, () => T.strike({ actor: s5.e, act: { atk: 'phys' }, kind: 'normal' }, w9, { pow: 50 }));
+  ok(!w9.alive, '★9 までは踏みとどまらない');
+}
+console.log('--- フレイ ---');
+{
+  let s = setup('m178', 6); act(s.u, 'skill', s.u.skills[0], 0); act(s.u, 'skill', s.u.skills[0], 0);
+  let s5 = setup('m178', 5); act(s5.u, 'skill', s5.u.skills[0], 0); act(s5.u, 'skill', s5.u.skills[0], 0);
+  ok(s.e.buffs.mdefDown.turns === s5.e.buffs.mdefDown.turns + 1, '★6 鹿の角の魔法防御低下+1ターン', [s5.e.buffs.mdefDown.turns, s.e.buffs.mdefDown.turns]);
+  s = setup('m178', 7); s.u.hp = s.u.maxHp * 0.85; s5 = setup('m178', 6); s5.u.hp = s5.u.maxHp * 0.85;
+  ok(T.passiveMod(s.u, 'dmgBonus', s.e) > 0 && T.passiveMod(s5.u, 'dmgBonus', s5.e) === 0, '★7 HP80%以上で与ダメージアップ');
+  s = setup('m178', 8); T.addBuff(s.e, 'mdefDown', 10, 2, s.u);
+  ok(T.conditionMet('mdefDown', s.u, s.e) && s.u.skills[1].bonusIf.some(b => b.cond === 'mdefDown' && b.add === 0.3), '★8 アルフヘイムの陽光: 魔法防御低下の敵に威力+30%');
+  s = setup('m178', 9); s.u.skillCd[0] = 2; act(s.u, 'ult', s.u.ult);
+  s5 = setup('m178', 8); s5.u.skillCd[0] = 2; act(s5.u, 'ult', s5.u.ult);
+  ok(s.u.skillCd[0] === 0 && s5.u.skillCd[0] === 2, '★9 奥義のあと剣と角のCTが0');
+  s = setup('m178', 10); act(s.u, 'ult', s.u.ult); T.b.log.length = 0;
+  act(s.u, 'skill', s.u.skills[0], 0);
+  ok(s.e.buffs.mdefDown && /鹿の角」と「勝利の剣/.test(T.b.log.join('')) && s.u.flags.victoryTurns === 3, '★10 奥義のあと、剣と角の両方を放つ', T.b.log.slice(-3));
+  T.runPassive(s.u, 'onTurnEnd'); T.runPassive(s.u, 'onTurnEnd'); T.runPassive(s.u, 'onTurnEnd'); T.runPassive(s.u, 'onTurnEnd');
+  ok(s.u.flags.victoryTurns === 0, '★10 撃ったあとの自分の行動3回で終わる');
+}
+console.log('--- ヒルディスヴィーニ ---');
+{
+  let s = setup('m179', 6); T.addBuff(s.u, 'taunt', 1, 2, s.u);
+  ok(T.passiveMod(s.u, 'cutBonus', 'mag') === 0.15 && T.passiveMod(s.u, 'cutBonus', 'phys') === 0, '★6 挑発中、受ける魔法ダメージ-15%');
+  s = setup('m179', 7); const d0 = T.effDef(s.u, 'phys');
+  for(let i = 0; i < 10; i++){ s.u.hp = 1; T.healUnit(s.ally, s.u, 10); }
+  ok(s.u.stacks.boarDef === 26 && T.effDef(s.u, 'phys') - d0 === 26, '★7 上限+26・物理防御にも乗る', s.u.stacks.boarDef);
+  s = setup('m179', 8); ok(s.u.skills[1].ct === 3, '★8 黄金の輝きのCT3');
+  s = setup('m179', 9); act(s.u, 'ult', s.u.ult); s.u.shields = [];
+  hitBy(s.e, s.u, 'phys');
+  ok(T.shieldTotal(s.u) > 0, '★9 光の牙城の間、受けたダメージの一部がシールドになる', T.shieldTotal(s.u));
+  s = setup('m179', 10); const a0 = T.effDef(s.ally, 'mag');
+  for(let i = 0; i < 3; i++){ s.u.hp = 1; T.healUnit(s.ally, s.u, 10); }
+  ok(T.effDef(s.ally, 'mag') - a0 === 12, '★10 上がった魔法防御と同じだけ、味方の魔法防御も上がる', T.effDef(s.ally, 'mag') - a0);
+}
+console.log('--- エインヘリャル ---');
+{
+  let s = setup('m180', 6); ok(s.u.skills[0].ct === 2, '★6 斧の一撃のCT2');
+  s = setup('m180', 7); s.u.hp = 1; s.u.shields = []; hitBy(s.e, s.u, 'phys');
+  ok(s.u.alive && T.shieldTotal(s.u) > 0, '★7 復活したとき最大HPの20%のシールド');
+  s = setup('m180', 8); act(s.u, 'skill', s.u.skills[1], 1); let s5 = setup('m180', 7); act(s5.u, 'skill', s5.u.skills[1], 1);
+  ok(s.u.buffs.strUp.turns === s5.u.buffs.strUp.turns + 1, '★8 戦士の雄叫びの攻撃力上昇+1ターン');
+  const ultDmg = (star, revived) => { const r = setup('m180', star); if(revived) r.u.stacks.revived = 1; act(r.u, 'ult', r.u.ult); return (99999 - r.e.hp) / T.effStr(r.u); };
+  ok(ultDmg(9, true) > ultDmg(9, false) * 1.4 && Math.abs(ultDmg(8, true) - ultDmg(8, false)) < 0.2, '★9 復活したあとなら奥義の威力+50%');
+  s = setup('m180', 10); const str0 = T.effStr(s.u);
+  s.u.hp = 1; hitBy(s.e, s.u, 'phys'); s.u.hp = 1; s.u.shields = []; hitBy(s.e, s.u, 'phys');
+  ok(s.u.alive && s.u.stacks.revived === 2 && Math.abs(T.effStr(s.u) / str0 - 1.4) < 0.01, '★10 2回復活し、そのたびに攻撃力+20%', T.effStr(s.u) / str0);
+}
+console.log('--- ヒルデ ---');
+{
+  let s = setup('m181', 6, 2); s.e2.row = 'front'; s.e.hp = 90000; s.e2.hp = 30000; act(s.u, 'skill', s.u.skills[0], 0);
+  ok(s.e2.hp < 30000 && s.e.hp === 90000, '★6 光の斬撃がHPの割合が一番低い敵を狙う');
+  s = setup('m181', 7); s.e.hp = s.e.maxHp * 0.55; let s5 = setup('m181', 6); s5.e.hp = s5.e.maxHp * 0.55;
+  ok(T.passiveMod(s.u, 'dmgBonus', s.e) > 0 && T.passiveMod(s5.u, 'dmgBonus', s5.e) === 0, '★7 HP60%以下の敵から乗る');
+  s = setup('m181', 8); s.e.hp = 1; s.u.sp = 0; act(s.u, 'skill', s.u.skills[1], 1);
+  ok(!s.e.alive && s.u.sp >= 20, '★8 選定の一閃で倒すとSP+20', s.u.sp);
+  s = setup('m181', 9); ok(s.u.ult.bonusIf.some(b => b.cond === 'halfHp' && b.add === 0.5) && !T.MONSTER_KITS.m181.ult.bonusIf, '★9 ヴァルハラへの導き: HP50%以下に威力+50%');
+  s = setup('m181', 10); s.e.hp = s.e.maxHp * 0.3; s.e.pdef = 80; s.e.mdef = 80;
+  const r = withRand(0.99, () => T.strike({ actor: s.u, act: s.u.normal, kind: 'normal' }, s.e, { pow: 1 }));
+  s5 = setup('m181', 9); s5.e.hp = s5.e.maxHp * 0.3; s5.e.pdef = 80; s5.e.mdef = 80;
+  const r5 = withRand(0.99, () => T.strike({ actor: s5.u, act: s5.u.normal, kind: 'normal' }, s5.e, { pow: 1 }));
+  ok(r.crit && !r5.crit && r.dmg > r5.dmg * 3, '★10 HP30%以下の敵には必ず会心・防御無視', [r.dmg, r5.dmg]);
+}
+console.log('--- ブリュンヒルド ---');
+{
+  let s = setup('m182', 6); act(s.u, 'skill', s.u.skills[0], 0);
+  ok(Math.abs(T.passiveMod(s.u, 'cutBonus', 'mag') - T.passiveMod(s.u, 'cutBonus', 'phys') - 0.2) < 1e-9, '★6 誓いの間、受ける魔法ダメージ-20%');
+  s = setup('m182', 7); s.u.hp = s.u.maxHp * 0.4; let s5 = setup('m182', 6); s5.u.hp = s5.u.maxHp * 0.4;
+  ok(T.passiveMod(s.u, 'cutBonus', 'phys') > 0 && T.passiveMod(s5.u, 'cutBonus', 'phys') === 0, '★7 挑発していなくてもHP50%以下で被ダメージ軽減');
+  s = setup('m182', 8, 2); s.e2.row = 'front'; act(s.u, 'skill', s.u.skills[1], 1);
+  ok(s.e.buffs.strDown && s.e2.buffs.strDown, '★8 盾打ちが敵前衛全体');
+  s = setup('m182', 9); act(s.u, 'ult', s.u.ult); hitBy(s.e, s.u, 'phys');
+  ok(T.hasStatus(s.e, 'burn'), '★9 炎の城壁の間、攻撃してきた敵をやけどに');
+  s = setup('m182', 10); s.u.hp = 5; s.u.shields = [];
+  withRand(0.5, () => T.strike({ actor: s.e, act: { atk: 'mag' }, kind: 'normal' }, s.u, { pow: 50 }));
+  ok(s.u.alive && Math.abs(s.u.hp - Math.round(s.u.maxHp * 0.3)) <= 1 && s.B.party.filter(a => a.alive).every(a => a.buffs.cut), '★10 HP30%で耐え、炎の城壁が自動で発動', s.u.hp);
+  s.u.hp = 5; withRand(0.5, () => T.strike({ actor: s.e, act: { atk: 'mag' }, kind: 'normal' }, s.u, { pow: 50 }));
+  ok(!s.u.alive, '★10 2度目は耐えない');
+}
+console.log('--- スコグル ---');
+{
+  let s = setup('m183', 6, 2); s.e.row = 'back'; s.e2.row = 'back'; s.e.spd = 10; s.e2.spd = 90; act(s.u, 'skill', s.u.skills[0], 0);
+  ok(s.e2.buffs.spdDown && !s.e.buffs.spdDown, '★6 足枷の矢がSPDが一番高い敵を狙う');
+  s = setup('m183', 7); s.e.spd = 99; T.addBuff(s.e, 'spdDown', 5, 2, s.u); let s5 = setup('m183', 6); s5.e.spd = 99; T.addBuff(s5.e, 'spdDown', 5, 2, s5.u);
+  ok(T.passiveMod(s.u, 'dmgBonus', s.e) > 0 && T.passiveMod(s5.u, 'dmgBonus', s5.e) === 0, '★7 鈍化状態の敵にも乗る(自分より速くても)');
+  s = setup('m183', 8); ok(s.u.skills[1].ct === 3, '★8 矢の雨のCT3');
+  s = setup('m183', 9); act(s.u, 'ult', s.u.ult);
+  ok(s.u.buffs.spdUp && s.u.buffs.spdUp.v === 10, '★9 千矢のあと加速(SPD+10)');
+  s = setup('m183', 10); T.addBuff(s.e, 'spdDown', 5, 2, s.u); T.b.log.length = 0; act(s.u, 'normal', s.u.normal);
+  ok(/\(5回\)/.test(T.b.log.join('')), '★10 鈍化状態の敵への攻撃はヒット数+1(魔弓4回→5回)', T.b.log.slice(-1));
+}
+console.log('--- ゲンドゥル ---');
+{
+  let s = setup('m184', 6, 2); s.e2.row = 'front'; act(s.u, 'skill', s.u.skills[0], 0);
+  ok(s.e.buffs.strDown && s.e2.buffs.strDown, '★6 ガンドが敵前衛全体');
+  s = setup('m184', 7); T.addBuff(s.e, 'healCut', 0.3, 2, s.u); let s5 = setup('m184', 6); T.addBuff(s5.e, 'healCut', 0.3, 2, s5.u);
+  ok(T.runPassive(s.u, 'allyDmgBonus', s.ally, s.e) > 0 && !T.runPassive(s5.u, 'allyDmgBonus', s5.ally, s5.e), '★7 回復阻害の敵にも乗る');
+  s = setup('m184', 8); ok(s.u.skills[1].ct === 3, '★8 癒しのガルドルのCT3');
+  s = setup('m184', 9); act(s.u, 'ult', s.u.ult); s5 = setup('m184', 8); act(s5.u, 'ult', s5.u.ult);
+  ok(s.e.buffs.healCut && !s5.e.buffs.healCut && s.e.buffs.strDown, '★9 セイズの歌が回復阻害も付ける');
+  s = setup('m184', 10); act(s.u, 'skill', s.u.skills[0], 0); const hp1 = s.e.hp;
+  s.e.skills = [{ ct: 99 }]; s.e.skillCd = [99]; withRand(0.5, () => T.takeTurn(s.e));
+  ok(/の呪い!/.test(T.b.log.join('')), '★10 弱体化を付けた敵が行動するとダメージ');
 }
 
 Date.now = realNow;

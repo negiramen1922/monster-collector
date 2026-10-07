@@ -20530,6 +20530,7 @@ function freySwordHorn(ctx){
   const horn = u.hornTurns ? { ...FREY_HORN, onHit: FREY_HORN.onHit.map(e => ({ ...e, turns: e.turns + u.hornTurns })) } : FREY_HORN;
   const order = both ? [horn, FREY_SWORD] : [form === 'sword' ? FREY_SWORD : horn];
   if(battleUI && battleUI.fxCutIn) battleUI.fxCutIn.label = `${ctx.act.name}(${order.map(a => a.name).join('・')})`;
+  logLine(`${nm(u)} の剣と角は「${order.map(a => a.name).join('」と「')}」`, 'skill');
   order.forEach(a => {
     const sub = { ...ctx, act: { ...ctx.act, ...a, name: `${ctx.act.name}・${a.name}` }, dealt: 0 };
     dealHits(sub);
