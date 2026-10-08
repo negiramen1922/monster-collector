@@ -5898,7 +5898,7 @@ function sendFriendPoint(uid){
   daily.sent[uid] = true;
   STATE.friendPoints = (STATE.friendPoints || 0) + FRIEND_POINT_PER_SEND;
   playSfx('confirm');
-  toast(`${f.name}にポイントを送りました(フレンドポイント+${FRIEND_POINT_PER_SEND})`);
+  toast(`${otherPlayerName(f.name, f.uid)}にポイントを送りました(フレンドポイント+${FRIEND_POINT_PER_SEND})`);
   saveState();
   render();
   const be = authBackend();
@@ -5931,7 +5931,7 @@ function sendFriendPointAll(){
 // whenever the friends overlay is opened, so points show up without a manual refresh step.
 function friendNameOf(uid){
   const f = STATE.friends.find(x => x.uid === uid);
-  return f ? f.name : 'フレンド';
+  return f ? otherPlayerName(f.name, uid) : 'フレンド';
 }
 // 同じ人・同じ理由はまとめて1行にする(「〇〇さんがモンスターを3回借りました +30FP」)。
 // 1回ずつ並べると、よく借りられる人ほど縦に長くなりすぎたため。最後に合計。
