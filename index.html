@@ -1643,6 +1643,35 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .party-slot.penalty{ border-color:rgba(255,179,92,.7); border-style:dashed; }
 .party-slot .help-mini{ position:absolute; right:4px; top:3px; font-size:11px; }
 .party-slot.helped{ border-color:rgba(90,166,200,.7); border-style:dashed; }
+/* 編成画面の陣形の表示の切り替え(キャラ / 装備) */
+.fview-row{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-top:4px; }
+.fview-row .enemy-side-cap{ margin:0; grid-column:2; }
+.fview-row .fview-tabs{ grid-column:3; justify-self:end; }
+.fview-tabs{ display:flex; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; flex:none; }
+.fview-tab{ padding:5px 14px; font-size:12px; font-weight:800; background:var(--panel2); color:var(--dim); border:0; }
+.fview-tab.on{ background:var(--panel3); color:var(--gold); box-shadow:inset 0 0 0 1px var(--gold); }
+.party-slot .slot-cap{ position:absolute; left:0; right:0; bottom:0; padding:1px 0 2px; border-radius:0 0 12px 12px;
+  background:rgba(10,8,20,.72); font-size:9.5px; font-weight:800; line-height:1.25; text-align:center; color:var(--gold);
+  white-space:nowrap; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:3px; }
+.party-slot .slot-cap b{ color:var(--text); font-weight:800; }
+.party-slot .slot-cap.equip{ gap:3px; padding:3px 0; color:var(--dim); }
+/* 大きい陣形では下に★・Lvの帯を出すので、ロールの印は左上・後衛の警告は右側に寄せる */
+.formation:not(.compact) .party-slot .role-mini{ top:3px; bottom:auto; }
+.formation:not(.compact) .party-slot .warn-mini{ left:auto; right:4px; top:16px; }
+.party-slot .slot-cap .rp{ width:10px; height:10px; border-radius:50%; border:1.5px solid var(--dim); box-sizing:border-box; }
+.party-slot .slot-cap .rp.on{ background:var(--rc); border-color:var(--rc); }
+.party-slot .slot-cap .rp.locked{ border-color:transparent; background:rgba(255,255,255,.14); width:7px; height:7px; }
+.party-slot .slot-relic{ position:absolute; left:3px; top:3px; width:22px; height:22px; border-radius:50%;
+  background:rgba(10,8,20,.78); border:1px solid rgba(232,180,85,.6); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--dim); }
+.party-slot .slot-relic.none{ border-color:var(--line); border-style:dashed; }
+.party-slot .slot-relic img.ico{ width:17px !important; height:17px !important; }
+.equip-empty{ display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%;
+  background:var(--danger); color:#fff; font-size:10px; font-weight:900; line-height:1; }
+.party-slot .equip-empty{ position:absolute; right:4px; top:16px; }
+.fview-tab .equip-empty{ margin-left:4px; width:14px; height:14px; font-size:9.5px; vertical-align:1px; }
+.fview-sum{ font-size:11.5px; color:var(--dim); margin:-2px 0 10px; text-align:center; }
+.fview-sum b{ color:var(--text); }
+.fview-sum span{ margin-left:6px; color:var(--warn, #ffb35c); }
 .warn-box{
   font-size:11.5px; line-height:1.7; color:#ffcf99; margin:0 0 12px;
   background:rgba(255,179,92,.08); border:1px solid rgba(255,179,92,.4); border-radius:12px; padding:8px 12px;
@@ -3587,7 +3616,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.5.000';
+const GAME_VERSION = 'α0.5.001';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -11042,7 +11071,9 @@ EVENT_EX.ex_momotaro = [
   { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,
     // 2026-10-08 ユーザー決定「イベント組 育ちきりで100%、★5中心 育ちきりで70%くらい」に合わせて 敵 与ダメージ+100% を足した(指示書 8-2)
     rules:[{ who:{ ref:'m171' }, side:'enemy', stat:{ hp:1.0 }, label:'HELL 敵のモモタロウ 最大HP+100%' },
-      { side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' }],
+      { side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' },
+      // 2026-10-08 ユーザー決定: HELL ではデーモンの味方をさらに弱く(共通ルールの STR・HP-25% に足して、攻撃力 合計-75%)
+      { who:{ species:'demon' }, side:'ally', stat:{ str:-0.5 }, label:'HELL デーモンの味方 攻撃力-50%' }],
     waves:[
     ['m170:front', 'm175:front', 'm176:front', 'm156:back'],
     ['m176:front', 'm175:front', 'm170:front', 'm118:back', 'm156:back'],
@@ -12527,6 +12558,7 @@ function renderBag(){
 
 let formationPick = null; // slot chosen as a move source / placement target on the party screen
 let slotMenu = null;      // slot whose action menu (詳細/移動/外す) is open
+let formationView = 'char'; // 編成画面の陣形の表示: 'char'(★・Lv) / 'equip'(遺物・ルーン)
 let rosterSort = { key: 'rarity', desc: true };
 // roster filters: empty list = no restriction. OR inside a category, AND across categories.
 let rosterFilter = { elem: [], role: [], species: [] };
@@ -15579,9 +15611,10 @@ function renderFormationGrid(compact, src){
           <button role="menuitem" data-slot-action="move" data-slot-idx="${i}">移動</button>`}
           <button class="danger" role="menuitem" data-slot-action="remove" data-slot-idx="${i}">外す</button>
         </div>` : ''}
-      ${penalty ? `<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">${UI_ICON.warn}</span>` : ''}
-      <span class="role-mini">${tagsHtml(m)}</span>
-      ${relicDef ? `<span class="relic-mini" title="${relicDef.name}">${relicDef.icon}</span>` : ''}
+      ${penalty && (compact || formationView !== 'equip') ? `<span class="warn-mini" title="後衛の近接ロール: 与ダメージ減少">${UI_ICON.warn}</span>` : ''}
+      ${compact || formationView !== 'equip' ? `<span class="role-mini">${tagsHtml(m)}</span>` : ''}
+      ${relicDef && compact ? `<span class="relic-mini" title="${relicDef.name}">${relicDef.icon}</span>` : ''}
+      ${compact ? '' : slotViewHtml(m, id, isHelp)}
       ${compact ? '' : `<div class="remove-x" data-remove="${i}" aria-label="${m.name} を外す">×</div>`}
     </div>`;
   };
@@ -15593,6 +15626,47 @@ function renderFormationGrid(compact, src){
       ${slotsOfRow(f, 'back').map(i => cell(i, 2)).join('')}
     </div>
   `;
+}
+
+// 装備に空きがあるか(遺物を付けていない・開いているルーン枠が空いている)。お助けモンスターは見ない
+function equipHasEmpty(id){
+  if(!id || id === HELP_SLOT_ID || !STATE.owned[id]) return false;
+  return !equippedRelicOf(id) || runesOf(id).slice(0, runeSlotsOpen(id)).some(u => !u);
+}
+const EQUIP_EMPTY_MARK = '<span class="equip-empty" title="装備に空きがあります" aria-label="装備に空きがあります">!</span>';
+/* 編成画面の陣形のマスに出す情報。キャラ: ★とLv / 装備: 遺物とルーン4枠 */
+function slotViewHtml(m, id, isHelp){
+  const o = slotOwnedLike(id);
+  if(!o) return '';
+  if(formationView !== 'equip') return `<span class="slot-cap">★${o.star || m.rarity}<b>Lv${o.level}</b></span>`;
+  // お助けモンスターは他人の装備なので、遺物だけ(ルーンの中身は分からない)
+  const relicId = isHelp ? (o.relic && o.relic.id) : equippedRelicOf(id);
+  const relic = relicId ? RELICS[relicId] : null;
+  const relicHtml = relic
+    ? `<span class="slot-relic" title="${relic.name}">${relic.icon}</span>`
+    : `<span class="slot-relic none" title="遺物なし">—</span>`;
+  if(isHelp) return `${relicHtml}<span class="slot-cap equip">お助け</span>`;
+  const open = runeSlotsOpen(id);
+  const pips = runesOf(id).map((uid, i) => {
+    if(i >= open) return `<i class="rp locked" title="★${RUNE_SLOT_STARS[i]}で解放"></i>`;
+    const r = runeByUid(uid);
+    return r ? `<i class="rp on" style="--rc:${RUNE_STATS[r.main].color}" title="${RUNE_STATS[r.main].label}"></i>` : '<i class="rp" title="空き"></i>';
+  }).join('');
+  return `${relicHtml}${equipHasEmpty(id) ? EQUIP_EMPTY_MARK : ''}<span class="slot-cap equip" aria-label="ルーン">${pips}</span>`;
+}
+// 装備の表示のときの、編成全体の装備の数(遺物を付けている体数・ルーンの埋まり)
+function formationEquipSummary(){
+  const ids = STATE.slots.filter(id => id && id !== HELP_SLOT_ID && STATE.owned[id]);
+  const relics = ids.filter(id => equippedRelicOf(id)).length;
+  const open = ids.reduce((n, id) => n + runeSlotsOpen(id), 0);
+  const filled = ids.reduce((n, id) => n + runesOf(id).filter(Boolean).length, 0);
+  return `<div class="fview-sum">遺物 <b>${relics}</b> / ${ids.length}体・ルーン <b>${filled}</b> / ${open}枠${filled < open ? '<span>空いている枠があります</span>' : ''}</div>`;
+}
+function formationViewTabsHtml(){
+  return `<div class="fview-tabs" role="tablist" aria-label="陣形の表示">
+    ${[['char', 'キャラ'], ['equip', '装備']].map(([k, l]) =>
+      `<button class="fview-tab ${formationView === k ? 'on' : ''}" data-fview="${k}" role="tab" aria-selected="${formationView === k}">${l}${k === 'equip' && STATE.slots.some(equipHasEmpty) ? EQUIP_EMPTY_MARK : ''}</button>`).join('')}
+  </div>`;
 }
 
 function renderFormationPicker(){
@@ -15913,8 +15987,9 @@ function renderParty(){
     ${guide ? `<div class="screen-sub" style="margin-bottom:6px;">${guide}</div>` : ''}
 
     ${renderFormationPicker()}
-    <div class="enemy-side-cap">▲ 敵側</div>
+    <div class="fview-row"><div class="enemy-side-cap">▲ 敵側</div>${formationViewTabsHtml()}</div>
     ${renderFormationGrid(false)}
+    ${formationView === 'equip' ? formationEquipSummary() : ''}
     <p class="formation-note">前衛が1体でも残っている間、<b>後衛は敵に狙われません</b>(一部の陣形無視スキルを除く)。前衛が全滅すると後衛が攻撃されます。</p>
     ${penalized.length ? `<div class="warn-box" data-row-warn role="alert">${UI_ICON.warn} 近接ロール(タンク・アタッカー)が後衛にいます。与ダメージ-${Math.round(BACK_ROW_MELEE_PENALTY * 100)}%: ${penalized.map(m => m.name).join('、')}</div>` : ''}
 
@@ -23158,6 +23233,12 @@ function handlePhoneClick(ev){
     render(); return;
   }
 
+  const fviewEl = t.closest('[data-fview]');
+  if(fviewEl){
+    formationView = fviewEl.dataset.fview === 'equip' ? 'equip' : 'char';
+    render();
+    return;
+  }
   const fsetEl = t.closest('[data-fset]');
   if(fsetEl){
     switchFormationSet(fsetEl.dataset.fset);
@@ -23720,6 +23801,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 165, version: 'α0.5.001', date: '10/8', title: '編成画面で装備が見やすく', body: '<span class="nt-i">・編成画面の陣形の右上に「キャラ / 装備」の切り替えを足しました。</span><span class="nt-i">・キャラ: それぞれのマスに★とレベルが出ます。</span><span class="nt-i">・装備: それぞれのマスに、付けている遺物と、ルーン4枠の埋まりぐあいが出ます。陣形の下に、編成全体の遺物とルーンの数も出ます。</span><span class="nt-i">・遺物を付けていない子や、空いているルーン枠がある子には<em>「!」</em>が付きます(装備のタブにも出ます)。</span>' },
   { id: 164, version: 'α0.5.000', date: '10/7', title: 'α0.5', body: '<span class="nt-i">・★5の12体と★4の4体の星刻特性(10/7 12:00から)。</span><span class="nt-i">・旧バトルシステムをなくし、新バトルシステムだけにしました。お試し(初回スタミナ0＋星結晶)は終了。テスト協力のお礼に召喚券5枚。</span><span class="nt-i">・奥義の必要SPを、★ではなく奥義の重さとロールで決める形に。51体の奥義の数値を調整。</span><span class="nt-i">・スキルLvの上限を10(Lv10で1.5倍)、パッシブLvの上限を5(Lv5で1.5倍)に。超えていたぶんの素材はお返し。</span><span class="nt-i">・チュートリアルの遊び直し(お礼 星結晶360)とアンケート(お礼 召喚券10枚)。</span>' },
   { id: 163, version: 'α0.4.017', date: '10/6', title: 'アップデートの予告', body: '<span class="nt-i">・10/7(水) 12:00 のアップデート(α0.5)の予告をお知らせに載せました。</span>' },
   { id: 162, version: 'α0.4.016', date: '10/4', title: '今後の予定を更新', body: '<span class="nt-i">・「スライムパラダイス」をハロウィンイベントと同じ10/27ごろからの開催に変えました。</span>' },
