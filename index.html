@@ -10797,7 +10797,7 @@ const EVENT_TITLES = {
   ev_titan:   { evName:'黄金の巨神', pickup:'m54', deep:'巨神砕き', star:'黄金掘り', ex:'試練越え' },
   // hell: HELL(4段目)を★3でクリアした称号。HELLのあるイベントは、イベントの枠(フレーム)もHELLの★3でもらう
   ev_momotaro: { evName:'鬼ヶ島の腕試し', pickup:'m171', deep:'鬼退治', star:'日本一の旗持ち', ex:'鬼ヶ島の勇者', hell:'鬼神越え' },
-  ev_freyja:   { evName:'豊穣の女神', pickup:'m177', deep:'館の客人', star:'黄金の戦士', ex:'選ばれし戦士', hell:'女神越え' },
+  ev_freyja:   { evName:'豊穣の女神', pickup:'m177', deep:'館の客人', star:'黄金の戦士', ex:'選ばれし戦士', hell:'女神の近衛兵' },
 };
 /* ---- アイコンフレーム ----
    プロフィールのアイコンの周りの枠。条件を満たすと自動でもらえて(checkFrames)、STATE.frames に残る。
@@ -11040,7 +11040,9 @@ EVENT_EX.ex_momotaro = [
     ['m176:front', 'm175:front', 'm170:front', 'm118:back', 'm156:back'],
     ['m171:front', 'm172:front', 'm173:front', 'm174:back', 'm88:back']] },
   { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,
-    rules:[{ who:{ ref:'m171' }, side:'enemy', stat:{ hp:1.0 }, label:'HELL 敵のモモタロウ 最大HP+100%' }],
+    // 2026-10-08 ユーザー決定「イベント組 育ちきりで100%、★5中心 育ちきりで70%くらい」に合わせて 敵 与ダメージ+100% を足した(指示書 8-2)
+    rules:[{ who:{ ref:'m171' }, side:'enemy', stat:{ hp:1.0 }, label:'HELL 敵のモモタロウ 最大HP+100%' },
+      { side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' }],
     waves:[
     ['m170:front', 'm175:front', 'm176:front', 'm156:back'],
     ['m176:front', 'm175:front', 'm170:front', 'm118:back', 'm156:back'],
@@ -11067,8 +11069,11 @@ EVENT_EX.ex_freyja = [
     ['m144:front', 'm182:front', 'm56:front', 'm184:back'],
     ['m182:front', 'm56:front', 'm180:front', 'm183:back', 'm184:back'],
     FREYJA_FINAL_WAVE] },
-  { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,
+  // 2026-10-08 ユーザー決定「イベント組 育ちきりで100%、★5中心 育ちきりで70%くらい」に合わせて power 1.3 と 敵 与ダメージ+75% を足した(指示書の HELL の節)
+  { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10, power:1.3,
     rules:[...FREYJA_EX3_RULES,
+      { side:'enemy', label:'HELL 敵 最大HP・攻撃力×1.3' },
+      { side:'enemy', dmgDealt:0.75, label:'HELL 敵 与ダメージ+75%' },
       { who:{ ref:'m177' }, side:'enemy', stat:{ str:0.5, hp:0.5 }, label:'HELL 敵のフレイヤ 攻撃力・HP+50%' },
       { who:{ ref:'m178' }, side:'enemy', stat:{ str:0.5, hp:0.5 }, label:'HELL 敵のフレイ 攻撃力・HP+50%' }],
     waves:[
@@ -11169,7 +11174,8 @@ function buildEventExStages(ev){
       name: `${meta.name}・${exLabel(t)}`,
       terrain: ev.terrain, element: ev.element, rec: t.lv,
       stamina: 0,                       // EXはスタミナを使わない
-      power: 1, enemySkill: t.sk, boss: true, firstClear: EX_FIRST_CLEAR_CRYSTAL[t.ex - 1] || 0, gold: 0,
+      // power: 敵の HP・攻撃力の倍率。HELL の調整用(t.power)。書かなければ 1
+      power: t.power || 1, enemySkill: t.sk, boss: true, firstClear: EX_FIRST_CLEAR_CRYSTAL[t.ex - 1] || 0, gold: 0,
       requires: t.hell ? `${ev.key}_ex3` : `${ev.key}_${EX_UNLOCK_TIER}`,   // HELLはEX3クリアで開く
       // EXのルールは3面で共通。そこに、その面だけの追加ルール(t.rules)を足せる
       // (EX3だけ敵を硬くする、のような段差を作るため)

@@ -70,7 +70,7 @@ ok(labels(ex[0]).join('|') === '土属性の味方 攻撃力・HP+25%|光属性�
 ok(ex[1].rules.length === 5 && ex[1].rules.some(r => r.side === 'enemy' && r.stat && r.stat.pdef === 50), 'EX2: +敵 物理防御+50');
 ok(ex[2].rules.length === 7 && ex[2].rules.some(r => r.whenTarget === 'strDown' && r.dmgDealt === 0.3) && ex[2].rules.some(r => r.when === 'notShielded' && r.dmgTaken === 0.3 && r.side === 'ally'),
   'EX3: +攻撃力低下の敵へ与ダメ+30%・シールドがないとき被ダメ+30%');
-ok(ex[3].rules.length === 9 && ['m177', 'm178'].every(id => ex[3].rules.some(r => r.who && r.who.ref === id && r.side === 'enemy' && r.stat.str === 0.5 && r.stat.hp === 0.5)), 'HELL: +敵のフレイヤ・フレイ 攻撃力・HP+50%');
+ok(ex[3].rules.length === 11 && ex[3].power === 1.3 && ex[3].rules.some(r => r.side === 'enemy' && r.dmgDealt === 0.75) && ['m177', 'm178'].every(id => ex[3].rules.some(r => r.who && r.who.ref === id && r.side === 'enemy' && r.stat.str === 0.5 && r.stat.hp === 0.5)), 'HELL: +敵のフレイヤ・フレイ 攻撃力・HP+50%');
 ok(E.exMobSoulRate(ev, 4, E.MON_BY_ID.m178) === 1.0 && E.exMobSoulRate(ev, 4, E.MON_BY_ID.m181) === 0.35 && E.exPickupSoulRate(ev, 4) === 0.5, 'HELLのソウル率はEX3と同じ');
 
 console.log('--- メダル・ミッション・称号・フレーム ---');

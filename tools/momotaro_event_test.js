@@ -46,7 +46,7 @@ ok(def.every(t => t.waves.flat().every(x => /:(front|back)$/.test(x))), '前後�
 ok(ex[3].requires === 'ev_momotaro_ex3' && ex[0].requires === 'ev_momotaro_3', 'HELLはEX3クリアで開く');
 ok(ex.map(s => s.firstClear).join() === '100,200,400,500', '初回クリアの石 100/200/400/500');
 ok(ex[3].waves.flat().filter(e => !e.boss).every(e => e.star === 10) && ex[3].waves[2][0].star === 10, 'HELLは雑魚も★10');
-ok(ex[3].rules.length === 7 && ex[3].rules.some(r => r.who && r.who.ref === 'm171' && r.side === 'enemy' && r.stat.hp === 1.0), 'HELLだけ敵のモモタロウ 最大HP+100%');
+ok(ex[3].rules.length === 8 && ex[3].rules.some(r => r.who && r.who.ref === 'm171' && r.side === 'enemy' && r.stat.hp === 1.0) && ex[3].rules.some(r => r.side === 'enemy' && r.dmgDealt === 1.0), 'HELLだけ敵のモモタロウ 最大HP+100%・敵 与ダメージ+100%');
 ok(ex[2].rules.length === 6 && ex[2].rules.some(r => r.whenTarget === 'lowHp50' && r.dmgDealt === 0.6), 'EX共通ルール6本(HP50%以下の敵へ+60%を含む)');
 ok(E.exMobSoulRate(ev, 4, E.MON_BY_ID.m172) === 1.0 && E.exMobSoulRate(ev, 4, E.MON_BY_ID.m175) === 0.35 && E.exPickupSoulRate(ev, 4) === 0.5, 'HELLのソウル率はEX3と同じ');
 
