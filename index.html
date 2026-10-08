@@ -11067,7 +11067,9 @@ EVENT_EX.ex_momotaro = [
   { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,
     // 2026-10-08 ユーザー決定「イベント組 育ちきりで100%、★5中心 育ちきりで70%くらい」に合わせて 敵 与ダメージ+100% を足した(指示書 8-2)
     rules:[{ who:{ ref:'m171' }, side:'enemy', stat:{ hp:1.0 }, label:'HELL 敵のモモタロウ 最大HP+100%' },
-      { side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' }],
+      { side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' },
+      // 2026-10-08 ユーザー決定: HELL ではデーモンの味方をさらに弱く(共通ルールの STR・HP-25% に足して、攻撃力 合計-75%)
+      { who:{ species:'demon' }, side:'ally', stat:{ str:-0.5 }, label:'HELL デーモンの味方 攻撃力-50%' }],
     waves:[
     ['m170:front', 'm175:front', 'm176:front', 'm156:back'],
     ['m176:front', 'm175:front', 'm170:front', 'm118:back', 'm156:back'],

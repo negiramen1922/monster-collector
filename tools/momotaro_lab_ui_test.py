@@ -51,7 +51,7 @@ async def main():
             check('HELL想定: 全員 ★10・Lv300・スキルLv10・パッシブLv5・遺物つき', all(x == [10, 300, 10, 5, True] for x in r), r)
             await pg.click('[data-lab="stage:ev_momotaro_ex4"]'); await pg.wait_for_timeout(200)
             r = await pg.evaluate("() => ({ title: document.querySelector('.lab-title').textContent, rules: [...document.querySelectorAll('.lab-rules div')].map(d => d.textContent) })")
-            check('HELLを選ぶと、鬼ヶ島・HELLのステージ効果(モモタロウ HP+100%・敵 与ダメージ+100%を含む8本)が出る', 'HELL' in r['title'] and any('モモタロウ' in x for x in r['rules']) and len(r['rules']) == 8, r)
+            check('HELLを選ぶと、鬼ヶ島・HELLのステージ効果(モモタロウ HP+100%・敵 与ダメージ+100%・デーモン 攻撃力-50%を含む9本)が出る', 'HELL' in r['title'] and any('モモタロウ' in x for x in r['rules']) and len(r['rules']) == 9, r)
             await pg.click('[data-lab="sim:20"]')
             await pg.wait_for_function("() => evLab.sim && evLab.sim.key === 'ev_momotaro_ex4' && evLab.sim.done === 20 && !labSimming", timeout=180000)
             r = await pg.evaluate("() => ({ err: evLab.sim.rows.map(x => x.parts[0]).filter(p => p.error).map(p => p.error), wins: evLab.sim.rows.filter(x => x.win).length })")
