@@ -34,7 +34,7 @@ async def main():
               equipRune(c.uid, ids[0], 2);
               saveState(); return ids; }""")
             await pg.evaluate("() => document.querySelector('.nav-btn[data-nav=\"party\"]').click()"); await pg.wait_for_timeout(250)
-            tabs = await pg.evaluate("() => [...document.querySelectorAll('#screen .fview-tab')].map(b => [b.textContent, b.classList.contains('on')])")
+            tabs = await pg.evaluate("() => [...document.querySelectorAll('#screen .fview-tab')].map(b => [b.firstChild.textContent, b.classList.contains('on')])")
             check('陣形の右上に「キャラ / 装備」の切り替え(はじめはキャラ)', tabs == [['キャラ', True], ['装備', False]], tabs)
             cap = await pg.evaluate("() => document.querySelector('#screen .formation .party-slot .slot-cap').textContent")
             check('キャラ: マスに ★とLv', cap == '★6Lv120', cap)
@@ -50,6 +50,15 @@ async def main():
             second = await pg.evaluate("() => { const s = document.querySelectorAll('#screen .formation .party-slot')[1]; return !!s.querySelector('.slot-relic.none'); }")
             check('装備: 遺物のない子は「—」の枠', second)
             await pg.screenshot(path=str(OUT / 'fview_equip.png'))
+            marks = await pg.evaluate("() => ({ tab: !!document.querySelector('#screen [data-fview=\"equip\"] .equip-empty'), slots: [...document.querySelectorAll('#screen .formation .party-slot')].filter(s => s.querySelector('img')).map(s => !!s.querySelector('.equip-empty')) })")
+            check('装備に空きがあると「!」(装備のタブと、空きのある子のマス)', marks['tab'] and marks['slots'][:2] == [True, True], marks)
+            # 全員の遺物とルーンを埋めると「!」が消える
+            await pg.evaluate("""() => { const ids = STATE.slots.filter(Boolean); const rs = Object.keys(RELICS);
+              ids.forEach((id, k) => { const r = rs[k + 1]; if(!equippedRelicOf(id)){ STATE.relics[r] = newRelicState(); STATE.relics[r].equippedTo = id; }
+                runesOf(id).forEach((u, i) => { if(!u && i < runeSlotsOpen(id)) equipRune(addRune(makeRune(1, 0, 'hp')).uid, id, i); }); });
+              saveState(); render(); }"""); await pg.wait_for_timeout(200)
+            n = await pg.evaluate("() => document.querySelectorAll('#screen .equip-empty').length")
+            check('全部埋めると「!」は出ない', n == 0, n)
             await pg.evaluate("() => { goto('home', {nav:true}); }"); await pg.wait_for_timeout(200)
             home = await pg.evaluate("() => document.querySelectorAll('#screen .formation .slot-cap').length")
             check('ホームの小さい陣形には出さない', home == 0, home)
