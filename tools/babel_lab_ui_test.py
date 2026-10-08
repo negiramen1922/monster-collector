@@ -48,10 +48,12 @@ async def main():
             r = await pg.evaluate("() => lab.parties[0][0]")
             check('モンスターを入れ替えて、★・スキルLv・ルーンを1つずつ変えられる', r['id'] == 'm05' and r['star'] >= 4 and r['sk'] >= 2 and r['rune'] >= 1, r)
             await pg.screenshot(path=str(OUT / 'lab_editor.png'), full_page=True)
-            # 超上級: ★10・スキルLv12・ルーンⅩ・遺物カンスト(合う遺物を自動で)
+            # 超上級: ★10・スキルLv10(上限)・ルーンⅩ・遺物カンスト(合う遺物を自動で)
             await pg.click('[data-lab="grow:3"]'); await pg.wait_for_timeout(200)
             r = await pg.evaluate("() => lab.parties[0].filter(Boolean).map(s => [s.star, s.sk, s.rune, !!s.relic, s.rlv])")
-            check('超上級にすると全員 ★10・スキルLv12・ルーンⅩ・遺物Lv200(遺物つき)', len(r) > 0 and all(x == [10, 12, 10, True, 200] for x in r), r)
+            SKILL_LV_CAP = await pg.evaluate("() => SKILL_LV_CAP")
+            check('超上級にすると全員 ★10・スキルLv上限・ルーンⅩ・遺物Lv200(遺物つき)',
+                  len(r) > 0 and all(x == [10, SKILL_LV_CAP, 10, True, 200] for x in r), (SKILL_LV_CAP, r))
             await pg.evaluate("() => { lab.pick = { p: 0, i: 0 }; render(); }"); await pg.wait_for_timeout(200)
             r = await pg.evaluate("() => ({ sel: document.getElementById('lab-relic').value, note: document.querySelector('.lab-relic-note').textContent })")
             check('編集欄で遺物を選べて、カンスト(スキルLv10・4凸)と出る', r['sel'] != '' and 'スキルLv10' in r['note'] and '4凸' in r['note'], r)
@@ -64,19 +66,23 @@ async def main():
             r = await pg.evaluate("() => lab.sim.rows.flatMap(x => x.parts).filter(p => p.error).length")
             check('超上級でも連続テストが動く', r == 0, r)
             await pg.click('[data-lab="close"]')
-            # 2パーティ戦: 前半と後半に同じ子がいると戦えない
+            # 5階はステージ効果つき、10階はボス1体＋取り巻きの特殊ステージ
             await pg.click('[data-lab="tower:bal"]'); await pg.click('[data-lab="floor:5"]'); await pg.wait_for_timeout(150)
             await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(150)
-            r = await pg.evaluate("() => ({ halves: document.querySelectorAll('.lab-party').length, ok: labProblem(0) + '|' + labProblem(1), en: document.querySelectorAll('.lab-half').length })")
-            check('5階は前半・後半の2つの編成と、それぞれの敵が出る', r['halves'] == 2 and r['en'] == 2 and r['ok'] == '|', r)
-            dup = await pg.evaluate("() => { lab.parties[1][0] = { ...lab.parties[0][0] }; return labProblem(1); }")
-            check('前半と後半に同じモンスターがいると戦えない', '同じモンスター' in dup, dup)
-            await pg.evaluate("() => { labHint('win'); render(); }")
-            await pg.click('[data-lab="sim:20"]')
-            await pg.wait_for_function("() => lab.sim && lab.sim.done === 20 && !labSimming", timeout=90000)
-            r = await pg.evaluate("() => ({ parts: lab.sim.rows.map(x => x.parts.length), err: lab.sim.rows.flatMap(x => x.parts).filter(p => p.error).length })")
-            check('2パーティ戦の連続テストは、前半に勝ったら後半も戦う', r['err'] == 0 and max(r['parts']) <= 2, r)
-            await pg.screenshot(path=str(OUT / 'lab_2p.png'), full_page=True)
+            r = await pg.evaluate("""() => ({ parties: document.querySelectorAll('.lab-party').length,
+                ok: labProblem(0), rules: document.querySelectorAll('.lab-rules div').length })""")
+            check('5階は編成が1つで、ステージ効果が出る', r['parties'] == 1 and r['ok'] == '' and r['rules'] >= 3, r)
+            await pg.click('[data-lab="floor:3"]'); await pg.wait_for_timeout(200)
+            r = await pg.evaluate("() => babelStage(lab.tower, 3).rules.map(x => x.label)")
+            check('ふつうの階は塔の敵の底上げだけ(ステージ効果なし)',
+                  len(r) <= 1 and all('塔の敵' in x for x in r), r)
+            await pg.click('[data-lab="floor:10"]'); await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(200)
+            r = await pg.evaluate("""() => { const st = babelStage(lab.tower, 10);
+                const last = st.waves[st.waves.length - 1];
+                return { boss: last.filter(u => u.boss).length, rules: st.rules.map(r => r.label) }; }""")
+            check('10階はボスが1体で、ボスだけ大きく強化される',
+                  r['boss'] == 1 and any(x.startswith('ボス「') for x in r['rules']), r)
+            await pg.screenshot(path=str(OUT / 'lab_boss.png'), full_page=True)
             # 観戦: 戦闘画面になり、終わると結果 → 試験場に戻る
             await pg.click('[data-lab="floor:1"]'); await pg.wait_for_timeout(150)
             await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(150)
