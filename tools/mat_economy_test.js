@@ -191,7 +191,8 @@ ok('イベントステージの報酬にBOXがない', evStages.every(s => (s.bo
 E.EVENTS.forEach(ev => {
   const mats = Object.values(E.eventSkillMats(ev)).map(([f, k]) => f + '_' + k);
   const s10 = E.STAGE_BY_ID[`${ev.key}_10`];
-  const got = (s10.bossReward || []).filter(r => E.parseMat(r.key || '')).map(r => E.parseMat(r.key));
+  // 霊素核(co)は遺物の強化素材。ev.relic のイベントは10層で遺物の代わりに配るので、ワザ素材だけを数える
+  const got = (s10.bossReward || []).filter(r => E.parseMat(r.key || '') && E.parseMat(r.key).fam !== 'co').map(r => E.parseMat(r.key));
   ok(`  ${ev.key} ステージ10は主役の3種のTierIIIを配る`,
      got.length === 3 && got.every(m => m.tier === 3 && mats.includes(m.fam + '_' + m.kind)), got.map(m => m.fam + '_' + m.kind + '/' + m.tier));
 });

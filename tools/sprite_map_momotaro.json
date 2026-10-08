@@ -1,0 +1,12 @@
+{
+ "note": "モモタロウイベの6体の立ち絵(2026-10-07。origin/main e03e9be で追加された直下の画像。対応はユーザー確認済み)。tools/add_sprites.py tools/sprite_map_momotaro.json で取り込みずみ。元画像はほかのイベントでも使うので動かさない。",
+ "map": {
+  "モモタロウ": { "file": "06_samurai.png",  "sprite": "171" },
+  "イヌ":       { "file": "04_dog.png",      "sprite": "172" },
+  "サル":       { "file": "02_monkey.png",   "sprite": "173" },
+  "キジ":       { "file": "01_rooster.png",  "sprite": "174" },
+  "アカオニ":   { "file": "13_red_oni.png",  "sprite": "175" },
+  "アオオニ":   { "file": "10_blue_oni.png", "sprite": "176" }
+ },
+ "missing": []
+}

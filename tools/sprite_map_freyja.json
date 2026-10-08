@@ -1,0 +1,14 @@
+{
+ "note": "フレイヤイベ(豊穣の女神)の8体の立ち絵(2026-10-07。リポジトリ直下の画像。対応は確認ずみ)。tools/add_sprites.py tools/sprite_map_freyja.json で取り込みずみ。元画像はほかでも使うので動かさない。",
+ "map": {
+  "フレイヤ":           { "file": "11_harvest_goddess.png", "sprite": "177" },
+  "フレイ":             { "file": "09_elf.png",             "sprite": "178" },
+  "ヒルディスヴィーニ": { "file": "14_golden_boar.png",     "sprite": "179" },
+  "エインヘリャル":     { "file": "12_viking_ghost.png",    "sprite": "180" },
+  "ヒルデ":             { "file": "03_valkyrie.png",        "sprite": "181" },
+  "ブリュンヒルド":     { "file": "05_shield_knight.png",   "sprite": "182" },
+  "スコグル":           { "file": "08_angel_archer.png",    "sprite": "183" },
+  "ゲンドゥル":         { "file": "07_angel_staff.png",     "sprite": "184" }
+ },
+ "missing": []
+}

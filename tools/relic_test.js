@@ -164,8 +164,8 @@ Object.values(E.RELICS).forEach(r => r.effects.forEach((e, i) => {
     : e.cond && e.cond.type === 'mon' ? 33 : CAP_BY_STAR[r.star]);
   if(slotCap(e) !== want) off.push([r.id, e.stat, slotCap(e), want]);
 }));
-ok('全58種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
-ok('遺物は58種(★4の霜嵐の牙飾り・奈落を覗く眼を追加)', Object.keys(E.RELICS).length === 58, Object.keys(E.RELICS).length);
+ok('全62種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
+ok('遺物は62種(★4の霜嵐の牙飾り・奈落を覗く眼、モモタロウイベの日の丸桃剣・日の丸の鉢巻、フレイヤイベの鷹の羽衣・黄金の麦穂を追加)', Object.keys(E.RELICS).length === 62, Object.keys(E.RELICS).length);
 ok('全遺物にアイコンがある', Object.values(E.RELICS).every(r => typeof r.icon === 'string' && r.icon.includes('data:image')), Object.values(E.RELICS).filter(r => !r.icon).map(r => r.id));
 const gachaMin = Math.min(...Object.values(E.RELICS).filter(r => r.channel !== 'distributed').flatMap(r => r.effects.filter(e => e.stat !== 'cut').map(slotCap)));
 const distMax = Math.max(...Object.values(E.RELICS).filter(r => r.channel === 'distributed').flatMap(r => r.effects.map(slotCap)));
