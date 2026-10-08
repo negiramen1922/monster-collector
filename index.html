@@ -1286,6 +1286,36 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .detail-head img{ width:88px; height:88px; flex:none; object-fit:contain; image-rendering:pixelated; }
 .dh-body{ flex:1; min-width:0; }
 .detail-name{ font-size:17px; font-weight:800; margin-top:2px; }
+.detail-name-row{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:2px; }
+.detail-name-row .detail-name{ margin-top:0; min-width:0; overflow-wrap:anywhere; }
+.detail-species{ font-size:10.5px; color:var(--dim); margin-top:1px; }
+.nick-species{ font-size:9.5px; color:var(--dim); font-weight:600; margin-left:5px; }
+.nick-edit{ margin-top:4px; }
+.nick-input-row{ display:flex; align-items:center; gap:6px; }
+.nick-input{ flex:1; min-width:0; box-sizing:border-box; font-family:inherit; font-size:14px; font-weight:700; color:var(--text);
+  background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:6px 9px; }
+.nick-input:focus{ outline:none; border-color:var(--gold); }
+.nick-count{ font-size:10px; color:var(--dim); flex:none; }
+.nick-count.over{ color:var(--danger); font-weight:800; }
+.nick-btns{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.nick-hint{ font-size:10px; line-height:1.6; color:var(--dim); margin-top:5px; }
+.nick-hint.err{ color:var(--danger); font-weight:700; }
+.report-link{ font-family:inherit; font-size:10.5px; font-weight:700; color:var(--dim); background:none; border:none; padding:4px 2px;
+  text-decoration:underline; cursor:pointer; }
+.report-reasons{ display:flex; flex-direction:column; gap:6px; margin:6px 0 10px; text-align:left; }
+.report-reason{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--text); background:var(--panel2);
+  border:1px solid var(--line); border-radius:10px; padding:9px 11px; cursor:pointer; font-family:inherit; text-align:left; }
+.report-reason.on{ border-color:var(--gold); color:var(--gold); }
+.report-reason .rr-dot{ width:12px; height:12px; border-radius:50%; border:2px solid currentColor; flex:none; box-sizing:border-box; }
+.report-reason.on .rr-dot{ background:currentColor; }
+.report-note{ width:100%; box-sizing:border-box; resize:vertical; min-height:56px; font-family:inherit; font-size:12.5px; line-height:1.5;
+  color:var(--text); background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+.report-note:focus{ outline:none; border-color:var(--gold); }
+.report-seen{ text-align:left; font-size:11px; line-height:1.7; color:var(--dim); background:var(--panel2); border-radius:10px; padding:8px 10px;
+  margin:8px 0 10px; overflow-wrap:anywhere; white-space:pre-wrap; }
+.report-seen b{ color:var(--text); }
+.report-err{ color:var(--danger); font-size:11px; font-weight:700; margin:4px 0 8px; }
+.pvp-opp-acts{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none; }
 .detail-sub{ font-size:12px; color:var(--gold); }
 .stars{ color:#eeeaf6; letter-spacing:-.02em; }
 .stars i{ font-style:normal; }
@@ -3616,7 +3646,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.5.001';
+const GAME_VERSION = 'α0.5.002';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4822,6 +4852,7 @@ function accountFromUser(user, provider, prev){
     email: user.email || (keep ? keep.email : '') || '',
     createdAt: (keep && keep.createdAt) || Date.now(),
     lastLoginAt: Date.now(),
+    modAt: (keep && keep.modAt) || 0,   // 運営の対処(moderation)を適用ずみの時刻。プレイヤー名はこの端末の ACCOUNT にあるので端末ごとに持つ
   };
 }
 async function readAccount(){
@@ -5043,6 +5074,17 @@ const firebaseBackend = {
     const { fs, db } = await this.load();
     await fs.setDoc(fs.doc(db, 'surveys', surveyId, 'answers', uid), data);
   },
+  // 通報。reports/{自動ID} に作るだけ(読めない・書き換えられない。firestore.rules)
+  async submitReport(data){
+    const { fs, db } = await this.load();
+    await fs.addDoc(fs.collection(db, 'reports'), data);
+  },
+  // 運営の対処。moderation/{uid} は本人だけ読める(書くのは運営がコンソールから)
+  async fetchModeration(uid){
+    const { fs, db } = await this.load();
+    const snap = await fs.getDoc(fs.doc(db, 'moderation', uid));
+    return snap.exists() ? snap.data() : null;
+  },
   async fetchGifts(uid){
     const { fs, db } = await this.load();
     const snap = await fs.getDocs(fs.collection(db, 'players', uid, 'gifts'));
@@ -5225,7 +5267,7 @@ function buildDefenseSnapshot(){
     const relicId = relicOfIn(STATE.pvpDefenseRelicsFrom || 0, id);
     const relicSt = relicId ? STATE.relics[relicId] : null;
     return {
-      id, star: owned.star, level: owned.level,
+      id, nick: sanitizeNick(owned.nick), star: owned.star, level: owned.level,
       skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
       relic: relicSt ? { defId: relicId, level: relicSt.level, skillLv: relicSt.skillLv, dupeUsed: relicSt.dupeUsed } : null,
       runes: sanitizeRuneBonus(runeBonusOf(id, STATE.pvpDefenseRelicsFrom || 0)),
@@ -5246,7 +5288,7 @@ async function publishProfile(){
     const favRelicId = favId ? equippedRelicOf(favId) : null;
     const favRelicSt = favRelicId ? STATE.relics[favRelicId] : null;
     const support = favOwned ? {
-      id: favId, star: favOwned.star, level: favOwned.level,
+      id: favId, nick: sanitizeNick(favOwned.nick), star: favOwned.star, level: favOwned.level,
       skillLv: favOwned.skillLv, skill2Lv: favOwned.skill2Lv, ultLv: favOwned.ultLv, passiveLv: favOwned.passiveLv,
       relic: favRelicSt ? { defId: favRelicId, level: favRelicSt.level, skillLv: favRelicSt.skillLv, dupeUsed: favRelicSt.dupeUsed } : null,
       runes: sanitizeRuneBonus(runeBonusOf(favId)),
@@ -5309,6 +5351,7 @@ function sanitizeSupport(raw){
   if(!raw || !MON_BY_ID[raw.id]) return null;
   return {
     id: raw.id,
+    nick: sanitizeNick(raw.nick),   // 付けた名前(長さ・記号・NGワードを見て、だめなら ''=図鑑名)
     star: clampInt(raw.star, 1, MAX_STAR, 1),
     level: clampInt(raw.level, 1, MAX_LEVEL, 1),
     skillLv: clampInt(raw.skillLv, 1, 12, 1),
@@ -5387,6 +5430,205 @@ function sanitizeBio(raw){
   return raw.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').replace(/\n{3,}/g, '\n\n').slice(0, BIO_MAX);
 }
 function profileBio(){ return sanitizeBio(profileState().bio); }
+
+/* ---------------- モンスターの名前(ニックネーム)・NGワード・通報(α0.5.002) ----------------
+   名前は STATE.owned[id].nick(空なら図鑑名)。お助け(publishProfile の support)と
+   PVPの防衛(buildDefenseSnapshot)にも載せて、ほかの人にも見せる。受け取る側は sanitizeNick で
+   長さ・記号・制御文字・NGワードを見て、だめなら図鑑名で出す。
+   HTMLにそのまま差し込む場所(戦闘のユニット名など)があるので、< > & " ' ` \ は使えない文字にしている。 */
+const NICK_MAX = 8;
+const REPORTED_LABEL = '(通報ずみ)';
+const NICK_BAD_CHARS = /[<>&"'`\\]/;
+// 改行・制御文字・見えない文字(ゼロ幅・向きの制御など)
+const NICK_INVISIBLE = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
+const NICK_INVISIBLE_1 = new RegExp(NICK_INVISIBLE.source);   // test 用(g を付けない)
+/* NGワード。露骨な卑語・差別語・暴言だけの短いリスト(完全ではないので通報と併用する)。
+   照合の前に ngNormalize で、全角/半角・大文字/小文字・カタカナ→ひらがな・小さい文字→大きい文字にそろえ、
+   空白や記号を取り除く。NG_SUB は名前のどこかに入っていればだめ、NG_EXACT は名前全体がその言葉のときだけだめ
+   (「しね」「sex」などは、ほかの言葉の一部にもなるので全体一致だけにする) */
+const NG_SUB = [
+  'ちんこ', 'ちんぽ', 'まんこ', 'せっくす', 'れいぷ', 'ふぁっく', 'きちがい', 'きちげー', 'がいじ',
+  '死ね', '氏ね', '殺す', '基地外', '池沼', '支那人', '土人', '強姦', '売春',
+  'fuck', 'shit', 'bitch', 'nigger', 'nigga', 'cunt', 'penis', 'pussy', 'whore', 'retard',
+];
+const NG_EXACT = ['しね', 'しねよ', 'ころす', 'ころすぞ', 'きえろ', 'sex', 'rape', 'dick', 'ass'];
+const NG_SMALL_KANA = { 'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お', 'っ': 'つ', 'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ', 'ゎ': 'わ', 'ゕ': 'か', 'ゖ': 'け' };
+function ngNormalize(s){
+  let t = String(s == null ? '' : s).normalize('NFKC').toLowerCase();
+  t = t.replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));   // カタカナ → ひらがな
+  t = t.replace(/[ぁぃぅぇぉっゃゅょゎゕゖ]/g, c => NG_SMALL_KANA[c]);
+  t = t.replace(/[ー〜~]/g, 'ー');
+  return t.replace(/[^\p{L}\p{N}]/gu, '');   // 空白・記号・絵文字を挟む書き方を詰める(長音「ー」は文字として残る)
+}
+const NG_SUB_N = NG_SUB.map(ngNormalize);
+const NG_EXACT_N = NG_EXACT.map(ngNormalize);
+function hasNgWord(s){
+  const t = ngNormalize(s);
+  if(!t) return false;
+  const loose = t.replace(/ー/g, '');   // 「ちーんこ」のように長音を挟んだ書き方も見る
+  return NG_EXACT_N.includes(t) || NG_EXACT_N.includes(loose) || NG_SUB_N.some(w => t.includes(w) || loose.includes(w));
+}
+const NG_MESSAGE = '使えない言葉が入っています。別の言葉にしてください';
+// 入力された名前を整える。{ nick, err }。nick が '' なら「元に戻す」(図鑑名)
+function cleanNickInput(raw, monId){
+  const s = String(raw == null ? '' : raw).replace(NICK_INVISIBLE, '').trim();
+  if(!s) return { nick: '' };
+  if(Array.from(s).length > NICK_MAX) return { nick: s, err: `名前は${NICK_MAX}文字までです` };
+  if(NICK_BAD_CHARS.test(s)) return { nick: s, err: '使えない記号が入っています(< > & " \' ` \\)' };
+  if(hasNgWord(s)) return { nick: s, err: NG_MESSAGE };
+  if(monId && MON_BY_ID[monId] && s === MON_BY_ID[monId].name) return { nick: '' };
+  return { nick: s };
+}
+// ほかの人の公開データ(と、念のため自分のセーブ)から来た名前の検査。だめなら ''(=図鑑名で出す)
+function sanitizeNick(raw){
+  if(typeof raw !== 'string' || !raw) return '';
+  if(raw !== raw.trim() || NICK_INVISIBLE_1.test(raw)) return '';
+  if(Array.from(raw).length > NICK_MAX || NICK_BAD_CHARS.test(raw) || hasNgWord(raw)) return '';
+  return raw;
+}
+// 自分のモンスター(お助けで借りているものも含む)の表示名
+function monName(id){
+  if(id === HELP_SLOT_ID) return STATE && STATE.borrowed ? otherMonName(STATE.borrowed.mon, STATE.borrowed.uid) : (MON_BY_ID[id] ? MON_BY_ID[id].name : '');
+  const m = MON_BY_ID[id];
+  if(!m) return '';
+  const o = STATE && STATE.owned && STATE.owned[id];
+  return (o && sanitizeNick(o.nick)) || m.name;
+}
+function hasNick(id){ return !!(id !== HELP_SLOT_ID && STATE && STATE.owned[id] && sanitizeNick(STATE.owned[id].nick)); }
+// ほかの人のモンスター(お助け・PVPの防衛)の表示名。通報した相手のものは図鑑名にする
+function otherMonName(snap, uid){
+  const m = snap && MON_BY_ID[snap.id];
+  if(!m) return '';
+  return (!isReported(uid) && sanitizeNick(snap.nick)) || m.name;
+}
+function setMonNick(id, raw){
+  const o = STATE.owned[id];
+  if(!o) return { err: 'このモンスターは持っていません' };
+  const r = cleanNickInput(raw, id);
+  if(r.err) return r;
+  if(r.nick) o.nick = r.nick; else delete o.nick;
+  saveState();
+  if(isPublishedMon(id)) publishProfile();
+  return r;
+}
+// お助け(お気に入り1枠目)か防衛編成に入っているか(=名前が公開されているか)
+function isPublishedMon(id){
+  if(!STATE) return false;
+  const fav = (profileState().favorites || []).filter(x => STATE.owned[x])[0];
+  return fav === id || (STATE.pvpDefenseSlots || []).includes(id);
+}
+
+/* ---- 通報 ----
+   reports/{自動ID} に送る(本人のuidでの作成だけ。読めない・変えられない。firestore.rules)。
+   送った相手(uid)は STATE.reportedUids に入れて、自分の画面では名前・自己紹介を「(通報ずみ)」、
+   モンスターの名前を図鑑名にする。設定から元に戻せる。
+   いたずらの抑え(クライアント側): 同じ相手は1日1回、全体で1日10件まで。 */
+const REPORT_DAILY_MAX = 10;
+const REPORT_NOTE_MAX = 100;
+const REPORT_REASONS = [
+  { key: 'name', label: '不適切なプレイヤー名' },
+  { key: 'nick', label: '不適切なモンスターの名前' },
+  { key: 'bio', label: '不適切な自己紹介' },
+  { key: 'other', label: 'その他' },
+];
+function reportedUids(){ return (STATE && Array.isArray(STATE.reportedUids)) ? STATE.reportedUids : []; }
+function isReported(uid){ return !!uid && reportedUids().includes(uid); }
+function otherPlayerName(name, uid){ return isReported(uid) ? REPORTED_LABEL : name; }
+function otherBio(bio, uid){ return isReported(uid) ? '' : bio; }
+const reportAvailable = () => typeof authBackend().submitReport === 'function' && !!ACCOUNT && !String(ACCOUNT.uid).startsWith('local-');
+function ensureReportDaily(){
+  const key = currentDayKey();
+  if(!STATE.reportDaily || STATE.reportDaily.key !== key) STATE.reportDaily = { key, n: 0, to: {} };
+  return STATE.reportDaily;
+}
+// 通報できない理由('' なら送れる)
+function reportBlockReason(uid){
+  if(!reportAvailable()) return '通報はログイン中のみ利用できます';
+  if(!uid || (ACCOUNT && uid === ACCOUNT.uid)) return '自分は通報できません';
+  const d = ensureReportDaily();
+  if(d.to[uid]) return 'この相手は本日すでに通報しています';
+  if(d.n >= REPORT_DAILY_MAX) return `通報は1日${REPORT_DAILY_MAX}件までです`;
+  return '';
+}
+// 通報の画面で見せる・送る「見えていた内容」。target: { uid, playerId, name, bio, mons:[{id,nick}] }
+function reportSnapshotOf(target){
+  const mons = (target.mons || []).filter(x => x && MON_BY_ID[x.id] && x.nick).slice(0, 6)
+    .map(x => `${MON_BY_ID[x.id].name}=${String(x.nick).slice(0, NICK_MAX * 2)}`).join('、').slice(0, 200);
+  return {
+    name: String(target.name || '').slice(0, 20),
+    bio: String(target.bio || '').slice(0, BIO_MAX),
+    monsters: mons,
+  };
+}
+function buildReportDoc(target, reason, note){
+  return {
+    reporter: ACCOUNT.uid,
+    target: String(target.uid).slice(0, 128),
+    targetPlayerId: String(target.playerId || '').slice(0, 20),
+    reason: REPORT_REASONS.some(r => r.key === reason) ? reason : 'other',
+    note: String(note || '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, REPORT_NOTE_MAX),
+    snapshot: reportSnapshotOf(target),
+    at: Date.now(),
+    version: GAME_VERSION,
+  };
+}
+async function submitReport(target, reason, note){
+  const block = reportBlockReason(target && target.uid);
+  if(block) return { ok: false, err: block };
+  const doc = buildReportDoc(target, reason, note);
+  try{ await authBackend().submitReport(doc); }
+  catch(e){ console.warn('report: not sent', e); return { ok: false, err: '通信に失敗しました。時間をおいてお試しください' }; }
+  const d = ensureReportDaily();
+  d.n += 1;
+  d.to[target.uid] = true;
+  if(!Array.isArray(STATE.reportedUids)) STATE.reportedUids = [];
+  if(!STATE.reportedUids.includes(target.uid)) STATE.reportedUids.push(target.uid);
+  if(STATE.reportedUids.length > 200) STATE.reportedUids = STATE.reportedUids.slice(-200);
+  saveState();
+  logEvent('report_sent', { reason: doc.reason });
+  return { ok: true, doc };
+}
+function unhideReported(){
+  STATE.reportedUids = [];
+  saveState();
+}
+
+/* ---- 運営の対処(moderation/{uid}) ----
+   運営がコンソールで { resetName, resetBio, resetNicks, at } を書く(rules は本人だけ読める・誰も書けない)。
+   ログインのたびに読み、at が前回より新しければ該当を初期に戻して公開し直す。
+   プレイヤー名はこの端末の ACCOUNT に入っているので、適用ずみの at も ACCOUNT.modAt に持つ(端末ごと)。
+   自己紹介とモンスターの名前はセーブ(STATE.modAt)で持つ(クラウド同期で全端末にそろう) */
+function defaultPlayerName(){ return `テイマー${playerIdFromUid(ACCOUNT.uid).slice(0, 4)}`; }
+async function applyModeration(){
+  const be = authBackend();
+  if(!ACCOUNT || !STATE || typeof be.fetchModeration !== 'function') return [];
+  let m;
+  try{ m = await be.fetchModeration(ACCOUNT.uid); }catch(e){ console.warn('moderation: could not read', e); return []; }
+  if(!m || typeof m !== 'object') return [];
+  const at = Number(m.at) || 0;
+  if(at <= 0) return [];
+  const done = [];
+  if(at > (Number(ACCOUNT.modAt) || 0)){
+    const next = { ...ACCOUNT, modAt: at };
+    if(m.resetName && ACCOUNT.name !== defaultPlayerName()){ next.name = defaultPlayerName(); done.push('プレイヤー名'); }
+    await storeAccount(next);
+  }
+  if(at > (Number(STATE.modAt) || 0)){
+    if(m.resetBio && profileState().bio){ profileState().bio = ''; done.push('自己紹介'); }
+    if(m.resetNicks){
+      const ids = Object.keys(STATE.owned).filter(id => STATE.owned[id].nick);
+      ids.forEach(id => { delete STATE.owned[id].nick; });
+      if(ids.length) done.push('モンスターの名前');
+    }
+    STATE.modAt = at;
+    saveState();
+  }
+  if(done.length){
+    toast(`${done.join('・')}が不適切と判断されたため、初期に戻しました`);
+    render();
+  }
+  return done;
+}
 async function addFriendByCode(code){
   if(!friendsAvailable()){ toast('この機能はログイン中のみ利用できます'); return; }
   // playerId is stored as XXXX-XXXX-XXXX; accept it with or without hyphens/spacing
@@ -5621,7 +5863,7 @@ function borrowFriendHelper(uid){
   STATE.borrowed = { uid: f.uid, name: f.name, mon: { ...f.support } };
   syncHelperMon();
   saveState();
-  toast(`${f.name}の${MON_BY_ID[f.support.id].name}を借りました`);
+  toast(`${otherPlayerName(f.name, f.uid)}の${otherMonName(f.support, f.uid)}を借りました`);
   render();
 }
 // お助けモンスターを借りてクエストに使うと、貸した側(uid)へフレンドポイントが自動で届く
@@ -8364,7 +8606,7 @@ function renderRuneDetail(){
           <button class="rr-btn" data-rune-reroll="${i}" ${canReroll ? '' : 'disabled'} aria-label="${RUNE_STATS[x.stat].label}を振り直す">${UI_ICON.dice} 振り直す</button></div>`).join('')}</div>
         <div class="rr-cost">振り直し 1回 ${UI_ICON.dust}${rerollCost.toLocaleString()}(所持 ${UI_ICON.dust}${STATE.runeDust.toLocaleString()})・種類と値を引き直します</div>`
         : '<div class="fs-note">白のルーンにはサブ効果がありません。</div>'}
-      <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${MON_BY_ID[u.monId].name}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
+      <div class="rd-users">${users.length ? users.map(u => `編成${u.idx + 1}: ${monName(u.monId)}`).join('、') + ' が装備中' : 'どの編成でも装備していません'}</div>
       <div class="rd-vbtns">
         <button class="btn btn-block" data-rune-view="fuse" ${maxed ? 'disabled' : ''}>${maxed ? `Tier${RUNE_ROMAN[RUNE_TIERS - 1]}は最大です` : `合成する(Tier${RUNE_ROMAN[r.tier - 1]} → ${RUNE_ROMAN[r.tier]}〜)`}</button>
         <button class="btn btn-ghost btn-block" data-rune-dismantle="${r.uid}" ${runeCanDismantle(r) ? '' : 'disabled'}>分解する(${UI_ICON.dust}${runeDustValue(r)})${runeCanDismantle(r) ? '' : `<small>${r.lock ? 'ロック中' : '装備中'}は分解できません</small>`}</button>
@@ -8838,7 +9080,7 @@ function sweepLogHtml(log, stage, medalIcon){
     ${log.map((e, i) => `<div class="swl-row ${e.win ? '' : 'lose'} ${e.best && sweepIsHit(e.best) ? 'hit' : ''}" style="--i:${i}">
       <div class="swl-mvp">${e.mvp ? `<img src="${imgSrc(e.mvp)}" alt="">` : ''}<span>MVP</span></div>
       <div class="swl-body">
-        <small>RUN ${String(i + 1).padStart(2, '0')}${e.mvp ? ` ・ ${MON_BY_ID[e.mvp].name}` : ''}</small>
+        <small>RUN ${String(i + 1).padStart(2, '0')}${e.mvp ? ` ・ ${monName(e.mvp)}` : ''}</small>
         <b>${e.win ? stage.name : '敗北'}</b>
         <span class="swl-gain">${e.win ? `${e.gold ? goldText(e.gold) : ''}${e.medal && medalIcon ? `<em>${medalIcon}+${e.medal}</em>` : ''}` : 'この回の報酬はありません'}</span>
       </div>
@@ -9055,8 +9297,8 @@ function showAutoRunResult(){
       </div>
       ${mvpRef ? `<div class="ar-mvp">
         <img src="${imgSrc(mvpRef)}" alt="">
-        <div><b>MVP ${MON_BY_ID[mvpRef].name}</b><small>与ダメージ合計 ${a.dealt[mvpRef].toLocaleString()}</small></div>
-        ${a.maxDmg.ref ? `<div class="ar-maxdmg"><b>最大ダメージ ${a.maxDmg.v.toLocaleString()}</b><small>${MON_BY_ID[a.maxDmg.ref].name}</small></div>` : ''}
+        <div><b>MVP ${monName(mvpRef)}</b><small>与ダメージ合計 ${a.dealt[mvpRef].toLocaleString()}</small></div>
+        ${a.maxDmg.ref ? `<div class="ar-maxdmg"><b>最大ダメージ ${a.maxDmg.v.toLocaleString()}</b><small>${monName(a.maxDmg.ref)}</small></div>` : ''}
       </div>` : ''}
       ${a.gold ? `<div class="gold-line">${goldText(a.gold)}</div>` : ''}
       ${a.crystals ? `<div class="gold-line">${CRYSTAL_ICON}${a.crystals}</div>` : ''}
@@ -11758,9 +12000,9 @@ function renderPvpFormRoster(kind){
       return `
         <div class="roster-row ${inParty ? 'selected' : ''} ${full ? 'disabled' : ''}" data-pvp-form-toggle="${m.id}"
           style="--elem:${ELEM_COLOR[m.element]};">
-          <img src="${imgSrc(m.id)}" alt="${m.name}">
+          <img src="${imgSrc(m.id)}" alt="${monName(m.id)}">
           <div class="info">
-            <div class="name">${m.name} ${starsHtml(m.rarity, owned.star)}</div>
+            <div class="name">${monName(m.id)}${hasNick(m.id) ? `<small class="nick-species">${m.name}</small>` : ''} ${starsHtml(m.rarity, owned.star)}</div>
             <div class="meta"><span class="roster-bp">BP ${battlePower(m.id).toLocaleString()}</span>・Lv${owned.level}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${SPECIES_LABEL[speciesOf(m)]}${where}</div>
           </div>
           <div class="detail-btn" data-detail="${m.id}">詳細</div>
@@ -11776,6 +12018,7 @@ async function searchPvpOpponents(){
     const list = await authBackend().fetchPvpOpponents(ACCOUNT.uid, 5);
     pvpOpponents = list.map(p => ({
       uid: p.uid,
+      playerId: String(p.playerId || '').slice(0, 14),
       name: String(p.name || 'テイマー').slice(0, 20),
       title: sanitizeTitle(p.title),
       level: Math.max(1, Math.min(999, Number(p.level) || 1)),
@@ -11839,10 +12082,13 @@ function renderPvp(){
           <div class="pvp-opp-row">
             <div class="pvp-opp-body">
               ${otherTitleHtml(o.title)}
-              <div class="pvp-opp-name">${escapeHtml(o.name)}</div>
+              <div class="pvp-opp-name">${escapeHtml(otherPlayerName(o.name, o.uid))}</div>
               <div class="pvp-opp-sub">Lv${o.level}・${o.defense.slots.filter(Boolean).length}体編成</div>
             </div>
-            <button class="btn btn-sm ${left > 0 ? '' : 'btn-ghost'}" data-pvp-fight="${o.uid}" ${left > 0 ? '' : 'disabled'}>挑戦する</button>
+            <div class="pvp-opp-acts">
+              <button class="btn btn-sm ${left > 0 ? '' : 'btn-ghost'}" data-pvp-fight="${o.uid}" ${left > 0 ? '' : 'disabled'}>挑戦する</button>
+              ${reportAvailable() ? (isReported(o.uid) ? '<span class="screen-sub">通報ずみ</span>' : `<button class="report-link" data-report-open="pvp:${o.uid}">通報</button>`) : ''}
+            </div>
           </div>`).join('')}
       </div>`}
     </div>
@@ -15398,7 +15644,7 @@ function showMonsterDetail(id){
             <button class="star-plus ${need === null ? 'maxed' : canPromote ? 'ready' : ''}" data-open-promote="${id}"
               aria-label="星刻" title="星刻">＋</button>
           </div>
-          <div class="detail-name">${m.name}</div>
+          ${nickRowHtml(id, m)}
           <div class="detail-tags">
             <span class="elem-tag elem-${m.element}">${ELEM_ICON[m.element]} ${ELEM_LABEL[m.element]}</span>
             <span class="role-tag">${ROLE_ICON[m.role]}${ROLE_LABEL[m.role]}</span>
@@ -15530,6 +15776,48 @@ function showMonsterPreview(id){
   `;
   layer.classList.add('show');
 }
+// 詳細画面の名前の行。付けた名前と、その下に小さく図鑑名。編集中は入力欄
+let nickEditFor = null;
+function nickRowHtml(id, m){
+  if(nickEditFor === id){
+    const cur = sanitizeNick(STATE.owned[id].nick);
+    return `
+      <div class="nick-edit">
+        <div class="nick-input-row">
+          <input id="nick-input" class="nick-input" type="text" maxlength="${NICK_MAX * 2}" value="${escapeHtml(cur)}" placeholder="${m.name}"
+            aria-label="名前(${NICK_MAX}文字まで)" enterkeyhint="done" autocomplete="off" data-nick-for="${id}">
+          <span class="nick-count" id="nick-count">${Array.from(cur).length}/${NICK_MAX}</span>
+        </div>
+        <div class="nick-btns">
+          <button class="btn btn-sm" data-nick-save="${id}">保存</button>
+          ${cur ? `<button class="btn btn-ghost btn-sm" data-nick-reset="${id}">元に戻す</button>` : ''}
+          <button class="btn btn-ghost btn-sm" data-nick-cancel="${id}">やめる</button>
+        </div>
+        <div class="nick-hint" id="nick-hint">${NICK_MAX}文字まで。お助けやPVPの相手など、ほかのプレイヤーにも見えます</div>
+      </div>`;
+  }
+  return `
+    <div class="detail-name-row">
+      <div class="detail-name">${monName(id)}</div>
+      <button class="pf-rename" data-nick-edit="${id}">${hasNick(id) ? '名前を変える' : '名前を付ける'}</button>
+    </div>
+    ${hasNick(id) ? `<div class="detail-species">${m.name}</div>` : ''}`;
+}
+function saveNickFromInput(id){
+  const input = document.getElementById('nick-input');
+  const r = setMonNick(id, input ? input.value : '');
+  if(r.err){
+    const hint = document.getElementById('nick-hint');
+    if(hint){ hint.textContent = r.err; hint.classList.add('err'); }
+    playSfx('deny');
+    return false;
+  }
+  nickEditFor = null;
+  toast(r.nick ? `名前を「${r.nick}」にしました` : '図鑑の名前に戻しました');
+  showMonsterDetail(id);
+  render();
+  return true;
+}
 // 所持済みならいつもの詳細(育成状況込み)、未所持ならプレビューを開く
 function openMonsterDetailOrPreview(id){
   if(STATE.owned[id]) showMonsterDetail(id);
@@ -15593,7 +15881,8 @@ function renderFormationGrid(compact, src){
     const sel = !compact && formationPick === i ? 'selected' : '';
     const menuOpen = !compact && slotMenu === i && m;
     const pos = `style="grid-row:${gridRow}; grid-column:${slotHalfCol(f, i) + 1} / span 2;"`;
-    const slotAttr = compact ? '' : `data-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${m.name}` : ' 空き'}"`;
+    const nm = m ? monName(id) : '';
+    const slotAttr = compact ? '' : `data-slot="${i}" role="button" aria-label="${slotLabel(f, i)}${m ? ` ${nm}` : ' 空き'}"`;
     if(!m) return `<div class="party-slot ${sel}" ${pos} ${slotAttr}><span class="empty-plus">+</span></div>`;
     const penalty = slotRowIn(f, i) === 'back' && isMeleeRole(m.role);
     // relic equip state is only known for the player's own roster (src is a snapshot of
@@ -15601,11 +15890,11 @@ function renderFormationGrid(compact, src){
     const relicId = !src ? equippedRelicOf(m.id) : null;
     const relicDef = relicId ? RELICS[relicId] : null;
     return `<div class="party-slot ${sel} ${menuOpen ? 'menu-open' : ''} ${penalty ? 'penalty' : ''} ${isHelp ? 'helped' : ''}" ${pos} ${slotAttr}>
-      <img src="${imgSrc(m.id)}" alt="${m.name}">
+      <img src="${imgSrc(m.id)}" alt="${nm}">
       ${isHelp ? `<span class="help-mini" title="お助けモンスター">${UI_ICON.helper}</span>` : ''}
       ${menuOpen ? `
-        <div class="slot-menu" role="menu" aria-label="${m.name} の操作">
-          <div class="sm-name">${m.name}${isHelp ? ` ${UI_ICON.helper}` : ''}</div>
+        <div class="slot-menu" role="menu" aria-label="${nm} の操作">
+          <div class="sm-name">${nm}${isHelp ? ` ${UI_ICON.helper}` : ''}</div>
           ${isHelp ? '' : `
           <button class="primary" role="menuitem" data-slot-action="detail" data-slot-idx="${i}">詳細</button>
           <button role="menuitem" data-slot-action="move" data-slot-idx="${i}">移動</button>`}
@@ -15615,7 +15904,7 @@ function renderFormationGrid(compact, src){
       ${compact || formationView !== 'equip' ? `<span class="role-mini">${tagsHtml(m)}</span>` : ''}
       ${relicDef && compact ? `<span class="relic-mini" title="${relicDef.name}">${relicDef.icon}</span>` : ''}
       ${compact ? '' : slotViewHtml(m, id, isHelp)}
-      ${compact ? '' : `<div class="remove-x" data-remove="${i}" aria-label="${m.name} を外す">×</div>`}
+      ${compact ? '' : `<div class="remove-x" data-remove="${i}" aria-label="${nm} を外す">×</div>`}
     </div>`;
   };
   return `
@@ -15705,7 +15994,7 @@ function sortieFormationHtml(){
     <div class="ss-label">使う編成<span class="ss-sub">${currentFormation().name}・総合BP ${bp.toLocaleString()}</span></div>
     ${formationSetTabsHtml()}
     <div class="fset-members">
-      ${ids.length ? ids.map(id => `<img src="${imgSrc(MON_BY_ID[id].id)}" alt="${MON_BY_ID[id].name}">`).join('') : '<span class="fset-none">この編成にはモンスターがいません</span>'}
+      ${ids.length ? ids.map(id => `<img src="${imgSrc(MON_BY_ID[id].id)}" alt="${monName(id)}">`).join('') : '<span class="fset-none">この編成にはモンスターがいません</span>'}
       <button class="btn btn-ghost btn-sm fset-edit" data-fset-edit="1">編成する ›</button>
     </div>
   </div>`;
@@ -15944,9 +16233,9 @@ function renderHelperRow(){
   const placed = STATE.slots.includes(HELP_SLOT_ID);
   return `
     <div class="roster-row helper-row ${placed ? 'selected' : ''}" style="--elem:${ELEM_COLOR[m.element]};">
-      <img src="${imgSrc(m.id)}" alt="${m.name}">
+      <img src="${imgSrc(m.id)}" alt="${monName(HELP_SLOT_ID)}">
       <div class="info">
-        <div class="name"><span class="helper-tag">${UI_ICON.helper} お助け</span>${m.name} ${starsHtml(m.rarity, b.mon.star)}</div>
+        <div class="name"><span class="helper-tag">${UI_ICON.helper} お助け</span>${monName(HELP_SLOT_ID)} ${starsHtml(m.rarity, b.mon.star)}</div>
         <div class="meta"><span class="roster-bp">BP ${battlePower(HELP_SLOT_ID).toLocaleString()}</span>・${(() => { const o = borrowedOwnedLike(); return o.lentLevel ? `<b class="help-lv">Lv${o.level}</b><small class="help-lv-note">(元Lv${o.lentLevel}・編成の平均に合わせています)</small>` : `Lv${o.level}`; })()}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${escapeHtml(b.name)}から借用中</div>
       </div>
       <div class="helper-acts">
@@ -15969,10 +16258,10 @@ function renderParty(){
   const guide = formationPick === null
     ? ''
     : pickId
-      ? `<b>${MON_BY_ID[pickId].name}</b>の移動先のマスをタップしてください。所持モンスターをタップすると入れ替えます(同じマスでキャンセル)。`
+      ? `<b>${monName(pickId)}</b>の移動先のマスをタップしてください。所持モンスターをタップすると入れ替えます(同じマスでキャンセル)。`
       : `<b>${slotLabel(f, formationPick)}</b>に配置するモンスターを所持一覧から選んでください(同じマスでキャンセル)。`;
   const totalBp = partyIds.reduce((sum, id) => sum + battlePower(id), 0);
-  const penalized = penalizedIds().map(id => MON_BY_ID[id]);
+  const penalized = penalizedIds().map(id => ({ ...MON_BY_ID[id], name: monName(id) }));
 
   return `
     <div class="row-between" style="margin:10px 0 4px;">
@@ -16019,9 +16308,9 @@ function renderParty(){
       return `
         <div class="roster-row ${inParty?'selected':''} ${full?'disabled':''}" data-toggle="${m.id}"
           style="--elem:${ELEM_COLOR[m.element]};">
-          <img src="${imgSrc(m.id)}" alt="${m.name}">
+          <img src="${imgSrc(m.id)}" alt="${monName(m.id)}">
           <div class="info">
-            <div class="name">${m.name} ${starsHtml(m.rarity, owned.star)}</div>
+            <div class="name">${monName(m.id)}${hasNick(m.id) ? `<small class="nick-species">${m.name}</small>` : ''} ${starsHtml(m.rarity, owned.star)}</div>
             <div class="meta"><span class="roster-bp">BP ${battlePower(m.id).toLocaleString()}</span>・Lv${owned.level}・${tagsHtml(m)}${ROLE_LABEL[m.role]}・${SPECIES_LABEL[speciesOf(m)]}${where}</div>
             <div class="meta skill-hint">スキル: ${skillSlotsOf(m, owned.star).map(d => d.name).filter((n, i, a) => a.indexOf(n) === i).join('・')}</div>
           </div>
@@ -17053,7 +17342,7 @@ function spawnWave(stage, waveIndex){
 // PVP: build the opponent's party from their sanitized defense snapshot exactly like a
 // real ally (isEnemy stays false during buildUnit so no ENEMY_POWER stage-difficulty buff
 // applies - a fair fight, not a scripted encounter), then flip the isEnemy flag after.
-function buildPvpEnemyParty(defense){
+function buildPvpEnemyParty(defense, ownerUid){
   const formation = getFormation(defense.formationKey);
   const units = [];
   defense.slots.forEach((slot, i) => {
@@ -17064,6 +17353,7 @@ function buildPvpEnemyParty(defense){
       skillLv: slot.skillLv, skill2Lv: slot.skill2Lv, ultLv: slot.ultLv, passiveLv: slot.passiveLv,
     });
     u.isEnemy = true;
+    u.name = otherMonName(slot, ownerUid);   // 相手が付けた名前(受け取り時に検査ずみ。通報した相手なら図鑑名)
     u.slot = i;
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
@@ -17332,6 +17622,7 @@ function startPvpBattle(opponent){
     const u = buildUnit(m, 1, false, owned.star, false, owned.level, {
       skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
     });
+    u.name = monName(id);
     u.slot = i;
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
@@ -17343,9 +17634,9 @@ function startPvpBattle(opponent){
     party.push(u);
   });
   const synergies = applySynergies(party);
-  const enemies = buildPvpEnemyParty(defense);
+  const enemies = buildPvpEnemyParty(defense, opponent.uid);
   const enemyFormation = getFormation(defense.formationKey);
-  const stage = { id: 'pvp', type: 'pvp', name: `${(opponent.name || 'プレイヤー').slice(0, 20)}の防衛編成`, terrain: 'field', waves: [[]] };
+  const stage = { id: 'pvp', type: 'pvp', name: `${escapeHtml(otherPlayerName((opponent.name || 'プレイヤー').slice(0, 20), opponent.uid))}の防衛編成`, terrain: 'field', waves: [[]] };
 
   saveState();
   battleUI = {
@@ -17479,6 +17770,7 @@ function startBattle(stageId, opts){
     const u = buildUnit(m, 1, false, owned.star, false, stage.type === 'babel' ? BABEL_LV : owned.level, {
       skillLv: owned.skillLv, skill2Lv: owned.skill2Lv, ultLv: owned.ultLv, passiveLv: owned.passiveLv,
     });
+    u.name = monName(id);   // 付けた名前(お助けは貸してくれた人が付けた名前)。なければ図鑑名
     u.slot = i;
     u.row = slotRowIn(formation, i);
     u.x = slotX(formation, i);
@@ -22649,7 +22941,49 @@ function handlePhoneClick(ev){
     if(!showAnnouncements() && afterAnnounceClose){ const next = afterAnnounceClose; afterAnnounceClose = null; next(); }
     return;
   }
+  const reportOpenEl = t.closest('[data-report-open]');
+  if(reportOpenEl){ const [kind, uid] = reportOpenEl.dataset.reportOpen.split(':'); openReport(kind, uid); return; }
+  const reportReasonEl = t.closest('[data-report-reason]');
+  if(reportReasonEl && reportDraft){
+    const note = document.getElementById('report-note');
+    if(note) reportDraft.note = note.value.slice(0, REPORT_NOTE_MAX);
+    reportDraft.reason = reportReasonEl.dataset.reportReason;
+    reportDraft.err = '';
+    renderReportModal();
+    return;
+  }
+  const reportActEl = t.closest('[data-report]');
+  if(reportActEl){ handleReportAction(reportActEl.dataset.report); return; }
+  if(t.closest('[data-unhide-reported]')){
+    unhideReported();
+    toast('通報した相手の表示を元に戻しました');
+    render();
+    return;
+  }
+  const nickEditEl = t.closest('[data-nick-edit]');
+  if(nickEditEl){
+    nickEditFor = nickEditEl.dataset.nickEdit;
+    showMonsterDetail(nickEditFor);
+    const input = document.getElementById('nick-input');
+    if(input){ input.focus(); input.select(); }
+    return;
+  }
+  const nickSaveEl = t.closest('[data-nick-save]');
+  if(nickSaveEl){ saveNickFromInput(nickSaveEl.dataset.nickSave); return; }
+  const nickResetEl = t.closest('[data-nick-reset]');
+  if(nickResetEl){
+    const id = nickResetEl.dataset.nickReset;
+    setMonNick(id, '');
+    nickEditFor = null;
+    toast('図鑑の名前に戻しました');
+    showMonsterDetail(id);
+    render();
+    return;
+  }
+  const nickCancelEl = t.closest('[data-nick-cancel]');
+  if(nickCancelEl){ nickEditFor = null; showMonsterDetail(nickCancelEl.dataset.nickCancel); return; }
   if(t.closest('[data-close-detail]')){
+    nickEditFor = null;
     const layer = document.getElementById('modal-layer');
     layer.classList.remove('show');
     layer.innerHTML = '';
@@ -23108,7 +23442,9 @@ function handlePhoneClick(ev){
   if(t.closest('[data-friend-recommend-refresh]')){ fetchRecommendedUsers(); return; }
   if(t.closest('[data-bio-save]')){
     const input = document.getElementById('bio-input');
-    profileState().bio = sanitizeBio(input ? input.value : '');
+    const bio = sanitizeBio(input ? input.value : '');
+    if(hasNgWord(bio)){ toast(NG_MESSAGE); return; }
+    profileState().bio = bio;
     saveState();
     publishProfile();
     toast('自己紹介を保存しました');
@@ -23801,6 +24137,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 166, version: 'α0.5.002', date: '10/8', title: 'モンスターに名前を付けられるように・通報', body: '<span class="nt-i">・持っているモンスターに名前(8文字まで)を付けられるようになりました。モンスターの詳細で、名前の横の「名前を付ける」から。「元に戻す」で図鑑の名前に戻せます。</span><span class="nt-i">・付けた名前は、編成・戦闘・結果の画面に出ます。お助け(貸し出し)やPVPの防衛編成に入れたモンスターの名前は、ほかのプレイヤーにも見えます。</span><span class="nt-i">・フレンドのプロフィールとPVPの相手から、不適切な名前や自己紹介を通報できるようになりました。通報した相手の名前などは、自分の画面では伏せて表示します(設定から元に戻せます)。</span><span class="nt-i">・名前・自己紹介・モンスターの名前に、使えない言葉のチェックを入れました。</span>' },
   { id: 165, version: 'α0.5.001', date: '10/8', title: '編成画面で装備が見やすく', body: '<span class="nt-i">・編成画面の陣形の右上に「キャラ / 装備」の切り替えを足しました。</span><span class="nt-i">・キャラ: それぞれのマスに★とレベルが出ます。</span><span class="nt-i">・装備: それぞれのマスに、付けている遺物と、ルーン4枠の埋まりぐあいが出ます。陣形の下に、編成全体の遺物とルーンの数も出ます。</span><span class="nt-i">・遺物を付けていない子や、空いているルーン枠がある子には<em>「!」</em>が付きます(装備のタブにも出ます)。</span>' },
   { id: 164, version: 'α0.5.000', date: '10/7', title: 'α0.5', body: '<span class="nt-i">・★5の12体と★4の4体の星刻特性(10/7 12:00から)。</span><span class="nt-i">・旧バトルシステムをなくし、新バトルシステムだけにしました。お試し(初回スタミナ0＋星結晶)は終了。テスト協力のお礼に召喚券5枚。</span><span class="nt-i">・奥義の必要SPを、★ではなく奥義の重さとロールで決める形に。51体の奥義の数値を調整。</span><span class="nt-i">・スキルLvの上限を10(Lv10で1.5倍)、パッシブLvの上限を5(Lv5で1.5倍)に。超えていたぶんの素材はお返し。</span><span class="nt-i">・チュートリアルの遊び直し(お礼 星結晶360)とアンケート(お礼 召喚券10枚)。</span>' },
   { id: 163, version: 'α0.4.017', date: '10/6', title: 'アップデートの予告', body: '<span class="nt-i">・10/7(水) 12:00 のアップデート(α0.5)の予告をお知らせに載せました。</span>' },
@@ -24137,8 +24474,8 @@ function renderProfileOverlay(){
   const favCell = (id, i) => id ? `
     <div class="pf-fav ${i === 0 ? 'lend' : ''}" data-pick="fav${i}">
       ${i === 0 ? '<span class="pf-lend-tag">貸出</span>' : ''}
-      <img src="${imgSrc(id)}" alt="${MON_BY_ID[id].name}">
-      <div class="pf-fav-name">${MON_BY_ID[id].name}</div>
+      <img src="${imgSrc(id)}" alt="${monName(id)}">
+      <div class="pf-fav-name">${monName(id)}</div>
       <div class="pf-fav-sub">★${STATE.owned[id].star} Lv${STATE.owned[id].level}</div>
     </div>` : `<div class="pf-fav empty ${i === 0 ? 'lend' : ''}" data-pick="fav${i}">${i === 0 ? '<span class="pf-lend-tag">貸出</span>' : ''}＋</div>`;
 
@@ -24298,6 +24635,8 @@ function renderSettingsOverlay(){
             <div class="set-val">バグ報告・要望</div><div class="set-go">›</div></a>
           <a class="set-item" href="${COMMUNITY.x}" target="_blank" rel="noopener noreferrer"><div class="set-k wide">X(開発アカウント)</div>
             <div class="set-val">@NEG1STUDIO</div><div class="set-go">›</div></a>
+          ${reportedUids().length ? `<div class="set-item" data-unhide-reported="1"><div class="set-k wide">通報した相手の表示を元に戻す</div>
+            <div class="set-val">${reportedUids().length}人を伏せ中</div><div class="set-go">›</div></div>` : ''}
           <div class="set-item" data-clear-cache="1"><div class="set-k wide">キャッシュを削除</div>
             <div class="set-val">読み込み直します</div><div class="set-go">›</div></div>
           <div class="set-item" data-open-delete-data="1"><div class="set-k wide" style="color:var(--danger);">データを削除</div>
@@ -24450,8 +24789,8 @@ function socialRowHtml(f, mode){
         <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : UI_ICON.person}${frameBadgeHtml(f.frame)}</div>
         <div class="fc-body">
           ${otherTitleHtml(f.title)}
-          <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
-          ${f.bio ? `<div class="fc-line soc-bio">${escapeHtml(f.bio.split('\n')[0])}</div>` : ''}
+          <div class="fc-name">${escapeHtml(otherPlayerName(f.name, f.uid))}<span class="fc-lv">Lv.${f.level || 1}</span></div>
+          ${otherBio(f.bio, f.uid) ? `<div class="fc-line soc-bio">${escapeHtml(f.bio.split('\n')[0])}</div>` : ''}
           <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
         </div>
       </div>
@@ -24537,8 +24876,8 @@ function renderFriendsOverlay(){
                 <div class="fc-ic${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : UI_ICON.person}${frameBadgeHtml(f.frame)}</div>
                 <div class="fc-body">
                   ${otherTitleHtml(f.title)}
-                  <div class="fc-name">${escapeHtml(f.name)}<span class="fc-lv">Lv.${f.level || 1}</span></div>
-                  <div class="fc-line">${f.support ? `お助け: ${MON_BY_ID[f.support.id].name} ★${f.support.star} Lv${f.support.level}` : 'お助けモンスター未設定'}</div>
+                  <div class="fc-name">${escapeHtml(otherPlayerName(f.name, f.uid))}<span class="fc-lv">Lv.${f.level || 1}</span></div>
+                  <div class="fc-line">${f.support ? `お助け: ${otherMonName(f.support, f.uid)} ★${f.support.star} Lv${f.support.level}` : 'お助けモンスター未設定'}</div>
                   <div class="fc-line fc-lastactive">${lastActiveText(f.lastActive)}</div>
                 </div>
               </div>
@@ -24553,6 +24892,104 @@ function renderFriendsOverlay(){
         `}
       </div>
     </div>`;
+}
+/* ---- 通報の画面(フレンドのプロフィール・PVPの相手から開く) ---- */
+let reportDraft = null;   // { target:{uid,playerId,name,bio,mons}, reason, note, step:'form'|'confirm'|'done', err, sending }
+// 通報の相手と「見えていた内容」を、開いた場所(profile / pvp)と uid から作る
+function reportTargetOf(kind, uid){
+  if(kind === 'pvp'){
+    const o = pvpOpponents.find(x => x.uid === uid);
+    return o ? { uid, playerId: o.playerId, name: o.name, bio: '', mons: o.defense ? o.defense.slots.filter(Boolean) : [] } : null;
+  }
+  const f = STATE.friends.find(x => x.uid === uid) || viewedProfiles[uid] || followerList.find(x => x.uid === uid);
+  return f ? { uid, playerId: f.playerId, name: f.name, bio: f.bio || '', mons: f.support ? [f.support] : [] } : null;
+}
+function openReport(kind, uid){
+  const target = reportTargetOf(kind, uid);
+  if(!target){ toast('相手が見つかりません'); return; }
+  const block = reportBlockReason(uid);
+  if(block){ toast(block); return; }
+  reportDraft = { target, reason: '', note: '', step: 'form', err: '', sending: false };
+  playSfx('open');
+  renderReportModal();
+}
+function closeReport(){
+  reportDraft = null;
+  const layer = document.getElementById('modal-layer');
+  layer.classList.remove('show');
+  layer.innerHTML = '';
+}
+function reportSeenHtml(target){
+  const snap = reportSnapshotOf(target);
+  return [
+    `<b>プレイヤー名</b>　${escapeHtml(snap.name || '-')}`,
+    snap.bio ? `<b>自己紹介</b>　${escapeHtml(snap.bio)}` : '',
+    snap.monsters ? `<b>モンスターの名前</b>　${escapeHtml(snap.monsters)}` : '',
+  ].filter(Boolean).join('\n');
+}
+function renderReportModal(){
+  const d = reportDraft;
+  if(!d) return;
+  const layer = document.getElementById('modal-layer');
+  const reasonLabel = (REPORT_REASONS.find(r => r.key === d.reason) || {}).label || '';
+  let body;
+  if(d.step === 'done'){
+    body = `
+      <p class="title-note">通報を受け付けました。運営が内容を確認して対応します。<br>この相手の名前・自己紹介・モンスターの名前は、あなたの画面では伏せて表示します(設定から元に戻せます)。</p>
+      <button class="btn btn-block" data-report="close">閉じる</button>`;
+  }else if(d.step === 'confirm'){
+    body = `
+      <p class="title-note">この内容で通報します。よろしいですか?</p>
+      <div class="report-seen"><b>理由</b>　${escapeHtml(reasonLabel)}${d.note ? `\n<b>ひとこと</b>　${escapeHtml(d.note)}` : ''}\n${reportSeenHtml(d.target)}</div>
+      ${d.err ? `<div class="report-err">${escapeHtml(d.err)}</div>` : ''}
+      <button class="btn btn-block btn-danger" data-report="send" ${d.sending ? 'disabled' : ''}>${d.sending ? '送信中…' : '通報する'}</button>
+      <button class="btn btn-ghost btn-block" data-report="back" ${d.sending ? 'disabled' : ''}>戻る</button>`;
+  }else{
+    body = `
+      <p class="title-note">不適切な名前や自己紹介を運営に知らせます。運営が確認して、必要なら初期の名前に戻します。</p>
+      <div class="report-seen">${reportSeenHtml(d.target)}</div>
+      <div class="mc-head" style="text-align:left;">理由</div>
+      <div class="report-reasons" role="radiogroup" aria-label="通報の理由">
+        ${REPORT_REASONS.map(r => `<button class="report-reason ${d.reason === r.key ? 'on' : ''}" role="radio" aria-checked="${d.reason === r.key}" data-report-reason="${r.key}"><span class="rr-dot"></span>${r.label}</button>`).join('')}
+      </div>
+      <div class="row-between" style="margin-bottom:5px;"><div class="mc-head">ひとこと(任意)</div><div class="mc-reset"><span id="report-note-count">${d.note.length}</span> / ${REPORT_NOTE_MAX}</div></div>
+      <textarea id="report-note" class="report-note" maxlength="${REPORT_NOTE_MAX}" rows="2" placeholder="どこが不適切かなど">${escapeHtml(d.note)}</textarea>
+      ${d.err ? `<div class="report-err">${escapeHtml(d.err)}</div>` : ''}
+      <button class="btn btn-block" data-report="confirm" style="margin-top:10px;">確認へ</button>
+      <button class="btn btn-ghost btn-block" data-report="close">やめる</button>`;
+  }
+  layer.innerHTML = `
+    <div class="result-modal report-modal" role="dialog" aria-label="通報">
+      <h3>通報</h3>
+      ${body}
+    </div>`;
+  layer.classList.add('show');
+}
+async function handleReportAction(action){
+  const d = reportDraft;
+  if(!d){ closeReport(); return; }
+  if(action === 'close'){ closeReport(); render(); return; }
+  if(action === 'confirm'){
+    const note = document.getElementById('report-note');
+    d.note = note ? note.value.slice(0, REPORT_NOTE_MAX) : d.note;
+    if(!d.reason){ d.err = '理由を選んでください'; renderReportModal(); return; }
+    d.err = '';
+    d.step = 'confirm';
+    renderReportModal();
+    return;
+  }
+  if(action === 'back'){ d.step = 'form'; d.err = ''; renderReportModal(); return; }
+  if(action === 'send'){
+    if(d.sending) return;
+    d.sending = true;
+    renderReportModal();
+    const r = await submitReport(d.target, d.reason, d.note);
+    d.sending = false;
+    if(!r.ok){ d.err = r.err; renderReportModal(); return; }
+    d.step = 'done';
+    renderReportModal();
+    render();
+  }
 }
 function renderFriendProfileOverlay(){
   const friend = STATE.friends.find(x => x.uid === friendProfileUid);
@@ -24570,13 +25007,13 @@ function renderFriendProfileOverlay(){
           <div class="pf-avatar${frameClass(f.frame)}">${icon ? `<img src="${imgSrc(icon)}" alt="">` : `<span>${UI_ICON.person}</span>`}${frameBadgeHtml(f.frame)}</div>
           <div class="pf-main">
             ${otherTitleHtml(f.title, 'pf-name-title')}
-            <div class="pf-name-row"><div class="pf-name">${escapeHtml(f.name)}</div></div>
+            <div class="pf-name-row"><div class="pf-name">${escapeHtml(otherPlayerName(f.name, f.uid))}</div></div>
             <div class="pf-id">ID ${escapeHtml(f.playerId || '----')}</div>
             <div class="pf-lv"><span class="pf-lv-num">Lv.${f.level || 1}</span></div>
             <div class="pf-follow-mini"><b>${f.following || 0}</b> フォロー　<b>${f.followers || 0}</b> フォロワー</div>
           </div>
         </div>
-        ${f.bio ? `<div class="panel pf-bio-view">${escapeHtml(f.bio)}</div>` : ''}
+        ${f.bio ? `<div class="panel pf-bio-view">${isReported(f.uid) ? `<span class="ui-none">自己紹介 ${REPORTED_LABEL}</span>` : escapeHtml(f.bio)}</div>` : ''}
         ${!friend && !(ACCOUNT && ACCOUNT.uid === f.uid) ? `<button class="btn btn-block" data-add-friend-uid="${f.uid}" style="margin-bottom:10px;">フレンドに追加</button>` : ''}
         <div class="pf-stats">
           <div class="pf-stat"><div class="pf-stat-k">所持モンスター</div>
@@ -24591,13 +25028,18 @@ function renderFriendProfileOverlay(){
           ${f.support ? `
             <div class="pf-favs">
               <div class="pf-fav">
-                <img src="${imgSrc(f.support.id)}" alt="${MON_BY_ID[f.support.id].name}">
-                <div class="pf-fav-name">${MON_BY_ID[f.support.id].name}</div>
+                <img src="${imgSrc(f.support.id)}" alt="${otherMonName(f.support, f.uid)}">
+                <div class="pf-fav-name">${otherMonName(f.support, f.uid)}</div>
+                ${otherMonName(f.support, f.uid) !== MON_BY_ID[f.support.id].name ? `<div class="pf-fav-sub nick-species">${MON_BY_ID[f.support.id].name}</div>` : ''}
                 <div class="pf-fav-sub">★${f.support.star} Lv${f.support.level}</div>
               </div>
             </div>` : '<div class="ui-none">未設定</div>'}
         </div>
         <div class="screen-sub" style="margin-top:10px;">${lastActiveText(f.lastActive)}</div>
+        ${ACCOUNT && ACCOUNT.uid !== f.uid && reportAvailable() ? `
+          <div style="text-align:right; margin-top:6px;">
+            ${isReported(f.uid) ? `<span class="screen-sub">通報ずみ</span>` : `<button class="report-link" data-report-open="profile:${f.uid}">このプレイヤーを通報する</button>`}
+          </div>` : ''}
       </div>
     </div>`;
 }
@@ -24878,8 +25320,9 @@ async function handleAccountAction(action){
   }
   if(action === 'rename'){
     const input = document.getElementById('acct-name');
-    const name = (input ? input.value : '').trim().slice(0, 12);
+    const name = (input ? input.value : '').replace(NICK_INVISIBLE, '').trim().slice(0, 12);
     if(!name){ toast('名前を入力してください'); return; }
+    if(hasNgWord(name)){ toast(NG_MESSAGE); return; }
     await storeAccount({ ...ACCOUNT, name });
     publishProfile();
     renderAccountModal();
@@ -25748,7 +26191,7 @@ async function startGame(){
   let from = 'local';
   try{ from = await syncOnLogin(); }
   catch(e){ console.warn('sync: could not reach the cloud save', e); }
-  ensurePlayerId().then(publishProfile);
+  ensurePlayerId().then(applyModeration).then(publishProfile);
   claimFriendGifts();
   grantCompensationGifts(!localSaveFound && from !== 'cloud');
   setAnalyticsUser();
@@ -26851,10 +27294,17 @@ function wireGlobalEvents(){
   // フレンド検索: Enter でも検索する / 自己紹介: 文字数を出す
   document.addEventListener('keydown', ev => {
     if(ev.key === 'Enter' && ev.target && ev.target.id === 'friend-search-input'){ ev.preventDefault(); searchFriendCandidates(ev.target.value); }
+    if(ev.key === 'Enter' && !ev.isComposing && ev.target && ev.target.id === 'nick-input'){ ev.preventDefault(); saveNickFromInput(ev.target.dataset.nickFor); }
   });
   document.addEventListener('input', ev => {
     if(ev.target && ev.target.id === 'title-sep' && !ev.isComposing){ setTitleSep(ev.target.value, true); }
     if(ev.target && ev.target.id === 'bio-input'){ const c = document.getElementById('bio-count'); if(c) c.textContent = ev.target.value.length; }
+    if(ev.target && ev.target.id === 'nick-input'){
+      const c = document.getElementById('nick-count');
+      const n = Array.from(ev.target.value.trim()).length;
+      if(c){ c.textContent = `${n}/${NICK_MAX}`; c.classList.toggle('over', n > NICK_MAX); }
+    }
+    if(ev.target && ev.target.id === 'report-note'){ const c = document.getElementById('report-note-count'); if(c) c.textContent = ev.target.value.length; }
   });
   document.addEventListener('keydown', ev => {
     if(currentScreen !== 'battle-fight' || !battleUI || battleUI.finished) return;
