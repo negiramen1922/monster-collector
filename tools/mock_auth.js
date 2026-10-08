@@ -83,6 +83,12 @@
       });
     },
     async cloudProfile(uid, profile){ edit(c => { c.players[uid] = { ...(c.players[uid] || {}), ...profile }; }); },
+    // 通報(reports)と運営の対処(moderation/{uid})。テストは __mockCloud().reports を見る・moderation を書く
+    async submitReport(data){
+      if(window.__mockReportFail) throw err('unavailable');
+      edit(c => { (c.reports = c.reports || []).push(data); });
+    },
+    async fetchModeration(uid){ const c = readCloud(); return (c.moderation && c.moderation[uid]) || null; },
     async claimPlayerId(code, uid){
       return edit(c => {
         if(c.ids[code] && c.ids[code] !== uid) return false;

@@ -53,6 +53,37 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    // 通報(α0.5.002〜)。reports/{自動ID} に、ログインしている本人が自分のuidで作るだけ。
+    // プレイヤーからは読めない・書き換えられない・消せない(運営が Firebase コンソールか tools/report_export.js で読む)。
+    // 項目と文字数の上限はクライアント(index.html の buildReportDoc)と同じ。
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['reporter', 'target', 'targetPlayerId', 'reason', 'note', 'snapshot', 'at', 'version'])
+        && request.resource.data.reporter == request.auth.uid
+        && request.resource.data.target is string
+        && request.resource.data.target.size() > 0 && request.resource.data.target.size() <= 128
+        && request.resource.data.target != request.auth.uid
+        && request.resource.data.targetPlayerId is string && request.resource.data.targetPlayerId.size() <= 20
+        && request.resource.data.reason in ['name', 'nick', 'bio', 'other']
+        && request.resource.data.note is string && request.resource.data.note.size() <= 100
+        && request.resource.data.snapshot is map
+        && request.resource.data.snapshot.keys().hasOnly(['name', 'bio', 'monsters'])
+        && request.resource.data.snapshot.name is string && request.resource.data.snapshot.name.size() <= 20
+        && request.resource.data.snapshot.bio is string && request.resource.data.snapshot.bio.size() <= 100
+        && request.resource.data.snapshot.monsters is string && request.resource.data.snapshot.monsters.size() <= 200
+        && request.resource.data.at is number
+        && request.resource.data.version is string && request.resource.data.version.size() <= 20;
+      allow read, update, delete: if false;
+    }
+
+    // 運営の対処(α0.5.002〜)。運営がコンソールで moderation/{uid} に
+    // { resetName: true, resetBio: true, resetNicks: true, at: <ミリ秒の数値> } などを書く(コンソールはルールを通らない)。
+    // 本人だけ読める(次にログインしたとき、at が前回より新しければ該当を初期に戻す)。誰も書けない。
+    match /moderation/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
     // フレンドコード → uid の対応表。自分のuidで新規作成だけ許可し、他人のコードは奪えない
     match /playerIds/{code} {
       allow read: if request.auth != null;
