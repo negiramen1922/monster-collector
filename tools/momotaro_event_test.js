@@ -1,6 +1,6 @@
 /* モモタロウイベ(鬼ヶ島)のイベント・EX・HELLのテスト。中身の正は docs/提案資料/次回イベント案_モモタロウ.md */
 const load = require('./harness.js');
-const api = load('game.js', s => s + `;global.__e={EVENTS,STAGE_BY_ID,EVENT_EX,EVENT_EX_RULES,eventShopItems,eventMissions,exStagesOf,EX_FIRST_CLEAR_CRYSTAL,
+const api = load('game.js', s => s + `;global.__e={EVENTS,STAGE_BY_ID,EVENT_EX,EVENT_EX_RULES,eventShopItems,eventMissions,exStagesOf,EX_FIRST_CLEAR_CRYSTAL,eventStagePickupSoul,eventStageMobSoulRate,
   exMobSoulRate,exPickupSoulRate,FRAMES,TITLES:typeof TITLES!=='undefined'?TITLES:null,MOMOTARO_START_AT,activeEvents,RELICS,relicsOfStar,eventRelicOf,MON_BY_ID,
   get STATE(){return STATE}, set STATE(v){STATE=v}, DEFAULT_STATE};`);
 const E = global.__e;
@@ -48,7 +48,13 @@ ok(ex.map(s => s.firstClear).join() === '100,200,400,500', '初回クリアの�
 ok(ex[3].waves.flat().filter(e => !e.boss).every(e => e.star === 10) && ex[3].waves[2][0].star === 10, 'HELLは雑魚も★10');
 ok(ex[3].rules.length === 9 && ex[3].rules.some(r => r.who && r.who.species === 'demon' && r.side === 'ally' && r.stat.str === -0.5) && ex[3].rules.some(r => r.who && r.who.ref === 'm171' && r.side === 'enemy' && r.stat.hp === 1.0) && ex[3].rules.some(r => r.side === 'enemy' && r.dmgDealt === 1.0), 'HELLだけ敵のモモタロウ 最大HP+100%・敵 与ダメージ+100%・デーモンの味方 攻撃力-50%');
 ok(ex[2].rules.length === 6 && ex[2].rules.some(r => r.whenTarget === 'lowHp50' && r.dmgDealt === 0.6), 'EX共通ルール6本(HP50%以下の敵へ+60%を含む)');
-ok(E.exMobSoulRate(ev, 4, E.MON_BY_ID.m172) === 1.0 && E.exMobSoulRate(ev, 4, E.MON_BY_ID.m175) === 0.35 && E.exPickupSoulRate(ev, 4) === 0.5, 'HELLのソウル率はEX3と同じ');
+ok(E.exMobSoulRate(ev, 4, E.MON_BY_ID.m172) === 0.5 && E.exMobSoulRate(ev, 4, E.MON_BY_ID.m175) === 0.175 && E.exPickupSoulRate(ev, 4) === 0.25, 'HELLのソウル率はEX3と同じ(soulV3: それまでの半分)');
+ok([1, 2, 3].map(x => E.exPickupSoulRate(ev, x)).join() === '0.1,0.25,0.25', 'EX1〜EX3の主役のソウルはそれまでの半分', [1, 2, 3].map(x => E.exPickupSoulRate(ev, x)));
+{ const ps = n => E.eventStagePickupSoul(ev, E.STAGE_BY_ID['ev_momotaro_' + n]);
+  ok([1, 3, 4, 7, 8, 10].map(n => ps(n).rate + '/' + ps(n).ex).join() === '0.2/1,0.2/1,0.5/2,0.5/2,0.5/3,0.5/3', '通常ステージの主役のソウル: 1〜3層=EX1 / 4〜7層=EX2 / 8〜10層=EX3(1〜3個)の率', [1, 10].map(ps));
+  ok(E.eventStageMobSoulRate(ev, E.STAGE_BY_ID['ev_momotaro_10'], E.MON_BY_ID.m172) === 1.0 && E.eventStageMobSoulRate(ev, E.STAGE_BY_ID['ev_momotaro_1'], E.MON_BY_ID.m175) === 0.15, '通常ステージの脇役のソウルもそれまでのEXの率'); }
+{ const sh = Object.fromEntries(E.eventShopItems(ev).map(i => [i.sku, i]));
+  ok(sh.soul_pick.price === 230 && sh.soul_pick.limit === 30 && sh.uni.price === 310 && sh.uni.limit === 5 && sh.uni.qty === '50個' && sh.reso.price === 430 && sh.reso.limit === 3 && sh.reso.qty === '20個', 'ショップ: 主役のソウル230・無形のソウル50個310×5・無形の共鳴石20個430×3'); }
 
 console.log('--- ミッション・称号・フレーム ---');
 api.STATE = E.DEFAULT_STATE();

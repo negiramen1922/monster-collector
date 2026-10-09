@@ -4251,6 +4251,7 @@ const EVENTS = [
     // モモタロウイベ。中身の正は docs/提案資料/次回イベント案_モモタロウ.md。startAt まではどこにも出ない
     // (試験場 ?lab=momotaro では日付に関係なく遊べる)。終了日時は企画の「10/26ごろ」に合わせた仮
     key: 'ev_momotaro',
+    soulV3: true,   // ソウルの出どころを通常ステージ(スタミナ)に寄せ、EX・HELLは半分にした(2026-10-09 ユーザー決定)
     econV2: true,
     name: '鬼ヶ島の腕試し',
     icon: UI_ICON.swords,
@@ -4289,6 +4290,7 @@ const EVENTS = [
     // フレイヤイベ(豊穣の女神)。中身の正は docs/提案資料/次回イベント案_フレイヤ.md。startAt まではどこにも出ない
     // (試験場 ?lab=freyja では日付に関係なく遊べる)。開始・終了日時は仮(鬼ヶ島の翌日から、同じ終了)
     key: 'ev_freyja',
+    soulV3: true,
     econV2: true,
     name: '豊穣の女神',
     icon: UI_ICON.seed,
@@ -9750,8 +9752,9 @@ function pendSoulText(id){
 function stageBossSoulText(st, boss, daily){
   const ev = st.type === 'event' ? EVENTS.find(e => e.key === st.eventKey) : null;
   if(ev && boss.id === ev.pickup){
-    const rate = st.ex ? exPickupSoulRate(ev, st.ex) : eventBossSoulRate(st);
-    const qty = st.ex ? exPickupSoulQtyText(ev, st.ex) : '1個';
+    const ps = st.ex ? null : eventStagePickupSoul(ev, st);
+    const rate = st.ex ? exPickupSoulRate(ev, st.ex) : ps.rate;
+    const qty = st.ex ? exPickupSoulQtyText(ev, st.ex) : ps.ex ? exPickupSoulQtyText(ev, ps.ex) : '1個';
     return `◆ ${boss.name}のソウル ${pctText(rate)}で${qty}・仲間になるのはガチャから`;
   }
   return `${UI_ICON.helper} 仲間になる ${pctText(recruitChanceOf(boss, false, st))}／◆ ソウル 1個(今日 ${(daily.bossSouls || {})[boss.id] || 0}個・${UNLOCK_SOULS[boss.rarity]}個で確定)`;
@@ -10726,7 +10729,8 @@ function eventShopItems(ev){
   return [
     // econV2 のイベントは 1回10個×上限30回(合計300個)。回数を増やして1回を軽くしただけで総量は同じ
     ...(ev.econV2
-      ? [{ sku:'soul_pick', name:`${MON_BY_ID[pick].name}のソウル`, qty:'10個', price:150, limit:30,
+      // soulV3(鬼ヶ島から): 主役のソウルはガチャの約2倍お得の値段(ソウル1個≒36石、メダル1個≒0.77石)
+      ? [{ sku:'soul_pick', name:`${MON_BY_ID[pick].name}のソウル`, qty:'10個', price: ev.soulV3 ? 230 : 150, limit:30,
           give: () => giveSouls(pick, 10) }]
       : [{ sku:'soul_pick', name:`${MON_BY_ID[pick].name}のソウル`, qty:'20個', price:150, limit:15,
           give: () => giveSouls(pick, 20) }]),
@@ -10742,6 +10746,11 @@ function eventShopItems(ev){
     { sku:'relic_dupe', name:`${RELICS[relic] ? RELICS[relic].name : '配布遺物'}(重複)`, qty:'1個', price:200, limit: ev.relic ? 4 : 2,
       hide: !relic, give: () => grantRelic(RELICS[relic]) },
 
+    // soulV3(鬼ヶ島から): 無形のソウル・無形の共鳴石。ガチャの約1.5倍お得(無形のソウル1個≒7石、無形の共鳴石1個≒25石)
+    ...(ev.soulV3 ? [
+      { sku:'uni', name:'無形のソウル', qty:'50個', price:310, limit:5, give: () => { STATE.universalSouls = (STATE.universalSouls || 0) + 50; } },
+      { sku:'reso', name:'無形の共鳴石', qty:'20個', price:430, limit:3, give: () => { STATE.resonance = (STATE.resonance || 0) + 20; } },
+    ] : []),
     { sku:'gacha_char', name:'モンスター召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_char', 1) },
     { sku:'gacha_relic',name:'遺物召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_relic', 1) },
     // 素材とBOXの値段は TierI 換算から決める(econV2 のイベントだけ。公開ずみは据え置き)
@@ -11255,7 +11264,17 @@ const EX_PICKUP_SOUL_RATE     = [0.20, 0.50, 1.00];   // 公開ずみのイベ�
 const EX_PICKUP_SOUL_RATE_V2  = [0.20, 0.50, 0.50, 0.50];   // econV2 のイベント(4つ目は HELL。EX3と同じ)
 function exPickupSoulRate(ev, ex){
   const tbl = ev && ev.econV2 ? EX_PICKUP_SOUL_RATE_V2 : EX_PICKUP_SOUL_RATE;
-  return tbl[ex - 1] || 0;
+  return (tbl[ex - 1] || 0) * (ev && ev.soulV3 ? EX_SOUL_V3_MULT : 1);
+}
+/* soulV3(鬼ヶ島から。2026-10-09 ユーザー決定): ソウルはスタミナを使う通常ステージのほうを主にする。
+   通常ステージ: それまでのEXの率をそのまま移す(1〜3層=EX1 / 4〜7層=EX2 / 8〜10層=EX3。主役も脇役も)
+   EX・HELL: それまでの率の半分(EX_SOUL_V3_MULT) */
+const EX_SOUL_V3_MULT = 0.5;
+const mainSoulBand = n => n <= 3 ? 1 : n <= 7 ? 2 : 3;
+// 通常ステージの主役のソウル { rate, ex }(ex は個数の表を引く段。soulV3 でないイベントは今までどおり層×2%で1個)
+function eventStagePickupSoul(ev, st){
+  if(ev && ev.soulV3){ const band = mainSoulBand(st.evNo || 1); return { rate: EX_PICKUP_SOUL_RATE_V2[band - 1], ex: band }; }
+  return { rate: eventBossSoulRate(st), ex: 0 };
 }
 // EX3だけ、落ちたときの個数が 1個50% / 2個35% / 3個15%(期待 0.5×1.65 = 0.825個/クリア)。
 // 100%で1個より2倍遠くなるぶん、当たると気持ちがいい形にしている
@@ -11286,13 +11305,16 @@ const EX_MOB_SOUL_RATE = {
   3: { sub: 1.00, other4: 0.50, low: 0.35 },
   4: { sub: 1.00, other4: 0.50, low: 0.35 },   // HELL。EX3と同じ
 };
-function exMobSoulRate(ev, ex, mon){
+function mobSoulRateBase(ev, band, mon){
   if(!ev || !ev.econV2 || !mon) return 0;
-  const r = EX_MOB_SOUL_RATE[ex];
+  const r = EX_MOB_SOUL_RATE[band];
   if(!r || mon.id === ev.pickup) return 0;
   if(featuredOf(ev).includes(mon.id)) return r.sub;
   return mon.rarity >= 4 ? r.other4 : r.low;
 }
+function exMobSoulRate(ev, ex, mon){ return mobSoulRateBase(ev, ex, mon) * (ev && ev.soulV3 ? EX_SOUL_V3_MULT : 1); }
+// soulV3 の通常ステージの脇役のソウル(層の帯ごとに、それまでのEXの率)
+function eventStageMobSoulRate(ev, st, mon){ return ev && ev.soulV3 ? mobSoulRateBase(ev, mainSoulBand(st.evNo || 1), mon) : 0; }
 const EX_STAR_CAP = 10;              // EXだけは敵の★上限(通常は7)を外す
 const EVENT_EX = {"ex_fenrir":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m91","m133","m129","m19"],["m105","m158","m151"],["m68","m166","m167","m108","m157"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m157","m158","m87","m88"],["m105","m108","m146","m89"],["m68","m166","m167","m104","m106"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":10,"waves":[["m108","m105","m157","m146"],["m141","m145","m87","m88","m89"],["m68","m166","m167","m104","m106"]]}],"ex_abaddon":[{"ex":1,"lv":100,"boss":6,"mob":4,"sk":8,"waves":[["m95","m30","m44"],["m115","m23","m159"],["m139","m168","m169","m97","m24"]]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"waves":[["m97","m147","m159","m115"],["m142","m164","m101","m24"],["m139","m168","m169","m161","m115"]]},{"ex":3,"lv":300,"boss":10,"mob":6,"sk":10,"waves":[["m149","m142","m101","m147"],["m165","m164","m161","m159"],["m139","m168","m169","m149","m161"]]}],"ex_kyubi":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m72:front","m33:front","m129:back","m127:back"],["m72:front","m17:front","m151:back","m129:back"],["m116:back","m170:front","m59:front","m151:back","m127:back"]],"rules":[{"side":"enemy","stat":{"hp":1.2,"str":0.9},"label":"敵 最大HP+120%・STR+90%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"hp":0.5,"str":0.3},"label":"EX2から 敵 最大HP+50%・STR+30%"}],"waves":[["m72:front","m63:front","m151:back","m87:back"],["m67:front","m66:front","m87:back","m141:back"],["m116:back","m170:front","m53:front","m150:back","m145:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":10,"rules":[{"side":"enemy","stat":{"spd":0.5},"label":"EX2から 敵 SPD+50%"},{"side":"enemy","stat":{"pdef":40},"label":"EX3から 敵 物理防御+40(物理が通りにくい)"},{"side":"enemy","stat":{"hp":1.0,"str":0.4},"label":"EX3から 敵 最大HP+100%・STR+40%"}],"waves":[["m67:front","m53:front","m145:back","m87:back"],["m72:front","m66:front","m141:back","m151:back"],["m116:back","m170:front","m67:front","m150:back","m141:back"]]}],"ex_titan":[{"ex":1,"lv":80,"boss":6,"mob":4,"sk":8,"waves":[["m51:front","m47:front","m134:back","m48:back"],["m13:front","m45:front","m154:back","m134:back"],["m54:front","m144:front","m53:front","m154:back","m48:back"]],"rules":[{"side":"enemy","stat":{"hp":0.9,"str":0.8},"label":"敵 最大HP+90%・STR+80%"}]},{"ex":2,"lv":200,"boss":8,"mob":5,"sk":10,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","stat":{"hp":0.7,"str":0.6},"label":"EX2から 敵 最大HP+70%・STR+60%"}],"waves":[["m27:front","m123:front","m120:back","m153:back"],["m155:front","m56:front","m20:back","m154:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]},{"ex":3,"lv":300,"boss":10,"mob":8,"sk":10,"rules":[{"side":"enemy","immune":["stun","burn","poison"],"label":"EX2から 敵 気絶・やけど・毒にかからない"},{"side":"enemy","shield":1.0,"label":"EX3から 敵 シールドの効果量+100%"},{"side":"enemy","stat":{"hp":0.6,"str":2.2},"label":"EX3から 敵 最大HP+60%・STR+220%"}],"waves":[["m89:front","m50:front","m20:back","m106:back"],["m52:front","m22:front","m154:back","m120:back"],["m54:front","m144:front","m53:front","m20:back","m106:back"]]}]};
 /* モモタロウイベのEX(EX1〜EX3＋HELL)。各段10体まで(モモタロウ / イヌ・サル・キジ / 牛鬼・ウンディーネ /
@@ -12296,6 +12318,8 @@ function evShopIconHtml(ev, it){
     pot1:'exp1', pot2:'exp2', pot3:'exp3', scrap:'relic_scrap', core1:'relic_core_1', core2:'relic_core_2', core3:'relic_core_3', stam:'stamina_60' }[it.sku];
   if(key) return `<span class="shop-ic">${itemIcon(key)}</span>`;
   if(/^gold/.test(it.sku)) return `<span class="shop-ic"><span class="item-ic">${GOLD_ICON}</span></span>`;
+  if(it.sku === 'uni') return `<span class="shop-ic"><span class="item-ic">${UNIVERSAL_ICON}</span></span>`;
+  if(it.sku === 'reso') return `<span class="shop-ic">${RESONANCE_ICON}</span>`;
   return '<span class="shop-ic"></span>';
 }
 function renderEventShop(evKey){
@@ -22503,7 +22527,17 @@ function grantStageRewards(stage, spawned, party, opts){
       if(rate > 0 && Math.random() < rate) addSoul(ref, 1);
     });
   }
-  if(!stage.ex) spawned.forEach(u => {
+  // soulV3 の通常ステージ: 主役は層の帯ごとの率と個数、脇役は種類ごとに1回だけ(EXと同じ数え方)
+  const v3 = !stage.ex && evOf && evOf.soulV3;
+  if(v3){
+    const ps = eventStagePickupSoul(evOf, stage);
+    if(spawned.some(u => u.ref === evOf.pickup) && Math.random() < ps.rate) addSoul(evOf.pickup, exPickupSoulQty(evOf, ps.ex));
+    [...new Set(spawned.map(u => u.ref))].forEach(ref => {
+      const rate = eventStageMobSoulRate(evOf, stage, MON_BY_ID[ref]);
+      if(rate > 0 && Math.random() < rate) addSoul(ref, 1);
+    });
+  }
+  if(!stage.ex && !v3) spawned.forEach(u => {
     if(u.boss && evOf && u.ref === evOf.pickup){
       if(Math.random() < eventBossSoulRate(stage)) addSoul(u.ref, 1);
     }else if(u.boss){
@@ -24097,6 +24131,8 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
+  { id: 41, date: '10/13', at: '2026-10-13T12:00:00+09:00', title: '「豊穣の女神」開幕! フレイヤ ピックアップ', art: ['m177', 'm178', 'm179'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/13(火) 12:00 〜 10/26(月) 23:59</em></span><span class="nt-i">・「鬼ヶ島の腕試し」と同時に開催中です。</span><span class="nt-h">ピックアップガチャ</span><span class="nt-i">・<em>フレイヤ</em>(★5)、同時ピックアップの<em>フレイ・ヒルディスヴィーニ</em>(★4)、専用遺物「<em>鷹の羽衣</em>」の排出率がアップしています。</span><span class="nt-h">期間限定クエスト「黄金のフォールクヴァング」</span><span class="nt-i">・全10層。推奨Lvは10から400まで上がっていきます。</span><span class="nt-i">・最後のウェーブでは、フレイヤとワルキューレたちが待ち構えています。</span><span class="nt-i">・各層の初回クリアで星結晶。クエストで「<em>豊穣の麦印</em>」(メダル)が手に入ります。</span><span class="nt-i">・主役や仲間のソウルは、<em>深い層ほど多く出ます</em>(8〜10層は主役のソウルが一度に1〜3個)。EX・HELLでも出ます。</span><span class="nt-h">EXステージ・HELL</span><span class="nt-i">・<em>EX1</em>(推奨Lv80) / <em>EX2</em>(推奨Lv200) / <em>EX3</em>(推奨Lv300) / <em>HELL</em>(EX3クリアで解放)</span><span class="nt-i">・スタミナを使わない、特別なルールの段です(周回はできません)。初回クリアの星結晶は EX1 100 / EX2 200 / EX3 400 / HELL 500。</span><span class="nt-i">・全段共通: 土属性・光属性の味方 攻撃力・HP+25% / セレスティア・エルフの味方 攻撃力+25%</span><span class="nt-i">・EX2から: 敵 物理防御+50。<em>魔法の力が試されます。</em></span><span class="nt-i">・EX3から: 攻撃力が下がっている敵へ 与ダメージ+30% / 味方 シールドがないとき 受けるダメージ+30%</span><span class="nt-i">・HELLではさらに: 敵 最大HP・攻撃力×1.3、与ダメージ+75% / 敵のフレイヤ・フレイ 攻撃力・HP+50%</span><span class="nt-i">・敵のフレイヤは仲間を癒し続けます。長引く前に崩す手を考えて挑んでください。</span><span class="nt-h">イベントショップ</span><span class="nt-i">・「豊穣の麦印」で交換できます。</span><span class="nt-i">・フレイヤのソウル、フレイ・ヒルディスヴィーニのソウル、遺物「<em>黄金の麦穂</em>」(本体1つ・重複4つまで)</span><span class="nt-i">・<em>無形のソウル</em>(50個×5回まで)と<em>無形の共鳴石</em>(20個×3回まで)も並びます。どのモンスター・遺物にも使えます。</span><span class="nt-i">・召喚券、育成素材、EXPポット、霊素鉱なども交換できます。</span><span class="nt-h">称号とアイコンフレーム</span><span class="nt-i">・「館の客人」「黄金の戦士」: イベントミッションで</span><span class="nt-i">・「選ばれし戦士」: EX3を★3でクリア</span><span class="nt-i">・「女神の近衛兵」とイベントのアイコンフレーム: HELLを★3でクリア</span>' },
+  { id: 40, date: '10/12', at: '2026-10-12T12:00:00+09:00', title: '「鬼ヶ島の腕試し」開幕! モモタロウ ピックアップ', art: ['m171', 'm172', 'm173', 'm174'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/12(月) 12:00 〜 10/26(月) 23:59</em></span><span class="nt-i">・「嵐呼ぶ神狼」「奈落の王」は、10/12(月) 12:00 で終了しました。</span><span class="nt-h">ピックアップガチャ</span><span class="nt-i">・<em>モモタロウ</em>(★5)、同時ピックアップの<em>イヌ・サル・キジ</em>(★4)、専用遺物「<em>日の丸桃剣</em>」の排出率がアップしています。</span><span class="nt-h">期間限定クエスト「鬼ヶ島」</span><span class="nt-i">・全10層。推奨Lvは10から400まで上がっていきます。</span><span class="nt-i">・敵はウェーブごとに3・3・4・4・5体。最後のウェーブでは、モモタロウとお供たちが待ち構えています。</span><span class="nt-i">・各層の初回クリアで星結晶。クエストで「<em>鬼ヶ島の桃印</em>」(メダル)が手に入ります。</span><span class="nt-i">・主役や仲間のソウルは、<em>深い層ほど多く出ます</em>(8〜10層は主役のソウルが一度に1〜3個)。EX・HELLでも出ます。</span><span class="nt-h">EXステージ・HELL</span><span class="nt-i">・<em>EX1</em>(推奨Lv80) / <em>EX2</em>(推奨Lv200) / <em>EX3</em>(推奨Lv300) / <em>HELL</em>(EX3クリアで解放)</span><span class="nt-i">・スタミナを使わない、特別なルールの段です(周回はできません)。初回クリアの星結晶は EX1 100 / EX2 200 / EX3 400 / HELL 500。</span><span class="nt-i">・全段共通: ヒュームの味方・ビーストの味方 STR・HP+25% / デーモンの味方 STR・HP-25% / 敵 最大HP+50%・物理ダメージ+40% / HPが50%以下の敵へ 与ダメージ+60%</span><span class="nt-i">・HELLではさらに: 敵のモモタロウ 最大HP+100% / 敵 与ダメージ+100% / デーモンの味方 攻撃力-50%</span><span class="nt-i">・推奨Lvは敵のLvの目安です。最後のウェーブは相性のよい仲間で固まっているので、数字より手ごわく感じるかもしれません。勝てないときは、育ててから挑み直してください。</span><span class="nt-h">イベントショップ</span><span class="nt-i">・「鬼ヶ島の桃印」で交換できます。</span><span class="nt-i">・モモタロウのソウル、イヌ・サル・キジのソウル、遺物「<em>日の丸の鉢巻</em>」(本体1つ・重複4つまで)</span><span class="nt-i">・<em>無形のソウル</em>(50個×5回まで)と<em>無形の共鳴石</em>(20個×3回まで)も並びます。どのモンスター・遺物にも使えます。</span><span class="nt-i">・召喚券、育成素材、EXPポット、霊素鉱なども交換できます。</span><span class="nt-h">称号とアイコンフレーム</span><span class="nt-i">・「鬼退治」「日本一の旗持ち」: イベントミッションで</span><span class="nt-i">・「鬼ヶ島の勇者」: EX3を★3でクリア</span><span class="nt-i">・「鬼神越え」とイベントのアイコンフレーム: HELLを★3でクリア</span>' },
   { id: 39, date: '10/10', at: '2026-10-10T12:00:00+09:00', title: '次回イベント予告「豊穣の女神」10/13(火) 12:00 開幕', art: ['m177', 'm178', 'm179'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/13(火) 12:00 〜 10/26(月) 23:59</em></span><span class="nt-i">・ピックアップガチャで、<em>フレイヤ</em>(★5)と、同時ピックアップのフレイ・ヒルディスヴィーニ(★4)、専用遺物「鷹の羽衣」の排出率がアップします。</span><span class="nt-i">・イベントショップでは、遺物「黄金の麦穂」をメダルで交換できます。</span><span class="nt-h">ストーリー</span>戦死者の半分を館に迎える女神フレイヤが、館に迎える戦士を選ぶため、腕を試してきます。<span class="nt-h">新しい仲間</span><span class="nt-i">・<b>フレイヤ</b>(★5・土・サポーター) 戦死者の半分を館に迎える、豊穣と愛の女神。剣は取らず、癒しと守りで仲間を支える。</span><span class="nt-i">・<b>フレイ</b>(★4・土・アタッカー) フレイヤの双子の兄で、光のエルフの国の王。手放した勝利の剣の代わりに、鹿の角で戦う。</span><span class="nt-i">・<b>ヒルディスヴィーニ</b>(★4・光・タンク) フレイヤが乗る、ドワーフが作った金の猪。癒されるほど毛並みが輝き、魔法を受け止める。</span><span class="nt-i">・<b>ヒルデ</b>(★3・光・アタッカー) 戦死者を選ぶ剣のワルキューレ。名は「戦い」。弱った敵を見定めて斬る。</span><span class="nt-i">・<b>ブリュンヒルド</b>(★3・光・タンク) 鎧をまとった盾のワルキューレ。物理の攻めはほとんど通さないが、魔法には弱い。</span><span class="nt-i">・<b>スコグル</b>(★3・土・シューター) 「揺るがす者」の名を持つ弓のワルキューレ。矢を重ねて、敵の足を鈍らせる。</span><span class="nt-i">・<b>ゲンドゥル</b>(★3・闇・サポーター) 杖を持つ魔女のワルキューレ。呪いで敵を弱らせ、呪文の歌で仲間を癒す。</span><span class="nt-i">・<b>エインヘリャル</b>(★2・光・アタッカー) 館に迎えられたヴァイキングの戦士の霊。毎日戦って倒れ、夕方には蘇る。</span><span class="nt-h">期間限定クエスト</span><span class="nt-i">・全10層、EX1〜EX3、HELL があります。</span><span class="nt-i">・この戦場では、<em>魔法の力が試されます</em>。</span><span class="nt-i">・くわしい内容は開催時にお知らせします。</span>' },
   { id: 38, date: '10/9', at: '2026-10-09T12:00:00+09:00', title: '次回イベント予告「鬼ヶ島の腕試し」10/12(月) 12:00 開幕', art: ['m171', 'm172', 'm173', 'm174'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/12(月) 12:00 〜 10/26(月) 23:59</em></span><span class="nt-i">・ピックアップガチャで、<em>モモタロウ</em>(★5)と、同時ピックアップのイヌ・サル・キジ(★4)、専用遺物「日の丸桃剣」の排出率がアップします。</span><span class="nt-i">・イベントショップでは、遺物「日の丸の鉢巻」をメダルで交換できます。</span><span class="nt-h">ストーリー</span>鬼退治を終えたモモタロウ一行が、鬼ヶ島で腕試しの相手を待っています。<span class="nt-h">新しい仲間</span><span class="nt-i">・<b>モモタロウ</b>(★5・草・アタッカー) 鬼退治を終えた、桃から生まれた侍。きびだんごを配って動物たちを強くし、自分も刀で前に立つ。</span><span class="nt-i">・<b>イヌ</b>(★4・土・アタッカー) 桃太郎の最初のお供。攻撃力が上がっているあいだは、誰よりも深く噛みつく。</span><span class="nt-i">・<b>サル</b>(★4・雷・タンク) すばしこい桃太郎のお供。攻撃をかわして反撃し、敵の強化をちょろまかす。</span><span class="nt-i">・<b>キジ</b>(★4・風・シューター) 空から羽を飛ばす桃太郎のお供。鬼の目を射抜き、仲間に先手を配る。</span><span class="nt-i">・<b>アカオニ</b>(★3・炎・アタッカー) 怒りで強くなる赤い鬼。傷が深いほど、仲間の鬼が多いほど暴れる。</span><span class="nt-i">・<b>アオオニ</b>(★3・水・タンク) 仲間のために自分から殴られにいく青い鬼。弱った仲間をかばい、倒れた仲間のぶんまで強くなる。</span><span class="nt-h">期間限定クエスト</span><span class="nt-i">・全10層と、特別なルールで戦うEXステージ(EX1〜EX3)があります。</span><span class="nt-i">・<em>EX3の先に、新しく「HELL」が登場</em>します。最も手ごわい、腕に覚えのある者のための段です。★3でクリアすると、称号とイベントのアイコンフレームがもらえます。</span><span class="nt-i">・くわしい内容は開催時にお知らせします。</span><span class="nt-h">開催中のイベントの終了時間の変更</span><span class="nt-i">・「嵐呼ぶ神狼」「奈落の王」の終了を、<em>10/12(月) 23:59 から 10/12(月) 12:00 に早めます</em>。鬼ヶ島の腕試しの開始と入れ替わりになります。</span><span class="nt-i">・終了と同時に、残ったイベントメダル、ショップの交換記録、受け取っていないイベントミッションの報酬はなくなります。早めの交換・受け取りをお願いします。</span>' },
   { id: 37, date: '10/8', title: 'モンスターに名前を付けられるようになりました', body: '<span class="nt-h">名前の付け方</span><span class="nt-i">・モンスターの詳細画面で、名前の横の「名前を付ける」から好きな名前(8文字まで)を付けられます。「元に戻す」で図鑑の名前に戻せます。</span><span class="nt-h">ほかのプレイヤーへの見え方</span><span class="nt-i">・付けた名前は<em>お助けやPVPで、ほかのプレイヤーにも見えます</em>。</span><span class="nt-h">通報について</span><span class="nt-i">・不適切なプレイヤー名・モンスターの名前・自己紹介を見つけたら、プロフィールやPVPの相手一覧の「通報」から知らせてください。運営が確認して対応します。</span><span class="nt-i">・通報した相手の名前は、あなたの画面では伏せて表示します(設定から元に戻せます)。</span>' },
