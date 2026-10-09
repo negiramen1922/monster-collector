@@ -1,7 +1,7 @@
 /* フレイヤイベ(豊穣の女神・黄金のフォールクヴァング)のイベント・EX・HELLのテスト。
    中身の正は docs/提案資料/次回イベント案_フレイヤ.md */
 const load = require('./harness.js');
-const api = load('game.js', s => s + `;global.__e={EVENTS,STAGE_BY_ID,EVENT_EX,EVENT_EX_RULES,eventShopItems,eventMissions,exStagesOf,EX_FIRST_CLEAR_CRYSTAL,
+const api = load('game.js', s => s + `;global.__e={EVENTS,STAGE_BY_ID,EVENT_EX,EVENT_EX_RULES,eventShopItems,eventMissions,exStagesOf,EX_FIRST_CLEAR_CRYSTAL,eventStagePickupSoul,eventStageMobSoulRate,
   exMobSoulRate,exPickupSoulRate,FRAMES,FREYJA_START_AT,MOMOTARO_START_AT,activeEvents,RELICS,relicsOfStar,eventRelicOf,exclusiveRelicForMon,MON_BY_ID,MONSTER_PERKS,
   EVENT_MEDAL,EVENT_TITLES,EVENT_THEME,get STATE(){return STATE}, set STATE(v){STATE=v}, DEFAULT_STATE};`);
 const E = global.__e;
@@ -71,7 +71,13 @@ ok(ex[1].rules.length === 5 && ex[1].rules.some(r => r.side === 'enemy' && r.sta
 ok(ex[2].rules.length === 7 && ex[2].rules.some(r => r.whenTarget === 'strDown' && r.dmgDealt === 0.3) && ex[2].rules.some(r => r.when === 'notShielded' && r.dmgTaken === 0.3 && r.side === 'ally'),
   'EX3: +攻撃力低下の敵へ与ダメ+30%・シールドがないとき被ダメ+30%');
 ok(ex[3].rules.length === 11 && ex[3].power === 1.3 && ex[3].rules.some(r => r.side === 'enemy' && r.dmgDealt === 0.75) && ['m177', 'm178'].every(id => ex[3].rules.some(r => r.who && r.who.ref === id && r.side === 'enemy' && r.stat.str === 0.5 && r.stat.hp === 0.5)), 'HELL: +敵のフレイヤ・フレイ 攻撃力・HP+50%');
-ok(E.exMobSoulRate(ev, 4, E.MON_BY_ID.m178) === 1.0 && E.exMobSoulRate(ev, 4, E.MON_BY_ID.m181) === 0.35 && E.exPickupSoulRate(ev, 4) === 0.5, 'HELLのソウル率はEX3と同じ');
+ok(E.exMobSoulRate(ev, 4, E.MON_BY_ID.m178) === 0.5 && E.exMobSoulRate(ev, 4, E.MON_BY_ID.m181) === 0.175 && E.exPickupSoulRate(ev, 4) === 0.25, 'HELLのソウル率はEX3と同じ(soulV3: それまでの半分)');
+ok([1, 2, 3].map(x => E.exPickupSoulRate(ev, x)).join() === '0.1,0.25,0.25', 'EX1〜EX3の主役のソウルはそれまでの半分', [1, 2, 3].map(x => E.exPickupSoulRate(ev, x)));
+{ const ps = n => E.eventStagePickupSoul(ev, E.STAGE_BY_ID['ev_freyja_' + n]);
+  ok([1, 3, 4, 7, 8, 10].map(n => ps(n).rate + '/' + ps(n).ex).join() === '0.2/1,0.2/1,0.5/2,0.5/2,0.5/3,0.5/3', '通常ステージの主役のソウル: 1〜3層=EX1 / 4〜7層=EX2 / 8〜10層=EX3(1〜3個)の率', [1, 10].map(ps));
+  ok(E.eventStageMobSoulRate(ev, E.STAGE_BY_ID['ev_freyja_10'], E.MON_BY_ID.m178) === 1.0 && E.eventStageMobSoulRate(ev, E.STAGE_BY_ID['ev_freyja_1'], E.MON_BY_ID.m181) === 0.15, '通常ステージの脇役のソウルもそれまでのEXの率'); }
+{ const sh = Object.fromEntries(E.eventShopItems(ev).map(i => [i.sku, i]));
+  ok(sh.soul_pick.price === 230 && sh.soul_pick.limit === 30 && sh.uni.price === 310 && sh.uni.limit === 5 && sh.uni.qty === '50個' && sh.reso.price === 430 && sh.reso.limit === 3 && sh.reso.qty === '20個', 'ショップ: 主役のソウル230・無形のソウル50個310×5・無形の共鳴石20個430×3'); }
 
 console.log('--- メダル・ミッション・称号・フレーム ---');
 ok(E.EVENT_MEDAL.ev_freyja && E.EVENT_MEDAL.ev_freyja.name === '豊穣の麦印' && E.EVENT_THEME.ev_freyja, 'メダル・色');
