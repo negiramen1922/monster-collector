@@ -3646,7 +3646,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.5.002';
+const GAME_VERSION = 'α0.5.003';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -5049,6 +5049,13 @@ const firebaseBackend = {
     if(list.length < n) list = list.concat(await take('<'));
     return list;
   },
+  // おすすめユーザー(2026-10-12〜): 最近遊んだ順に取る。rand の切り口から取ると、遊んでいない人ばかり
+  // 引いて「最近7日以内」の絞り込みでほとんど残らなかった(数人しか出ない)
+  async fetchRecentPlayers(n){
+    const { fs, db } = await this.load();
+    const snap = await fs.getDocs(fs.query(fs.collection(db, 'players'), fs.orderBy('updatedAt', 'desc'), fs.limit(n)));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  },
   // PVP: a handful of random opponents with a defense set, via the standard Firestore
   // "random doc" trick (every published profile carries a rand:0-1 field; query from a
   // random cut point, wrap around to the start if that side comes up short).
@@ -5826,8 +5833,14 @@ async function fetchRecommendedUsers(){
   if(typeof be.fetchRandomPlayers !== 'function' || !ACCOUNT) { recommendedUsers = []; render(); return; }
   recommendedUsers = null; render();
   let list;
-  try{ list = await be.fetchRandomPlayers(RECOMMEND_COUNT * 4); }
-  catch(e){ recommendedUsers = []; render(); return; }
+  try{
+    // 最近遊んだ人を多めに取ってから、その中からランダムに選ぶ(取れないときは今までのランダム取得)
+    list = typeof be.fetchRecentPlayers === 'function' ? await be.fetchRecentPlayers(RECOMMEND_COUNT * 6) : [];
+    if(list.length < RECOMMEND_COUNT) list = list.concat(await be.fetchRandomPlayers(RECOMMEND_COUNT * 4));
+  }
+  catch(e){
+    try{ list = await be.fetchRandomPlayers(RECOMMEND_COUNT * 4); }catch(e2){ recommendedUsers = []; render(); return; }
+  }
   const now = Date.now();
   const friendIds = new Set(STATE.friends.map(f => f.uid));
   recommendedUsers = socialCandidates(list.filter(p => isActivePlayer(p, now) && !friendIds.has(p.uid)))
@@ -9123,7 +9136,7 @@ function runSweep(stageId, times, useTicket){
   if(n <= 0){ toast(tkKey ? `${SWEEP_TICKETS[tkKey].name}が足りません` : `スタミナが足りません(必要 ${stage.stamina})`); return null; }
   if(stage.dungeon === 'rune' && runeFull()){ toast(`ルーンがいっぱいです(${RUNE_MAX}個)。モンスター → ルーン で分解してください`); return null; }
   const total = { runs: 0, gold: 0, items: {}, souls: {}, joined: [], runes: [], dust: 0, medal: null, log: [] };
-  // 「結果だけ」は戦闘をしないので、イベントボーナスは今の編成で数える
+  // 「結果だけ」のイベントボーナスは、★3でクリアしたときの編成のもの(sweepEventBonus)
   const party = getPartyIds().map(ref => ({ ref }));
   for(let i = 0; i < n; i++){
     if(tkKey){
@@ -9361,7 +9374,7 @@ function renderSweepModal(){
         <button class="sw-speed ${sweepSpeed === 0 ? 'on' : ''}" data-sweep-speed="0">結果だけ</button>
         ${SPEED_OPTIONS.map(n => `<button class="sw-speed ${sweepSpeed === n ? 'on' : ''}" data-sweep-speed="${n}">×${n}</button>`).join('')}
       </div>
-      <div class="fs-note">${sweepSpeed === 0 ? `戦闘をスキップして、クリア報酬だけをまとめて受け取ります。${sweepTicket ? '' : 'スタミナを使います。'}${stage.type === 'event' ? 'イベントボーナスは今の編成で数えます。' : ''}` : '戦闘をそのまま自動で繰り返します。負けたら止まります。途中で止められます。'}</div>
+      <div class="fs-note">${sweepSpeed === 0 ? `戦闘をスキップして、クリア報酬だけをまとめて受け取ります。${sweepTicket ? '' : 'スタミナを使います。'}${stage.type === 'event' ? `イベントボーナスは、このステージを★3でクリアした編成のもの(+${Math.round(sweepEventBonus(stage) * 100)}%)です。ボーナスを上げるには、ボーナスの編成で★3クリアしてください。` : ''}` : '戦闘をそのまま自動で繰り返します。負けたら止まります。途中で止められます。'}</div>
       ${tkKey && tkHave ? `<button class="sw-ticket ${sweepTicket ? 'on' : ''}" data-sweep-ticket="1" ${sweepSpeed === 0 ? '' : 'disabled'}>
         ${itemIcon(tkKey)}${SWEEP_TICKETS[tkKey].name}を使う<small>${sweepSpeed === 0 ? `残り${tkHave}枚・スタミナを使いません` : '「結果だけ」のときに使えます'}</small>
       </button>` : ''}
@@ -9969,14 +9982,17 @@ function claimBeginnerLoginDay(day){
 }
 
 /* ---- ongoing 10-day login bonus: everyone gets this, forever, cycling
-   day 1→10→1→…. Unlike the beginner track it doesn't let you catch up on a
-   missed day - only the current day's box is claimable. ---- */
+   day 1→10→1→…. Only the current day's box is claimable.
+   2026-10-12〜: 受け取らないまま日が変わっても、その日の箱は飛ばさない(次の日に同じ箱を受け取れる)。
+   進むのは「受け取った次の日」だけ。1日に受け取れるのは1つまで。 ---- */
 const DAILY_LOGIN_REWARDS = [50, 50, 50, 50, 100, 50, 50, 50, 50, 200];
 function ensureDailyLogin(){
   if(!STATE.dailyLogin) STATE.dailyLogin = { day: 0, key: null, claimed: [] };
   const dl = STATE.dailyLogin;
   const key = currentDayKey();
   if(dl.key !== key){
+    // 前の日の箱を受け取っていないなら、日だけ進めて同じ箱のまま(飛ばさない)
+    if(dl.day > 0 && !dl.claimed.includes(dl.day)){ dl.key = key; return dl; }
     const nextDay = dl.day % DAILY_LOGIN_REWARDS.length + 1;
     if(nextDay === 1) dl.claimed = []; // a new 10-day cycle just started
     dl.day = nextDay;
@@ -10803,13 +10819,16 @@ function giveEventMats(mats, tier, nEach, nRole){
 }
 /* イベントメダルを渡す。周回ぶんにはイベントボーナス(編成でメダルが増える)が乗る。
    EXステージは腕試しなのでメダルを落とさない。 */
-function grantEventMedal(stage, firstTime, party){
+/* 「結果だけ」の周回のイベントボーナスは、そのステージを★3でクリアしたときの編成のボーナス(いちばん高かったもの)。
+   今の編成で数えると、ボーナスなしの強い編成で★3を取ったあと、ボーナスの編成に入れ替えて周回できてしまった(2026-10-12) */
+function sweepEventBonus(stage){ return (STATE.sweepBonus || {})[stage.id] || 0; }
+function grantEventMedal(stage, firstTime, party, opts){
   if(stage.type !== 'event' || stage.ex) return null;
   const ev = EVENTS.find(e => e.key === stage.eventKey);
   const medal = medalOf(ev);
   if(!medal) return null;
   const tier = Number(String(stage.id).split('_').pop()) || 1;
-  const bonus = eventBonusRate(ev, party);
+  const bonus = opts && opts.sweep ? sweepEventBonus(stage) : eventBonusRate(ev, party);
   const run = Math.round(medalRunGain(tier) * (1 + bonus));
   const first = firstTime ? medalFirstClear(tier) : 0;
   const n = run + first;
@@ -11165,15 +11184,16 @@ function evMissionState(evKey){
   return m;
 }
 // クリアのたびに数える。イベントの通常ステージだけ(EXはミッションの対象が別)
-function trackEventClear(stage){
+function trackEventClear(stage, opts, sweepParty){
   if(stage.type !== 'event' || stage.ex) return;
   const ev = EVENTS.find(e => e.key === stage.eventKey);
   if(!ev || !isEventLive(ev)) return;
   const m = evMissionState(ev.key);
   m.clears += 1;
   track('eventClear');
-  const party = (battleUI && battleUI.party) || [];
-  if(eventBonusRate(ev, party) >= EVENT_BONUS.cap) m.bonusMax += 1;
+  // 「結果だけ」の周回は戦闘をしないので、ボーナスは★3クリアのときのもの・主役は今の周回の編成で数える
+  const party = opts && opts.sweep ? (sweepParty || []) : (battleUI && battleUI.party) || [];
+  if((opts && opts.sweep ? sweepEventBonus(stage) : eventBonusRate(ev, party)) >= EVENT_BONUS.cap) m.bonusMax += 1;
   if(party.some(u => u && u.ref === ev.pickup)) m.pickClears += 1;
 }
 const EVENT_STAR_GOALS = [10, 20, 30];   // 10層×★3 = 30が満点
@@ -13300,7 +13320,7 @@ function renderBeginnerLoginCard(){
   return loginCardHtml('beginner', UI_ICON.gift, 'はじめての7日ログインボーナス', ready, body);
 }
 // home: the ongoing 10-day login bonus, always shown (see ensureDailyLogin).
-// only the current day's box is claimable; a missed day is simply skipped.
+// only the current day's box is claimable; an unclaimed day stays until it is claimed.
 function renderDailyLoginCard(){
   const dl = ensureDailyLogin();
   const ready = dl.claimed.includes(dl.day) ? 0 : 1;
@@ -22186,6 +22206,12 @@ function finishBattle(win){
     if(!STATE.stageStars) STATE.stageStars = {};
     battleUI.prevRank = STATE.stageStars[battleUI.stage.id] || 0;
     STATE.stageStars[battleUI.stage.id] = Math.max(battleUI.prevRank, battleUI.rank);
+    // ★3でクリアした編成のイベントボーナスを、「結果だけ」の周回用に覚える(いちばん高かったもの)
+    if(battleUI.rank >= 3 && battleUI.stage.type === 'event' && !battleUI.stage.ex){
+      const ev = EVENTS.find(e => e.key === battleUI.stage.eventKey);
+      if(!STATE.sweepBonus) STATE.sweepBonus = {};
+      STATE.sweepBonus[battleUI.stage.id] = Math.max(STATE.sweepBonus[battleUI.stage.id] || 0, eventBonusRate(ev, battleUI.party));
+    }
     logEvent('stage_clear', { stage_id: battleUI.stage.id, tier: battleUI.stage.tier,
       type: battleUI.stage.type || 'main', rank: battleUI.rank, rounds: battleUI.round, first: !battleUI.prevRank });
     if(battleUI.stage.id === TUTORIAL_LAST_STAGE){
@@ -22578,8 +22604,8 @@ function grantStageRewards(stage, spawned, party, opts){
     [...(stage.bossReward || []), ...(stage.reward || [])].forEach(r => { grantRewards([r]); firstItems.push(r); });
   }
   // イベントメダル。周回でもらえるぶんにはイベントボーナスが乗る。EXステージでは出ない
-  const medalGot = grantEventMedal(stage, firstTime, party);
-  trackEventClear(stage);
+  const medalGot = grantEventMedal(stage, firstTime, party, opts);
+  trackEventClear(stage, opts, party);
   track('stageClear');
   track('exploreClear');   // デイリー「探索を3回」: 周回・育成クエストも同じく数える
   if(stage.boss) track('bossClear');
@@ -24176,6 +24202,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 167, version: 'α0.5.003', date: '10/12', title: '不具合の修正(ログインボーナス・周回のボーナス・おすすめユーザー)', body: '<span class="nt-i">・<em>ログインボーナス</em>: 受け取らないまま日が変わると、その日の分が飛ばされていました。受け取るまで同じ日の箱が残るようにしました(1日に受け取れるのは1つまで)。</span><span class="nt-i">・<em>イベントの周回(結果だけ)</em>: イベントボーナスを今の編成で数えていたため、ボーナスのない編成で★3を取ったあと、ボーナスの編成に入れ替えて周回できていました。そのステージを<em>★3でクリアしたときの編成のボーナス</em>で数えるようにしました。ボーナスを上げるには、ボーナスの編成で一度★3クリアしてください(戦闘ありの周回は今までどおり、その編成のボーナスです)。</span><span class="nt-i">・<em>フレンドの追加</em>: おすすめユーザーが数人しか出なくなっていたので、最近遊んでいるテイマーから選ぶようにしました。</span>' },
   { id: 166, version: 'α0.5.002', date: '10/8', title: 'モンスターに名前を付けられるように・通報', body: '<span class="nt-i">・持っているモンスターに名前(8文字まで)を付けられるようになりました。モンスターの詳細で、名前の横の「名前を付ける」から。「元に戻す」で図鑑の名前に戻せます。</span><span class="nt-i">・付けた名前は、編成・戦闘・結果の画面に出ます。お助け(貸し出し)やPVPの防衛編成に入れたモンスターの名前は、ほかのプレイヤーにも見えます。</span><span class="nt-i">・フレンドのプロフィールとPVPの相手から、不適切な名前や自己紹介を通報できるようになりました。通報した相手の名前などは、自分の画面では伏せて表示します(設定から元に戻せます)。</span><span class="nt-i">・名前・自己紹介・モンスターの名前に、使えない言葉のチェックを入れました。</span>' },
   { id: 165, version: 'α0.5.001', date: '10/8', title: '編成画面で装備が見やすく', body: '<span class="nt-i">・編成画面の陣形の右上に「キャラ / 装備」の切り替えを足しました。</span><span class="nt-i">・キャラ: それぞれのマスに★とレベルが出ます。</span><span class="nt-i">・装備: それぞれのマスに、付けている遺物と、ルーン4枠の埋まりぐあいが出ます。陣形の下に、編成全体の遺物とルーンの数も出ます。</span><span class="nt-i">・遺物を付けていない子や、空いているルーン枠がある子には<em>「!」</em>が付きます(装備のタブにも出ます)。</span>' },
   { id: 164, version: 'α0.5.000', date: '10/7', title: 'α0.5', body: '<span class="nt-i">・★5の12体と★4の4体の星刻特性(10/7 12:00から)。</span><span class="nt-i">・旧バトルシステムをなくし、新バトルシステムだけにしました。お試し(初回スタミナ0＋星結晶)は終了。テスト協力のお礼に召喚券5枚。</span><span class="nt-i">・奥義の必要SPを、★ではなく奥義の重さとロールで決める形に。51体の奥義の数値を調整。</span><span class="nt-i">・スキルLvの上限を10(Lv10で1.5倍)、パッシブLvの上限を5(Lv5で1.5倍)に。超えていたぶんの素材はお返し。</span><span class="nt-i">・チュートリアルの遊び直し(お礼 星結晶360)とアンケート(お礼 召喚券10枚)。</span>' },
