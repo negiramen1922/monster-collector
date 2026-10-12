@@ -27,7 +27,7 @@ async def main():
             await pg.evaluate("""() => { clearGuideToast(); closeModal && closeModal();
               const ev = EVENTS.find(e => e.key === 'ev_fenrir'); ev.startAt = '2026-09-01T00:00:00+09:00'; ev.endAt = '2099-01-01T00:00:00+09:00';
               ['tu1','tu2','tu3'].forEach(id => STATE.clearedStages.push(id));
-              const st = ev.stages[0]; STATE.clearedStages.push(st.id); STATE.stageStars[st.id] = 3;
+              const st = ev.stages[0]; STATE.clearedStages.push(st.id); STATE.stageStars[st.id] = 3; STATE.sweepBonus = { [st.id]: 0.4 };   // ★3クリアした編成のボーナス(結果だけの周回はこれで数える)
               STATE.owned.m68 = newOwned(MON_BY_ID.m68); STATE.slots[0] = 'm68';   // 主役を編成に入れる(ボーナス+40%)
               STATE.stamina = 300; goto('battle'); render(); sweepTarget = st.id; renderSweepModal(); }""")
             await pg.wait_for_timeout(300)
