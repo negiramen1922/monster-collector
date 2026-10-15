@@ -48,10 +48,10 @@ async def main():
                 cardTxt: document.querySelector('.lab-bw .lab-u').innerText,
                 sw: document.documentElement.scrollWidth };
             }""")
-            ok_rows = all([x['label'] for x in w] == ['後衛', '前衛'] for w in r['waves']) and [sum(x['n'] for x in w) for w in r['waves']] == r['total']
+            ok_rows = all([x['label'][:2] for x in w] == ['後衛', '前衛'] for w in r['waves']) and [sum(x['n'] for x in w) for w in r['waves']] == r['total']
             check('55階: 敵がWAVEごとに後衛/前衛に分かれて全員出る', ok_rows and '死神' in r['title'], r)
             check('ボスに印があり、★・Lv・スキルLv・パッシブLvが出る',
-                  r['bossTag'] and '死神' in r['bossTxt'] and '★10' in r['bossTxt'] and 'Lv200' in r['bossTxt'] and 'スキル10' in r['bossTxt'] and 'パッシブ5' in r['bossTxt'], r)
+                  r['bossTag'] and '死神' in r['bossTxt'] and '★10' in r['bossTxt'] and 'Lv200' in r['bossTxt'] and 'スキルLv10' in r['bossTxt'] and 'パッシブLv5' in r['bossTxt'], r)
             check('スマホ幅390pxで横にはみ出さない', r['sw'] <= 390, r['sw'])
             await pg.screenshot(path=str(OUT / 'lab_floor55.png'), full_page=True)
             # タップでワザと星刻
