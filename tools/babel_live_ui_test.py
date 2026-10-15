@@ -61,11 +61,23 @@ async def main():
                 start: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset,
                 enemies: document.querySelectorAll('.bb-en').length,
                 rules: document.querySelectorAll('.bb-rule').length })""")
-            check('3つの塔と10階ぶんのボタンが出る',
-                  r['towers'] == ['tower:bal', 'tower:order', 'tower:chaos'] and r['floors'] == 10, r)
-            check('まだ1階しか開いていない(2〜10階はロック)', r['locked'] == 9, r['locked'])
+            check('3つの塔と、均衡の塔は60階ぶんのボタンが出る',
+                  r['towers'] == ['tower:bal', 'tower:order', 'tower:chaos'] and r['floors'] == 60, r)
+            check('まだ1階しか開いていない(2〜60階はロック)', r['locked'] == 59, r['locked'])
             check('1階の敵とステージ効果が出る', r['enemies'] >= 3 and r['start'], r)
             await pg.screenshot(path=str(OUT / 'babel_live.png'), full_page=True)
+            # 均衡の塔: 前の10階のころのクリアは新しい1〜10階のクリアとして数え、11階から。ボスの階は「ボス戦」
+            await pg.evaluate("""() => { for(let f = 1; f <= 10; f++) STATE.clearedStages.push('bb_bal_' + f); babelPickFloor = 0; render(); }""")
+            await pg.wait_for_timeout(300)
+            r = await pg.evaluate("""() => ({ id: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset.startStage,
+                done: document.querySelectorAll('.lab-fl.done').length, boss: document.querySelectorAll('.lab-fl.boss').length,
+                tab: document.querySelector('[data-babel="tower:bal"]').innerText })""")
+            check('前の均衡の塔10階をクリアしたセーブは11階から挑める(10/60)', r['id'] == 'bb_bal_11' and r['done'] == 10 and r['boss'] == 12 and '10/60' in r['tab'], r)
+            await pg.evaluate("() => { babelPickFloor = 10; render(); }"); await pg.wait_for_timeout(250)
+            r = await pg.evaluate("""() => ({ head: document.querySelector('.bb-head').innerText, boss: document.querySelectorAll('.bb-en.boss').length,
+                reward: document.querySelector('.ab-reward').innerText })""")
+            check('均衡の塔の10階は「ボス戦」でボスが1体', 'ボス戦' in r['head'] and r['boss'] == 1, r)
+            await pg.evaluate("() => { STATE.clearedStages = STATE.clearedStages.filter(id => !id.startsWith('bb_bal_')); babelPickFloor = 0; render(); }")
 
             # ---- 3. 編成のしばり ----
             await pg.click('[data-babel="tower:order"]'); await pg.wait_for_timeout(300)
