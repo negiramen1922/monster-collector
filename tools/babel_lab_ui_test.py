@@ -24,10 +24,57 @@ async def main():
             await pg.goto(url + '?lab=babel'); await pg.wait_for_timeout(1200)
             r = await pg.evaluate("""() => ({ screen: currentScreen, lab: !!document.querySelector('.lab'), acct: ACCOUNT, saved: localStorage.getItem('monster-game-state'),
               owned: Object.keys(STATE.owned).length, all: MONSTERS.length, slots: document.querySelectorAll('.lab-slot img').length,
-              enemies: document.querySelectorAll('.lab-en').length, nav: getComputedStyle(document.getElementById('nav')).display })""")
+              enemies: document.querySelectorAll('.lab-bw .lab-u').length, hints: document.querySelectorAll('.lab-hint-box .lab-u').length,
+              nav: getComputedStyle(document.getElementById('nav')).display })""")
             check('ログインなしで試験場が開き、全モンスターが使える', r['lab'] and r['screen'] == 'lab' and r['acct'] is None and r['owned'] == r['all'], r)
             check('1階の敵と、勝てる想定の編成が最初から入っている', r['enemies'] == 10 and r['slots'] == 5, r)
+            check('勝てる想定・勝てない想定の編成が5体ずつ並ぶ', r['hints'] == 10, r)
             check('下のメニューは出さない', r['nav'] == 'none', r)
+            # 均衡の塔は60階。10階ずつ区切って、ボスの階に印
+            r = await pg.evaluate("""() => ({ floors: document.querySelectorAll('[data-lab^="floor:"]').length,
+              groups: [...document.querySelectorAll('.bb-fl-label')].map(e => e.textContent),
+              boss: [...document.querySelectorAll('.lab-fl.boss')].map(e => parseInt(e.textContent)) })""")
+            check('階の一覧は1〜60階(10階ずつの区切り)', r['floors'] == 60 and r['groups'] == ['1〜10階', '11〜20階', '21〜30階', '31〜40階', '41〜50階', '51〜60階'], r)
+            check('ボスの階(5の倍数)に印', r['boss'] == [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], r['boss'])
+            # 配置: 各WAVEの敵が前衛/後衛に分かれ、Lv・★・スキルLv・パッシブLvが出る
+            await pg.click('[data-lab="floor:55"]'); await pg.wait_for_timeout(250)
+            r = await pg.evaluate("""() => {
+              const waves = [...document.querySelectorAll('.lab-bw')].map(w => [...w.querySelectorAll('.lab-row')].map(row => ({
+                label: row.querySelector('.lab-rl').textContent, n: row.querySelectorAll('.lab-u').length })));
+              const st = babelStage('bal', 55);
+              const boss = document.querySelector('.lab-bw .lab-u.boss');
+              return { waves, total: st.waves.map(w => w.length), title: document.querySelector('.lab-title').textContent,
+                bossTxt: boss && boss.innerText, bossTag: !!(boss && boss.querySelector('.lab-boss-tag')),
+                cardTxt: document.querySelector('.lab-bw .lab-u').innerText,
+                sw: document.documentElement.scrollWidth };
+            }""")
+            ok_rows = all([x['label'] for x in w] == ['後衛', '前衛'] for w in r['waves']) and [sum(x['n'] for x in w) for w in r['waves']] == r['total']
+            check('55階: 敵がWAVEごとに後衛/前衛に分かれて全員出る', ok_rows and '死神' in r['title'], r)
+            check('ボスに印があり、★・Lv・スキルLv・パッシブLvが出る',
+                  r['bossTag'] and '死神' in r['bossTxt'] and '★10' in r['bossTxt'] and 'Lv200' in r['bossTxt'] and 'スキル10' in r['bossTxt'] and 'パッシブ5' in r['bossTxt'], r)
+            check('スマホ幅390pxで横にはみ出さない', r['sw'] <= 390, r['sw'])
+            await pg.screenshot(path=str(OUT / 'lab_floor55.png'), full_page=True)
+            # タップでワザと星刻
+            await pg.click('.lab-bw .lab-u.boss'); await pg.wait_for_timeout(250)
+            r = await pg.evaluate("""() => { const md = document.querySelector('.lab-unit-modal');
+              return md && { name: md.querySelector('.detail-name').textContent, cards: [...md.querySelectorAll('.skill-card .slot-tag')].map(e => e.textContent),
+                perkOn: md.querySelectorAll('.perk-row.on').length, perkAll: md.querySelectorAll('.perk-row').length,
+                lv: md.querySelector('.detail-family').textContent, stats: md.querySelectorAll('.stat-row').length,
+                sw: document.documentElement.scrollWidth }; }""")
+            check('敵をタップすると、そのキャラのワザ(通常・スキル1・スキル2・パッシブ・奥義)と星刻が出る',
+                  r and r['name'] == '死神' and all(k in r['cards'] for k in ['通常', 'スキル1', 'スキル2', 'パッシブ', '奥義']) and len(r['cards']) >= 6, r)
+            check('★10の敵は星刻が全部光る(その★で効いている星刻)', r and r['perkAll'] > 0 and r['perkOn'] == r['perkAll'] and 'スキルLv10' in r['lv'], r)
+            await pg.screenshot(path=str(OUT / 'lab_unit_detail.png'), full_page=False)
+            await pg.click('.lab-unit-modal .detail-close'); await pg.wait_for_timeout(200)
+            check('×で閉じる', await pg.evaluate("() => !document.querySelector('.lab-unit-modal')"))
+            await pg.click('.lab-hint-box.win .lab-u'); await pg.wait_for_timeout(250)
+            r = await pg.evaluate("""() => { const md = document.querySelector('.lab-unit-modal');
+              return md && { note: md.querySelector('.lab-unit-note').textContent, lv: md.querySelector('.detail-family').textContent,
+                on: md.querySelectorAll('.perk-row.on').length }; }""")
+            check('想定の編成のキャラもタップで見られる(育ち・ルーン・遺物も出る)', r and '勝てる想定' in r['note'] and '上級+' in r['note'] and '★' in r['lv'], r)
+            await pg.click('.lab-unit-modal .detail-close'); await pg.wait_for_timeout(150)
+            await pg.click('[data-lab="floor:1"]'); await pg.wait_for_timeout(200)
+            await pg.click('[data-lab="hint:win"]'); await pg.wait_for_timeout(200)
             await pg.screenshot(path=str(OUT / 'lab_top.png'), full_page=True)
             # 連続テスト
             await pg.click('[data-lab="sim:20"]')
@@ -50,6 +97,10 @@ async def main():
             await pg.screenshot(path=str(OUT / 'lab_editor.png'), full_page=True)
             # 超上級: ★10・スキルLv10(上限)・ルーンⅩ・遺物カンスト(合う遺物を自動で)
             await pg.click('[data-lab="grow:3"]'); await pg.wait_for_timeout(200)
+            r = await pg.evaluate("() => lab.parties[0].filter(Boolean).map(s => [s.star >= 9, s.sk, s.rune, s.relic && RELICS[s.relic].star, s.rlv, s.rsk, s.rdupe])")
+            check('上級+にすると全員 ★9以上・スキルLv10・ルーンⅨ・★5遺物Lv180(遺物スキル9・3凸)',
+                  len(r) > 0 and all(x == [True, 10, 9, 5, 180, 9, 3] for x in r), r)
+            await pg.click('[data-lab="grow:4"]'); await pg.wait_for_timeout(200)
             r = await pg.evaluate("() => lab.parties[0].filter(Boolean).map(s => [s.star, s.sk, s.rune, !!s.relic, s.rlv])")
             SKILL_LV_CAP = await pg.evaluate("() => SKILL_LV_CAP")
             check('超上級にすると全員 ★10・スキルLv上限・ルーンⅩ・遺物Lv200(遺物つき)',

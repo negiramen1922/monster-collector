@@ -3300,18 +3300,17 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .lab-en i{ font-style:normal; font-size:8.5px; color:var(--dim); }
 .lab-en.boss small{ color:var(--gold); font-weight:900; }
 /* バベル試験場: WAVEごとの前衛/後衛の並びと想定の編成(タップでワザと星刻) */
-.lab-bw{ display:flex; gap:6px; padding:6px 0; border-top:1px solid rgba(255,255,255,.06); }
-.lab-bwl{ flex:none; width:34px; font-size:10px; font-weight:900; color:var(--dim); line-height:1.2; padding-top:4px; }
-.lab-bwl small{ display:block; font-size:9px; font-weight:700; }
-.lab-wave-rows{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
-.lab-row{ display:flex; align-items:stretch; gap:4px; }
-.lab-rl{ flex:none; width:16px; font-size:9px; font-weight:800; color:var(--dim); writing-mode:vertical-rl; text-align:center; border-radius:5px; background:rgba(255,255,255,.04); padding:2px 0; }
-.lab-row-units{ flex:1; min-width:0; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:3px; }
-.lab-row-empty{ font-size:9.5px; color:var(--dim); align-self:center; }
+.lab-bw{ padding:6px 0; border-top:1px solid rgba(255,255,255,.06); }
+.lab-bwl{ font-size:10.5px; font-weight:900; color:var(--dim); margin-bottom:2px; }
+.lab-bwl small{ font-size:9.5px; font-weight:700; margin-left:5px; }
+.lab-wave-rows{ display:flex; flex-direction:column; gap:3px; }
+.lab-row{ display:flex; flex-direction:column; gap:2px; }
+.lab-rl{ font-size:9.5px; font-weight:800; color:var(--dim); }
+.lab-row-units{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; }
 .lab-u{ position:relative; min-width:0; display:flex; flex-direction:column; align-items:center; text-align:center; padding:3px 1px 4px; border-radius:8px; border:1px solid var(--line); background:rgba(0,0,0,.2); color:var(--text); font-family:inherit; cursor:pointer; }
 .lab-u img{ width:34px; height:34px; object-fit:contain; image-rendering:pixelated; }
 .lab-u small{ font-size:9px; line-height:1.15; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.lab-u i{ font-style:normal; font-size:8px; line-height:1.25; color:var(--dim); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lab-u i{ font-style:normal; font-size:8.5px; line-height:1.25; color:var(--dim); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lab-u i.lab-u-st{ color:#ffd98a; font-weight:800; }
 .lab-u.boss{ border-color:var(--gold); box-shadow:0 0 8px -3px rgba(232,180,85,.9); }
 .lab-u.boss small{ color:var(--gold); }
@@ -17512,26 +17511,26 @@ const BABEL_FLOORS = {
     { name: '塔の入口', boost: { hp: 0.7, str: 0.42 }, rules: [],
       waves: ['マイコニド・マンドラゴラ・モススライム', 'ゴブリン弓兵・トレント・モスボア・ドルイド', 'マンイーター・ハノコ・ブラッドローズ'],
       win: [0, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・サラマンダー'], lose: [1, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
-    { name: '土の小径', boost: { hp: 0.4, str: 0.24 }, rules: [],
+    { name: '土の小径', boost: { hp: 0.8, str: 0.48 }, rules: [],
       waves: ['コボルト・マッドモール・オーク', 'ジャッカロープ・ノッカー・ヒルジャイアント・アルヴィス', 'ミノタウロス・ロックゴーレム・デススコーピオン'],
       win: [0, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [1, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
     { name: '炎の祭壇', boost: { hp: 1.3, str: 0.78 }, rules: [],
       waves: ['ヒノコ・フレイムリザード・マグマスライム', 'フレイムボア・鬼火・アグニ・ヘルハウンド', 'サラマンダー・ボルケイノタートル・キマイラ'],
       win: [0, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [1, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
-    { name: '風の通り道', boost: { hp: 1.0, str: 0.6 }, rules: [],
+    { name: '風の通り道', boost: { hp: 0.85, str: 0.51 }, rules: [],
       waves: ['オオコウモリ・キラービー・ストームホーク', 'カマイタチ・ゴースト・ペガサス・天狗', 'ハルピュイア・ゼピュロス・シームルグ'],
       win: [0, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [1, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
-    { name: '将軍の号令', boss: true, boost: { hp: 1.0, str: 0.6 }, rules: [
+    { name: '将軍の号令', boss: true, boost: { hp: 0.7, str: 0.42 }, rules: [
         { side: 'enemy', stat: { str: 0.6 }, label: '敵 STR+60%' },
         { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.7, stat: { hp: 0.5 }, label: 'タンクの味方 受けるダメージ-70%・最大HP+50%' },
         { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 1.5, label: 'タンク・サポートの味方 与ダメージ+150%' },
         { who: { roles: ['attacker', 'shooter', 'trickster'] }, side: 'ally', dmgTaken: 1.5, dmgDealt: -0.5, label: 'アタッカー・シューター・トリックの味方 受けるダメージ+150%・与ダメージ-50%' }],
       waves: ['ゴブリン・ワイルドボア・ニードルラット', 'オーク・コボルト・ケンタウロス・ゴブリン', 'オークジェネラル・グリズリー・オーガ'],
       win: [1, 'シルバーナイト・イエティ・エルダートレント・ノッカー・ブルーウィスプ'], lose: [2, 'スルト・オーガ・サイクロプス・ミノタウロス・ワーウルフ'] },
-    { name: '水辺の洞', boost: { hp: 2.29, str: 1.37 }, rules: [],
+    { name: '水辺の洞', boost: { hp: 2.5, str: 1.5 }, rules: [],
       waves: ['ポンドフロッグ・ケルピー・アクアスライム', 'リザードマン・マーメイド・イエティ・セイレーン', 'クラーケン・ケルピー・マーメイド'],
       win: [1, 'アラクネ・ベヒモス・マンイーター・コカトリス・ブラッドローズ'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
-    { name: '雷鳴の丘', boost: { hp: 2.4, str: 1.44 }, rules: [],
+    { name: '雷鳴の丘', boost: { hp: 2.2, str: 1.32 }, rules: [],
       waves: ['シルバーウルフ・ボルトビートル・アイアンスライム', 'ブラックウルフ・ケットシー・キョンシー・ツインヘッドベア', '雷獣・ダークメカロイド・サイクロプス'],
       win: [1, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [2, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
     { name: '芽吹きの丘', boost: { hp: 1.3, str: 0.78 }, rules: [],
@@ -17540,15 +17539,15 @@ const BABEL_FLOORS = {
     { name: '火の粉の路', boost: { hp: 1.9, str: 1.14 }, rules: [],
       waves: ['鬼火・ヒノコ・フレイムボア', 'マグマゴーレム・ヘルハウンド・ボルケイノタートル・マグマスライム', 'スルト・アグニ・キマイラ'],
       win: [1, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
-    { name: '迷宮の暴れ牛', boss: true, boost: { hp: 0.8, str: 0.48 }, rules: [
-        { side: 'enemy', dmgTaken: -0.8, atk: 'phys', label: '敵 物理攻撃で受けるダメージ-80%' },
+    { name: '迷宮の暴れ牛', boss: true, boost: { hp: 0.85, str: 0.51 }, rules: [
+        { side: 'enemy', dmgTaken: -0.9, atk: 'phys', label: '敵 物理攻撃で受けるダメージ-90%' },
         { side: 'ally', dmgDealt: 1.0, atk: 'mag', label: '味方の魔法攻撃 与ダメージ+100%' }],
       waves: ['オーク・コボルト・ジャッカロープ', 'ヒルジャイアント・ロックゴーレム・デススコーピオン・マッドモール', 'ミノタウロス・アルヴィス・ガーゴイル'],
       win: [1, 'アグニ・サラマンダー・ヘルハウンド・ボルケイノタートル・マグマゴーレム'], lose: [2, 'グリズリー・オーガ・ケンタウロス・スルト・ワーウルフ'] },
     { name: '岩の谷', boost: { hp: 0.7, str: 0.42 }, rules: [],
       waves: ['オーク・コボルト・ガーゴイル', 'ドリュアス・ジャッカロープ・マッドモール・ロックゴーレム', 'ノーム・アルヴィス・土蜘蛛'],
       win: [1, 'ペガサス・ワイバーン・ゼピュロス・シームルグ・天狗'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
-    { name: '霧の湖', boost: { hp: 1.49, str: 0.89 }, rules: [],
+    { name: '霧の湖', boost: { hp: 2.0, str: 1.2 }, rules: [],
       waves: ['リザードマン・マーメイド・河童', 'ケルピー・ポンドフロッグ・アイスゴーレム・セイレーン', 'クラーケン・リザードマン・ポンドフロッグ'],
       win: [1, 'グリーンマン・アラクネ・マンイーター・ベヒモス・ドルイド'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
     { name: '疾風の群れ', boost: { hp: 1.2, str: 0.72 }, rules: [],
@@ -17568,11 +17567,11 @@ const BABEL_FLOORS = {
     { name: '蔦の回廊', boost: { hp: 0.9, str: 0.54 }, rules: [],
       waves: ['マンドラゴラ・マイコニド・トレント', 'ハノコ・モスボア・コカトリス・マンイーター', 'アラクネ・ブラッドローズ・ドルイド'],
       win: [1, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・サラマンダー'], lose: [2, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
-    { name: '地底の坑道', boost: { hp: 0.53, str: 0.32 }, rules: [],
+    { name: '地底の坑道', boost: { hp: 0.9, str: 0.54 }, rules: [],
       waves: ['ヒルジャイアント・マッドモール・ノッカー', 'ガーゴイル・デススコーピオン・オーク・ドリュアス', 'ブロック・ミノタウロス・ジャッカロープ'],
       win: [1, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
-    { name: '深みの主', boost: { hp: 1.41, str: 0.85 }, rules: [],
-      waves: ['ケルピー・ポンドフロッグ・リザードマン', 'マーメイド・ユミル・クラーケン・メリュジーヌ', 'シースライム・ケルピー・セイレーン'],
+    { name: '深みの主', boost: { hp: 1.5, str: 0.9 }, rules: [],
+      waves: ['ケルピー・ポンドフロッグ・リザードマン', 'マーメイド・ユミル・リザードマン・メリュジーヌ', 'クラーケン・ケルピー・セイレーン'],
       win: [1, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
     { name: '地獄の番犬', boss: true, boost: { hp: 2.9, str: 1.74 }, rules: [
         { side: 'ally', dmgTaken: 1.5, when: 'burned', label: '味方 やけど状態のあいだ 受けるダメージ+150%' },
@@ -17582,7 +17581,7 @@ const BABEL_FLOORS = {
     { name: '嵐の回廊', boost: { hp: 0.6, str: 0.36 }, rules: [],
       waves: ['キラービー・ゴースト・ペガサス', 'ハティ・ストームホーク・天狗・ワイバーン', 'フェンリル・カマイタチ・アイオロス'],
       win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
-    { name: '稲妻の道', boost: { hp: 1.5, str: 0.9 }, rules: [],
+    { name: '稲妻の道', boost: { hp: 1.35, str: 0.81 }, rules: [],
       waves: ['アイアンスライム・キョンシー・シルバーウルフ', 'ダークメカロイド・ボルトビートル・ブラックウルフ・ケットシー', '雷電・雷獣・ツインヘッドベア'],
       win: [1, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [2, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
     { name: '毒の茂み', boost: { hp: 1.1, str: 0.66 }, rules: [],
@@ -17591,14 +17590,14 @@ const BABEL_FLOORS = {
     { name: '溶岩の河', boost: { hp: 0.8, str: 0.48 }, rules: [],
       waves: ['ヒノコ・ボルケイノタートル・ヘルハウンド', 'サラマンダー・牛鬼・フレイムリザード・鬼火', 'フェニクス・スルト・スコル'],
       win: [1, 'クラーケン・ユミル・ウンディーネ・ケルピー・セイレーン'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
-    { name: '天空の覇者', boss: true, boost: { hp: 1.25, str: 0.75 }, rules: [
+    { name: '天空の覇者', boss: true, boost: { hp: 1.0, str: 0.6 }, rules: [
         { side: 'enemy', stat: { spd: 0.4 }, label: '敵 SPD+40%' },
-        { who: { element: 'thunder' }, side: 'ally', dmgDealt: 1.0, label: '雷属性の味方 与ダメージ+100%' },
-        { side: 'enemy', dmgTaken: -0.75, fromElemNot: 'thunder', label: '敵 雷属性以外から受けるダメージ-75%' }],
+        { who: { element: 'thunder' }, side: 'ally', dmgDealt: 1.5, label: '雷属性の味方 与ダメージ+150%' },
+        { side: 'enemy', dmgTaken: -0.85, fromElemNot: 'thunder', label: '敵 雷属性以外から受けるダメージ-85%' }],
       waves: ['ストームホーク・キラービー・オオコウモリ', 'カマイタチ・ペガサス・ゴースト・ゼピュロス', 'グリフォン・ハルピュイア・ワイバーン'],
       win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'スルト・ヘルハウンド・キマイラ・ケルベロス・サラマンダー'] },
-    { name: '潮騒の間', boost: { hp: 0.6, str: 0.36 }, rules: [],
-      waves: ['マーメイド・リザードマン・アクアスライム', 'クラーケン・ケルピー・ウンディーネ・ポンドフロッグ', 'シースライム・マーメイド・イエティ'],
+    { name: '潮騒の間', boost: { hp: 1.6, str: 0.96 }, rules: [],
+      waves: ['マーメイド・河童・アクアスライム', 'ケルピー・ポンドフロッグ・ウンディーネ・リザードマン', 'クラーケン・マーメイド・イエティ'],
       win: [1, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
     { name: '石の番人', boost: { hp: 0.5, str: 0.3 }, rules: [],
       waves: ['ロックゴーレム・コボルト・ジャッカロープ', '土蜘蛛・アルヴィス・ノッカー・ヒルジャイアント', 'タイタン・ノーム・デススコーピオン'],
@@ -17624,7 +17623,7 @@ const BABEL_FLOORS = {
     { name: '巨人の歩廊', boost: { hp: 1.7, str: 1.02 }, rules: [],
       waves: ['ドリュアス・オーク・マッドモール', 'ミノタウロス・ガーゴイル・土蜘蛛・コボルト', 'タロース・ブロック・アルヴィス'],
       win: [2, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [3, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
-    { name: '海神の庭', boost: { hp: 2.2, str: 1.32 }, rules: [],
+    { name: '海神の庭', boost: { hp: 1.6, str: 0.96 }, rules: [],
       waves: ['ポンドフロッグ・ケルピー・セイレーン', 'リザードマン・クラーケン・アイスゴーレム・マーメイド', 'リヴァイアサン・シースライム・ケルピー'],
       win: [2, 'グリーンマン・アラクネ・マンイーター・ベヒモス・ドルイド'], lose: [3, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
     { name: '石化の眼差し', boss: true, boost: { hp: 2.7, str: 1.62 }, rules: [
@@ -17649,8 +17648,8 @@ const BABEL_FLOORS = {
         { side: 'enemy', dmgTaken: -0.8, when: 'unpoisoned', label: '敵 毒状態でないあいだ 受けるダメージ-80%' }],
       waves: ['ガーゴイル・ロックゴーレム・ヒルジャイアント', 'ブロック・アルヴィス・ノーム・ドリュアス', 'タロース・タイタン・土蜘蛛'],
       win: [2, 'アラクネ・ベヒモス・メデューサ・デススコーピオン・ヴェノムスライム'], lose: [3, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'] },
-    { name: '氷の宮殿', boost: { hp: 1.3, str: 0.78 }, rules: [],
-      waves: ['リザードマン・マーメイド・ブルーウィスプ', 'ユミル・クラーケン・ケルピー・ポンドフロッグ', 'シースライム・リザードマン・セルキー'],
+    { name: '氷の宮殿', boost: { hp: 1.5, str: 0.9 }, rules: [],
+      waves: ['リザードマン・マーメイド・ブルーウィスプ', 'ユミル・クラーケン・ケルピー・ポンドフロッグ', 'リヴァイアサン・リザードマン・セルキー'],
       win: [2, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [3, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
     { name: '雷光の塔', boost: { hp: 2.6, str: 1.56 }, rules: [],
       waves: ['ボルトビートル・ツインヘッドベア・ケットシー', 'キョンシー・ミスリルゴーレム・シルバーウルフ・ブラックウルフ', '雷電・ダークメカロイド・雷獣'],
@@ -17661,19 +17660,19 @@ const BABEL_FLOORS = {
     { name: '大地の砦', boost: { hp: 1.3, str: 0.78 }, rules: [],
       waves: ['アルヴィス・ノッカー・デススコーピオン', 'ロックゴーレム・ノーム・ジャッカロープ・オーク', 'タイタン・ミノタウロス・ドリュアス'],
       win: [2, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [3, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
-    { name: '大海嘯', boss: true, boost: { hp: 0.2, str: 0.12 }, rules: [
+    { name: '大海嘯', boss: true, boost: { hp: 0.45, str: 0.27 }, rules: [
         { side: 'enemy', stat: { str: 0.8 }, label: '敵 STR+80%' },
         { who: { role: 'support' }, side: 'ally', dmgDealt: 2.0, stat: { hp: 0.5 }, label: 'サポートの味方 与ダメージ+200%・最大HP+50%' },
         { side: 'ally', dmgDealt: -0.8, dmgTaken: 0.5, when: 'lowHp50', label: '味方 HPが50%以下のあいだ 与ダメージ-80%・受けるダメージ+50%' }],
       waves: ['セイレーン・マーメイド・ポンドフロッグ', 'ユミル・ウンディーネ・セルキー・ケルピー', 'リヴァイアサン・シースライム・クラーケン'],
-      win: [2, 'グリーンマン・アラクネ・マンイーター・ドルイド・ハノコ'], lose: [3, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・ダークメカロイド'] },
+      win: [2, 'ユニコーン・ホーリードラゴン・ウンディーネ・アラクネ・グリーンマン'], lose: [3, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・ダークメカロイド'] },
     { name: '腐海の奥', boost: { hp: 1.8, str: 1.08 }, rules: [],
       waves: ['ハノコ・コカトリス・マイコニド', 'アラクネ・エルダートレント・ドルイド・ブラッドローズ', 'ベヒモス・グリーンマン・マンイーター'],
       win: [2, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [3, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
     { name: '紅蓮の座', boost: { hp: 1.9, str: 1.14 }, rules: [],
       waves: ['フレイムリザード・キマイラ・マグマゴーレム', '牛鬼・ヘパイストス・ケルベロス・ヒノコ', '九尾の狐・フェニクス・サラマンダー'],
       win: [2, 'シースライム・リヴァイアサン・クラーケン・ウンディーネ・イエティ'], lose: [3, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
-    { name: '深海の底', boost: { hp: 0.9, str: 0.54 }, rules: [],
+    { name: '深海の底', boost: { hp: 1.0, str: 0.6 }, rules: [],
       waves: ['ケルピー・ポンドフロッグ・河童', 'クラーケン・マーメイド・イエティ・リザードマン', 'シースライム・リヴァイアサン・セイレーン'],
       win: [2, 'グリーンマン・アラクネ・マンイーター・ベヒモス・ドルイド'], lose: [3, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
     { name: '雷神の庭', boost: { hp: 2.1, str: 1.26 }, rules: [],
@@ -17697,13 +17696,13 @@ const BABEL_FLOORS = {
     { name: '世界樹の根', boost: { hp: 1.7, str: 1.02 }, rules: [],
       waves: ['ドルイド・モスボア・マンイーター', 'コカトリス・ベヒモス・ハノコ・トレント', 'グリーンマン・アラクネ・エルダートレント'],
       win: [3, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [4, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
-    { name: '死神の大鎌', boss: true, boost: { hp: 2.5, str: 1.5 }, rules: [
+    { name: '死神の大鎌', boss: true, boost: { hp: 2.9, str: 1.74 }, rules: [
         { side: 'enemy', dmgDealt: 0.6, perFoeDown: true, label: '敵 倒れた味方1体ごとに 与ダメージ+60%' },
         { who: { species: 'undead' }, side: 'ally', dmgDealt: 1.5, dmgTaken: -0.5, label: 'アンデッドの味方 与ダメージ+150%・受けるダメージ-50%' },
         { who: { notSpecies: 'undead' }, side: 'ally', dmgTaken: 0.5, label: 'アンデッド以外の味方 受けるダメージ+50%' }],
       waves: ['スケルトン戦士・スケルトン弓兵・ゾンビ', 'マミー・ゴースト・キョンシー・バンシー', '死神・デュラハン・ドラウグル'],
       win: [3, 'デュラハン・ドラウグル・バンシー・ファラオ・マミー'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
-    { name: '大渦の果て', boost: { hp: 1.2, str: 0.72 }, rules: [],
+    { name: '大渦の果て', boost: { hp: 1.6, str: 0.96 }, rules: [],
       waves: ['マーメイド・セルキー・ケルピー', 'クラーケン・リザードマン・ユミル・ポンドフロッグ', 'シースライム・リヴァイアサン・マーメイド'],
       win: [3, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [4, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
     { name: '天雷の座', boost: { hp: 2.6, str: 1.56 }, rules: [],
@@ -26080,10 +26079,10 @@ function labUnitCardHtml(ref, act, info){
   const m = MON_BY_ID[ref];
   return `<button class="lab-u ${info.boss ? 'boss' : ''}" data-lab="${act}" title="${m.name}のワザを見る">
     ${info.boss ? '<em class="lab-boss-tag">BOSS</em>' : ''}<img src="${imgSrc(ref)}" alt=""><small>${m.name}</small>
-    <i>${ELEM_LABEL[m.element]}・${ROLE_LABEL[m.role]}</i><i class="lab-u-st">★${info.star}・Lv${info.lv}</i><i>スキル${info.sk}・パッシブ${info.pv}</i>${info.extra ? `<i>${info.extra}</i>` : ''}</button>`;
+    <i>${ELEM_LABEL[m.element]}・${ROLE_LABEL[m.role]}</i><i class="lab-u-st">★${info.star}・Lv${info.lv}</i><i>スキルLv${info.sk}</i><i>パッシブLv${info.pv}</i>${(info.extra || '').split('・').filter(Boolean).map(x => `<i>${x}</i>`).join('')}</button>`;
 }
 function labFormationHtml(front, back, card){
-  const row = (label, list) => `<div class="lab-row"><span class="lab-rl">${label}</span><div class="lab-row-units">${list.length ? list.map(card).join('') : '<span class="lab-row-empty">なし</span>'}</div></div>`;
+  const row = (label, list) => `<div class="lab-row"><span class="lab-rl">${label}${list.length ? '' : ' なし'}</span>${list.length ? `<div class="lab-row-units">${list.map(card).join('')}</div>` : ''}</div>`;
   return row('後衛', back) + row('前衛', front);
 }
 function labEnemyHtml(part){
@@ -26092,7 +26091,7 @@ function labEnemyHtml(part){
   return st.waves.map((w, wi) => {
     const { front, back } = labWaveRows(st, wi);
     const card = x => labUnitCardHtml(x.e.ref, `unit:e:${wi}:${x.i}`, { boss: x.e.boss, star: x.e.star, lv: x.e.level, sk, pv });
-    return `<div class="lab-bw"><div class="lab-bwl">WAVE ${wi + 1}<small>${w.length}体</small></div><div class="lab-wave-rows">${labFormationHtml(front, back, card)}</div></div>`;
+    return `<div class="lab-bw"><div class="lab-bwl">WAVE ${wi + 1}<small>${w.length}体${wi === st.waves.length - 1 ? '・先頭がボス' : ''}</small></div><div class="lab-wave-rows">${labFormationHtml(front, back, card)}</div></div>`;
   }).join('');
 }
 // 想定の編成(勝てる / 勝てない)を、戦闘と同じ並び(labBuildParty と同じ lineupFromList)で出す
@@ -26176,7 +26175,8 @@ function labUnitDetail(src, a, b){
         </div>
       </div>
       <div class="panel panel-tight detail-skill-box">
-        <div class="mc-head">ワザ<small class="mc-sub">通常攻撃・スキル・パッシブ・奥義・星刻(★${star}で光っているものが効いている)</small></div>
+        <div class="mc-head">ワザ</div>
+        <div class="lab-unit-note">スキルLv${sk}・パッシブLv${pv}での値。星刻は★${star}までに開いたもの(光っているもの)が効いています</div>
         ${kitLinesHtml(m, star, { skillLv: sk, skill2Lv: sk, ultLv: sk }, null)}
       </div>
     </div>`;
@@ -26229,7 +26229,8 @@ function renderLab(){
         return `${two ? `<div class="lab-half">${fl.halves[h].label}</div>` : ''}<div class="lab-rules">${rs.length ? rs.map(r => `<div class="${r.side === 'enemy' ? 'en' : ''}">・${r.label}</div>`).join('') : '<div>・ステージ効果なし</div>'}</div>${labEnemyHtml(h)}`; }).join('')}
     </div>
     <div class="panel lab-hints-panel">
-      <div class="mc-head">想定の編成<small class="mc-sub">勝てる想定は勝率80%以上、勝てない想定は20%以下が目安</small></div>
+      <div class="mc-head">想定の編成</div>
+      <div class="lab-meta">勝てる想定は勝率80%以上、勝てない想定は20%以下が目安。タップでワザが見られます</div>
       ${labHintHtml('win')}${labHintHtml('lose')}
     </div>
     <div class="lab-grow"><small>全員の育ちをそろえる:</small>${BABEL_GROW.map(g => `<button class="lab-chip" data-lab="grow:${g.key}">${g.name}</button>`).join('')}
