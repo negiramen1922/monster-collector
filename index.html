@@ -3676,7 +3676,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.5.003';
+const GAME_VERSION = 'α0.5.004';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -3867,6 +3867,8 @@ const ITEM_SVG_BODY = {
   medal_harvest: '<circle cx="50" cy="50" r="33" fill="#8fbf5a" stroke="#3a5a1a" stroke-width="6"/><path d="M50 74 V36" stroke="#6a4a12" stroke-width="4" stroke-linecap="round"/><g fill="#f2c14e" stroke="#6a4a12" stroke-width="2.5"><ellipse cx="50" cy="28" rx="5" ry="8"/><ellipse cx="42" cy="40" rx="5" ry="8" transform="rotate(-30 42 40)"/><ellipse cx="58" cy="40" rx="5" ry="8" transform="rotate(30 58 40)"/><ellipse cx="42" cy="54" rx="5" ry="8" transform="rotate(-30 42 54)"/><ellipse cx="58" cy="54" rx="5" ry="8" transform="rotate(30 58 54)"/></g><circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-width="3" opacity=".5"/>',
   medal_earth: '<circle cx="50" cy="50" r="33" fill="#d9a94e" stroke="#6b4a18" stroke-width="6"/><path d="M34 60l10-18 8 12 6-8 8 14z" fill="#6b4a18"/><circle cx="50" cy="50" r="33" fill="none" stroke="#fff3c4" stroke-width="3" opacity=".6"/>',
   scrap: '<path d="M22 60 L34 30 L52 38 L60 22 L78 34 L70 58 L54 52 L46 74 L30 68 Z" fill="#9a9aa8" stroke="#4a4a58" stroke-width="6" stroke-linejoin="round"/><circle cx="50" cy="50" r="7" fill="#5a5a68"/>',
+  // 覚醒結晶: 紫の結晶に、上向きの金の矢印(レベルの上限を押し上げる)
+  awaken: '<path d="M50 6 L80 34 L64 90 L36 90 L20 34 Z" fill="#b98af0" stroke="#4a2a7a" stroke-width="6" stroke-linejoin="round"/><path d="M50 6 L50 90 M20 34 L80 34" stroke="#ecdcff" stroke-width="3" opacity=".7"/><path d="M50 30 L64 50 H56 V72 H44 V50 H36 Z" fill="#ffd86a" stroke="#7a5416" stroke-width="3" stroke-linejoin="round"/>',
   core: '<circle cx="50" cy="50" r="32" fill="#7ecbe8" stroke="#2a6f8f" stroke-width="6"/><circle cx="40" cy="40" r="9" fill="#ffffff" opacity=".65"/>',
   pot: '<rect x="40" y="10" width="20" height="10" rx="3" fill="#4a4560"/><path d="M42 20h16v16l14 32c3 7-2 14-10 14H38c-8 0-13-7-10-14l14-32z" fill="#e8e3f5" stroke="#4a4560" stroke-width="6" stroke-linejoin="round"/><path d="M34 64h32l5 12c2 5-1 10-7 10H36c-6 0-9-5-7-10z" fill="#7ecbe8"/>',
   box_sel: '<rect x="16" y="42" width="68" height="42" rx="4" fill="#c98f2e" stroke="#7a5416" stroke-width="6"/><rect x="16" y="30" width="68" height="16" rx="4" fill="#e8b455" stroke="#7a5416" stroke-width="6"/><rect x="44" y="20" width="12" height="64" fill="#e2572b"/>',
@@ -3879,7 +3881,7 @@ const ITEM_SVG_BODY = {
   ticket: '<rect x="10" y="28" width="80" height="44" rx="6" fill="#b06fe0" stroke="#5a2a80" stroke-width="6"/><circle cx="10" cy="50" r="8" fill="#2a1f40"/><circle cx="90" cy="50" r="8" fill="#2a1f40"/><path d="M50 36 L54 46 L65 46 L56 53 L60 64 L50 57 L40 64 L44 53 L35 46 L46 46 Z" fill="#ffe28a"/>',
   box_rnd: '<rect x="18" y="34" width="64" height="50" rx="3" fill="#a9702f" stroke="#5a3a1a" stroke-width="6"/><path d="M18 34l14-14h36l14 14" fill="none" stroke="#5a3a1a" stroke-width="6" stroke-linejoin="round"/><line x1="50" y1="34" x2="50" y2="84" stroke="#5a3a1a" stroke-width="5"/><line x1="18" y1="58" x2="82" y2="58" stroke="#5a3a1a" stroke-width="5"/>',
 };
-const ITEM_ICON_LABEL = { medal_grass:'鬼ヶ島の桃印', medal_harvest:'豊穣の麦印', medal_wind:'神狼の牙', medal_dark:'奈落の刻印', medal_fire:'狐火の灯', medal_earth:'巨神の金片', stamina:'スタミナの実', sand:'時渡りの砂', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
+const ITEM_ICON_LABEL = { medal_grass:'鬼ヶ島の桃印', medal_harvest:'豊穣の麦印', medal_wind:'神狼の牙', medal_dark:'奈落の刻印', medal_fire:'狐火の灯', medal_earth:'巨神の金片', stamina:'スタミナの実', sand:'時渡りの砂', awaken:'覚醒結晶', resonance:'無形の共鳴石', scrap:'霊素鉱', core:'霊素核', pot:'EXPポット', box_sel:'選択BOX', box_rnd:'ランダムBOX', ticket:'モンスター選択券', ticket_char:'モンスター召喚券', ticket_relic:'遺物召喚券', ticket_sweep:'周回券' };
 const ITEM_ICON = Object.fromEntries(Object.keys(ITEM_SVG_BODY).map(k =>
   [k, dataIcon(`item_${k}`, ITEM_SVG_BODY[k], `ico-item ico-${k}`, ITEM_ICON_LABEL[k])]));
 const RESONANCE_ICON = `<span class="item-ic">${ITEM_ICON.resonance}</span>`;
@@ -4071,7 +4073,16 @@ const RESONANCE_PER_PULL = { 1:1, 2:3, 3:8, 4:15, 5:30 };
 const RESONANCE_PER_DUPE = { 1:2, 2:6, 3:60, 4:100, 5:300 };
 const UNIVERSAL_PER_SOUL = 5;                           // 5 universal → 1 soul of an owned monster
 
-function levelCapOf(owned){ return STAR_TABLE[owned.star].lvCap; }
+/* 覚醒結晶(2026-10-19 決定。docs/提案資料/レベル上限と凸の切り離し.md)
+   レベルの上限を★から切り離す。公開後(awakenLive)は全員 Lv300 まで上がり、★は「能力+10%／段」と星刻だけになる。
+   そのかわり、もとのレアリティの最初の上限より上の「レベルの壁」は、ゴールドに加えて覚醒結晶も払って突破する。
+   公開前に★で開いていた上限(owned.awakenFree)までの壁は結晶なし(公開後に一度だけ記録する。ensureAwakenMigration) */
+const AWAKEN = { releaseAt: '2026-10-19T00:00:00+09:00' };   // イベントに合わせず、α0.5.004 で公開(2026-10-19 ユーザー決定)
+const AWAKEN_DEV = typeof location !== 'undefined' && /[?&]awaken=1\b/.test(location.search || '');
+function awakenLive(){ return AWAKEN_DEV || isReleased(AWAKEN); }
+const AWAKEN_INIT_CAP = { 1: 50, 2: 70, 3: 100, 4: 120, 5: 150 };
+const AWAKEN_WALL_CRYSTALS = { 100: 5, 120: 10, 150: 20, 180: 30, 200: 40, 230: 60, 260: 70, 280: 100 };
+function levelCapOf(owned){ return awakenLive() ? MAX_LEVEL : STAR_TABLE[owned.star].lvCap; }
 // α0.5: スキル(スキル1・スキル2・奥義)は上限10、パッシブは上限5。★では伸ばさない
 const SKILL_LV_CAP = 10;
 const PASSIVE_LV_CAP = 5;
@@ -6316,6 +6327,7 @@ function normalizeState(){
   Object.entries(STATE.owned || {}).forEach(([id, o]) => {
     if(o && !o.base && MON_BY_ID[id]) o.base = MON_BY_ID[id].rarity;
   });
+  ensureAwakenMigration();   // 覚醒結晶の公開後、最初に開いたときに一度だけ
   clearEndedEventMedals();   // 終わったイベントのメダル・ショップ・ミッションを片づける
   if(!(STATE.pvpAttackRelicsFrom >= 0 && STATE.pvpAttackRelicsFrom < FORMATION_SETS)) STATE.pvpAttackRelicsFrom = 0;
   if(!(STATE.pvpDefenseRelicsFrom >= 0 && STATE.pvpDefenseRelicsFrom < FORMATION_SETS)) STATE.pvpDefenseRelicsFrom = 0;
@@ -6537,6 +6549,7 @@ function sweepTicketKey(stage){
 }
 function itemName(key){
   if(key === 'relic_scrap') return '霊素鉱';
+  if(key === 'awaken') return '覚醒結晶';
   if(GACHA_TICKETS[key]) return GACHA_TICKETS[key].name;
   if(SWEEP_TICKETS[key]) return SWEEP_TICKETS[key].name;
   const tk = MON_TICKET_RE.exec(key);
@@ -6557,6 +6570,7 @@ function itemName(key){
 function tierBadge(t){ return `<span class="tier-badge t${t}">${TIER_LABEL[t]}</span>`; }
 function itemIcon(key){
   if(key === 'relic_scrap') return `<span class="item-ic">${ITEM_ICON.scrap}</span>`;
+  if(key === 'awaken') return `<span class="item-ic">${ITEM_ICON.awaken}</span>`;
   if(SWEEP_TICKETS[key]) return `<span class="item-ic">${ITEM_ICON.ticket_sweep}</span>`;
   if(GACHA_TICKETS[key]){
     const tk = GACHA_TICKETS[key];
@@ -6593,11 +6607,34 @@ function expToNext(L){
 // at these levels the character has to break through with gold
 const LEVEL_WALLS = [30, 50, 100, 120, 150, 180, 200, 230, 260];
 function wallCost(L){ return Math.round(1500 * Math.pow(L / 10, 1.3) / 10) * 10; } // 3x: matches the LEVEL_STAT_BONUS bump so gold stays a meaningful gate
-function atWall(owned){ return LEVEL_WALLS.includes(owned.level) && owned.level < MAX_LEVEL && (owned.wall || 0) < owned.level; }
+// 覚醒結晶の公開後は Lv280 の壁を足す(260→300 が1区切りで長いため)。遺物の壁(LEVEL_WALLS)は今のまま
+const MON_WALLS_AWAKEN = [...LEVEL_WALLS, 280];
+function monWalls(){ return awakenLive() ? MON_WALLS_AWAKEN : LEVEL_WALLS; }
+function atWall(owned){ return monWalls().includes(owned.level) && owned.level < MAX_LEVEL && (owned.wall || 0) < owned.level; }
+// 公開後に一度だけ: いまの★で開いていた上限を「結晶なしで越えられる上限」として残す。
+// Lv280 ちょうどで止まっている子は、新しい壁を越えたことにする(★10で上限300だった子が急に止まらないように)
+function ensureAwakenMigration(){
+  if(!awakenLive() || !STATE || STATE.awakenMigrated) return;
+  Object.values(STATE.owned || {}).forEach(o => {
+    if(!o || !STAR_TABLE[o.star]) return;
+    o.awakenFree = STAR_TABLE[o.star].lvCap;
+    if(o.level >= 280 && (o.wall || 0) < 280) o.wall = 280;
+  });
+  STATE.awakenMigrated = true;
+}
+// いまの壁を越えるのに要る覚醒結晶(要らなければ0)
+function awakenCost(owned, id){
+  if(!owned || !awakenLive() || !atWall(owned)) return 0;
+  ensureAwakenMigration();
+  const base = owned.base || (MON_BY_ID[id] && MON_BY_ID[id].rarity) || owned.star;
+  const init = AWAKEN_INIT_CAP[Math.min(5, Math.max(1, base))];
+  const free = Math.max(init, owned.awakenFree != null ? owned.awakenFree : init);
+  return owned.level > free ? (AWAKEN_WALL_CRYSTALS[owned.level] || 0) : 0;
+}
 // the level we can reach before the next wall / star cap stops us
 function levelStop(owned){
   const cap = levelCapOf(owned);
-  const nextWall = atWall(owned) ? owned.level : (LEVEL_WALLS.find(w => w > owned.level) || cap);
+  const nextWall = atWall(owned) ? owned.level : (monWalls().find(w => w > owned.level) || cap);
   return Math.min(cap, nextWall);
 }
 function expPotTotal(){ return Object.keys(EXP_POT_VALUE).reduce((s, k) => s + getItem(k) * EXP_POT_VALUE[k], 0); }
@@ -6629,7 +6666,7 @@ function levelUpMonster(id, mode, quiet){
   const owned = STATE.owned[id];
   if(!owned) return 0;
   if(atWall(owned)){ if(!quiet) toast(`Lv${owned.level}の壁です。上限解放してください`); return 0; }
-  if(owned.level >= levelCapOf(owned)){ if(!quiet) toast('レベル上限です。★を上げると上限が伸びます'); return 0; }
+  if(owned.level >= levelCapOf(owned)){ if(!quiet) toast(awakenLive() ? 'レベル上限です' : 'レベル上限です。★を上げると上限が伸びます'); return 0; }
   const stop = levelStop(owned);
   const target = mode === 'max' ? stop : Math.min(stop, owned.level + Number(mode || 1));
   const need = expNeeded(owned, target);
@@ -6687,8 +6724,11 @@ function breakWall(id){
   const owned = STATE.owned[id];
   if(!owned || !atWall(owned)) return;
   const cost = wallCost(owned.level);
+  const crystals = awakenCost(owned, id);
   if((STATE.gold || 0) < cost){ toast('ゴールドが足りません'); return; }
+  if(getItem('awaken') < crystals){ toast(`覚醒結晶が足りません(あと${crystals - getItem('awaken')}個)`); return; }
   addGold(-cost);
+  if(crystals) addItem('awaken', -crystals);
   owned.wall = owned.level;
   track('upgrade');
   playSfx('promote');
@@ -9511,7 +9551,24 @@ const DUNGEONS = {
     rarity: [[70, 24, 5, 1, 0], [62, 28, 8, 1.8, 0.2], [55, 30, 11, 3.5, 0.5], [48, 31, 14, 6, 1], [42, 31, 17, 8, 2], [36, 31, 20, 10, 3], [30, 31, 22, 12, 5]],
     lowerTierChance: 0.2,  // たまに1つ下のTierが出る
   },
+  // 覚醒結晶(レベルの壁を越える素材)。覚醒結晶の公開(awakenLive)までは出さない
+  awaken: {
+    name: '限界の門', icon: UI_ICON.gem4, desc: '覚醒結晶が手に入ります', needsAwaken: true,
+    enemies: [['m30', 'm91'], ['m05', 'm30', 'm91'], ['m27', 'm05', 'm180'], ['m13', 'm27', 'm05', 'm180'], ['m74', 'm101', 'm27', 'm05']],
+    rewards: [{ awaken: 1 }, { awaken: 2 }, { awaken: 3 }, { awaken: 4 }, { awaken: 5 }],
+  },
 };
+// いま遊べる育成クエスト(覚醒結晶の公開前は「限界の門」を出さない)
+function dungeonKinds(){ return Object.keys(DUNGEONS).filter(k => !DUNGEONS[k].needsAwaken || awakenLive()); }
+/* 1回の報酬。覚醒結晶の公開後は EXPの泉 のEXPポットを増やす(1〜3段は1.5倍、4・5段は2倍。2026-10-19 決定)。
+   Lv300まで全員が目指すようになり、そのままでは5体を育てきるのに約2か月かかるため */
+const EXP_FOUNTAIN_MULT = [1.5, 1.5, 1.5, 2, 2];
+function dungeonReward(kind, t){
+  const r = DUNGEONS[kind].rewards[t];
+  if(kind !== 'exp' || !awakenLive()) return r;
+  const k = EXP_FOUNTAIN_MULT[t] || 1;
+  return Object.fromEntries(Object.entries(r).map(([key, n]) => [key, typeof n === 'number' ? Math.round(n * k) : n]));
+}
 // material dungeon: what's open on each weekday (0 = Sunday → everything)
 const MAT_SCHEDULE = [
   null,
@@ -9545,12 +9602,12 @@ function dungeonStage(kind, t){
   };
 }
 function grantDungeonRewards(stage, opts){
-  const r = DUNGEONS[stage.dungeon].rewards[stage.tier];
+  const r = dungeonReward(stage.dungeon, stage.tier);
   const items = [];
   const add = (key, n) => { if(n <= 0) return; addItem(key, n); const hit = items.find(x => x.key === key); if(hit) hit.n += n; else items.push({ key, n }); };
   let gold = 0;
   if(r.gold){ gold = r.gold; addGold(gold); }
-  ['exp1', 'exp2', 'exp3', 'relic_scrap', 'relic_core_1', 'relic_core_2', 'relic_core_3'].forEach(k => add(k, r[k] || 0));
+  ['exp1', 'exp2', 'exp3', 'relic_scrap', 'relic_core_1', 'relic_core_2', 'relic_core_3', 'awaken'].forEach(k => add(k, r[k] || 0));
   Object.entries(r.chance || {}).forEach(([k, e]) => add(k, rollDropCount(e)));   // 確率で出るもの
   const runes = [];
   let dust = 0;
@@ -9856,7 +9913,7 @@ const DAILY_ALL_CLEAR = [{ type:'crystal', n:70 }, { type:'stamina', n:120 }, { 
 const WEEKLY_MISSIONS = [
   { id:'w_daily',   label:'デイリーミッションのまとめ報酬を5日受け取る', event:'dailyAllClear', goal:5,  reward:[{ type:'crystal', n:350 }, { type:'item', key:'idle_3', n:1 }] },
   { id:'w_clear',   label:'探索を30回クリアする',                event:'stageClear',    goal:30, reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_scrap', n:200 }] },
-  { id:'w_dungeon', label:'育成クエストを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:200 }, { type:'item', key:'box_rnd_2', n:1 }] },
+  { id:'w_dungeon', label:'育成クエストを15回クリアする',        event:'dungeonClear',  goal:15, reward:[{ type:'crystal', n:200 }, { type:'item', key:'box_rnd_2', n:1 }], awakenBonus: 10 },
   { id:'w_gacha',   label:'ガチャを10回引く',                    event:'gachaPull',     goal:10, reward:[{ type:'crystal', n:150 }] },
   { id:'w_relic',   label:'遺物を合計10回強化する',              event:'relicUpgrade',  goal:10, reward:[{ type:'crystal', n:200 }, { type:'item', key:'relic_core_1', n:3 }] },
   { id:'w_rune',    label:'ルーンを3回合成する',                  event:'runeFuse',      goal:3,  reward:[{ type:'crystal', n:150 }, { type:'item', key:'relic_scrap', n:300 }] },
@@ -10123,7 +10180,9 @@ function missionEntries(){
     state: d.claimed.all ? 'done' : dailyClaimed >= DAILY_ALL_GOAL ? 'claim' : 'progress' });
   WEEKLY_MISSIONS.filter(m => !m.when || m.when()).forEach(m => {
     const prog = w.counts[m.event] || 0;
-    out.push({ key:`w:${m.id}`, section:'weekly', label:m.label, progress:prog, goal:m.goal, reward:m.reward,
+    // awakenBonus: 覚醒結晶の公開後だけ、報酬に覚醒結晶を足す
+    const reward = m.awakenBonus && awakenLive() ? [...m.reward, { type:'item', key:'awaken', n:m.awakenBonus }] : m.reward;
+    out.push({ key:`w:${m.id}`, section:'weekly', label:m.label, progress:prog, goal:m.goal, reward,
       state: w.claimed[m.id] ? 'done' : prog >= m.goal ? 'claim' : 'progress' });
   });
   const claimedA = STATE.achievements || {};
@@ -10803,6 +10862,8 @@ function eventShopItems(ev){
     ...(ev.soulV3 ? [
       { sku:'uni', name:'無形のソウル', qty:'50個', price:310, limit:5, give: () => { STATE.universalSouls = (STATE.universalSouls || 0) + 50; } },
       { sku:'reso', name:'無形の共鳴石', qty:'20個', price:430, limit:3, give: () => { STATE.resonance = (STATE.resonance || 0) + 20; } },
+      // 覚醒結晶: 限界の門5段で 1個=スタミナ4 = 20メダル。10個200メダルぶんを約1.5倍お得の130メダルに(覚醒結晶の公開後だけ)
+      { sku:'awaken', name:'覚醒結晶', qty:'10個', price:130, limit:5, hide: !awakenLive(), give: () => addItem('awaken', 10) },
     ] : []),
     { sku:'gacha_char', name:'モンスター召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_char', 1) },
     { sku:'gacha_relic',name:'遺物召喚券', qty:'1枚', price:150, limit:10, give: () => addItem('gacha_relic', 1) },
@@ -15493,7 +15554,7 @@ function starUnlockHtml(m, owned){
     if(!st) continue;
     const opens = [];
     if(n > m.rarity) opens.push(`基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%`);
-    opens.push(`レベル上限 ${st.lvCap}`);
+    if(!awakenLive()) opens.push(`レベル上限 ${st.lvCap}`);   // 覚醒結晶の公開後、★ではレベル上限が上がらない
     const prev = STAR_TABLE[n - 1];
     if(n === SECOND_SKILL_STAR) opens.push('スキル枠+1(スキル2が使えるようになる)');
     const rs = RUNE_SLOT_STARS.indexOf(n);
@@ -15542,12 +15603,13 @@ function promoteMonster(id){
   if((STATE.gold || 0) < PROMO_GOLD[owned.star + 1]){ toast('ゴールドが足りません'); return; }
   addGold(-PROMO_GOLD[owned.star + 1]);
   owned.souls -= need;
+  ensureAwakenMigration();   // 公開後の★上げで「結晶なしの上限」が伸びないように、先に記録しておく
   owned.star += 1;
   logEvent('monster_promote', { monster: id, star: owned.star });
   track('promote');
   track('upgrade');
   saveState();
-  toast(`★${owned.star}に星刻!レベル上限が${levelCapOf(owned)}になりました`);
+  toast(awakenLive() ? `★${owned.star}に星刻!能力が上がりました` : `★${owned.star}に星刻!レベル上限が${levelCapOf(owned)}になりました`);
   refreshMonsterDetail(id);
   render();
 }
@@ -15591,7 +15653,7 @@ function promoteBoxHtml(id){
       </div>
       ${need === null ? '' : `
         <div class="soul-bar"><div class="soul-fill" style="width:${soulPct}%;"></div></div>
-        <div class="promo-note">星刻すると基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%、レベル上限${lvCap}→${STAR_TABLE[owned.star + 1].lvCap}${owned.star + 1 === SECOND_SKILL_STAR ? '、スキル枠+1' : ''}</div>
+        <div class="promo-note">星刻すると基礎ステータス+${Math.round(PROMOTION_STAT_BONUS * 100)}%${awakenLive() ? '' : `、レベル上限${lvCap}→${STAR_TABLE[owned.star + 1].lvCap}`}${owned.star + 1 === SECOND_SKILL_STAR ? '、スキル枠+1' : ''}</div>
         <button class="btn btn-sm btn-block ${canPromote ? '' : 'btn-ghost'}" data-promote="${id}" ${canPromote ? '' : 'disabled'}>
           ${canPromote ? `★${owned.star + 1}に星刻する(ソウル×${need}・${goldText(promoGold)})` : `ソウルがあと${shortSouls}個必要(星刻に${goldText(promoGold)})`}
         </button>
@@ -15698,13 +15760,14 @@ function showMonsterDetail(id){
       </div>
       <div class="soul-bar exp-bar"><div class="soul-fill" style="width:${maxed ? 100 : expPct}%;"></div></div>
       <div class="row-between lv-cost">
-        <span>${maxed ? '★を上げるとレベル上限が伸びます' : `必要: ${ITEM_ICON.pot} EXP ${Math.max(0, expToNext(owned.level) - (owned.exp || 0)).toLocaleString()}　／Lv${stop}まで ${expNeeded(owned, stop).toLocaleString()}`}</span>
+        <span>${maxed ? (awakenLive() ? 'レベルが最大です' : '★を上げるとレベル上限が伸びます') : `必要: ${ITEM_ICON.pot} EXP ${Math.max(0, expToNext(owned.level) - (owned.exp || 0)).toLocaleString()}　／Lv${stop}まで ${expNeeded(owned, stop).toLocaleString()}`}</span>
         <span>所持 ${ITEM_ICON.pot} ${potTotal.toLocaleString()}</span>
       </div>
       ${wall ? `
-        <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= wallCost(owned.level) ? '' : 'btn-ghost'}" data-break-wall="${id}">
-          Lv${owned.level}の壁を上限解放(${goldText(wallCost(owned.level))})
-        </button>` : maxed ? '' : `
+        <button class="btn btn-sm btn-block ${(STATE.gold || 0) >= wallCost(owned.level) && getItem('awaken') >= awakenCost(owned, id) ? '' : 'btn-ghost'}" data-break-wall="${id}">
+          Lv${owned.level}の壁を上限解放(${goldText(wallCost(owned.level))}${awakenCost(owned, id) ? ` ＋ ${itemIcon('awaken')}${awakenCost(owned, id)}` : ''})
+        </button>
+        ${awakenCost(owned, id) ? `<div class="promo-note lv-hint">覚醒結晶 所持 ${getItem('awaken')}個(育成クエスト「限界の門」などで手に入ります)</div>` : ''}` : maxed ? '' : `
         <div class="lv-btns three">
           <button class="btn btn-sm btn-ghost ${potTotal ? '' : 'off'}" data-levelup="${id}" data-times="1" ${potTotal ? '' : 'disabled'}>＋1</button>
           <button class="btn btn-sm btn-ghost ${potTotal ? '' : 'off'}" data-levelup="${id}" data-times="10" ${potTotal ? '' : 'disabled'}>＋10</button>
@@ -16633,19 +16696,19 @@ function renderStageSheet(){
 }
 
 function renderDungeons(){
-  if(!DUNGEONS[dungeonTab]) dungeonTab = 'exp';
+  if(!dungeonKinds().includes(dungeonTab)) dungeonTab = 'exp';
   const d = DUNGEONS[dungeonTab];
   const rewardText = (r, t) => [
     r.runes ? `ルーン(Tier${RUNE_ROMAN[t]})×${r.runes}` : '',
     r.dust ? `${UI_ICON.dust}×${r.dust}` : '',
     r.gold ? goldText(r.gold) : '',
-    ...['exp1', 'exp2', 'exp3', 'relic_scrap', 'relic_core_1', 'relic_core_2', 'relic_core_3']
+    ...['exp1', 'exp2', 'exp3', 'relic_scrap', 'relic_core_1', 'relic_core_2', 'relic_core_3', 'awaken']
       .filter(k => r[k]).map(k => `${itemIcon(k)}×${r[k]}`),
     ...Object.entries(r.chance || {}).map(([k, e]) => `${itemIcon(k)}${e < 0.75 ? `${Math.round(e * 100)}%` : `平均${e}個`}`),
   ].filter(Boolean).join(' ');
   return `
     <div class="dungeon-tabs" role="tablist">
-      ${Object.entries(DUNGEONS).map(([k, x]) => `<button class="stage-tab ${dungeonTab === k ? 'on' : ''}" data-dungeon-tab="${k}" role="tab" aria-selected="${dungeonTab === k}">${x.icon} ${x.name.replace('ダンジョン', '')}</button>`).join('')}
+      ${dungeonKinds().map(k => [k, DUNGEONS[k]]).map(([k, x]) => `<button class="stage-tab ${dungeonTab === k ? 'on' : ''}" data-dungeon-tab="${k}" role="tab" aria-selected="${dungeonTab === k}">${x.icon} ${x.name.replace('ダンジョン', '')}</button>`).join('')}
     </div>
     ${sortieFormationHtml()}
     <div class="screen-sub" style="margin-bottom:10px;">${d.desc}。何度でも挑戦でき、1回 ${ITEM_ICON.stamina}${DUNGEON_STAMINA}。ステージはメインクエストを進めると解放されます。★3でクリアすると周回(スキップ)できます。</div>
@@ -16654,7 +16717,7 @@ function renderDungeons(){
         <div class="row-between"><b>ルーン所持 ${ensureRunes().length} / ${RUNE_MAX}</b><button class="btn btn-ghost btn-sm" data-nav="runes">ルーン一覧 ›</button></div>
         <div class="rmi-line">ステージが上がるほどTierが上がり、レア度の高いルーンが出やすくなります。所持がいっぱいだと挑戦できません。</div>
       </div>` : ''}
-    ${d.rewards.map((r, t) => {
+    ${d.rewards.map((_, t) => dungeonReward(dungeonTab, t)).map((r, t) => {
       const unlocked = dungeonTierUnlocked(t, dungeonTab);
       const req = STAGE_BY_ID[dungeonUnlockIds(dungeonTab)[t]];
       const cost = stageStaminaCost(dungeonStage(dungeonTab, t));
@@ -17532,11 +17595,9 @@ const BABEL_FLOORS = {
     { name: '風の通り道', boost: { hp: 0.3, str: 0.18 }, rules: [],
       waves: ['オオコウモリ・キラービー・ストームホーク・ゴースト・カマイタチ', 'カマイタチ・ゴースト・ペガサス・天狗・ワイバーン', 'ハルピュイア・ゼピュロス・シームルグ・グリフォン・アイオロス'],
       win: [0, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [1, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
-    { name: '将軍の号令', boss: true, boost: { hp: 0.2, str: 0.12 }, rules: [
-        { side: 'enemy', stat: { str: 0.6 }, label: '敵 STR+60%' },
-        { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.7, stat: { hp: 0.5 }, label: 'タンクの味方 受けるダメージ-70%・最大HP+50%' },
-        { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 1.5, label: 'タンク・サポートの味方 与ダメージ+150%' },
-        { who: { roles: ['attacker', 'shooter', 'trickster'] }, side: 'ally', dmgTaken: 1.5, dmgDealt: -0.5, label: 'アタッカー・シューター・トリックの味方 受けるダメージ+150%・与ダメージ-50%' }],
+    { name: '将軍の号令', boss: true, boost: { hp: 1.1, str: 0.66 }, rules: [
+        { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 3.0, dmgTaken: -0.5, label: 'タンク・サポートの味方 与ダメージ+300%・受けるダメージ-50%' },
+        { who: { roles: ['attacker', 'shooter', 'trickster'] }, side: 'ally', dmgDealt: -0.8, label: 'タンク・サポート以外の味方 与ダメージ-80%' }],
       waves: ['ゴブリン・ワイルドボア・ニードルラット・ホーンラビット・シルバーウルフ', 'オーク・コボルト・ケンタウロス・ゴブリン・シルバーナイト', 'オークジェネラル・グリズリー・オーガ・シルバーナイト・ケンタウロス'],
       win: [1, 'シルバーナイト・イエティ・エルダートレント・ノッカー・ブルーウィスプ'], lose: [2, 'スルト・オーガ・サイクロプス・ミノタウロス・ワーウルフ'] },
     { name: '水辺の洞', boost: { hp: 1.7, str: 1.02 }, rules: [],
@@ -17551,11 +17612,10 @@ const BABEL_FLOORS = {
     { name: '火の粉の路', boost: { hp: 1.2, str: 0.72 }, rules: [],
       waves: ['鬼火・ヒノコ・フレイムボア・フレイムリザード・マグマスライム', 'マグマゴーレム・ヘルハウンド・ボルケイノタートル・マグマスライム・アカオニ', 'スルト・アグニ・キマイラ・フェニクス・ヘパイストス'],
       win: [1, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
-    { name: '迷宮の暴れ牛', boss: true, boost: { hp: 0.2, str: 0.12 }, rules: [
-        { side: 'enemy', dmgTaken: -0.9, atk: 'phys', label: '敵 物理攻撃で受けるダメージ-90%' },
-        { side: 'ally', dmgDealt: 1.0, atk: 'mag', label: '味方の魔法攻撃 与ダメージ+100%' }],
+    { name: '迷宮の暴れ牛', boss: true, boost: { hp: 0.1, str: 0.06 }, rules: [
+        { side: 'enemy', dmgTaken: -0.95, atk: 'phys', label: '敵 物理攻撃で受けるダメージ-95%' }],
       waves: ['オーク・コボルト・ジャッカロープ・ノッカー・マッドモール', 'ヒルジャイアント・ロックゴーレム・デススコーピオン・マッドモール・ドリュアス', 'ミノタウロス・アルヴィス・ガーゴイル・土蜘蛛・スコグル'],
-      win: [1, 'アグニ・サラマンダー・ヘルハウンド・ボルケイノタートル・マグマゴーレム'], lose: [2, 'グリズリー・オーガ・ケンタウロス・スルト・ワーウルフ'] },
+      win: [1, 'ノーム・サラマンダー・アグニ・ヘパイストス・セイレーン'], lose: [2, 'グリズリー・オーガ・ケンタウロス・スルト・ワーウルフ'] },
     { name: '岩の谷', boost: { hp: 0.2, str: 0.12 }, rules: [],
       waves: ['オーク・コボルト・ガーゴイル・ノッカー・デススコーピオン', 'ドリュアス・ジャッカロープ・マッドモール・ロックゴーレム・スコグル', 'ノーム・アルヴィス・土蜘蛛・イヌ・フレイ'],
       win: [1, 'フェンリル・ハティ・ワイバーン・シームルグ・アイオロス'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
@@ -17708,12 +17768,11 @@ const BABEL_FLOORS = {
     { name: '世界樹の根', boost: { hp: 1.1, str: 0.66 }, rules: [],
       waves: ['ドルイド・モスボア・マンイーター・ブラッドローズ・マンドラゴラ', 'コカトリス・ベヒモス・ハノコ・トレント・モススライム', 'グリーンマン・アラクネ・エルダートレント・モモタロウ・マンイーター'],
       win: [3, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [4, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
-    { name: '死神の大鎌', boss: true, boost: { hp: 1.6, str: 0.96 }, rules: [
-        { side: 'enemy', dmgDealt: 0.6, perFoeDown: true, label: '敵 倒れた味方1体ごとに 与ダメージ+60%' },
-        { who: { species: 'undead' }, side: 'ally', dmgDealt: 2.0, dmgTaken: -0.5, label: 'アンデッドの味方 与ダメージ+200%・受けるダメージ-50%' },
-        { who: { notSpecies: 'undead' }, side: 'ally', dmgTaken: 1.0, label: 'アンデッド以外の味方 受けるダメージ+100%' }],
+    { name: '死神の大鎌', boss: true, boost: { hp: 1.4, str: 0.84 }, rules: [
+        { who: { role: 'trickster' }, side: 'ally', dmgDealt: 2.0, dmgTaken: -0.5, label: 'トリックスターの味方 与ダメージ+200%・受けるダメージ-50%' },
+        { who: { roles: ['attacker', 'shooter', 'tank', 'support'] }, side: 'ally', dmgDealt: -0.6, label: 'トリックスター以外の味方 与ダメージ-60%' }],
       waves: ['スケルトン戦士・スケルトン弓兵・ゾンビ・エインヘリャル・ゴースト', 'マミー・ゴースト・キョンシー・バンシー・エインヘリャル', '死神・デュラハン・ドラウグル・ファラオ・バンシー'],
-      win: [3, '死神・デュラハン・ドラウグル・バンシー・マミー'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
+      win: [3, 'ロキ・フェニクス・ブラッドローズ・ムーンラビット・サキュバス'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
     { name: '大渦の果て', boost: { hp: 1.1, str: 0.66 }, rules: [],
       waves: ['マーメイド・セルキー・ケルピー・アオオニ・リザードマン', 'クラーケン・リザードマン・ユミル・ポンドフロッグ・河童', 'シースライム・リヴァイアサン・マーメイド・メリュジーヌ・クラーケン'],
       win: [3, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [4, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
@@ -17825,6 +17884,8 @@ function babelFloorReward(towerKey, floorNo){
   // 均衡の塔: ふつうの階は星結晶だけ。ボスの階はワザ素材BOX(5・15・25…はTierⅢ、10・20・30…はTierⅣ)とEXPポット大×3
   if(towerKey === 'bal'){
     if(floorNo % 5 === 0) out.push({ type: 'item', key: floorNo % 10 === 0 ? 'box_sel_4' : 'box_sel_3', n: 1 }, ...mat.m);
+    // 覚醒結晶の公開後: ボスの階に覚醒結晶(30階までは10個、35階からは20個)
+    if(floorNo % 5 === 0 && awakenLive()) out.push({ type: 'item', key: 'awaken', n: floorNo <= 30 ? 10 : 20 });
     return out;
   }
   // ふつうの階は偶数階に素材が少し。5階ごとはワザ素材のBOXと、塔ごとの素材
@@ -17891,7 +17952,7 @@ function findStage(id){
   const bb = /^bb_(bal|order|chaos)_(\d+)$/.exec(id || '');
   if(bb) return babelStage(bb[1], Number(bb[2]));
   const d = DUNGEON_ID_RE.exec(id || '');
-  if(d) return DUNGEONS[d[1]].rewards[Number(d[2])] ? dungeonStage(d[1], Number(d[2])) : null;
+  if(d) return DUNGEONS[d[1]].rewards[Number(d[2])] && dungeonKinds().includes(d[1]) ? dungeonStage(d[1], Number(d[2])) : null;
   const ab = /^ab_(\d+)$/.exec(id || '');
   if(ab) return abyssStage(Number(ab[1]));
   return STAGE_BY_ID[id];
@@ -24486,6 +24547,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 168, version: 'α0.5.004', date: '10/19', title: 'レベルの上限は「覚醒結晶」で開くように', body: '<span class="nt-h">レベルの上限</span><span class="nt-i">・<em>どのモンスターもLv300まで</em>上げられるようになりました。★(星刻)ではレベルの上限は上がりません。</span><span class="nt-i">・★を上げると、これまでどおり<em>基礎ステータス+10%と星刻特性</em>が手に入ります。</span><span class="nt-h">レベルの壁と覚醒結晶</span><span class="nt-i">・レベルの壁(Lv100・120・150・180・200・230・260)で、もとのレアリティの最初の上限(★1 50 / ★2 70 / ★3 100 / ★4 120 / ★5 150)より上の壁は、ゴールドに加えて<em>覚醒結晶</em>で上限解放します。</span><span class="nt-i">・壁を1つ足しました: <em>Lv280</em>。</span><span class="nt-i">・<em>いま★で開いている上限までの壁は、覚醒結晶なし</em>で越えられます(例: ★7なら Lv200 の壁まで)。Lv280 で止まっていたモンスターは、そのまま先へ進めます。</span><span class="nt-h">覚醒結晶の集めかた</span><span class="nt-i">・育成クエストに<em>「限界の門」</em>を追加しました(1回20スタミナ・ステージ1〜5で1〜5個)。</span><span class="nt-i">・イベントショップ: 10個×5回まで。</span><span class="nt-i">・毎週ミッション「育成クエストを15回クリアする」の報酬に、覚醒結晶10個を足しました。</span><span class="nt-h">EXPの泉</span><span class="nt-i">・Lv300まで育てやすいように、<em>EXPの泉</em>のEXPポットを増やしました(ステージ1〜3は1.5倍、ステージ4・5は2倍)。</span>' },
   { id: 167, version: 'α0.5.003', date: '10/12', title: '不具合の修正(ログインボーナス・周回のボーナス・おすすめユーザー)', body: '<span class="nt-i">・<em>ログインボーナス</em>: 受け取らないまま日が変わると、その日の分が飛ばされていました。受け取るまで同じ日の箱が残るようにしました(1日に受け取れるのは1つまで)。</span><span class="nt-i">・<em>イベントの周回(結果だけ)</em>: イベントボーナスを今の編成で数えていたため、ボーナスのない編成で★3を取ったあと、ボーナスの編成に入れ替えて周回できていました。そのステージを<em>★3でクリアしたときの編成のボーナス</em>で数えるようにしました。ボーナスを上げるには、ボーナスの編成で一度★3クリアしてください(戦闘ありの周回は今までどおり、その編成のボーナスです)。</span><span class="nt-i">・<em>フレンドの追加</em>: おすすめユーザーが数人しか出なくなっていたので、最近遊んでいるテイマーから選ぶようにしました。</span>' },
   { id: 166, version: 'α0.5.002', date: '10/8', title: 'モンスターに名前を付けられるように・通報', body: '<span class="nt-i">・持っているモンスターに名前(8文字まで)を付けられるようになりました。モンスターの詳細で、名前の横の「名前を付ける」から。「元に戻す」で図鑑の名前に戻せます。</span><span class="nt-i">・付けた名前は、編成・戦闘・結果の画面に出ます。お助け(貸し出し)やPVPの防衛編成に入れたモンスターの名前は、ほかのプレイヤーにも見えます。</span><span class="nt-i">・フレンドのプロフィールとPVPの相手から、不適切な名前や自己紹介を通報できるようになりました。通報した相手の名前などは、自分の画面では伏せて表示します(設定から元に戻せます)。</span><span class="nt-i">・名前・自己紹介・モンスターの名前に、使えない言葉のチェックを入れました。</span>' },
   { id: 165, version: 'α0.5.001', date: '10/8', title: '編成画面で装備が見やすく', body: '<span class="nt-i">・編成画面の陣形の右上に「キャラ / 装備」の切り替えを足しました。</span><span class="nt-i">・キャラ: それぞれのマスに★とレベルが出ます。</span><span class="nt-i">・装備: それぞれのマスに、付けている遺物と、ルーン4枠の埋まりぐあいが出ます。陣形の下に、編成全体の遺物とルーンの数も出ます。</span><span class="nt-i">・遺物を付けていない子や、空いているルーン枠がある子には<em>「!」</em>が付きます(装備のタブにも出ます)。</span>' },

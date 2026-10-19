@@ -5,7 +5,7 @@
    使い方: cd tools && node dungeon_entry_test.js */
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={
-  findStage, startBattle, stageStaminaCost, dungeonStage, dungeonUnlockIds, DUNGEONS,
+  findStage, startBattle, stageStaminaCost, dungeonStage, dungeonUnlockIds, DUNGEONS, dungeonKinds,
   DUNGEON_STAMINA, STAGE_BY_ID, get battleUI(){ return battleUI; },
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
 };`);
@@ -20,8 +20,9 @@ S.owned['m06'] = { star: 3, souls: 0, level: 50, skillLv: 3, ultLv: 3, passiveLv
 S.slots = ['m06', null, null, null, null];
 S.stamina = 300;
 
-const kinds = Object.keys(E.DUNGEONS);
-ok('育成クエストは4種類(EXP・ゴールド・霊素・ルーン)', kinds.length === 4, kinds);
+// 「限界の門」は覚醒結晶の公開(awakenLive)まで出ない(awaken_test.js で見る)
+const kinds = E.dungeonKinds();
+ok('育成クエストは5種類(EXP・ゴールド・霊素・ルーン・限界の門)', kinds.length === 5 && kinds.includes('awaken'), kinds);
 
 kinds.forEach(k => {
   const st = E.findStage(`dg_${k}_0`);
