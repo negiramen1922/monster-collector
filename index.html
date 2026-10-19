@@ -11867,6 +11867,11 @@ function nextStageOf(stage, win){
   if(!stage) return null;
   const after = (list, id) => { const i = list.findIndex(x => x.id === id); return i >= 0 ? list[i + 1] || null : null; };
   if(stage.type === 'abyss') return win ? abyssStage(ensureAbyss().floor) : null;
+  // バベル: 勝ったら同じ塔の次の階(最上階なら無し)
+  if(stage.type === 'babel'){
+    const { tower, floor } = stage.babel;
+    return win && floor < babelFloorCount(tower) ? babelStage(tower, floor + 1) : null;
+  }
   if(stage.type === 'main')  return after(STAGES.filter(x => x.type === 'main'), stage.id);
   if(stage.type === 'dungeon'){
     // 先に次の段があるか見る(無い段で dungeonStage を呼ぶと落ちる)
@@ -22599,6 +22604,8 @@ function showBattleResult(tab){
   const resultTab = b.resultTab || 'main';
   const layer = document.getElementById('modal-layer');
   const isAbyss = b.stage.type === 'abyss';
+  // バベルも深淵回廊と同じく、次は「◯階へ進む」(スタミナを使わない)
+  const byFloor = isAbyss || b.stage.type === 'babel';
   const isDungeon = b.stage.type === 'dungeon' || isAbyss;
   const nextCandidate = nextStageOf(b.stage, b.win);
   const nextStage = nextCandidate && stageUnlocked(nextCandidate) ? nextCandidate : null;
@@ -22713,7 +22720,7 @@ function showBattleResult(tab){
       <div class="br-actions">
         ${isAbyss ? '' : `<div class="br-stamina">スタミナ ${ITEM_ICON.stamina} ${STATE.stamina} / ${STAMINA_MAX}</div>`}
         ${!isAbyss && helperSurchargeNote(nextStage || b.stage) ? `<div class="fs-note" style="margin:-4px 0 4px;">お助けモンスターを編成に入れているため、出撃のスタミナが+${HELP_STAMINA_SURCHARGE}されています</div>` : ''}
-        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">${isAbyss ? `${nextStage.floor}階へ進む` : '次のステージへ'}${isAbyss ? '' : `<span class="go-cost">${ITEM_ICON.stamina}${stageStaminaCost(nextStage)}</span>`}</button>` : ''}
+        ${b.win && nextStage ? `<button class="btn btn-block" data-start-stage="${nextStage.id}">${byFloor ? `${nextStage.floor || nextStage.babel.floor}階へ進む` : '次のステージへ'}${byFloor ? '' : `<span class="go-cost">${ITEM_ICON.stamina}${stageStaminaCost(nextStage)}</span>`}</button>` : ''}
         ${b.win && sweepAllowed(b.stage).ok ? `<button class="btn btn-ghost btn-block" data-sweep-open="${b.stage.id}">周回する</button>` : ''}
         ${b.win ? '' : '<button class="btn btn-ghost btn-block" data-result-nav="party">編成を強化する</button>'}
         <div class="br-buttons">

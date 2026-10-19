@@ -1,7 +1,7 @@
 // バベルの本番側: 解放・初回報酬・5階(ステージ効果)と10階(特殊ステージ)。均衡の塔は60階(5の倍数がボス戦)。
 // 使い方: node tools/babel_live_test.js
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__b={grantStageRewards,babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
+const api = load('game.js', s => s + ';global.__b={nextStageOf,grantStageRewards,babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
 const B = global.__b;
 let bad = 0;
 const ok = (name, cond, info) => { bad += cond ? 0 : 1; console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
@@ -115,6 +115,8 @@ ok('59階まで進むと60階が開く', B.babelOpenFloor('bal') === 60 && B.sta
 api.STATE.clearedStages.push('bb_bal_60');
 ok('60階をクリアすると「全部クリア」(61)', B.babelOpenFloor('bal') === 61);
 
+ok('勝ったら「次の階」(11階→12階)。負けたら無し、60階の次は無し',
+   (B.nextStageOf(B.findStage('bb_bal_11'), true) || {}).id === 'bb_bal_12' && B.nextStageOf(B.findStage('bb_bal_11'), false) === null && B.nextStageOf(B.findStage('bb_bal_60'), true) === null);
 // バベルではソウルも仲間入りも出ない(2026-10-19)。ボス・レアの印つきで200回まわしても0
 {
   const st = B.findStage('bb_bal_15');
