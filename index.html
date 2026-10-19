@@ -3272,6 +3272,9 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .lab-fl.boss small{ color:var(--gold); }
 .bb-fl-groups{ display:flex; flex-direction:column; gap:6px; }
 .bb-fl-label{ font-size:10px; color:var(--dim); font-weight:700; margin:0 0 2px 2px; }
+.bb-fl-pager{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 6px; font-size:12px; font-weight:800; color:var(--text); }
+.bb-pg{ min-width:44px; min-height:32px; border-radius:9px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:inherit; font-weight:900; cursor:pointer; }
+.bb-pg:disabled{ opacity:.3; cursor:default; }
 .bb-towers{ margin-bottom:6px; }
 .bb-towers .lab-tab small{ font-size:8.5px; line-height:1.25; }
 .bb-stage{ background:var(--panel2); border:1px solid var(--line); border-radius:13px; padding:10px 12px; margin:8px 0; }
@@ -11720,6 +11723,7 @@ function showAbyssGiveUpConfirm(){
    (報酬はもう受け取ったものとして出し直さない。11階から続きを遊べる)。 */
 let babelTower = 'bal';
 let babelPickFloor = 0;   // 0 なら「いま挑める階」
+let babelPage = null;     // 階のボタンの何ページ目(10階ずつ)を見ているか。null なら選んでいる階のページ
 function babelCurrentFloor(){
   const open = babelOpenFloor(babelTower);
   const n = babelFloorCount(babelTower);
@@ -11731,7 +11735,11 @@ function babelCurrentFloor(){
 function babelIsBossFloor(towerKey, f){ const fl = BABEL_FLOORS[towerKey] && BABEL_FLOORS[towerKey][f - 1]; return !!(fl && fl.boss); }
 function babelFloorGridHtml(towerKey, cur, opt){
   const n = babelFloorCount(towerKey), groups = [];
+  // opt.paged: 10階ずつ1ページだけ出して、◀ ▶ で切り替える(本番の塔の画面。60階を全部並べると画面を占めすぎる)
+  const pages = Math.ceil(n / 10);
+  const page = opt.paged ? Math.max(0, Math.min(pages - 1, opt.page != null ? opt.page : Math.floor((cur - 1) / 10))) : -1;
   for(let a = 1; a <= n; a += 10){
+    if(opt.paged && Math.floor((a - 1) / 10) !== page) continue;
     const btns = [];
     for(let f = a; f < a + 10 && f <= n; f++){
       const s = (opt.state && opt.state(f)) || {};
@@ -11739,7 +11747,10 @@ function babelFloorGridHtml(towerKey, cur, opt){
       const mark = boss ? '<small>ボス</small>' : (towerKey !== 'bal' && (f === 5 || f === 10)) ? '<small>★</small>' : '';
       btns.push(`<button class="lab-fl ${f === cur ? 'on' : ''} ${boss ? 'boss' : ''} ${s.done ? 'done' : ''} ${s.locked ? 'locked' : ''}" data-${opt.attr}="floor:${f}">${f}${mark}</button>`);
     }
-    groups.push(n > 10 ? `<div class="bb-fl-group"><div class="bb-fl-label">${a}〜${Math.min(a + 9, n)}階</div><div class="lab-floors">${btns.join('')}</div></div>` : `<div class="lab-floors">${btns.join('')}</div>`);
+    const label = opt.paged && pages > 1
+      ? `<div class="bb-fl-pager"><button class="bb-pg" data-${opt.attr}="page:${page - 1}" ${page <= 0 ? 'disabled' : ''} aria-label="前の10階">◀</button><span>${a}〜${Math.min(a + 9, n)}階</span><button class="bb-pg" data-${opt.attr}="page:${page + 1}" ${page >= pages - 1 ? 'disabled' : ''} aria-label="次の10階">▶</button></div>`
+      : `<div class="bb-fl-label">${a}〜${Math.min(a + 9, n)}階</div>`;
+    groups.push(n > 10 ? `<div class="bb-fl-group">${label}<div class="lab-floors">${btns.join('')}</div></div>` : `<div class="lab-floors">${btns.join('')}</div>`);
   }
   return `<div class="bb-fl-groups">${groups.join('')}</div>`;
 }
@@ -11772,7 +11783,7 @@ function renderBabelTab(){
         const n = [...Array(fc).keys()].filter(i => babelFloorCleared(t.key, i + 1)).length;
         return `<button class="lab-tab ${t.key === babelTower ? 'on' : ''}" data-babel="tower:${t.key}">${t.name}<small>${n}/${fc} ・ ${t.note}</small></button>`;
       }).join('')}</div>
-      <div class="bb-floors">${babelFloorGridHtml(babelTower, floor, { attr: 'babel', state: f => ({ done: babelFloorCleared(babelTower, f), locked: f > open }) })}</div>
+      <div class="bb-floors">${babelFloorGridHtml(babelTower, floor, { attr: 'babel', paged: true, page: babelPage, state: f => ({ done: babelFloorCleared(babelTower, f), locked: f > open }) })}</div>
       <div class="screen-sub" style="margin:8px 0 4px;">スタミナを使いません。何度でも挑戦できます。報酬は<b>各階の初回クリアのみ</b>です(${done}/${total}階クリア)</div>
       <div class="bb-stage">
         <div class="bb-head"><b>${floor}階「${fl.name}」</b>${kind ? `<span class="sr-rare">${kind}</span>` : ''}${cleared ? '<span class="cleared-tag">✓ クリア済み</span>' : ''}</div>
@@ -18060,6 +18071,7 @@ function startBattle(stageId, opts){
   if(stage.type === 'babel'){
     const ng = babelPartyProblem(stage.babel.tower);
     if(ng){ toast(ng); return; }
+    babelPage = null;   // 戻ったときは、戦った階のページを出す
   }
   const cost = stageStaminaCost(stage);
   if(!spendStamina(cost)){ toast(`スタミナが足りません(必要 ${cost})`); return; }
@@ -24045,7 +24057,8 @@ function handlePhoneClick(ev){
   const bbEl = t.closest('[data-babel]');
   if(bbEl){
     const [k, v] = bbEl.dataset.babel.split(':');
-    if(k === 'tower'){ babelTower = v; babelPickFloor = 0; }
+    if(k === 'tower'){ babelTower = v; babelPickFloor = 0; babelPage = null; }
+    else if(k === 'page'){ if(bbEl.disabled) return; babelPage = Number(v); }
     else babelPickFloor = Number(v);
     playSfx('tap'); render(); return;
   }

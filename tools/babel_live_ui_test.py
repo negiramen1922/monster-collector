@@ -61,9 +61,18 @@ async def main():
                 start: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset,
                 enemies: document.querySelectorAll('.bb-en').length,
                 rules: document.querySelectorAll('.bb-rule').length })""")
-            check('3つの塔と、均衡の塔は60階ぶんのボタンが出る',
-                  r['towers'] == ['tower:bal', 'tower:order', 'tower:chaos'] and r['floors'] == 60, r)
-            check('まだ1階しか開いていない(2〜60階はロック)', r['locked'] == 59, r['locked'])
+            check('3つの塔と、均衡の塔は10階ずつ(1〜10階)のボタンが出る',
+                  r['towers'] == ['tower:bal', 'tower:order', 'tower:chaos'] and r['floors'] == 10, r)
+            check('まだ1階しか開いていない(2〜10階はロック)', r['locked'] == 9, r['locked'])
+            # ◀ ▶ で10階ずつ切り替える。最初のページは ◀ が押せない
+            pg_ = await pg.evaluate("""() => ({ prev: document.querySelector('[data-babel="page:-1"]').disabled, label: document.querySelector('.bb-fl-pager span').textContent })""")
+            check('最初は「1〜10階」で、◀ は押せない', pg_['prev'] is True and pg_['label'] == '1〜10階', pg_)
+            await pg.click('[data-babel="page:1"]'); await pg.wait_for_timeout(250)
+            pg_ = await pg.evaluate("""() => ({ label: document.querySelector('.bb-fl-pager span').textContent, first: document.querySelector('[data-babel^="floor:"]').dataset.babel, n: document.querySelectorAll('[data-babel^="floor:"]').length })""")
+            check('▶ で「11〜20階」に切り替わる', pg_['label'] == '11〜20階' and pg_['first'] == 'floor:11' and pg_['n'] == 10, pg_)
+            await pg.evaluate("() => { babelPage = 5; render(); }"); await pg.wait_for_timeout(200)
+            check('最後のページ(51〜60階)は ▶ が押せない', await pg.evaluate("() => document.querySelector('[data-babel=\"page:6\"]').disabled"))
+            await pg.evaluate("() => { babelPage = null; render(); }"); await pg.wait_for_timeout(200)
             check('メニューに出てくる敵の顔ぶれは出さない', r['enemies'] == 0 and r['start'], r)
             await pg.screenshot(path=str(OUT / 'babel_live.png'), full_page=True)
             # 均衡の塔: 前の10階のころのクリアは新しい1〜10階のクリアとして数え、11階から。ボスの階は「ボス戦」
@@ -72,7 +81,7 @@ async def main():
             r = await pg.evaluate("""() => ({ id: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset.startStage,
                 done: document.querySelectorAll('.lab-fl.done').length, boss: document.querySelectorAll('.lab-fl.boss').length,
                 tab: document.querySelector('[data-babel="tower:bal"]').innerText })""")
-            check('前の均衡の塔10階をクリアしたセーブは11階から挑める(10/60)', r['id'] == 'bb_bal_11' and r['done'] == 10 and r['boss'] == 12 and '10/60' in r['tab'], r)
+            check('前の均衡の塔10階をクリアしたセーブは11階から挑める(10/60)。ページは11〜20階', r['id'] == 'bb_bal_11' and r['done'] == 0 and r['boss'] == 2 and '10/60' in r['tab'], r)
             await pg.evaluate("() => { babelPickFloor = 10; render(); }"); await pg.wait_for_timeout(250)
             r = await pg.evaluate("""() => ({ head: document.querySelector('.bb-head').innerText, boss: document.querySelectorAll('.bb-en.boss').length,
                 reward: document.querySelector('.ab-reward').innerText })""")
