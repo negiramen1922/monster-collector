@@ -102,6 +102,7 @@ ok('ボスの階の報酬は 星結晶50＋ワザ素材BOX＋EXPポット、ふ�
    && B.findStage('bb_bal_16').firstClear === 20 && B.findStage('bb_bal_16').reward.length === 0);
 ok('解放は1つ前の階(11階は10階、60階は59階)', B.findStage('bb_bal_11').requires === 'bb_bal_10' && B.findStage('bb_bal_60').requires === 'bb_bal_59');
 ok('敵の★は51階から10(塔の中だけ★10まで)', B.findStage('bb_bal_51').waves.flat().every(u => u.star === 10) && B.findStage('bb_bal_10').waves.flat().every(u => u.star <= 7));
+ok('均衡の塔は60階とも 5体×3WAVE(2026-10-19)', B.BABEL_FLOORS.bal.every(fl => fl.waves.length === 3 && fl.waves.every(w => w.split('・').length === 5)));
 ok('同じ顔ぶれ(3WAVEとも同じ並び)の階が無い', new Set(B.BABEL_FLOORS.bal.map(fl => fl.waves.join('|'))).size === 60);
 ok('育ちの段に「上級+」(★9・スキルLv10・ルーンⅨ・★5遺物)がある', (() => { const g = B.BABEL_GROW.find(x => x.name === '上級+'); return g && g.starMin === 9 && g.sk === 10 && g.rune === 9 && g.relic[0] === 5; })());
 // 前の10階のころにクリアしたセーブ(bb_bal_1〜10)は、新しい1〜10階のクリアとして数え、11階から続きを遊べる

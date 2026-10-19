@@ -27,7 +27,7 @@ async def main():
               enemies: document.querySelectorAll('.lab-bw .lab-u').length, hints: document.querySelectorAll('.lab-hint-box .lab-u').length,
               nav: getComputedStyle(document.getElementById('nav')).display })""")
             check('ログインなしで試験場が開き、全モンスターが使える', r['lab'] and r['screen'] == 'lab' and r['acct'] is None and r['owned'] == r['all'], r)
-            check('1階の敵と、勝てる想定の編成が最初から入っている', r['enemies'] == 10 and r['slots'] == 5, r)
+            check('1階の敵(5体×3WAVE)と、勝てる想定の編成が最初から入っている', r['enemies'] == 15 and r['slots'] == 5, r)
             check('勝てる想定・勝てない想定の編成が5体ずつ並ぶ', r['hints'] == 10, r)
             check('下のメニューは出さない', r['nav'] == 'none', r)
             # 均衡の塔は60階。10階ずつ区切って、ボスの階に印
