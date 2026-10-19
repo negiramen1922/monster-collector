@@ -17595,9 +17595,10 @@ const BABEL_FLOORS = {
     { name: '風の通り道', boost: { hp: 0.3, str: 0.18 }, rules: [],
       waves: ['オオコウモリ・キラービー・ストームホーク・ゴースト・カマイタチ', 'カマイタチ・ゴースト・ペガサス・天狗・ワイバーン', 'ハルピュイア・ゼピュロス・シームルグ・グリフォン・アイオロス'],
       win: [0, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [1, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
-    { name: '将軍の号令', boss: true, boost: { hp: 1.1, str: 0.66 }, rules: [
-        { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 3.0, dmgTaken: -0.5, label: 'タンク・サポートの味方 与ダメージ+300%・受けるダメージ-50%' },
-        { who: { roles: ['attacker', 'shooter', 'trickster'] }, side: 'ally', dmgDealt: -0.8, label: 'タンク・サポート以外の味方 与ダメージ-80%' }],
+    { name: '将軍の号令', boss: true, boost: { hp: 0.6, str: 0.36 }, rules: [
+        { who: { role: 'tank' }, side: 'ally', stat: { str: 3.0, hp: 1.0 }, label: 'タンクの味方 攻撃力+300%・最大HP+100%' },
+        { who: { role: 'attacker' }, side: 'ally', stat: { str: -0.8 }, label: 'アタッカーの味方 攻撃力-80%' },
+        { who: { role: 'shooter' }, side: 'ally', stat: { str: -0.8 }, label: 'シューターの味方 攻撃力-80%' }],
       waves: ['ゴブリン・ワイルドボア・ニードルラット・ホーンラビット・シルバーウルフ', 'オーク・コボルト・ケンタウロス・ゴブリン・シルバーナイト', 'オークジェネラル・グリズリー・オーガ・シルバーナイト・ケンタウロス'],
       win: [1, 'シルバーナイト・イエティ・エルダートレント・ノッカー・ブルーウィスプ'], lose: [2, 'スルト・オーガ・サイクロプス・ミノタウロス・ワーウルフ'] },
     { name: '水辺の洞', boost: { hp: 1.7, str: 1.02 }, rules: [],
@@ -17768,11 +17769,12 @@ const BABEL_FLOORS = {
     { name: '世界樹の根', boost: { hp: 1.1, str: 0.66 }, rules: [],
       waves: ['ドルイド・モスボア・マンイーター・ブラッドローズ・マンドラゴラ', 'コカトリス・ベヒモス・ハノコ・トレント・モススライム', 'グリーンマン・アラクネ・エルダートレント・モモタロウ・マンイーター'],
       win: [3, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [4, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
-    { name: '死神の大鎌', boss: true, boost: { hp: 1.4, str: 0.84 }, rules: [
-        { who: { role: 'trickster' }, side: 'ally', dmgDealt: 2.0, dmgTaken: -0.5, label: 'トリックスターの味方 与ダメージ+200%・受けるダメージ-50%' },
-        { who: { roles: ['attacker', 'shooter', 'tank', 'support'] }, side: 'ally', dmgDealt: -0.6, label: 'トリックスター以外の味方 与ダメージ-60%' }],
+    { name: '死神の大鎌', boss: true, bossUp: { hp: 3.0, str: 0.5 }, boost: { hp: 0.0, str: 0.0 }, rules: [
+        { who: { role: 'trickster' }, side: 'ally', stat: { str: 1.0, hp: 1.0 }, label: 'トリックスターの味方 攻撃力+100%・最大HP+100%' },
+        { who: { role: 'attacker' }, side: 'ally', stat: { str: -0.8 }, label: 'アタッカーの味方 攻撃力-80%' },
+        { who: { role: 'shooter' }, side: 'ally', stat: { str: -0.8 }, label: 'シューターの味方 攻撃力-80%' }],
       waves: ['スケルトン戦士・スケルトン弓兵・ゾンビ・エインヘリャル・ゴースト', 'マミー・ゴースト・キョンシー・バンシー・エインヘリャル', '死神・デュラハン・ドラウグル・ファラオ・バンシー'],
-      win: [3, 'ロキ・フェニクス・ブラッドローズ・ムーンラビット・サキュバス'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
+      win: [3, 'ロキ・フェニクス・ブラッドローズ・サキュバス・ユニコーン'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
     { name: '大渦の果て', boost: { hp: 1.1, str: 0.66 }, rules: [],
       waves: ['マーメイド・セルキー・ケルピー・アオオニ・リザードマン', 'クラーケン・リザードマン・ユミル・ポンドフロッグ・河童', 'シースライム・リヴァイアサン・マーメイド・メリュジーヌ・クラーケン'],
       win: [3, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [4, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
@@ -17925,8 +17927,10 @@ function babelStage(towerKey, floorNo){
     return { ref, level: BABEL_LV, star: Math.min(cap, Math.max(MON_BY_ID[ref].rarity, isBoss ? boss : mob)), boss: isBoss || undefined };
   }));
   const bossRef = waves[waves.length - 1][0].ref;
-  const bossRules = fl.boss ? [{ who: { ref: bossRef }, side: 'enemy', stat: { ...BABEL_BOSS_UP },
-    label: `ボス「${MON_BY_ID[bossRef].name}」 最大HP${pctSigned(BABEL_BOSS_UP.hp)}・STR${pctSigned(BABEL_BOSS_UP.str)}` }] : [];
+  // ボスの強化は階ごとに変えられる(fl.bossUp。55階の死神は HP+300%・攻撃力+50%)
+  const up = fl.bossUp || BABEL_BOSS_UP;
+  const bossRules = fl.boss ? [{ who: { ref: bossRef }, side: 'enemy', stat: { ...up },
+    label: `ボス「${MON_BY_ID[bossRef].name}」 最大HP${pctSigned(up.hp)}・攻撃力${pctSigned(up.str)}` }] : [];
   return {
     id: `bb_${towerKey}_${floorNo}`, type: 'babel', tier: 'babel', babel: { tower: towerKey, floor: floorNo },
     name: `${tower.name} ${floorNo}階「${fl.name}」`,
