@@ -4677,6 +4677,8 @@ const STAGE_RULE_WHEN = {
   unshielded: u => shieldTotal(u) <= 0,
   notShielded: u => shieldTotal(u) <= 0,          // unshielded と同じ(フレイヤイベの資料の書き方)
   strDown:  u => hasBuff(u, 'strDown'),           // 攻撃力低下状態(whenTarget で使う。フレイヤイベ)
+  slowed:   u => hasBuff(u, 'spdDown'),           // 鈍化状態(バベル均衡15階)
+  petrified: u => hasStatus(u, 'petrify'),        // 石化状態(バベル均衡35階)
 };
 function ruleHits(r, u, isEnemy){
   const side = r.side || 'both';
@@ -17629,9 +17631,10 @@ const BABEL_FLOORS = {
     { name: '帯電の群れ', boost: { hp: 1.2, str: 0.72 }, rules: [],
       waves: ['ボルトビートル・ケットシー・ブラックウルフ・シルバーウルフ・キョンシー', 'アイアンスライム・シルバーウルフ・雷獣・キョンシー・ダークメカロイド', 'ミスリルゴーレム・ツインヘッドベア・サイクロプス・雷獣・ダークメカロイド'],
       win: [1, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [2, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
-    { name: '渦潮の海', boss: true, boost: { hp: 0.2, str: 0.12 }, rules: [
-        { who: { role: 'shooter' }, side: 'ally', dmgDealt: 2.0, label: 'シューターの味方 与ダメージ+200%' },
-        { who: { roles: ['attacker', 'tank', 'support', 'trickster'] }, side: 'ally', dmgDealt: -0.6, label: 'シューター以外の味方 与ダメージ-60%' }],
+    { name: '渦潮の海', boss: true, boost: { hp: 0.1, str: 0.06 }, rules: [
+        { who: { role: 'shooter' }, side: 'ally', stat: { str: 1.0 }, label: 'シューターの味方 攻撃力+100%' },
+        { who: { role: 'attacker' }, side: 'ally', stat: { str: -0.8 }, label: 'アタッカーの味方 攻撃力-80%' },
+        { side: 'enemy', dmgTaken: 1.0, when: 'slowed', label: '敵 鈍化状態のあいだ 受けるダメージ+100%' }],
       waves: ['アクアスライム・ポンドフロッグ・ケルピー・河童・リザードマン', 'マーメイド・河童・リザードマン・メリュジーヌ・アオオニ', 'クラーケン・セイレーン・イエティ・アイスゴーレム・ケルピー'],
       win: [1, 'ケンタウロス・ハティ・シームルグ・ダークメカロイド・メデューサ'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・ミノタウロス'] },
     { name: '灼熱の間', boost: { hp: 1, str: 0.6 }, rules: [],
@@ -17651,7 +17654,7 @@ const BABEL_FLOORS = {
         { who: { element: 'water' }, side: 'ally', immune: ['burn'], stat: { hp: 0.5 }, label: '水属性の味方 やけどにかからない・最大HP+50%' }],
       waves: ['ヒノコ・フレイムリザード・マグマスライム・鬼火・フレイムボア', 'ヘルハウンド・フレイムボア・鬼火・アグニ・アカオニ', 'ケルベロス・キマイラ・ボルケイノタートル・マグマゴーレム・アグニ'],
       win: [1, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [2, 'ミノタウロス・デススコーピオン・オーク・ジャッカロープ・ドリュアス'] },
-    { name: '嵐の回廊', boost: { hp: -0.1, str: -0.06 }, rules: [],
+    { name: '嵐の回廊', boost: { hp: 0.05, str: 0.03 }, rules: [],
       waves: ['キラービー・ゴースト・ペガサス・オオコウモリ・ゼピュロス', 'ハティ・ストームホーク・天狗・ワイバーン・シームルグ', 'フェンリル・カマイタチ・アイオロス・ハルピュイア・グリフォン'],
       win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
     { name: '稲妻の道', boost: { hp: 0.6, str: 0.36 }, rules: [],
@@ -17663,12 +17666,11 @@ const BABEL_FLOORS = {
     { name: '溶岩の河', boost: { hp: 0.4, str: 0.24 }, rules: [],
       waves: ['ヒノコ・ボルケイノタートル・ヘルハウンド・フレイムボア・アグニ', 'サラマンダー・牛鬼・フレイムリザード・鬼火・アカオニ', 'フェニクス・スルト・スコル・ヘパイストス・ロキ'],
       win: [1, 'クラーケン・ユミル・ウンディーネ・ケルピー・セイレーン'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
-    { name: '天空の覇者', boss: true, boost: { hp: 0.6, str: 0.36 }, rules: [
-        { side: 'enemy', stat: { spd: 0.4 }, label: '敵 SPD+40%' },
-        { who: { element: 'thunder' }, side: 'ally', dmgDealt: 1.5, label: '雷属性の味方 与ダメージ+150%' },
-        { side: 'enemy', dmgTaken: -0.85, fromElemNot: 'thunder', label: '敵 雷属性以外から受けるダメージ-85%' }],
+    { name: '天空の覇者', boss: true, bossUp: { hp: 2.0, str: 0.3 }, boost: { hp: 0.9, str: 0.54 }, rules: [
+        { who: { element: 'thunder' }, side: 'ally', stat: { str: 1.0, hp: 0.5 }, label: '雷属性の味方 攻撃力+100%・最大HP+50%' },
+        { who: { element: 'earth' }, side: 'ally', stat: { str: -0.8 }, label: '土属性の味方 攻撃力-80%' }],
       waves: ['ストームホーク・キラービー・オオコウモリ・ゴースト・カマイタチ', 'カマイタチ・ペガサス・ゴースト・ゼピュロス・シームルグ', 'グリフォン・ハルピュイア・ワイバーン・天狗・ペガサス'],
-      win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'スルト・ヘルハウンド・キマイラ・ケルベロス・サラマンダー'] },
+      win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'タイタン・ノーム・ミノタウロス・ロックゴーレム・デススコーピオン'] },
     { name: '潮騒の間', boost: { hp: 0.9, str: 0.54 }, rules: [],
       waves: ['マーメイド・河童・アクアスライム・ケルピー・リザードマン', 'ケルピー・ポンドフロッグ・ウンディーネ・リザードマン・マーメイド', 'クラーケン・マーメイド・イエティ・ケルピー・リザードマン'],
       win: [1, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
@@ -17699,9 +17701,9 @@ const BABEL_FLOORS = {
     { name: '海神の庭', boost: { hp: 1.2, str: 0.72 }, rules: [],
       waves: ['ポンドフロッグ・ケルピー・セイレーン・アクアスライム・リザードマン', 'リザードマン・クラーケン・アイスゴーレム・マーメイド・メリュジーヌ', 'リヴァイアサン・シースライム・ケルピー・セルキー・クラーケン'],
       win: [2, 'グリーンマン・アラクネ・マンイーター・ベヒモス・ドルイド'], lose: [3, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
-    { name: '石化の眼差し', boss: true, boost: { hp: 1.6, str: 0.96 }, rules: [
-        { who: { element: 'light' }, side: 'ally', immune: BB_DEBUFFS, dmgDealt: 1.0, label: '光属性の味方 状態異常にかからない・与ダメージ+100%' },
-        { side: 'enemy', dmgTaken: -0.75, fromElemNot: 'light', label: '敵 光属性以外から受けるダメージ-75%' }],
+    { name: '石化の眼差し', boss: true, boost: { hp: 2.3, str: 1.38 }, rules: [
+        { who: { element: 'light' }, side: 'ally', immune: BB_DEBUFFS, stat: { str: 1.0 }, label: '光属性の味方 状態異常にかからない・攻撃力+100%' },
+        { side: 'ally', dmgTaken: 3.0, when: 'petrified', label: '味方 石化状態のあいだ 受けるダメージ+300%' }],
       waves: ['猫又・サキュバス・ヴェノムスライム・バンシー・ゲンドゥル', 'ゴブリンシャーマン・のっぺらぼう・ジャイアントスパイダー・レッドキャップ・スカーボア', 'メデューサ・黙示のアルベ・ゲヘナの騎士・バンシー・スカーボア'],
       win: [2, 'ペルセウス・ホーリードラゴン・ユニコーン・カーバンクル・オルペウス'], lose: [3, 'クラーケン・シースライム・セルキー・ケルピー・マーメイド'] },
     { name: '雷霆の王', boost: { hp: 1.8, str: 1.08 }, rules: [],
@@ -17751,10 +17753,10 @@ const BABEL_FLOORS = {
     { name: '雷神の庭', boost: { hp: 1.6, str: 0.96 }, rules: [],
       waves: ['アイアンスライム・雷獣・シルバーウルフ・ブラックウルフ・ダークメカロイド', 'ツインヘッドベア・サイクロプス・ボルトビートル・キョンシー・ケットシー', 'ミスリルゴーレム・雷電・ケットシー・雷獣・ダークメカロイド'],
       win: [2, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [3, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
-    { name: '竜王の座', boss: true, boost: { hp: 0.3, str: 0.18 }, rules: [
-        { side: 'enemy', stat: { str: 0.4 }, label: '敵 STR+40%' },
-        { who: { role: 'attacker' }, side: 'ally', stat: { str: 1.5 }, label: 'アタッカーの味方 STR+150%' },
-        { who: { roles: ['shooter', 'tank', 'support', 'trickster'] }, side: 'ally', dmgDealt: -0.7, label: 'アタッカー以外の味方 与ダメージ-70%' }],
+    { name: '竜王の座', boss: true, boost: { hp: 1.1, str: 0.66 }, rules: [
+        { who: { role: 'attacker' }, side: 'ally', stat: { str: 1.5 }, label: 'アタッカーの味方 攻撃力+150%' },
+        { who: { species: 'draconia' }, side: 'ally', dmgTaken: -0.5, label: 'ドラゴンの味方 受けるダメージ-50%' },
+        { side: 'enemy', dmgDealt: -0.5, when: 'burned', label: '敵 やけど状態のあいだ 与ダメージ-50%' }],
       waves: ['フレイムリザード・フレイムボア・スコル・アグニ・ヘルハウンド', 'サラマンダー・ヘパイストス・牛鬼・フェニクス・スルト', 'バハムート・九尾の狐・ロキ・ケルベロス・アカオニ'],
       win: [2, 'シースライム・クラーケン・ケルピー・リザードマン・ミノタウロス'], lose: [3, 'タイタン・ノーム・ブロック・ノッカー・ドリュアス'] },
     { name: '鉄壁の山', boost: { hp: 0.8, str: 0.48 }, rules: [],
@@ -17769,7 +17771,7 @@ const BABEL_FLOORS = {
     { name: '世界樹の根', boost: { hp: 1.1, str: 0.66 }, rules: [],
       waves: ['ドルイド・モスボア・マンイーター・ブラッドローズ・マンドラゴラ', 'コカトリス・ベヒモス・ハノコ・トレント・モススライム', 'グリーンマン・アラクネ・エルダートレント・モモタロウ・マンイーター'],
       win: [3, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [4, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
-    { name: '死神の大鎌', boss: true, bossUp: { hp: 3.0, str: 0.5 }, boost: { hp: 0.0, str: 0.0 }, rules: [
+    { name: '死神の大鎌', boss: true, bossUp: { hp: 3.0, str: 0.5 }, boost: { hp: 0.4, str: 0.24 }, rules: [
         { who: { role: 'trickster' }, side: 'ally', stat: { str: 1.0, hp: 1.0 }, label: 'トリックスターの味方 攻撃力+100%・最大HP+100%' },
         { who: { role: 'attacker' }, side: 'ally', stat: { str: -0.8 }, label: 'アタッカーの味方 攻撃力-80%' },
         { who: { role: 'shooter' }, side: 'ally', stat: { str: -0.8 }, label: 'シューターの味方 攻撃力-80%' }],
@@ -17787,12 +17789,12 @@ const BABEL_FLOORS = {
     { name: '天空の果て', boost: { hp: 0.4, str: 0.24 }, rules: [],
       waves: ['シームルグ・カマイタチ・ペガサス・ゴースト・ゼピュロス', 'ハティ・アイオロス・ハルピュイア・天狗・キジ', 'フェンリル・グリフォン・ワイバーン・ハルピュイア・アイオロス'],
       win: [3, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [4, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
-    { name: '聖竜の頂', boss: true, boost: { hp: 1.5, str: 0.9 }, rules: [
-        { side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' },
-        { who: { element: 'dark' }, side: 'ally', dmgDealt: 1.0, label: '闇属性の味方 与ダメージ+100%' },
-        { side: 'enemy', dmgTaken: -0.6, fromElemNot: 'dark', label: '敵 闇属性以外から受けるダメージ-60%' }],
+    { name: '聖竜の頂', boss: true, boost: { hp: 2.0, str: 1.2 }, rules: [
+        { who: { element: 'dark' }, side: 'ally', stat: { str: 1.0 }, label: '闇属性の味方 攻撃力+100%' },
+        { who: { element: 'light' }, side: 'ally', stat: { str: -0.8 }, label: '光属性の味方 攻撃力-80%' },
+        { side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' }],
       waves: ['ホーリースライム・ピクシー・ウィスプ・ホーンラビット・エインヘリャル', 'ユニコーン・カーバンクル・エオス・スカラベ・ムーンラビット', 'ホーリードラゴン・ペルセウス・オルペウス・ヒルディスヴィーニ・ヒルデ'],
-      win: [3, 'アバドン・死神・デュラハン・ドラウグル・メデューサ'], lose: [4, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'] },
+      win: [3, 'アバドン・死神・デュラハン・ドラウグル・メデューサ'], lose: [4, 'ペルセウス・ホーリードラゴン・ユニコーン・オルペウス・ヒルデ'] },
   ],
   /* 秩序の塔: セレスティア・ヒューム・エルフ・マキナ・ドワーフ(63体)。敵は混沌側の5種族 */
   order: [
