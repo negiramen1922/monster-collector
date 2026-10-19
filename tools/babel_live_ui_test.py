@@ -64,7 +64,7 @@ async def main():
             check('3つの塔と、均衡の塔は60階ぶんのボタンが出る',
                   r['towers'] == ['tower:bal', 'tower:order', 'tower:chaos'] and r['floors'] == 60, r)
             check('まだ1階しか開いていない(2〜60階はロック)', r['locked'] == 59, r['locked'])
-            check('1階の敵とステージ効果が出る', r['enemies'] >= 3 and r['start'], r)
+            check('メニューに出てくる敵の顔ぶれは出さない', r['enemies'] == 0 and r['start'], r)
             await pg.screenshot(path=str(OUT / 'babel_live.png'), full_page=True)
             # 均衡の塔: 前の10階のころのクリアは新しい1〜10階のクリアとして数え、11階から。ボスの階は「ボス戦」
             await pg.evaluate("""() => { for(let f = 1; f <= 10; f++) STATE.clearedStages.push('bb_bal_' + f); babelPickFloor = 0; render(); }""")
@@ -76,7 +76,7 @@ async def main():
             await pg.evaluate("() => { babelPickFloor = 10; render(); }"); await pg.wait_for_timeout(250)
             r = await pg.evaluate("""() => ({ head: document.querySelector('.bb-head').innerText, boss: document.querySelectorAll('.bb-en.boss').length,
                 reward: document.querySelector('.ab-reward').innerText })""")
-            check('均衡の塔の10階は「ボス戦」でボスが1体', 'ボス戦' in r['head'] and r['boss'] == 1, r)
+            check('均衡の塔の10階は「ボス戦」と出る(敵の顔ぶれは出さない)', 'ボス戦' in r['head'] and r['boss'] == 0, r)
             await pg.evaluate("() => { STATE.clearedStages = STATE.clearedStages.filter(id => !id.startsWith('bb_bal_')); babelPickFloor = 0; render(); }")
 
             # ---- 3. 編成のしばり ----
@@ -127,8 +127,8 @@ async def main():
             r = await pg.evaluate("""() => ({ head: document.querySelector('.bb-head').innerText,
                 id: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset.startStage,
                 boss: document.querySelectorAll('.bb-en.boss').length })""")
-            check('10階は「特殊ステージ」と出て、ボスが1体',
-                  '特殊ステージ' in r['head'] and r['id'] == 'bb_order_10' and r['boss'] == 1, r)
+            check('10階は「特殊ステージ」と出る(敵の顔ぶれは出さない)',
+                  '特殊ステージ' in r['head'] and r['id'] == 'bb_order_10' and r['boss'] == 0, r)
             check('ステージIDに _0 / _1 が付かない',
                   await pg.evaluate("() => !document.querySelector('[data-start-stage$=\\'_0\\']')"))
             await pg.screenshot(path=str(OUT / 'babel_live_boss.png'), full_page=True)
