@@ -29,6 +29,10 @@ const V = [
   ['後衛だけかばう80%・3T', [{ to: 'alliesBack', redirect: 0.8, turns: 3 }]],
   ['後衛だけかばう80%・3T + シールド10%', [{ to: 'alliesBack', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.1, base: 'maxHp', turns: 2 }]],
   ['1人(HPの割合が一番低い味方)をかばう80%・3T', [{ to: 'allyOther', redirect: 0.8, turns: 3 }]],
+  ['全体かばう80%・3T + シールド20%・3T', [{ to: 'allies', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.2, base: 'maxHp', turns: 3 }]],
+  ['全体かばう80%・3T + シールド30%・3T', [{ to: 'allies', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.3, base: 'maxHp', turns: 3 }]],
+  ['全体かばう80%・3T + シールド50%・3T', [{ to: 'allies', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.5, base: 'maxHp', turns: 3 }]],
+  ['全体かばう50%・3T + シールド10%', [{ to: 'allies', redirect: 0.5, turns: 3 }, { to: 'self', shield: 0.1, base: 'maxHp', turns: 2 }]],
   ['かばう80%・3T + シールド10%(今の案)', [{ to: 'allies', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.1, base: 'maxHp', turns: 2 }]],
 ];
 const KING = { hp: +(process.env.KHP || 320), str: 36, pdef: 12, mdef: 10, spd: 26, hate: 45 };
