@@ -11764,10 +11764,7 @@ function renderBabelTab(){
   const total = babelFloorCount(babelTower);
   const kind = fl.boss ? 'ボス戦' : babelTower === 'bal' ? '' : floor === 5 ? 'ステージ効果' : floor === 10 ? '特殊ステージ' : '';
   const done = [...Array(total).keys()].filter(i => babelFloorCleared(babelTower, i + 1)).length;
-  const enemyRow = st.waves.map((w, i) => `<div class="bb-wave"><small>W${i + 1}</small>${w.map(e => {
-    const m = MON_BY_ID[e.ref];
-    return `<span class="bb-en ${e.boss ? 'boss' : ''}"><img src="${imgSrc(m.id)}" alt="" draggable="false">${ELEM_ICON[m.element]}★${e.star}</span>`;
-  }).join('')}</div>`).join('');
+  // 出てくる敵の顔ぶれはメニューに出さない(戦ってみるまでわからない。2026-10-19 ユーザー決定)
   return `
     <div class="panel bb-card">
       <div class="lab-tabs bb-towers">${BABEL_TOWERS.map(t => {
@@ -11781,7 +11778,6 @@ function renderBabelTab(){
         <div class="bb-head"><b>${floor}階「${fl.name}」</b>${kind ? `<span class="sr-rare">${kind}</span>` : ''}${cleared ? '<span class="cleared-tag">✓ クリア済み</span>' : ''}</div>
         <div class="ev-period">全員Lv${BABEL_LV}・使えるのは ${tower.allow ? tower.note : '全モンスター'}</div>
         ${st.rules.map(r => `<div class="bb-rule">・${r.label}</div>`).join('')}
-        ${enemyRow}
         <div class="ab-reward">${cleared ? '報酬は受け取り済み' : `初回クリア ${rewardHtml([{ type: 'crystal', n: babelCrystal(babelTower, floor) }, ...babelFloorReward(babelTower, floor)])}`}</div>
       </div>
       ${locked ? `<div class="screen-sub" style="text-align:center;margin:14px 0;">${open}階をクリアすると開きます</div>` : `
@@ -22808,7 +22804,9 @@ function grantStageRewards(stage, spawned, party, opts){
   const daily = ensureDaily();
   daily.bossSouls = daily.bossSouls || {};
   const soulTotals = {};
-  const addSoul = (id, n) => { soulTotals[id] = (soulTotals[id] || 0) + n; };
+  // バベルではソウルも仲間入りも出ない(報酬は星結晶などの初回クリアだけ。2026-10-19 決定)
+  const noSouls = stage.type === 'babel';
+  const addSoul = (id, n) => { if(noSouls) return; soulTotals[id] = (soulTotals[id] || 0) + n; };
   // EXは主役のソウルだけが確率で1個出る(ほかのソウル・仲間入りは出ない)。通常ステージの主役はボスからステージ番号×2%で1個
   const evOf = stage.type === 'event' ? EVENTS.find(e => e.key === stage.eventKey) : null;
   if(stage.ex && evOf){
@@ -22829,7 +22827,7 @@ function grantStageRewards(stage, spawned, party, opts){
       if(rate > 0 && Math.random() < rate) addSoul(ref, 1);
     });
   }
-  if(!stage.ex && !v3) spawned.forEach(u => {
+  if(!stage.ex && !v3 && !noSouls) spawned.forEach(u => {
     if(u.boss && evOf && u.ref === evOf.pickup){
       if(Math.random() < eventBossSoulRate(stage)) addSoul(u.ref, 1);
     }else if(u.boss){
@@ -22844,7 +22842,7 @@ function grantStageRewards(stage, spawned, party, opts){
   });
   // each kind that showed up gets one roll to join; already owned, it leaves souls instead
   const recruited = [];
-  (stage.ex ? [] : [...new Set(spawned.map(u => u.ref))]).forEach(id => {
+  (stage.ex || noSouls ? [] : [...new Set(spawned.map(u => u.ref))]).forEach(id => {
     const m = MON_BY_ID[id];
     const asRare = spawned.some(u => u.ref === id && u.rare);
     if(!m || Math.random() >= recruitChanceOf(m, asRare, stage)) return;

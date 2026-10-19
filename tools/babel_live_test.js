@@ -1,7 +1,7 @@
 // バベルの本番側: 解放・初回報酬・5階(ステージ効果)と10階(特殊ステージ)。均衡の塔は60階(5の倍数がボス戦)。
 // 使い方: node tools/babel_live_test.js
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__b={babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
+const api = load('game.js', s => s + ';global.__b={grantStageRewards,babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
 const B = global.__b;
 let bad = 0;
 const ok = (name, cond, info) => { bad += cond ? 0 : 1; console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
@@ -115,5 +115,14 @@ ok('59階まで進むと60階が開く', B.babelOpenFloor('bal') === 60 && B.sta
 api.STATE.clearedStages.push('bb_bal_60');
 ok('60階をクリアすると「全部クリア」(61)', B.babelOpenFloor('bal') === 61);
 
+// バベルではソウルも仲間入りも出ない(2026-10-19)。ボス・レアの印つきで200回まわしても0
+{
+  const st = B.findStage('bb_bal_15');
+  const spawned = st.waves.flat().map((u, i) => ({ ...u, rarity: B.MON_BY_ID[u.ref].rarity, rare: i === 0 }));
+  const owned0 = Object.keys(api.STATE.owned).length, pend0 = JSON.stringify(api.STATE.pendingSouls || {});
+  let souls = 0;
+  for(let i = 0; i < 200; i++) souls += B.grantStageRewards(st, spawned, []).souls.length;
+  ok('バベルではソウルも仲間入りも出ない', souls === 0 && Object.keys(api.STATE.owned).length === owned0 && JSON.stringify(api.STATE.pendingSouls || {}) === pend0, souls);
+}
 console.log(bad ? 'NG' : 'すべて通過');
 process.exit(bad ? 1 : 0);
