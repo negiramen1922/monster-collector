@@ -24,6 +24,10 @@ const V = [
   ['かばう40%・1T', [{ to: 'allies', redirect: 0.4, turns: 1 }]],
   ['かばう80%・1T', [{ to: 'allies', redirect: 0.8, turns: 1 }]],
   ['かばう80%・3T', [{ to: 'allies', redirect: 0.8, turns: 3 }]],
+  ['前衛だけかばう80%・3T', [{ to: 'alliesFront', redirect: 0.8, turns: 3 }]],
+  ['前衛だけかばう80%・3T + シールド10%', [{ to: 'alliesFront', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.1, base: 'maxHp', turns: 2 }]],
+  ['後衛だけかばう80%・3T', [{ to: 'alliesBack', redirect: 0.8, turns: 3 }]],
+  ['後衛だけかばう80%・3T + シールド10%', [{ to: 'alliesBack', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.1, base: 'maxHp', turns: 2 }]],
   ['1人(HPの割合が一番低い味方)をかばう80%・3T', [{ to: 'allyOther', redirect: 0.8, turns: 3 }]],
   ['かばう80%・3T + シールド10%(今の案)', [{ to: 'allies', redirect: 0.8, turns: 3 }, { to: 'self', shield: 0.1, base: 'maxHp', turns: 2 }]],
 ];
@@ -32,7 +36,12 @@ console.log(`キングスライム案(★4) + ${ALLIES.join('・')}(★5) / Lv${
 const rows = [];
 for (const [name, effects] of V) {
   if (ONLY && !ONLY.some(o => name.includes(o))) continue;
-  const api = load('game.js', s => s.replace('autoUlt: false,', 'autoUlt: true,') + ';global.__k=MONSTER_KITS;global.__m=MONSTERS;');
+  // alliesFront(前衛の味方・自分は入らない)は今のゲームにないので、測るときだけ足す。倒れたラウンドも記録する
+  const api = load('game.js', s => s.replace('autoUlt: false,', 'autoUlt: true,')
+    .replace("case 'alliesBack': return here.filter(u => u !== actor && u.row === 'back');",
+             "case 'alliesBack': return here.filter(u => u !== actor && u.row === 'back');\n    case 'alliesFront': return here.filter(u => u !== actor && u.row !== 'back');")
+    .replace('function killUnit(u, killer, cause){\n  u.alive = false;', 'function killUnit(u, killer, cause){\n  u.alive = false; u.deathRound = battleUI.round;')
+    + ';global.__k=MONSTER_KITS;global.__m=MONSTERS;');
   const K = global.__k, M = global.__m;
   const m = M.find(x => x.id === 'm60'); Object.assign(m, KING);
   K.m60 = {
@@ -44,7 +53,7 @@ for (const [name, effects] of V) {
   };
   const by = Object.fromEntries(M.map(x => [x.name, x.id]));
   const party = ['m60', ...ALLIES.map(n => by[n])];
-  let win = 0, total = 0, rounds = 0, kingAlive = 0, othersAlive = 0; const per = {};
+  let win = 0, total = 0, rounds = 0, kingAlive = 0, othersAlive = 0, kingRounds = 0, kingR3 = 0, kingR5 = 0, frontN = 0; const per = {};
   for (const sid of STAGES) { per[sid] = 0; for (let i = 0; i < N; i++) {
     const b = api.run(party, sid, LV, { star: 5, skillLv: 1, ultLv: 1, passiveLv: 1 });
     if (b.win) { win++; per[sid]++; }
@@ -52,11 +61,16 @@ for (const [name, effects] of V) {
     const pu = (b.party || []).filter(Boolean);
     const k = pu.find(u => u.ref === 'm60');
     if (k && k.alive) kingAlive++;
+    // キングが立っていたラウンド数(最後まで立っていれば戦闘のラウンド数)。ウェーブをまたいでも battleUI.round は通しで数える
+    const kr = k ? (k.alive ? (b.round || 0) : (k.deathRound || 0)) : 0;
+    kingRounds += kr; if (!k || k.alive || kr > 3) kingR3++; if (!k || k.alive || kr > 5) kingR5++;
+    frontN += pu.filter(u => u !== k && u.row !== 'back').length;
     othersAlive += pu.filter(u => u !== k && u.alive).length;
   } }
   const wr = win / total;
   rows.push([name, wr]);
-  console.log(name.padEnd(36) + String((wr * 100).toFixed(1) + '%').padStart(7) + String((rounds / total).toFixed(1)).padStart(7) + String('キング生存' + Math.round(kingAlive / total * 100) + '%').padStart(10) + String('ほか生存' + (othersAlive / total).toFixed(2) + '体').padStart(10) + '  ' + STAGES.map(s => Math.round(per[s] / N * 100)).join('/'));
+  if (name.startsWith('なし')) console.log(`(キング以外の前衛 平均${(frontN / total).toFixed(1)}体)`);
+  console.log(name.padEnd(36) + String((wr * 100).toFixed(1) + '%').padStart(7) + String((rounds / total).toFixed(1)).padStart(7) + String('キング生存' + Math.round(kingAlive / total * 100) + '%').padStart(10) + String('立っていた' + (kingRounds / total).toFixed(1) + 'R').padStart(10) + String('4R目' + Math.round(kingR3 / total * 100) + '%').padStart(8) + String('6R目' + Math.round(kingR5 / total * 100) + '%').padStart(8) + String('ほか生存' + (othersAlive / total).toFixed(2) + '体').padStart(10) + '  ' + STAGES.map(s => Math.round(per[s] / N * 100)).join('/'));
 }
 // 基準の線から点に直す
 const ref = [[0, rows.find(r => r[0].startsWith('なし'))?.[1]], ...[10, 20, 30, 40].map(x => [x, rows.find(r => r[0].includes(`軽減${x}%`))?.[1]])].filter(r => r[1] !== undefined);
@@ -70,6 +84,7 @@ if (ref.length >= 3) {
       if ((wr - w0) * (wr - w1) <= 0 && w1 !== w0) { x = x0 + (x1 - x0) * (wr - w0) / (w1 - w0); break; }
     }
     const pts = x === undefined ? null : 2.5 * x / 10 * 3 * 2.5;
-    console.log(name.padEnd(36) + (x === undefined ? (wr > ref[ref.length - 1][1] ? '基準40%より上' : '基準より下') : `軽減${x.toFixed(1)}%相当 → ${pts.toFixed(1)}点`));
+    if (name.startsWith('なし')) console.log(`(キング以外の前衛 平均${(frontN / total).toFixed(1)}体)`);
+  console.log(name.padEnd(36) + (x === undefined ? (wr > ref[ref.length - 1][1] ? '基準40%より上' : '基準より下') : `軽減${x.toFixed(1)}%相当 → ${pts.toFixed(1)}点`));
   }
 }
