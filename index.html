@@ -4836,6 +4836,8 @@ const EV_LAB = (() => {
    毎回 Date.now() を見るので、画面を開き直せば公開時刻を過ぎた時点で出る(イベントの startAt と同じ考え方)。
    試験場(?lab=...)では日付に関係なく全部見える。MON_BY_ID などIDから引く表は全部のまま */
 const ANY_LAB = typeof location !== 'undefined' && /[?&]lab=/.test(location.search || '');
+// ?babel=all: バベルのテスト用。全部の階が最初から開いていて、どの階からでも試せる(開発者だけ。stageUnlocked が使うので早めに決める)
+const BABEL_ALL = typeof location !== 'undefined' && /[?&]babel=all\b/.test(location.search || '');
 function isReleased(x){ return ANY_LAB || !x || !x.releaseAt || Date.now() >= new Date(x.releaseAt).getTime(); }
 function releasedMonsters(){ return MONSTERS.filter(isReleased); }
 function releasedRelicIds(){ return Object.keys(RELICS).filter(id => isReleased(RELICS[id])); }
@@ -11832,7 +11834,7 @@ function renderBabelTab(){
   const cleared = babelFloorCleared(babelTower, floor);
   const st = babelStage(babelTower, floor);
   const open = babelOpenFloor(babelTower);
-  const locked = floor > open;
+  const locked = !BABEL_ALL && floor > open;
   const problem = locked ? '' : babelPartyProblem(babelTower);
   // 均衡の塔は5の倍数がボス戦。秩序・混沌の塔は5階がステージ効果、10階がボス1体＋取り巻きの特殊ステージ
   const total = babelFloorCount(babelTower);
@@ -11846,7 +11848,7 @@ function renderBabelTab(){
         const n = [...Array(fc).keys()].filter(i => babelFloorCleared(t.key, i + 1)).length;
         return `<button class="lab-tab ${t.key === babelTower ? 'on' : ''}" data-babel="tower:${t.key}">${t.name}<small>${n}/${fc} ・ ${t.note}</small></button>`;
       }).join('')}</div>
-      <div class="bb-floors">${babelFloorGridHtml(babelTower, floor, { attr: 'babel', paged: true, page: babelPage, state: f => ({ done: babelFloorCleared(babelTower, f), locked: f > open }) })}</div>
+      <div class="bb-floors">${babelFloorGridHtml(babelTower, floor, { attr: 'babel', paged: true, page: babelPage, state: f => ({ done: babelFloorCleared(babelTower, f), locked: !BABEL_ALL && f > open }) })}${BABEL_ALL ? '<div class="bb-problem">テスト用(?babel=all): 全部の階が開いています</div>' : ''}</div>
       <div class="screen-sub" style="margin:8px 0 4px;">スタミナを使いません。何度でも挑戦できます。報酬は<b>各階の初回クリアのみ</b>です(${done}/${total}階クリア)</div>
       <div class="bb-stage">
         <div class="bb-head"><b>${floor}階「${fl.name}」</b>${kind ? `<span class="sr-rare">${kind}</span>` : ''}${cleared ? '<span class="cleared-tag">✓ クリア済み</span>' : ''}</div>
@@ -11933,7 +11935,7 @@ function renderAbyssRewardChart(a){
     </div>`;
 }
 
-function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires); }
+function stageUnlocked(stage){ return !stage.requires || STATE.clearedStages.includes(stage.requires) || (stage.type === 'babel' && BABEL_ALL); }
 /* 勝ったあとの「次のステージへ」。メインクエストにしか無かったので、
    イベント(全10ステージ)・EX・育成クエスト・深淵回廊にも同じボタンが出るようにした。
    並びの最後なら null。深淵回廊だけは「次の階」なので勝ったときだけ返す */
@@ -16500,7 +16502,7 @@ function renderParty(){
 let stageTab = 'menu';
 /* バベルの塔は作りかけなので、ふつうに開いたときは出さない。
    index.html?babel=1 で開いたときだけ探索メニューに出る(開発者用) */
-const BABEL_DEV = typeof location !== 'undefined' && /[?&]babel=1\b/.test(location.search || '');
+const BABEL_DEV = typeof location !== 'undefined' && /[?&]babel=(1|all)\b/.test(location.search || '');
 const EXPLORE_MENU = [
   { key: 'main', mon: 'm129', label: 'メインクエスト', sub: 'ストーリーを進めて新しい地域へ' },    // ヒノコ
   { key: 'dungeon', mon: 'm86', label: '育成クエスト', sub: 'EXP・ゴールド・ワザ強化素材を集める' },  // ハノコ

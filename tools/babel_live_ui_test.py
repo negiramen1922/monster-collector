@@ -143,6 +143,24 @@ async def main():
             await pg.screenshot(path=str(OUT / 'babel_live_boss.png'), full_page=True)
 
             check('JSエラーなし', not errs, errs[:3])
+            await pg.close()
+
+            # ---- 3. ?babel=all(テスト用): 全部の階が最初から開いている ----
+            pg = await b.new_page(viewport={'width': 390, 'height': 1100})
+            await use_mock_auth(pg)
+            errs = []
+            pg.on('pageerror', lambda e: errs.append(str(e)))
+            await pg.goto(url + '?babel=all'); await pg.wait_for_timeout(900)
+            await start_as_guest(pg)
+            await pg.evaluate(SETUP); await pg.wait_for_timeout(300)
+            await pg.evaluate("() => { stageTab = 'menu'; goto('battle', { nav: true }); }"); await pg.wait_for_timeout(400)
+            await pg.click('[data-stage-tab="babel"]'); await pg.wait_for_timeout(500)
+            r = await pg.evaluate("""() => ({ locked: document.querySelectorAll('.lab-fl.locked').length, note: (document.querySelector('.bb-floors .bb-problem') || {}).textContent || '' })""")
+            check('?babel=all だと、まだクリアしていない階もロックされない', r['locked'] == 0 and '全部の階が開いています' in r['note'], r)
+            await pg.evaluate("() => { babelPage = 5; babelPickFloor = 55; render(); }"); await pg.wait_for_timeout(300)
+            r = await pg.evaluate("""() => ({ id: (document.querySelector('[data-start-stage^="bb_"]') || {}).dataset, unl: stageUnlocked(findStage('bb_bal_55')) })""")
+            check('?babel=all だと、いきなり55階に挑戦できる', r['id'] and r['id']['startStage'] == 'bb_bal_55' and r['unl'] is True, r)
+            check('JSエラーなし(?babel=all)', not errs, errs[:3])
             await b.close()
     print('NG' if bad else 'すべて通過')
     return bad
