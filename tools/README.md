@@ -13,9 +13,9 @@ cd tools && node mech19.js        # 以降の node スクリプトは tools/ で
 |---|---|
 | harness.js | DOMなしでゲームのJSを動かす土台。`api.run(パーティ, ステージID, レベル, オプション)` |
 | crash19.js | 全モンスターで630戦のクラッシュテスト |
-| babel_sim.js | バベル各階の「勝てる想定」「勝てない想定」の勝率(`N=20 node babel_sim.js [ten yo in]`) |
+| babel_sim.js | バベル各階の「勝てる想定」「勝てない想定」の勝率(`N=25 node babel_sim.js [bal order chaos] [階の範囲 例: 11-20]`) |
 | babel_lab_ui_test.py | バベル試験場(index.html?lab=babel)の画面テスト |
-| babel_tune.js | バベル各階の「塔の敵の底上げ」を二分探索で決める(`N=10 node babel_tune.js ten [階...]`) |
+| babel_tune.js | バベル各階の「塔の敵の底上げ」を二分探索で決める(`N=10 HI=20 node babel_tune.js bal [階...]`) |
 | reflect_loop_test.js | シールド反射どうしが往復して止まらないこと |
 | ult_sp_lock_test.js | 奥義を撃っているあいだは本人にSPが入らない(奥義の効果のSPは入る) |
 | ult_sp_test.js | 奥義の必要SPが「重さ×ロール」の表どおり(140体) |

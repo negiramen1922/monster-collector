@@ -1,6 +1,6 @@
 // バベル: 階ごとの「塔の敵の底上げ」(最大HP+x・STR+0.6x)を探す。
 // 勝てる想定が80%以上、勝てない想定(1段上の育ち)が20%以下になる x の幅を二分探索で出し、真ん中を勧める。
-// 使い方: N=10 node babel_tune.js ten [階...]
+// 使い方: N=10 node babel_tune.js bal [階...](階を省くと全部)
 const load = require('./harness.js');
 const api = load('game.js', s => s + ';global.__b={get lab(){return lab},labLoad,labHint,labStart,labIsTwo,BABEL_FLOORS,get battleUI(){return battleUI},DEFAULT_STATE,MONSTERS,BABEL_LV};');
 const B = global.__b;
@@ -22,8 +22,8 @@ function rate(f, kind, x, n){
   }
   return w / n;
 }
-const LO = -0.6, HI = 12;
-const floors = fls.length ? fls.map(Number) : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const LO = -0.6, HI = +(process.env.HI || 12);
+const floors = fls.length ? fls.map(Number) : [...Array(B.BABEL_FLOORS[tower].length).keys()].map(i => i + 1);
 const out = {};
 for(const f of floors){
   // 勝てない想定が20%以下になる最小の x

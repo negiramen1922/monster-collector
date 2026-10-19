@@ -3268,6 +3268,10 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 /* ---- バベルの塔(本番側。試験場と同じ部品を使い回す) ---- */
 .lab-fl.done{ border-color:rgba(92,171,82,.6); color:#79c96d; }
 .lab-fl.locked{ opacity:.4; }
+.lab-fl.boss{ border-color:rgba(232,180,85,.55); }
+.lab-fl.boss small{ color:var(--gold); }
+.bb-fl-groups{ display:flex; flex-direction:column; gap:6px; }
+.bb-fl-label{ font-size:10px; color:var(--dim); font-weight:700; margin:0 0 2px 2px; }
 .bb-towers{ margin-bottom:6px; }
 .bb-towers .lab-tab small{ font-size:8.5px; line-height:1.25; }
 .bb-stage{ background:var(--panel2); border:1px solid var(--line); border-radius:13px; padding:10px 12px; margin:8px 0; }
@@ -3295,6 +3299,29 @@ img.ico-species{ width:1.3em !important; height:1.3em !important; }
 .lab-en small{ font-size:9px; line-height:1.2; }
 .lab-en i{ font-style:normal; font-size:8.5px; color:var(--dim); }
 .lab-en.boss small{ color:var(--gold); font-weight:900; }
+/* バベル試験場: WAVEごとの前衛/後衛の並びと想定の編成(タップでワザと星刻) */
+.lab-bw{ padding:6px 0; border-top:1px solid rgba(255,255,255,.06); }
+.lab-bwl{ font-size:10.5px; font-weight:900; color:var(--dim); margin-bottom:2px; }
+.lab-bwl small{ font-size:9.5px; font-weight:700; margin-left:5px; }
+.lab-wave-rows{ display:flex; flex-direction:column; gap:3px; }
+.lab-row{ display:flex; flex-direction:column; gap:2px; }
+.lab-rl{ font-size:9.5px; font-weight:800; color:var(--dim); }
+.lab-row-units{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; }
+.lab-u{ position:relative; min-width:0; display:flex; flex-direction:column; align-items:center; text-align:center; padding:3px 1px 4px; border-radius:8px; border:1px solid var(--line); background:rgba(0,0,0,.2); color:var(--text); font-family:inherit; cursor:pointer; }
+.lab-u img{ width:34px; height:34px; object-fit:contain; image-rendering:pixelated; }
+.lab-u small{ font-size:9px; line-height:1.15; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lab-u i{ font-style:normal; font-size:8.5px; line-height:1.25; color:var(--dim); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lab-u i.lab-u-st{ color:#ffd98a; font-weight:800; }
+.lab-u.boss{ border-color:var(--gold); box-shadow:0 0 8px -3px rgba(232,180,85,.9); }
+.lab-u.boss small{ color:var(--gold); }
+.lab-boss-tag{ position:absolute; top:1px; left:2px; font-style:normal; font-size:7.5px; font-weight:900; color:#1a1208; background:var(--gold); border-radius:4px; padding:0 3px; }
+.lab-hints-panel .mc-head{ margin-bottom:4px; }
+.lab-hint-box{ border-top:1px solid rgba(255,255,255,.06); padding:6px 0 4px; display:flex; flex-direction:column; gap:3px; }
+.lab-hint-head{ display:flex; align-items:center; gap:6px; font-size:12px; }
+.lab-hint-head small{ color:var(--dim); font-size:10px; flex:1; }
+.lab-hint-box.win .lab-hint-head b{ color:#79c96d; }
+.lab-hint-box.lose .lab-hint-head b{ color:#ff9a8a; }
+.lab-unit-note{ font-size:10.5px; color:var(--dim); margin:8px 2px; }
 .lab-hints, .lab-run{ display:flex; gap:6px; flex-wrap:wrap; }
 .lab-run .btn{ flex:1; }
 .lab-grow{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; font-size:11px; }
@@ -4608,7 +4635,7 @@ function penalizedIds(){
 // apply a formation bonus to a battle unit (allies and enemies alike)
 /* ---- ステージ効果(EXステージ・総力戦の「特殊ルール」) ----
    stage.rules = [{ who, side, stat, dmgDealt, dmgTaken, when, whenTarget, shield, immune, label }]
-     who       … 当てはまるユニット。{ species, element, role, family, ref } のどれか(省略で全員)
+     who       … 当てはまるユニット。{ species, notSpecies, element, role, family, ref } のどれか(省略で全員)
      side      … 'ally' | 'enemy' | 'both'(省略で both)
      stat      … { hp, str, spd } は割合(+0.25 なら+25%)。{ pdef, mdef } は**ポイント加算**
                  (pdef: 8 なら +8%カット)。どちらも戦闘に入るときに1回だけ
@@ -4621,6 +4648,7 @@ function penalizedIds(){
      whenTarget… dmgDealt だけ。**殴る相手**の状態を見る(「やけどの敵に+50%」はこれ)
      shield    … 受け取るシールドの量の増減(割合)。+1 なら2倍
      immune    … かからなくなる状態異常の配列(['stun'] / ['burn','poison'] など)
+     perFoeDown… dmgDealt / dmgTaken を「相手側の倒れた数」ぶん重ねる(敵のルールなら倒れた味方1体ごとに)
      label     … 画面に出す文
    総力戦の「タンク編成のみ」「魔法系のみ」も、who と stat/dmg で同じように書ける。 */
 const STAGE_RULE_WHEN = {
@@ -4642,6 +4670,7 @@ function ruleHits(r, u, isEnemy){
   const w = r.who;
   if(!w) return true;
   if(w.species && u.species !== w.species) return false;
+  if(w.notSpecies && u.species === w.notSpecies) return false;   // その種族以外(バベル均衡55階)
   if(w.element && u.element !== w.element) return false;
   if(w.role && u.role !== w.role) return false;
   if(w.roles && !w.roles.includes(u.role)) return false;   // いずれかのロール
@@ -4691,6 +4720,11 @@ function stageDmgMod(u, kind, target, atk, attacker){
     if(r.when && !(STAGE_RULE_WHEN[r.when] || (() => true))(u)) return;
     if(r.whenTarget && !(target && (STAGE_RULE_WHEN[r.whenTarget] || (() => false))(target))) return;
     if(r.fromElemNot && (!attacker || attacker.element === r.fromElemNot)) return;   // 受けるほう: その属性以外から殴られたときだけ
+    if(r.perFoeDown){   // 相手側の倒れた数だけ重ねる(バベル均衡55階「死神の大鎌」: 敵は 倒れた味方1体ごとに)
+      const foes = (u.isEnemy ? battleUI.party : battleUI.enemies) || [];
+      n += r[kind] * foes.filter(x => !x.alive).length;
+      return;
+    }
     n += r[kind];
   });
   return n;
@@ -11682,13 +11716,32 @@ function showAbyssGiveUpConfirm(){
 /* ---------------- バベルの塔(本番側。いまは ?babel=1 のときだけ出る) ----------------
    進捗は clearedStages にそのまま乗せる(ステージIDが bb_<塔>_<階> なので、
    解放は requires、初回報酬は firstClear/reward という既存の仕組みがそのまま効く)。
-   2パーティ戦は前半(_0)に勝つと後半(_1)が開き、後半に勝った時点で階のクリア。 */
+   均衡の塔は60階。前の10階のころのクリア(bb_bal_1〜10)は、そのまま新しい1〜10階のクリアとして数える
+   (報酬はもう受け取ったものとして出し直さない。11階から続きを遊べる)。 */
 let babelTower = 'bal';
 let babelPickFloor = 0;   // 0 なら「いま挑める階」
 function babelCurrentFloor(){
   const open = babelOpenFloor(babelTower);
-  const f = babelPickFloor || Math.min(open, 10);
-  return Math.max(1, Math.min(10, f));
+  const n = babelFloorCount(babelTower);
+  const f = babelPickFloor || Math.min(open, n);
+  return Math.max(1, Math.min(n, f));
+}
+/* 階を選ぶボタン。10階ずつ区切って、ボスの階(均衡の塔の5の倍数)に印を付ける。本番の塔の画面と試験場で使う。
+   opt: { attr: 'babel' | 'lab', state: f => ({ done, locked }) } */
+function babelIsBossFloor(towerKey, f){ const fl = BABEL_FLOORS[towerKey] && BABEL_FLOORS[towerKey][f - 1]; return !!(fl && fl.boss); }
+function babelFloorGridHtml(towerKey, cur, opt){
+  const n = babelFloorCount(towerKey), groups = [];
+  for(let a = 1; a <= n; a += 10){
+    const btns = [];
+    for(let f = a; f < a + 10 && f <= n; f++){
+      const s = (opt.state && opt.state(f)) || {};
+      const boss = babelIsBossFloor(towerKey, f);
+      const mark = boss ? '<small>ボス</small>' : (towerKey !== 'bal' && (f === 5 || f === 10)) ? '<small>★</small>' : '';
+      btns.push(`<button class="lab-fl ${f === cur ? 'on' : ''} ${boss ? 'boss' : ''} ${s.done ? 'done' : ''} ${s.locked ? 'locked' : ''}" data-${opt.attr}="floor:${f}">${f}${mark}</button>`);
+    }
+    groups.push(n > 10 ? `<div class="bb-fl-group"><div class="bb-fl-label">${a}〜${Math.min(a + 9, n)}階</div><div class="lab-floors">${btns.join('')}</div></div>` : `<div class="lab-floors">${btns.join('')}</div>`);
+  }
+  return `<div class="bb-fl-groups">${groups.join('')}</div>`;
 }
 function babelPartyProblem(towerKey){
   const ids = getPartyIds();
@@ -11707,9 +11760,10 @@ function renderBabelTab(){
   const open = babelOpenFloor(babelTower);
   const locked = floor > open;
   const problem = locked ? '' : babelPartyProblem(babelTower);
-  // 5階はステージ効果、10階はボス1体＋取り巻きの特殊ステージ
-  const kind = floor === 5 ? 'ステージ効果' : floor === 10 ? '特殊ステージ' : '';
-  const done = [...Array(10).keys()].filter(i => babelFloorCleared(babelTower, i + 1)).length;
+  // 均衡の塔は5の倍数がボス戦。秩序・混沌の塔は5階がステージ効果、10階がボス1体＋取り巻きの特殊ステージ
+  const total = babelFloorCount(babelTower);
+  const kind = fl.boss ? 'ボス戦' : babelTower === 'bal' ? '' : floor === 5 ? 'ステージ効果' : floor === 10 ? '特殊ステージ' : '';
+  const done = [...Array(total).keys()].filter(i => babelFloorCleared(babelTower, i + 1)).length;
   const enemyRow = st.waves.map((w, i) => `<div class="bb-wave"><small>W${i + 1}</small>${w.map(e => {
     const m = MON_BY_ID[e.ref];
     return `<span class="bb-en ${e.boss ? 'boss' : ''}"><img src="${imgSrc(m.id)}" alt="" draggable="false">${ELEM_ICON[m.element]}★${e.star}</span>`;
@@ -11717,20 +11771,18 @@ function renderBabelTab(){
   return `
     <div class="panel bb-card">
       <div class="lab-tabs bb-towers">${BABEL_TOWERS.map(t => {
-        const n = [...Array(10).keys()].filter(i => babelFloorCleared(t.key, i + 1)).length;
-        return `<button class="lab-tab ${t.key === babelTower ? 'on' : ''}" data-babel="tower:${t.key}">${t.name}<small>${n}/10 ・ ${t.note}</small></button>`;
+        const fc = babelFloorCount(t.key);
+        const n = [...Array(fc).keys()].filter(i => babelFloorCleared(t.key, i + 1)).length;
+        return `<button class="lab-tab ${t.key === babelTower ? 'on' : ''}" data-babel="tower:${t.key}">${t.name}<small>${n}/${fc} ・ ${t.note}</small></button>`;
       }).join('')}</div>
-      <div class="lab-floors bb-floors">${[...Array(10).keys()].map(i => {
-        const f = i + 1, c = babelFloorCleared(babelTower, f), lk = f > open;
-        return `<button class="lab-fl ${f === floor ? 'on' : ''} ${c ? 'done' : ''} ${lk ? 'locked' : ''}" data-babel="floor:${f}">${f}${f === 5 || f === 10 ? '<small>★</small>' : ''}</button>`;
-      }).join('')}</div>
-      <div class="screen-sub" style="margin:8px 0 4px;">スタミナを使いません。何度でも挑戦できます。報酬は<b>各階の初回クリアのみ</b>です(${done}/10階クリア)</div>
+      <div class="bb-floors">${babelFloorGridHtml(babelTower, floor, { attr: 'babel', state: f => ({ done: babelFloorCleared(babelTower, f), locked: f > open }) })}</div>
+      <div class="screen-sub" style="margin:8px 0 4px;">スタミナを使いません。何度でも挑戦できます。報酬は<b>各階の初回クリアのみ</b>です(${done}/${total}階クリア)</div>
       <div class="bb-stage">
         <div class="bb-head"><b>${floor}階「${fl.name}」</b>${kind ? `<span class="sr-rare">${kind}</span>` : ''}${cleared ? '<span class="cleared-tag">✓ クリア済み</span>' : ''}</div>
         <div class="ev-period">全員Lv${BABEL_LV}・使えるのは ${tower.allow ? tower.note : '全モンスター'}</div>
         ${st.rules.map(r => `<div class="bb-rule">・${r.label}</div>`).join('')}
         ${enemyRow}
-        <div class="ab-reward">${cleared ? '報酬は受け取り済み' : `初回クリア ${rewardHtml([{ type: 'crystal', n: BABEL_CRYSTAL[floor - 1] }, ...babelFloorReward(babelTower, floor)])}`}</div>
+        <div class="ab-reward">${cleared ? '報酬は受け取り済み' : `初回クリア ${rewardHtml([{ type: 'crystal', n: babelCrystal(babelTower, floor) }, ...babelFloorReward(babelTower, floor)])}`}</div>
       </div>
       ${locked ? `<div class="screen-sub" style="text-align:center;margin:14px 0;">${open}階をクリアすると開きます</div>` : `
         ${sortieFormationHtml()}
@@ -17414,62 +17466,260 @@ function buildPvpEnemyParty(defense, ownerUid){
 function speedFactor(){ return STATE.battleSpeed || 1; }
 
 const DUNGEON_ID_RE = new RegExp('^dg_(' + Object.keys(DUNGEONS).join('|') + ')_(\\d+)$');
-/* ---------------- バベル(試作。いまは試験場 ?lab=babel だけで遊べる) ----------------
-   企画: docs/提案資料/バベル案.md。レベルは味方も敵も200に固定し、★・スキルLv・ルーンなどは育てたぶんを使う。
-   塔は3つ(天=全員 / 陽=火・風・雷・光・無 / 陰=水・土・闇・草)。5階と10階は2パーティ戦(前半・後半、重複なし)。
+/* ---------------- バベル(試作。試験場 ?lab=babel と、開発者だけの ?babel=1 で遊べる) ----------------
+   企画: docs/提案資料/バベル案.md・バベル_種族の塔案.md・バベル_均衡の塔60階.md。
+   レベルは味方も敵も200に固定し、★・スキルLv・ルーンなどは育てたぶんを使う。
+   塔は3つ(均衡=全員60階 / 秩序・混沌=種族わけ10階)。
    敵は名前で書いて、読み込み時に id に直す(名前を間違えると console に出す)。
-   hint は試験場の「想定の編成を入れる」用: [育ち(0初心者/1中級/2上級), [名前×5]]。2パーティ戦は {a:[…], b:[…]} */
+   win / lose は試験場の「想定の編成を入れる」用: [育ち(BABEL_GROW の番号), '名前・名前…'] */
 const BABEL_LV = 200;
 const BABEL_TOWERS = [
   { key: 'bal',   name: '均衡の塔', allow: null, note: '全員使える' },
   { key: 'order', name: '秩序の塔', allow: ['celestia', 'hume', 'elf', 'machina', 'dwarf'], note: '天使・人・精霊・機械・巨人' },
   { key: 'chaos', name: '混沌の塔', allow: ['beast', 'demon', 'undead', 'amorphous', 'draconia'], note: '獣・魔・不死・粘体・竜' },
 ];
-// 階ごとの敵の強さ [雑魚の★, ボスの★, スキルLv]
+// 階ごとの敵の強さ [雑魚の★, ボスの★, スキルLv](秩序・混沌の塔の10階ぶん)
 const BABEL_STRENGTH = [[3, 4, 3], [3, 4, 4], [3, 5, 4], [4, 5, 5], [4, 5, 6], [4, 6, 7], [5, 6, 8], [5, 6, 8], [5, 7, 9], [6, 7, 10]];
+// 均衡の塔(60階)の敵の強さ。1〜10は上と同じ。11階からは★を5階ごとに少しずつ上げ、41階から雑魚も★9、51階から全員★10。
+// 敵の★は塔の中だけ ★10 まで上がる(BABEL_ENEMY_STAR_CAP。ほかのコンテンツの敵は ENEMY_STAR_CAP の★7まで)
+const BABEL_STRENGTH_BAL = [...BABEL_STRENGTH,
+  ...Array(5).fill([6, 7, 10]), ...Array(5).fill([6, 8, 10]), ...Array(5).fill([7, 8, 10]), ...Array(5).fill([7, 9, 10]),
+  ...Array(5).fill([8, 9, 10]), ...Array(5).fill([8, 10, 10]), ...Array(10).fill([9, 10, 10]), ...Array(10).fill([10, 10, 10])];
+const BABEL_ENEMY_STAR_CAP = 10;
+function babelStrength(towerKey, floorNo){ return (towerKey === 'bal' ? BABEL_STRENGTH_BAL : BABEL_STRENGTH)[floorNo - 1] || [6, 7, 10]; }
+function babelFloorCount(towerKey){ return (BABEL_FLOORS[towerKey] || []).length; }
+// ボス戦の階(boss: true)のボスだけにつく強化
+const BABEL_BOSS_UP = { hp: 1.0, str: 0.3 };
 const BABEL_GROW = [
   { key: 0, name: '初心者', star: 0, sk: 1, rune: 0 },
   // 遺物: relic = [★, Lv, 遺物スキルLv, 凸]。その★の中から、モンスターに一番合う遺物を自動で選ぶ
   { key: 1, name: '中級', star: 2, sk: 6, rune: 3, relic: [3, 50, 3, 0] },
   { key: 2, name: '上級', star: 5, sk: 10, rune: 7, relic: [4, 150, 7, 2] },
+  // 上級+(均衡の塔51階〜): ★9(★5の子は上級と同じ★10)・スキルLv10(パッシブLv5)・ルーンⅨ・★5遺物 Lv180・遺物スキルLv9・3凸
+  { key: 3, name: '上級+', star: 5, starMin: 9, sk: 10, rune: 9, relic: [5, 180, 9, 3] },
   // 超上級: 育てきった形。★10・スキルLv10・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)
-  { key: 3, name: '超上級', star: 99, sk: 10, rune: 10, relic: [5, 200, 10, 4] },
+  { key: 4, name: '超上級', star: 99, sk: 10, rune: 10, relic: [5, 200, 10, 4] },
 ];
 const BB_DEBUFFS = ['burn', 'poison', 'stun', 'paralyze', 'bind', 'confuse', 'petrify', 'charm'];
 const bbElem = (el, k, v, label) => ({ who: { element: el }, side: 'ally', [k]: v, label });
 const BABEL_FLOORS = {
-  /* 均衡の塔: 全140体。1〜4・6〜9は敵の種族と属性を階ごとに寄せたふつうの戦い(有利な属性で組めば勝てる)、5はステージ効果、10はボス1体＋取り巻き */
+  /* 均衡の塔: 全モンスター。1〜60階(全体は100階の計画で、61〜100は後で足す)。docs/提案資料/バベル_均衡の塔60階.md
+     ○1〜○4・○6〜○9 はふつうの戦い(敵の種族と属性を階ごとに寄せる。有利な属性で組めば勝てる)。
+     5の倍数はボス戦(boss: true。最終WAVEの1体目がボスで BABEL_BOSS_UP の強化がつく)＋ボスの性格に合わせたステージ効果。
+     敵の★・スキルLvは BABEL_STRENGTH_BAL、底上げ(boost)は tools/babel_tune.js で階ごとに決めた */
   bal: [
-    { name: '塔の入口', boost: { hp: -0.2, str: -0.12 }, rules: [],
-      waves: ['ゴブリン・コボルト・スケルトン弓兵', 'オーク・フレイムボア・ケルピー・ドルイド', 'ミノタウロス・ワイルドボア・リザードマン'],
-      win: [0, 'シルバーナイト・グリズリー・オーガ・ケンタウロス・ブルーウィスプ'], lose: [0, 'ゴブリン・コボルト・ヒノコ・ピクシー・マイコニド'] },
-    { name: '芽吹きの丘', boost: { hp: 0.5, str: 0.3 }, rules: [],
-      waves: ['マイコニド・マンドラゴラ・モススライム', 'トレント・ドルイド・ブラッドローズ・モスボア', 'エルダートレント・マンイーター・ドリュアス'],
-      win: [0, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・サラマンダー'], lose: [1, 'クラーケン・イエティ・アイスゴーレム・セイレーン・メリュジーヌ'] },
-    { name: '鋼の番兵', boost: { hp: 0.1, str: 0.06 }, rules: [],
-      waves: ['セラミックゴーレム・ロックゴーレム・ガーゴイル', 'ノーム・ドリュアス・ヒルジャイアント・アルヴィス', 'タロース・タイタン・グリーンマン'],
+    { name: '塔の入口', boost: { hp: 0.7, str: 0.42 }, rules: [],
+      waves: ['マイコニド・マンドラゴラ・モススライム', 'ゴブリン弓兵・トレント・モスボア・ドルイド', 'マンイーター・ハノコ・ブラッドローズ'],
+      win: [0, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・サラマンダー'], lose: [1, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '土の小径', boost: { hp: 0.8, str: 0.48 }, rules: [],
+      waves: ['コボルト・マッドモール・オーク', 'ジャッカロープ・ノッカー・ヒルジャイアント・アルヴィス', 'ミノタウロス・ロックゴーレム・デススコーピオン'],
       win: [0, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [1, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
-    { name: '炎の祭壇', boost: { hp: 0.5, str: 0.3 }, rules: [],
-      waves: ['ヒノコ・鬼火・フレイムリザード', 'アグニ・ヘルハウンド・ボルケイノタートル・マグマゴーレム', 'スルト・サラマンダー・ケルベロス'],
-      win: [0, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [1, 'マンイーター・エルダートレント・ドルイド・マイコニド・モススライム'] },
-    { name: '燃える森', boost: { hp: -0.2, str: -0.12 }, rules: [{ side: 'ally', dmgDealt: 2.0, whenTarget: 'burned', label: '味方 やけど状態の敵へ 与ダメージ+200%' }, { who: { element: 'fire' }, side: 'ally', immune: ['burn'], stat: { str: 1.0 }, label: '火属性の味方 やけどにかからない・STR+100%' }, { side: 'enemy', dmgTaken: -0.88, when: 'unburned', label: '敵 やけど状態でないあいだ 受けるダメージ-88%' }],
-      waves: ['マイコニド・マンドラゴラ・モススライム', 'トレント・ドルイド・ブラッドローズ・モスボア', 'ベヒモス・エルダートレント・マンイーター'],
-      win: [1, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・スルト'], lose: [2, 'クラーケン・イエティ・セルキー・メリュジーヌ・ウンディーネ'] },
-    { name: '疾風の群れ', boost: { hp: 1.3, str: 0.78 }, rules: [],
-      waves: ['オオコウモリ・キラービー・ストームホーク', 'カマイタチ・ハルピュイア・ゴースト・天狗', 'フェンリル・ハティ・シームルグ'],
-      win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
-    { name: '深みの主', boost: { hp: 0.8, str: 0.48 }, rules: [],
-      waves: ['アクアスライム・ポンドフロッグ・ケルピー', 'イエティ・セルキー・メリュジーヌ・河童', 'クラーケン・リヴァイアサン・シースライム'],
-      win: [1, 'アラクネ・ベヒモス・マンイーター・コカトリス・ブラッドローズ'], lose: [2, 'ヒノコ・フレイムリザード・フレイムボア・鬼火・マグマスライム'] },
-    { name: '雷鳴の丘', boost: { hp: 1.9, str: 1.14 }, rules: [],
-      waves: ['シルバーウルフ・ボルトビートル・アイアンスライム', 'ブラックウルフ・ツインヘッドベア・キョンシー・ケットシー', '雷電・雷獣・ミスリルゴーレム'],
+    { name: '炎の祭壇', boost: { hp: 1.3, str: 0.78 }, rules: [],
+      waves: ['ヒノコ・フレイムリザード・マグマスライム', 'フレイムボア・鬼火・アグニ・ヘルハウンド', 'サラマンダー・ボルケイノタートル・キマイラ'],
+      win: [0, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [1, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '風の通り道', boost: { hp: 0.85, str: 0.51 }, rules: [],
+      waves: ['オオコウモリ・キラービー・ストームホーク', 'カマイタチ・ゴースト・ペガサス・天狗', 'ハルピュイア・ゼピュロス・シームルグ'],
+      win: [0, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [1, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '将軍の号令', boss: true, boost: { hp: 0.7, str: 0.42 }, rules: [
+        { side: 'enemy', stat: { str: 0.6 }, label: '敵 STR+60%' },
+        { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.7, stat: { hp: 0.5 }, label: 'タンクの味方 受けるダメージ-70%・最大HP+50%' },
+        { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 1.5, label: 'タンク・サポートの味方 与ダメージ+150%' },
+        { who: { roles: ['attacker', 'shooter', 'trickster'] }, side: 'ally', dmgTaken: 1.5, dmgDealt: -0.5, label: 'アタッカー・シューター・トリックの味方 受けるダメージ+150%・与ダメージ-50%' }],
+      waves: ['ゴブリン・ワイルドボア・ニードルラット', 'オーク・コボルト・ケンタウロス・ゴブリン', 'オークジェネラル・グリズリー・オーガ'],
+      win: [1, 'シルバーナイト・イエティ・エルダートレント・ノッカー・ブルーウィスプ'], lose: [2, 'スルト・オーガ・サイクロプス・ミノタウロス・ワーウルフ'] },
+    { name: '水辺の洞', boost: { hp: 2.5, str: 1.5 }, rules: [],
+      waves: ['ポンドフロッグ・ケルピー・アクアスライム', 'リザードマン・マーメイド・イエティ・セイレーン', 'クラーケン・ケルピー・マーメイド'],
+      win: [1, 'アラクネ・ベヒモス・マンイーター・コカトリス・ブラッドローズ'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '雷鳴の丘', boost: { hp: 2.3, str: 1.38 }, rules: [],
+      waves: ['シルバーウルフ・ボルトビートル・アイアンスライム', 'ブラックウルフ・ケットシー・キョンシー・ツインヘッドベア', '雷獣・ダークメカロイド・サイクロプス'],
       win: [1, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [2, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
-    { name: '毒の密林', boost: { hp: 1.2, str: 0.72 }, rules: [],
-      waves: ['モススライム・モスボア・マンドラゴラ', 'コカトリス・アラクネ・ブラッドローズ・マイコニド', 'ベヒモス・グリーンマン・マンイーター'],
-      win: [1, 'スルト・ケルベロス・キマイラ・九尾の狐・サラマンダー'], lose: [2, 'クラーケン・イエティ・セルキー・メリュジーヌ・ウンディーネ'] },
-    { name: '大地の玉座', boost: { hp: 0.1, str: 0.06 }, rules: [{ who: { ref: 'm140' }, side: 'enemy', stat: { hp: 1.2, str: 0.4 }, label: 'ボス「タロース」 最大HP+120%・STR+40%' }, { who: { role: 'support' }, side: 'enemy', stat: { hp: -0.5 }, label: '取り巻きのサポート 最大HP-50%' }],
-      waves: ['ガーゴイル・ロックゴーレム・ノッカー', 'ノーム・ブロック・アルヴィス・ドリュアス', 'タロース・タイタン・グリーンマン'],
+    { name: '芽吹きの丘', boost: { hp: 1.3, str: 0.78 }, rules: [],
+      waves: ['モススライム・ゴブリン弓兵・モスボア', 'トレント・ドルイド・ブラッドローズ・コカトリス', 'エルダートレント・マンイーター・ハノコ'],
+      win: [1, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・サラマンダー'], lose: [2, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '火の粉の路', boost: { hp: 1.9, str: 1.14 }, rules: [],
+      waves: ['鬼火・ヒノコ・フレイムボア', 'マグマゴーレム・ヘルハウンド・ボルケイノタートル・マグマスライム', 'スルト・アグニ・キマイラ'],
+      win: [1, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '迷宮の暴れ牛', boss: true, boost: { hp: 0.85, str: 0.51 }, rules: [
+        { side: 'enemy', dmgTaken: -0.9, atk: 'phys', label: '敵 物理攻撃で受けるダメージ-90%' },
+        { side: 'ally', dmgDealt: 1.0, atk: 'mag', label: '味方の魔法攻撃 与ダメージ+100%' }],
+      waves: ['オーク・コボルト・ジャッカロープ', 'ヒルジャイアント・ロックゴーレム・デススコーピオン・マッドモール', 'ミノタウロス・アルヴィス・ガーゴイル'],
+      win: [1, 'アグニ・サラマンダー・ヘルハウンド・ボルケイノタートル・マグマゴーレム'], lose: [2, 'グリズリー・オーガ・ケンタウロス・スルト・ワーウルフ'] },
+    { name: '岩の谷', boost: { hp: 0.85, str: 0.51 }, rules: [],
+      waves: ['オーク・コボルト・ガーゴイル', 'ドリュアス・ジャッカロープ・マッドモール・ロックゴーレム', 'ノーム・アルヴィス・土蜘蛛'],
+      win: [1, 'フェンリル・ハティ・ワイバーン・シームルグ・アイオロス'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
+    { name: '霧の湖', boost: { hp: 2.0, str: 1.2 }, rules: [],
+      waves: ['リザードマン・マーメイド・河童', 'ケルピー・ポンドフロッグ・アイスゴーレム・セイレーン', 'クラーケン・リザードマン・ポンドフロッグ'],
+      win: [1, 'グリーンマン・アラクネ・マンイーター・ベヒモス・ドルイド'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '疾風の群れ', boost: { hp: 1.8, str: 1.08 }, rules: [],
+      waves: ['ストームホーク・オオコウモリ・カマイタチ', 'ワイバーン・ゴースト・キラービー・ゼピュロス', 'グリフォン・天狗・ペガサス'],
+      win: [1, '雷電・ミスリルゴーレム・サイクロプス・雷獣・ケットシー'], lose: [2, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '帯電の群れ', boost: { hp: 1.5, str: 0.9 }, rules: [],
+      waves: ['ボルトビートル・ケットシー・ブラックウルフ', 'アイアンスライム・シルバーウルフ・雷獣・キョンシー', 'ミスリルゴーレム・ツインヘッドベア・サイクロプス'],
+      win: [1, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [2, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
+    { name: '渦潮の海', boss: true, boost: { hp: 0.9, str: 0.54 }, rules: [
+        { who: { role: 'shooter' }, side: 'ally', dmgDealt: 2.0, label: 'シューターの味方 与ダメージ+200%' },
+        { who: { roles: ['attacker', 'tank', 'support', 'trickster'] }, side: 'ally', dmgDealt: -0.6, label: 'シューター以外の味方 与ダメージ-60%' }],
+      waves: ['アクアスライム・ポンドフロッグ・ケルピー', 'マーメイド・河童・リザードマン・メリュジーヌ', 'クラーケン・セイレーン・イエティ'],
+      win: [1, 'ケンタウロス・ハティ・シームルグ・ダークメカロイド・メデューサ'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・ミノタウロス'] },
+    { name: '灼熱の間', boost: { hp: 2.0, str: 1.2 }, rules: [],
+      waves: ['フレイムリザード・マグマスライム・アグニ', 'キマイラ・スコル・鬼火・フレイムボア', 'ケルベロス・ヘパイストス・マグマゴーレム'],
+      win: [1, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '蔦の回廊', boost: { hp: 0.9, str: 0.54 }, rules: [],
+      waves: ['マンドラゴラ・マイコニド・トレント', 'ハノコ・モスボア・コカトリス・マンイーター', 'アラクネ・ブラッドローズ・ドルイド'],
+      win: [1, 'ヘルハウンド・キマイラ・アグニ・マグマゴーレム・サラマンダー'], lose: [2, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '地底の坑道', boost: { hp: 0.9, str: 0.54 }, rules: [],
+      waves: ['ヒルジャイアント・マッドモール・ノッカー', 'ガーゴイル・デススコーピオン・オーク・ドリュアス', 'ブロック・ミノタウロス・ジャッカロープ'],
       win: [1, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
+    { name: '深みの主', boost: { hp: 1.6, str: 0.96 }, rules: [],
+      waves: ['ケルピー・ポンドフロッグ・リザードマン', 'マーメイド・ユミル・リザードマン・メリュジーヌ', 'クラーケン・ケルピー・セイレーン'],
+      win: [1, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '地獄の番犬', boss: true, boost: { hp: 2.9, str: 1.74 }, rules: [
+        { side: 'ally', dmgTaken: 1.5, when: 'burned', label: '味方 やけど状態のあいだ 受けるダメージ+150%' },
+        { who: { element: 'water' }, side: 'ally', immune: ['burn'], stat: { hp: 0.5 }, label: '水属性の味方 やけどにかからない・最大HP+50%' }],
+      waves: ['ヒノコ・フレイムリザード・マグマスライム', 'ヘルハウンド・フレイムボア・鬼火・アグニ', 'ケルベロス・キマイラ・ボルケイノタートル'],
+      win: [1, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [2, 'ミノタウロス・デススコーピオン・オーク・ジャッカロープ・ドリュアス'] },
+    { name: '嵐の回廊', boost: { hp: 0.45, str: 0.27 }, rules: [],
+      waves: ['キラービー・ゴースト・ペガサス', 'ハティ・ストームホーク・天狗・ワイバーン', 'フェンリル・カマイタチ・アイオロス'],
+      win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '稲妻の道', boost: { hp: 1.35, str: 0.81 }, rules: [],
+      waves: ['アイアンスライム・キョンシー・シルバーウルフ', 'ダークメカロイド・ボルトビートル・ブラックウルフ・ケットシー', '雷電・雷獣・ツインヘッドベア'],
+      win: [1, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [2, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
+    { name: '毒の茂み', boost: { hp: 1.1, str: 0.66 }, rules: [],
+      waves: ['ゴブリン弓兵・ドルイド・ハノコ', 'エルダートレント・アラクネ・マンドラゴラ・モススライム', 'ベヒモス・コカトリス・トレント'],
+      win: [1, 'スルト・ケルベロス・キマイラ・九尾の狐・サラマンダー'], lose: [2, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '溶岩の河', boost: { hp: 0.8, str: 0.48 }, rules: [],
+      waves: ['ヒノコ・ボルケイノタートル・ヘルハウンド', 'サラマンダー・牛鬼・フレイムリザード・鬼火', 'フェニクス・スルト・スコル'],
+      win: [1, 'クラーケン・ユミル・ウンディーネ・ケルピー・セイレーン'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '天空の覇者', boss: true, boost: { hp: 1.0, str: 0.6 }, rules: [
+        { side: 'enemy', stat: { spd: 0.4 }, label: '敵 SPD+40%' },
+        { who: { element: 'thunder' }, side: 'ally', dmgDealt: 1.5, label: '雷属性の味方 与ダメージ+150%' },
+        { side: 'enemy', dmgTaken: -0.85, fromElemNot: 'thunder', label: '敵 雷属性以外から受けるダメージ-85%' }],
+      waves: ['ストームホーク・キラービー・オオコウモリ', 'カマイタチ・ペガサス・ゴースト・ゼピュロス', 'グリフォン・ハルピュイア・ワイバーン'],
+      win: [1, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [2, 'スルト・ヘルハウンド・キマイラ・ケルベロス・サラマンダー'] },
+    { name: '潮騒の間', boost: { hp: 1.6, str: 0.96 }, rules: [],
+      waves: ['マーメイド・河童・アクアスライム', 'ケルピー・ポンドフロッグ・ウンディーネ・リザードマン', 'クラーケン・マーメイド・イエティ'],
+      win: [1, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [2, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '石の番人', boost: { hp: 0.5, str: 0.3 }, rules: [],
+      waves: ['ロックゴーレム・コボルト・ジャッカロープ', '土蜘蛛・アルヴィス・ノッカー・ヒルジャイアント', 'タイタン・ノーム・デススコーピオン'],
+      win: [1, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
+    { name: '空の回廊', boost: { hp: 0.9, str: 0.54 }, rules: [],
+      waves: ['カマイタチ・ストームホーク・天狗', 'シームルグ・ハルピュイア・オオコウモリ・ゴースト', 'グリフォン・ワイバーン・ハティ'],
+      win: [1, '雷電・ミスリルゴーレム・サイクロプス・雷獣・ケットシー'], lose: [2, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '雷雲の間', boost: { hp: 1.9, str: 1.14 }, rules: [],
+      waves: ['ケットシー・ブラックウルフ・ボルトビートル', 'サイクロプス・アイアンスライム・ツインヘッドベア・シルバーウルフ', 'ミスリルゴーレム・キョンシー・ダークメカロイド'],
+      win: [1, 'タロース・タイタン・ミノタウロス・デススコーピオン・ノーム'], lose: [2, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
+    { name: 'ミスリルの盾', boss: true, boost: { hp: 1.3, str: 0.78 }, rules: [
+        { side: 'ally', dmgDealt: 2.0, when: 'shielded', label: '味方 シールドを持っているあいだ 与ダメージ+200%' },
+        { side: 'ally', shield: 1.0, label: '味方 シールドの効果量+100%' },
+        { side: 'ally', dmgTaken: 1.5, when: 'unshielded', label: '味方 シールドが無いあいだ 受けるダメージ+150%' }],
+      waves: ['シルバーウルフ・ボルトビートル・アイアンスライム', 'キョンシー・ケットシー・ブラックウルフ・雷獣', 'ミスリルゴーレム・ダークメカロイド・ツインヘッドベア'],
+      win: [1, 'タイタン・ノーム・ブロック・ノッカー・カーバンクル'], lose: [2, 'スルト・ヘルハウンド・キマイラ・ケルベロス・フレイムボア'] },
+    { name: '炎の神殿', boost: { hp: 1.5, str: 0.9 }, rules: [],
+      waves: ['マグマスライム・フレイムボア・キマイラ', 'ヘパイストス・ロキ・アグニ・マグマゴーレム', '九尾の狐・牛鬼・ケルベロス'],
+      win: [2, 'クラーケン・ユミル・ウンディーネ・ケルピー・セイレーン'], lose: [3, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '古樹の森', boost: { hp: 2.3, str: 1.38 }, rules: [],
+      waves: ['モスボア・マイコニド・ブラッドローズ', 'マンイーター・コカトリス・ドルイド・ゴブリン弓兵', 'グリーンマン・エルダートレント・ハノコ'],
+      win: [2, 'スルト・ケルベロス・キマイラ・九尾の狐・サラマンダー'], lose: [3, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '巨人の歩廊', boost: { hp: 1.7, str: 1.02 }, rules: [],
+      waves: ['ドリュアス・オーク・マッドモール', 'ミノタウロス・ガーゴイル・土蜘蛛・コボルト', 'タロース・ブロック・アルヴィス'],
+      win: [2, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [3, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
+    { name: '海神の庭', boost: { hp: 1.6, str: 0.96 }, rules: [],
+      waves: ['ポンドフロッグ・ケルピー・セイレーン', 'リザードマン・クラーケン・アイスゴーレム・マーメイド', 'リヴァイアサン・シースライム・ケルピー'],
+      win: [2, 'グリーンマン・アラクネ・マンイーター・ベヒモス・ドルイド'], lose: [3, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '石化の眼差し', boss: true, boost: { hp: 2.7, str: 1.62 }, rules: [
+        { who: { element: 'light' }, side: 'ally', immune: BB_DEBUFFS, dmgDealt: 1.0, label: '光属性の味方 状態異常にかからない・与ダメージ+100%' },
+        { side: 'enemy', dmgTaken: -0.6, fromElemNot: 'light', label: '敵 光属性以外から受けるダメージ-60%' }],
+      waves: ['猫又・サキュバス・ヴェノムスライム', 'ゴブリンシャーマン・のっぺらぼう・ジャイアントスパイダー・レッドキャップ', 'メデューサ・黙示のアルベ・ゲヘナの騎士'],
+      win: [2, 'ペルセウス・ホーリードラゴン・ユニコーン・カーバンクル・オルペウス'], lose: [3, 'クラーケン・シースライム・セルキー・ケルピー・マーメイド'] },
+    { name: '雷霆の王', boost: { hp: 3.2, str: 1.92 }, rules: [],
+      waves: ['シルバーウルフ・キョンシー・ブラックウルフ', '雷獣・ダークメカロイド・ケットシー・ボルトビートル', '雷電・サイクロプス・アイアンスライム'],
+      win: [2, 'タロース・タイタン・ミノタウロス・デススコーピオン・ノーム'], lose: [3, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
+    { name: '翼の峰', boost: { hp: 1.3, str: 0.78 }, rules: [],
+      waves: ['オオコウモリ・ペガサス・ゼピュロス', 'アイオロス・キラービー・カマイタチ・シームルグ', 'フェンリル・ハルピュイア・天狗'],
+      win: [2, '雷電・ミスリルゴーレム・サイクロプス・雷獣・ケットシー'], lose: [3, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '業火の門', boost: { hp: 1.8, str: 1.08 }, rules: [],
+      waves: ['鬼火・アグニ・スコル', 'フェニクス・ヘルハウンド・サラマンダー・ボルケイノタートル', 'バハムート・ロキ・スルト'],
+      win: [2, 'クラーケン・ユミル・ウンディーネ・ケルピー・セイレーン'], lose: [3, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '魔森の主', boost: { hp: 1.7, str: 1.02 }, rules: [],
+      waves: ['トレント・マンドラゴラ・アラクネ', 'ベヒモス・ハノコ・ブラッドローズ・モスボア', 'グリーンマン・マンイーター・コカトリス'],
+      win: [2, 'スルト・ケルベロス・キマイラ・九尾の狐・サラマンダー'], lose: [3, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '青銅の巨人', boss: true, boost: { hp: 0.8, str: 0.48 }, rules: [
+        { side: 'ally', dmgDealt: 3.0, whenTarget: 'poisoned', label: '味方 毒状態の敵へ 与ダメージ+300%' },
+        { side: 'enemy', dmgTaken: -0.8, when: 'unpoisoned', label: '敵 毒状態でないあいだ 受けるダメージ-80%' }],
+      waves: ['ガーゴイル・ロックゴーレム・ヒルジャイアント', 'ブロック・アルヴィス・ノーム・ドリュアス', 'タロース・タイタン・土蜘蛛'],
+      win: [2, 'アラクネ・ベヒモス・メデューサ・デススコーピオン・ヴェノムスライム'], lose: [3, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'] },
+    { name: '氷の宮殿', boost: { hp: 1.5, str: 0.9 }, rules: [],
+      waves: ['リザードマン・マーメイド・ブルーウィスプ', 'ユミル・クラーケン・ケルピー・ポンドフロッグ', 'リヴァイアサン・リザードマン・セルキー'],
+      win: [2, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [3, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '雷光の塔', boost: { hp: 2.6, str: 1.56 }, rules: [],
+      waves: ['ボルトビートル・ツインヘッドベア・ケットシー', 'キョンシー・ミスリルゴーレム・シルバーウルフ・ブラックウルフ', '雷電・ダークメカロイド・雷獣'],
+      win: [2, 'タロース・タイタン・ミノタウロス・デススコーピオン・ノーム'], lose: [3, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
+    { name: '天翔ける群れ', boost: { hp: 2.1, str: 1.26 }, rules: [],
+      waves: ['ゴースト・ワイバーン・ストームホーク', 'グリフォン・ゼピュロス・キラービー・アイオロス', 'ハティ・シームルグ・ペガサス'],
+      win: [2, '雷電・ミスリルゴーレム・サイクロプス・雷獣・ケットシー'], lose: [3, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '大地の砦', boost: { hp: 1.3, str: 0.78 }, rules: [],
+      waves: ['アルヴィス・ノッカー・デススコーピオン', 'ロックゴーレム・ノーム・ジャッカロープ・オーク', 'タイタン・ミノタウロス・ドリュアス'],
+      win: [2, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'], lose: [3, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
+    { name: '大海嘯', boss: true, boost: { hp: 0.4, str: 0.24 }, rules: [
+        { side: 'enemy', stat: { str: 0.8 }, label: '敵 STR+80%' },
+        { who: { role: 'support' }, side: 'ally', dmgDealt: 2.0, stat: { hp: 0.5 }, label: 'サポートの味方 与ダメージ+200%・最大HP+50%' },
+        { side: 'ally', dmgDealt: -0.8, dmgTaken: 0.5, when: 'lowHp50', label: '味方 HPが50%以下のあいだ 与ダメージ-80%・受けるダメージ+50%' }],
+      waves: ['セイレーン・マーメイド・ポンドフロッグ', 'ユミル・ウンディーネ・セルキー・ケルピー', 'リヴァイアサン・シースライム・クラーケン'],
+      win: [2, 'ユニコーン・ホーリードラゴン・ウンディーネ・アラクネ・グリーンマン'], lose: [3, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・ダークメカロイド'] },
+    { name: '腐海の奥', boost: { hp: 1.8, str: 1.08 }, rules: [],
+      waves: ['ハノコ・コカトリス・マイコニド', 'アラクネ・エルダートレント・ドルイド・ブラッドローズ', 'ベヒモス・グリーンマン・マンイーター'],
+      win: [2, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [3, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '紅蓮の座', boost: { hp: 1.9, str: 1.14 }, rules: [],
+      waves: ['フレイムリザード・キマイラ・マグマゴーレム', '牛鬼・ヘパイストス・ケルベロス・ヒノコ', '九尾の狐・フェニクス・サラマンダー'],
+      win: [2, 'シースライム・リヴァイアサン・クラーケン・ウンディーネ・イエティ'], lose: [3, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '深海の底', boost: { hp: 1.0, str: 0.6 }, rules: [],
+      waves: ['ケルピー・ポンドフロッグ・河童', 'クラーケン・マーメイド・イエティ・リザードマン', 'シースライム・リヴァイアサン・セイレーン'],
+      win: [2, 'グリーンマン・アラクネ・マンイーター・ベヒモス・ドルイド'], lose: [3, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '雷神の庭', boost: { hp: 2.1, str: 1.26 }, rules: [],
+      waves: ['アイアンスライム・雷獣・シルバーウルフ', 'ツインヘッドベア・サイクロプス・ボルトビートル・キョンシー', 'ミスリルゴーレム・雷電・ケットシー'],
+      win: [2, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [3, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
+    { name: '竜王の座', boss: true, boost: { hp: 0.9, str: 0.54 }, rules: [
+        { side: 'enemy', stat: { str: 0.4 }, label: '敵 STR+40%' },
+        { who: { role: 'attacker' }, side: 'ally', stat: { str: 1.5 }, label: 'アタッカーの味方 STR+150%' },
+        { who: { roles: ['shooter', 'tank', 'support', 'trickster'] }, side: 'ally', dmgDealt: -0.7, label: 'アタッカー以外の味方 与ダメージ-70%' }],
+      waves: ['フレイムリザード・フレイムボア・スコル', 'サラマンダー・ヘパイストス・牛鬼・フェニクス', 'バハムート・九尾の狐・ロキ'],
+      win: [2, 'シースライム・クラーケン・ケルピー・リザードマン・ミノタウロス'], lose: [3, 'タイタン・ノーム・ブロック・ノッカー・ドリュアス'] },
+    { name: '鉄壁の山', boost: { hp: 1.4, str: 0.84 }, rules: [],
+      waves: ['ジャッカロープ・ヒルジャイアント・ドリュアス', 'ブロック・デススコーピオン・マッドモール・ガーゴイル', 'タロース・土蜘蛛・ノーム'],
+      win: [3, 'フェンリル・ハティ・ワイバーン・シームルグ・アイオロス'], lose: [4, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
+    { name: '烈風の頂', boost: { hp: 1.2, str: 0.72 }, rules: [],
+      waves: ['天狗・キラービー・ハルピュイア', 'フェンリル・ゴースト・ワイバーン・カマイタチ', 'グリフォン・アイオロス・ゼピュロス'],
+      win: [3, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [4, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '煉獄の底', boost: { hp: 1.6, str: 0.96 }, rules: [],
+      waves: ['スコル・ロキ・ボルケイノタートル', 'ケルベロス・スルト・ヘパイストス・牛鬼', 'バハムート・九尾の狐・フェニクス'],
+      win: [3, 'シースライム・リヴァイアサン・クラーケン・ウンディーネ・イエティ'], lose: [4, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
+    { name: '世界樹の根', boost: { hp: 1.7, str: 1.02 }, rules: [],
+      waves: ['ドルイド・モスボア・マンイーター', 'コカトリス・ベヒモス・ハノコ・トレント', 'グリーンマン・アラクネ・エルダートレント'],
+      win: [3, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [4, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
+    { name: '死神の大鎌', boss: true, boost: { hp: 2.5, str: 1.5 }, rules: [
+        { side: 'enemy', dmgDealt: 0.6, perFoeDown: true, label: '敵 倒れた味方1体ごとに 与ダメージ+60%' },
+        { who: { species: 'undead' }, side: 'ally', dmgDealt: 2.0, dmgTaken: -0.5, label: 'アンデッドの味方 与ダメージ+200%・受けるダメージ-50%' },
+        { who: { notSpecies: 'undead' }, side: 'ally', dmgTaken: 1.0, label: 'アンデッド以外の味方 受けるダメージ+100%' }],
+      waves: ['スケルトン戦士・スケルトン弓兵・ゾンビ', 'マミー・ゴースト・キョンシー・バンシー', '死神・デュラハン・ドラウグル'],
+      win: [3, '死神・デュラハン・ドラウグル・バンシー・マミー'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
+    { name: '大渦の果て', boost: { hp: 1.6, str: 0.96 }, rules: [],
+      waves: ['マーメイド・セルキー・ケルピー', 'クラーケン・リザードマン・ユミル・ポンドフロッグ', 'シースライム・リヴァイアサン・マーメイド'],
+      win: [3, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [4, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
+    { name: '天雷の座', boost: { hp: 2.6, str: 1.56 }, rules: [],
+      waves: ['ブラックウルフ・ダークメカロイド・キョンシー', '雷獣・サイクロプス・アイアンスライム・ケットシー', '雷電・ミスリルゴーレム・ツインヘッドベア'],
+      win: [3, 'タイタン・ノーム・ロックゴーレム・ミノタウロス・グリーンマン'], lose: [4, 'ゼピュロス・グリフォン・ペガサス・ハルピュイア・アイオロス'] },
+    { name: '大地の玉座', boost: { hp: 1.1, str: 0.66 }, rules: [],
+      waves: ['土蜘蛛・ノッカー・コボルト', 'タイタン・アルヴィス・ロックゴーレム・デススコーピオン', 'タロース・ミノタウロス・ブロック'],
+      win: [3, 'フェンリル・ハティ・ワイバーン・シームルグ・アイオロス'], lose: [4, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
+    { name: '天空の果て', boost: { hp: 0.7, str: 0.42 }, rules: [],
+      waves: ['シームルグ・カマイタチ・ペガサス', 'ハティ・アイオロス・ハルピュイア・天狗', 'フェンリル・グリフォン・ワイバーン'],
+      win: [3, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [4, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
+    { name: '聖竜の頂', boss: true, boost: { hp: 2.9, str: 1.74 }, rules: [
+        { side: 'enemy', immune: BB_DEBUFFS, label: '敵 状態異常にかからない' },
+        { who: { element: 'dark' }, side: 'ally', dmgDealt: 1.0, label: '闇属性の味方 与ダメージ+100%' },
+        { side: 'enemy', dmgTaken: -0.6, fromElemNot: 'dark', label: '敵 闇属性以外から受けるダメージ-60%' }],
+      waves: ['ホーリースライム・ピクシー・ウィスプ', 'ユニコーン・カーバンクル・エオス・スカラベ', 'ホーリードラゴン・ペルセウス・オルペウス'],
+      win: [3, 'アバドン・死神・デュラハン・ドラウグル・メデューサ'], lose: [4, 'フェンリル・グリフォン・ハルピュイア・ゼピュロス・ハティ'] },
   ],
   /* 秩序の塔: セレスティア・ヒューム・エルフ・マキナ・ドワーフ(63体)。敵は混沌側の5種族 */
   order: [
@@ -17545,7 +17795,13 @@ const BABEL_FLOORS = {
    どの階も同じにした。5階ごと(2パーティ戦の階)だけ倍にしている。
    星結晶は1塔600・3塔で1,800。メインクエスト1本(10ステージ)が440なので、30階で4本ぶん。
    塔ごとの素材は性格に合わせて分ける(均衡=育てる / 秩序=遺物 / 混沌=ソウル) */
-const BABEL_CRYSTAL = [50, 50, 50, 50, 100, 50, 50, 50, 50, 100];
+const BABEL_CRYSTAL = [50, 50, 50, 50, 100, 50, 50, 50, 50, 100];   // 秩序・混沌の塔(10階)
+// 均衡の塔(60階): ふつうの階 20・ボスの階 50(1〜60階で 48×20 + 12×50 = 1,560)
+const BABEL_CRYSTAL_BAL = { normal: 20, boss: 50 };
+function babelCrystal(towerKey, floorNo){
+  if(towerKey === 'bal') return floorNo % 5 === 0 ? BABEL_CRYSTAL_BAL.boss : BABEL_CRYSTAL_BAL.normal;
+  return BABEL_CRYSTAL[floorNo - 1] || 0;
+}
 const BABEL_TOWER_MAT = {
   bal:   { s: [{ type: 'item', key: 'exp2', n: 2 }],         m: [{ type: 'item', key: 'exp3', n: 3 }] },
   order: { s: [{ type: 'item', key: 'relic_core_1', n: 2 }], m: [{ type: 'item', key: 'relic_core_2', n: 3 }] },
@@ -17554,6 +17810,11 @@ const BABEL_TOWER_MAT = {
 function babelFloorReward(towerKey, floorNo){
   const mat = BABEL_TOWER_MAT[towerKey] || BABEL_TOWER_MAT.bal;
   const out = [];
+  // 均衡の塔: ふつうの階は星結晶だけ。ボスの階はワザ素材BOX(5・15・25…はTierⅢ、10・20・30…はTierⅣ)とEXPポット大×3
+  if(towerKey === 'bal'){
+    if(floorNo % 5 === 0) out.push({ type: 'item', key: floorNo % 10 === 0 ? 'box_sel_4' : 'box_sel_3', n: 1 }, ...mat.m);
+    return out;
+  }
   // ふつうの階は偶数階に素材が少し。5階ごとはワザ素材のBOXと、塔ごとの素材
   if(floorNo % 5 !== 0 && floorNo % 2 === 0) out.push(...mat.s);
   if(floorNo % 5 === 0) out.push({ type: 'item', key: floorNo === 10 ? 'box_sel_4' : 'box_sel_3', n: 1 }, ...mat.m);
@@ -17570,8 +17831,9 @@ function babelFloorCleared(towerKey, floorNo){
 }
 // いま挑める階(1階から順に、前の階をクリアすると次が開く)
 function babelOpenFloor(towerKey){
-  for(let f = 1; f <= 10; f++) if(!babelFloorCleared(towerKey, f)) return f;
-  return 11;
+  const n = babelFloorCount(towerKey);
+  for(let f = 1; f <= n; f++) if(!babelFloorCleared(towerKey, f)) return f;
+  return n + 1;
 }
 const MON_BY_NAME = Object.fromEntries(MONSTERS.map(m => [m.name, m.id]));
 function bbIds(text){
@@ -17582,20 +17844,24 @@ function babelStage(towerKey, floorNo){
   const fl = BABEL_FLOORS[towerKey] && BABEL_FLOORS[towerKey][floorNo - 1];
   if(!fl) return null;
   const part = fl;
-  const [mob, boss, sk] = BABEL_STRENGTH[floorNo - 1];
+  const [mob, boss, sk] = babelStrength(towerKey, floorNo);
   const tower = BABEL_TOWERS.find(t => t.key === towerKey);
+  const cap = towerKey === 'bal' ? BABEL_ENEMY_STAR_CAP : ENEMY_STAR_CAP;
   const waves = part.waves.map((text, wi) => bbIds(text).map((ref, i) => {
     const isBoss = wi === part.waves.length - 1 && i === 0;
-    return { ref, level: BABEL_LV, star: Math.min(ENEMY_STAR_CAP, Math.max(MON_BY_ID[ref].rarity, isBoss ? boss : mob)), boss: isBoss || undefined };
+    return { ref, level: BABEL_LV, star: Math.min(cap, Math.max(MON_BY_ID[ref].rarity, isBoss ? boss : mob)), boss: isBoss || undefined };
   }));
+  const bossRef = waves[waves.length - 1][0].ref;
+  const bossRules = fl.boss ? [{ who: { ref: bossRef }, side: 'enemy', stat: { ...BABEL_BOSS_UP },
+    label: `ボス「${MON_BY_ID[bossRef].name}」 最大HP${pctSigned(BABEL_BOSS_UP.hp)}・STR${pctSigned(BABEL_BOSS_UP.str)}` }] : [];
   return {
     id: `bb_${towerKey}_${floorNo}`, type: 'babel', tier: 'babel', babel: { tower: towerKey, floor: floorNo },
     name: `${tower.name} ${floorNo}階「${fl.name}」`,
     requires: floorNo > 1 ? babelLastId(towerKey, floorNo - 1) : null,   // 前の階をクリアすると開く
-    firstClear: BABEL_CRYSTAL[floorNo - 1],
+    firstClear: babelCrystal(towerKey, floorNo),
     reward: babelFloorReward(towerKey, floorNo),
     rec: BABEL_LV, flatLv: true, stamina: 0, power: 1, enemySkill: sk, boss: true, gold: 0,
-    rules: [...(fl.rules || []), ...babelBoostRules(fl.boost)], waves,
+    rules: [...(fl.rules || []), ...bossRules, ...babelBoostRules(fl.boost)], waves, bossFloor: !!fl.boss,
   };
 }
 // 塔の敵の底上げ(階ごと)。条件に合わせた編成なら勝てて、合わせないと厳しい強さに合わせる(tools/babel_tune.js で決める)
@@ -25581,7 +25847,7 @@ const LAB_PARTY = 5;
 let lab = null;   // { tower, floor, parties:[[slot×5],[slot×5]], pick:{p,i}|null, fEl, fRole, sim }
 function labSlot(id, g){
   const m = MON_BY_ID[id], gr = BABEL_GROW[g] || BABEL_GROW[0];
-  const star = Math.min(MAX_STAR, m.rarity + gr.star);
+  const star = Math.min(MAX_STAR, Math.max(m.rarity + gr.star, gr.starMin || 0));
   return { id, star, sk: Math.min(SKILL_LV_CAP, gr.sk), rune: gr.rune, relic: gr.relic ? labBestRelic(m, gr.relic[0]) : null, rlv: gr.relic ? gr.relic[1] : 0, rsk: gr.relic ? gr.relic[2] : 1, rdupe: gr.relic ? gr.relic[3] : 0 };
 }
 /* 遺物: 試験場では「遺物Lv」1つで強さを決める(Lv200 = スキルLv10・4凸のカンスト)。
@@ -25613,7 +25879,7 @@ function labLoad(){
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem(LAB_KEY) || 'null'); }catch(e){}
   lab = { tower: 'bal', floor: 1, parties: [Array(LAB_PARTY).fill(null), Array(LAB_PARTY).fill(null)], pick: null, fEl: '', fRole: '', sim: null };
-  if(saved && BABEL_FLOORS[saved.tower] && saved.floor >= 1 && saved.floor <= 10){
+  if(saved && BABEL_FLOORS[saved.tower] && saved.floor >= 1 && saved.floor <= babelFloorCount(saved.tower)){
     lab.tower = saved.tower; lab.floor = saved.floor;
     const ok = s => s && MON_BY_ID[s.id] ? labClamp({ ...s }) : null;
     if(Array.isArray(saved.parties)) lab.parties = [0, 1].map(p => [...Array(LAB_PARTY).keys()].map(i => ok(saved.parties[p] && saved.parties[p][i])));
@@ -25798,12 +26064,123 @@ function labSimHtml(){
     <div class="lab-note">目安: 勝てる想定は80%以上、勝てない想定は20%以下</div>
   </div>`;
 }
+/* 階の表示: 各WAVEの敵を、戦闘と同じ前衛/後衛の並び(spawnWave と同じ waveFormationOf + placeRows)で出す。
+   タップすると、その★・スキルLvでのワザ(通常・スキル1・スキル2・パッシブ・奥義)と星刻が見られる(labUnitDetail) */
+function labWaveRows(stage, wi){
+  const f = waveFormationOf(stage, wi);
+  const w = stage.waves[wi];
+  const rowOf = e => e.row || preferredRow(MON_BY_ID[e.ref].role);
+  const slots = placeRows(w.filter(e => rowOf(e) === 'front'), w.filter(e => rowOf(e) === 'back'), f, e => MON_BY_ID[e.ref].role);
+  const front = [], back = [];
+  slots.forEach((e, i) => { if(e) (slotRowIn(f, i) === 'front' ? front : back).push({ e, i: w.indexOf(e) }); });
+  return { front, back };
+}
+function labUnitCardHtml(ref, act, info){
+  const m = MON_BY_ID[ref];
+  return `<button class="lab-u ${info.boss ? 'boss' : ''}" data-lab="${act}" title="${m.name}のワザを見る">
+    ${info.boss ? '<em class="lab-boss-tag">BOSS</em>' : ''}<img src="${imgSrc(ref)}" alt=""><small>${m.name}</small>
+    <i>${ELEM_LABEL[m.element]}・${ROLE_LABEL[m.role]}</i><i class="lab-u-st">★${info.star}・Lv${info.lv}</i><i>スキルLv${info.sk}</i><i>パッシブLv${info.pv}</i>${(info.extra || '').split('・').filter(Boolean).map(x => `<i>${x}</i>`).join('')}</button>`;
+}
+function labFormationHtml(front, back, card){
+  const row = (label, list) => `<div class="lab-row"><span class="lab-rl">${label}${list.length ? '' : ' なし'}</span>${list.length ? `<div class="lab-row-units">${list.map(card).join('')}</div>` : ''}</div>`;
+  return row('後衛', back) + row('前衛', front);
+}
 function labEnemyHtml(part){
   const st = babelStage(lab.tower, lab.floor, part);
-  return st.waves.map((w, wi) => `<div class="lab-wave"><span class="lab-wl">W${wi + 1}</span>${w.map(e => {
-    const m = MON_BY_ID[e.ref];
-    return `<span class="lab-en ${e.boss ? 'boss' : ''}"><img src="${imgSrc(e.ref)}" alt=""><small>${e.boss ? UI_ICON.crown : ''}${m.name}</small><i>${ELEM_LABEL[m.element]}・★${e.star}</i></span>`;
-  }).join('')}</div>`).join('');
+  const sk = Math.min(SKILL_LV_CAP, st.enemySkill || 1), pv = passiveFromSkillLv(sk);
+  return st.waves.map((w, wi) => {
+    const { front, back } = labWaveRows(st, wi);
+    const card = x => labUnitCardHtml(x.e.ref, `unit:e:${wi}:${x.i}`, { boss: x.e.boss, star: x.e.star, lv: x.e.level, sk, pv });
+    return `<div class="lab-bw"><div class="lab-bwl">WAVE ${wi + 1}<small>${w.length}体${wi === st.waves.length - 1 ? '・先頭がボス' : ''}</small></div><div class="lab-wave-rows">${labFormationHtml(front, back, card)}</div></div>`;
+  }).join('');
+}
+// 想定の編成(勝てる / 勝てない)を、戦闘と同じ並び(labBuildParty と同じ lineupFromList)で出す
+function labHintSlots(kind){
+  const h = labFloor()[kind];
+  if(!h || typeof h[1] !== 'string') return null;
+  return labFill(h[1], h[0]);
+}
+function labPartyRows(slotsIn){
+  const slots = slotsIn.filter(Boolean), ids = slots.map(s => s.id);
+  const fk = formationForFrontCount(Math.max(1, ids.filter(id => isMeleeRole(MON_BY_ID[id].role)).length)).key;
+  const f = getFormation(fk), front = [], back = [];
+  lineupFromList(ids, fk).forEach((id, i) => { if(id) (slotRowIn(f, i) === 'front' ? front : back).push({ s: slots.find(x => x.id === id), i: slotsIn.findIndex(x => x && x.id === id) }); });
+  return { front, back };
+}
+function labSlotExtra(s){
+  return `${s.rune ? `ルーン${RUNE_ROMAN[s.rune - 1]}` : 'ルーンなし'}${s.relic && s.rlv ? `・遺物★${RELICS[s.relic].star}` : ''}`;
+}
+function labHintHtml(kind){
+  const slots = labHintSlots(kind);
+  if(!slots) return '';
+  const h = labFloor()[kind];
+  const { front, back } = labPartyRows(slots);
+  const card = x => labUnitCardHtml(x.s.id, `unit:${kind}:${x.i}`, { star: x.s.star, lv: BABEL_LV, sk: x.s.sk, pv: passiveFromSkillLv(x.s.sk), extra: labSlotExtra(x.s) });
+  return `<div class="lab-hint-box ${kind}">
+    <div class="lab-hint-head"><b>${kind === 'win' ? '勝てる想定' : '勝てない想定'}</b><small>${BABEL_GROW[h[0]].name}${kind === 'lose' ? '(1段上の育ち)' : ''}</small>
+      <button class="btn btn-sm ${kind === 'win' ? '' : 'btn-ghost'}" data-lab="hint:${kind}">編成に入れる</button></div>
+    ${labFormationHtml(front, back, card)}</div>`;
+}
+/* キャラの詳細(試験場)。図鑑のプレビューと同じ形で、ワザはその★・スキルLvの値、星刻はその★で開いているものが光る。
+   能力値は、この階で戦うときの値(ステージ効果・塔の底上げ込み。陣形の補正は入れない) */
+function labUnitDetail(src, a, b){
+  const st = babelStage(lab.tower, lab.floor, 0);
+  let ref, star, sk, u, note;
+  if(src === 'e'){
+    const e = st.waves[a] && st.waves[a][b];
+    if(!e) return;
+    ref = e.ref; star = e.star; sk = Math.min(SKILL_LV_CAP, st.enemySkill || 1);
+    u = buildUnit(MON_BY_ID[ref], e.level, true, star, e.boss, 1, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: passiveFromSkillLv(sk) });
+    applyStageRules(u, st, true);
+    note = `敵・WAVE ${a + 1}${e.boss ? '・ボス' : ''}`;
+  }else{
+    const slots = labHintSlots(src), s = slots && slots[a];
+    if(!s) return;
+    ref = s.id; star = s.star; sk = s.sk;
+    const m = MON_BY_ID[ref];
+    u = buildUnit(m, 1, false, star, false, BABEL_LV, { skillLv: sk, skill2Lv: sk, ultLv: sk, passiveLv: passiveFromSkillLv(sk) });
+    applyRuneBonusToUnit(u, labRuneBonus(m.role, s.rune, s.star));
+    if(s.relic && s.rlv > 0) applyRelicCore(u, m, RELICS[s.relic], labRelicState(s));
+    applyStageRules(u, st, false);
+    note = `${src === 'win' ? '勝てる想定' : '勝てない想定'}(${BABEL_GROW[labFloor()[src][0]].name})・${labSlotExtra(s)}${s.relic && s.rlv ? ` ${RELICS[s.relic].name} Lv${s.rlv}・遺物スキルLv${s.rsk}・${s.rdupe}凸` : ''}`;
+  }
+  const m = MON_BY_ID[ref], pv = passiveFromSkillLv(sk);
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal detail-modal lab-unit-modal" data-mon="${ref}" role="dialog" aria-label="${m.name}の詳細">
+      <button class="detail-close" data-close-detail="1">×</button>
+      <div class="detail-head elem-${m.element}">
+        <img src="${imgSrc(m.id)}" alt="${m.name}">
+        <div class="dh-body">
+          <div class="detail-sub">${starsHtml(m.rarity, star)}</div>
+          <div class="detail-name">${m.name}</div>
+          <div class="detail-tags">
+            <span class="elem-tag elem-${m.element}">${ELEM_ICON[m.element]} ${ELEM_LABEL[m.element]}</span>
+            <span class="role-tag">${ROLE_ICON[m.role]}${ROLE_LABEL[m.role]}</span>
+            <span class="role-tag species-tag">${SPECIES_ICON[speciesOf(m)]}${SPECIES_LABEL[speciesOf(m)]}</span>
+          </div>
+          <div class="detail-family">Lv${u.level}・★${star}・スキルLv${sk}・パッシブLv${pv}</div>
+        </div>
+      </div>
+      <div class="lab-unit-note">${escapeHtml(note)}</div>
+      <div class="panel panel-tight detail-stats">
+        <div class="mc-head">この階での能力値<small class="mc-sub">ステージ効果・塔の底上げ込み</small></div>
+        <div class="stat-grid">
+          <div class="stat-row"><span>HP</span><b>${u.maxHp.toLocaleString()}</b></div>
+          <div class="stat-row"><span>STR</span><b>${u.str.toLocaleString()}</b></div>
+          <div class="stat-row"><span>物理防御</span><b>${u.pdef}</b></div>
+          <div class="stat-row"><span>魔法防御</span><b>${u.mdef}</b></div>
+          <div class="stat-row"><span>SPD</span><b>${u.spd}</b></div>
+          <div class="stat-row"><span>ヘイト</span><b>${m.hate}</b></div>
+        </div>
+      </div>
+      <div class="panel panel-tight detail-skill-box">
+        <div class="mc-head">ワザ</div>
+        <div class="lab-unit-note">スキルLv${sk}・パッシブLv${pv}での値。星刻は★${star}までに開いたもの(光っているもの)が効いています</div>
+        ${kitLinesHtml(m, star, { skillLv: sk, skill2Lv: sk, ultLv: sk }, null)}
+      </div>
+    </div>`;
+  layer.classList.add('show');
 }
 function labSlotHtml(p, i){
   const s = lab.parties[p][i], on = lab.pick && lab.pick.p === p && lab.pick.i === i;
@@ -25838,25 +26215,26 @@ function labEditorHtml(){
 function renderLab(){
   const fl = labFloor(), tower = BABEL_TOWERS.find(t => t.key === lab.tower), two = labIsTwo();
   const st0 = babelStage(lab.tower, lab.floor, 0);
-  const [mob, boss, sk] = BABEL_STRENGTH[lab.floor - 1];
-  const hintText = kind => { const h = fl[kind]; return h ? `${BABEL_GROW[h[0]].name}` : ''; };
+  const [mob, boss, sk] = babelStrength(lab.tower, lab.floor);
   const parts = two ? [0, 1] : [0];
   return `<div class="lab">
     <div class="lab-head"><b>${UI_ICON.tower} バベル試験場</b><small>試作。本番のデータは使いません。全モンスターを好きな育ちで試せます(レベルは全員200)。組んだ編成はこの端末にだけ覚えます。</small></div>
     <div class="lab-tabs">${BABEL_TOWERS.map(t => `<button class="lab-tab ${t.key === lab.tower ? 'on' : ''}" data-lab="tower:${t.key}">${t.name}<small>${t.note}</small></button>`).join('')}</div>
-    <div class="lab-floors">${[...Array(10).keys()].map(i => `<button class="lab-fl ${lab.floor === i + 1 ? 'on' : ''}" data-lab="floor:${i + 1}">${i + 1}${i === 4 || i === 9 ? '<small>★</small>' : ''}</button>`).join('')}</div>
+    ${babelFloorGridHtml(lab.tower, lab.floor, { attr: 'lab' })}
     <div class="panel lab-card">
-      <div class="lab-title">${lab.floor}階「${fl.name}」${two ? '<span class="lab-2p">2パーティ戦・重複なし</span>' : ''}</div>
-      <div class="lab-meta">敵 Lv${BABEL_LV}・雑魚★${mob} / ボス★${boss}・スキルLv${sk}・使える: ${tower.note}</div>
+      <div class="lab-title">${lab.floor}階「${fl.name}」${fl.boss ? '<span class="lab-2p">ボス戦</span>' : ''}</div>
+      <div class="lab-meta">敵 Lv${BABEL_LV}・雑魚★${mob} / ボス★${boss}(図鑑の★より低くはならない)・スキルLv${sk}・パッシブLv${passiveFromSkillLv(sk)}・使える: ${tower.note}</div>
+      <div class="lab-meta">キャラをタップすると、ワザと星刻が見られます</div>
       ${parts.map(h => { const rs = babelStage(lab.tower, lab.floor, h).rules;
         return `${two ? `<div class="lab-half">${fl.halves[h].label}</div>` : ''}<div class="lab-rules">${rs.length ? rs.map(r => `<div class="${r.side === 'enemy' ? 'en' : ''}">・${r.label}</div>`).join('') : '<div>・ステージ効果なし</div>'}</div>${labEnemyHtml(h)}`; }).join('')}
     </div>
-    <div class="lab-hints">
-      <button class="btn btn-sm" data-lab="hint:win">勝てる想定を入れる(${hintText('win')})</button>
-      <button class="btn btn-ghost btn-sm" data-lab="hint:lose">勝てない想定を入れる(${hintText('lose')})</button>
+    <div class="panel lab-hints-panel">
+      <div class="mc-head">想定の編成</div>
+      <div class="lab-meta">勝てる想定は勝率80%以上、勝てない想定は20%以下が目安。タップでワザが見られます</div>
+      ${labHintHtml('win')}${labHintHtml('lose')}
     </div>
     <div class="lab-grow"><small>全員の育ちをそろえる:</small>${BABEL_GROW.map(g => `<button class="lab-chip" data-lab="grow:${g.key}">${g.name}</button>`).join('')}
-      <span class="lab-grow-note">初心者=★そのまま・Lv1・ルーンなし・遺物なし / 中級=★+2・Lv6・ルーンⅢ・★3遺物Lv50(スキル3) / 上級=★+5・Lv10・ルーンⅦ・★4遺物Lv150(スキル7・2凸) / 超上級=★10・Lv10・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)。遺物は合うものを自動で選ぶ</span></div>
+      <span class="lab-grow-note">初心者=★そのまま・スキルLv1・ルーンなし・遺物なし / 中級=★+2・スキルLv6・ルーンⅢ・★3遺物Lv50(スキル3) / 上級=★+5・スキルLv10・ルーンⅦ・★4遺物Lv150(スキル7・2凸) / 上級+=★9(★5は★10)・スキルLv10・ルーンⅨ・★5遺物Lv180(スキル9・3凸) / 超上級=★10・スキルLv10・ルーンⅩ・★5遺物カンスト(Lv200・スキル10・4凸)。パッシブLvはスキルLvから決まる(Lv10で5)。遺物は合うものを自動で選ぶ</span></div>
     ${parts.map(p => `<div class="panel lab-party">
       <div class="row-between"><div class="mc-head">${two ? (p === 0 ? '前半の編成' : '後半の編成') : '編成'}</div><button class="btn btn-sm" data-lab="watch:${p}">観戦する</button></div>
       <div class="lab-slots">${[...Array(LAB_PARTY).keys()].map(i => labSlotHtml(p, i)).join('')}</div>
@@ -25875,8 +26253,9 @@ function labAction(a){
   if(cmd === 'back'){ labBack(); return; }
   if(cmd === 'watch'){ labWatch(Number(x) || 0); return; }
   if(cmd === 'sim'){ labRunSim(Number(x) || 20); return; }
+  if(cmd === 'unit'){ const z = a.split(':')[3]; labUnitDetail(x, Number(y), Number(z)); return; }
   if(labSimming) return;
-  if(cmd === 'tower'){ lab.tower = x; lab.pick = null; }
+  if(cmd === 'tower'){ lab.tower = x; lab.pick = null; lab.floor = Math.min(lab.floor, babelFloorCount(x)); }
   else if(cmd === 'floor'){ lab.floor = Number(x); lab.pick = null; }
   else if(cmd === 'hint') labHint(x);
   else if(cmd === 'grow') lab.parties = lab.parties.map(list => list.map(s => s ? labSlot(s.id, Number(x)) : null));

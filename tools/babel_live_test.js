@@ -1,7 +1,7 @@
-// バベルの本番側: 解放・初回報酬・5階(ステージ効果)と10階(特殊ステージ)。
+// バベルの本番側: 解放・初回報酬・5階(ステージ効果)と10階(特殊ステージ)。均衡の塔は60階(5の倍数がボス戦)。
 // 使い方: node tools/babel_live_test.js
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__b={babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
+const api = load('game.js', s => s + ';global.__b={babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
 const B = global.__b;
 let bad = 0;
 const ok = (name, cond, info) => { bad += cond ? 0 : 1; console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
@@ -77,12 +77,43 @@ ok('2パーティ戦はもう無い',
 ok('ステージIDに _0 / _1 が付かない', B.findStage('bb_order_10').id === 'bb_order_10');
 
 console.log('\n--- 5. 報酬の形 ---');
-ok('どの階も同じ(5階ごとだけ倍)', B.BABEL_CRYSTAL.filter(n => n === 50).length === 8 && B.BABEL_CRYSTAL.filter(n => n === 100).length === 2, B.BABEL_CRYSTAL);
-let crys = 0;
-for(const t of B.BABEL_TOWERS) for(let f = 1; f <= 10; f++) crys += B.BABEL_CRYSTAL[f - 1];
-ok('3塔の星結晶は1,800', crys === 1800, crys);
+ok('秩序・混沌はどの階も同じ(5階ごとだけ倍)', B.BABEL_CRYSTAL.filter(n => n === 50).length === 8 && B.BABEL_CRYSTAL.filter(n => n === 100).length === 2, B.BABEL_CRYSTAL);
+const towerCrys = t => [...Array(B.babelFloorCount(t)).keys()].reduce((a, i) => a + B.babelCrystal(t, i + 1), 0);
+ok('均衡の塔(60階)の星結晶は1,560', towerCrys('bal') === 1560, towerCrys('bal'));
+ok('秩序・混沌の塔は600ずつ', towerCrys('order') === 600 && towerCrys('chaos') === 600, [towerCrys('order'), towerCrys('chaos')]);
 ok('スタミナを使わない', B.findStage('bb_chaos_10').stamina === 0);
 ok('味方もLv200(ステージの推奨Lv)', B.findStage('bb_chaos_1').rec === B.BABEL_LV);
+
+console.log('\n--- 6. 均衡の塔(60階) ---');
+fresh();
+ok('均衡の塔は60階、秩序・混沌は10階', B.babelFloorCount('bal') === 60 && B.babelFloorCount('order') === 10 && B.babelFloorCount('chaos') === 10);
+ok('60階まで全部ステージになり、61階は無い', [...Array(60).keys()].every(i => B.findStage('bb_bal_' + (i + 1))) && !B.findStage('bb_bal_61'));
+const bossFloors = [...Array(60).keys()].map(i => i + 1).filter(f => B.BABEL_FLOORS.bal[f - 1].boss);
+ok('ボス戦は5の倍数の12階', JSON.stringify(bossFloors) === JSON.stringify([5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]), bossFloors);
+const BOSSES = ['オークジェネラル', 'ミノタウロス', 'クラーケン', 'ケルベロス', 'グリフォン', 'ミスリルゴーレム', 'メデューサ', 'タロース', 'リヴァイアサン', 'バハムート', '死神', 'ホーリードラゴン'];
+const bossNames = bossFloors.map(f => { const st = B.findStage('bb_bal_' + f), w = st.waves[st.waves.length - 1]; return w.filter(u => u.boss).map(u => B.MON_BY_ID[u.ref].name).join(); });
+ok('ボスの並びは要件どおり(55階は死神)', JSON.stringify(bossNames) === JSON.stringify(BOSSES), bossNames);
+ok('ボスの階にはステージ効果(ボスの強化のほかに1つ以上)',
+   bossFloors.every(f => B.findStage('bb_bal_' + f).rules.filter(r => !/^ボス「|^塔の敵/.test(r.label)).length >= 1));
+ok('ふつうの階はステージ効果なし(塔の敵の底上げだけ)',
+   [...Array(60).keys()].map(i => i + 1).filter(f => f % 5).every(f => B.findStage('bb_bal_' + f).rules.every(r => /^塔の敵/.test(r.label))));
+ok('ボスの階の報酬は 星結晶50＋ワザ素材BOX＋EXPポット、ふつうの階は星結晶20だけ',
+   B.findStage('bb_bal_15').firstClear === 50 && B.findStage('bb_bal_15').reward.some(r => r.key === 'box_sel_3') && B.findStage('bb_bal_60').reward.some(r => r.key === 'box_sel_4')
+   && B.findStage('bb_bal_16').firstClear === 20 && B.findStage('bb_bal_16').reward.length === 0);
+ok('解放は1つ前の階(11階は10階、60階は59階)', B.findStage('bb_bal_11').requires === 'bb_bal_10' && B.findStage('bb_bal_60').requires === 'bb_bal_59');
+ok('敵の★は51階から10(塔の中だけ★10まで)', B.findStage('bb_bal_51').waves.flat().every(u => u.star === 10) && B.findStage('bb_bal_10').waves.flat().every(u => u.star <= 7));
+ok('同じ顔ぶれ(3WAVEとも同じ並び)の階が無い', new Set(B.BABEL_FLOORS.bal.map(fl => fl.waves.join('|'))).size === 60);
+ok('育ちの段に「上級+」(★9・スキルLv10・ルーンⅨ・★5遺物)がある', (() => { const g = B.BABEL_GROW.find(x => x.name === '上級+'); return g && g.starMin === 9 && g.sk === 10 && g.rune === 9 && g.relic[0] === 5; })());
+// 前の10階のころにクリアしたセーブ(bb_bal_1〜10)は、新しい1〜10階のクリアとして数え、11階から続きを遊べる
+for(let f = 1; f <= 10; f++) api.STATE.clearedStages.push('bb_bal_' + f);
+ok('前の均衡の塔10階をクリアしたセーブは11階から', B.babelOpenFloor('bal') === 11 && B.stageUnlocked(B.findStage('bb_bal_11')) && !B.stageUnlocked(B.findStage('bb_bal_12')));
+const c11 = api.STATE.crystals;
+put('ペガサス・ワイバーン・ゼピュロス・シームルグ・天狗');
+ok('11階に勝つと星結晶20、12階が開く', fight('bb_bal_11') === true && api.STATE.crystals - c11 === 20 && B.babelOpenFloor('bal') === 12, api.STATE.crystals - c11);
+for(let f = 12; f <= 59; f++) api.STATE.clearedStages.push('bb_bal_' + f);
+ok('59階まで進むと60階が開く', B.babelOpenFloor('bal') === 60 && B.stageUnlocked(B.findStage('bb_bal_60')));
+api.STATE.clearedStages.push('bb_bal_60');
+ok('60階をクリアすると「全部クリア」(61)', B.babelOpenFloor('bal') === 61);
 
 console.log(bad ? 'NG' : 'すべて通過');
 process.exit(bad ? 1 : 0);
