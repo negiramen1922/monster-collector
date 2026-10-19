@@ -3676,7 +3676,7 @@ const MONSTERS = JSON.parse(document.getElementById('monster-data').textContent)
 const MON_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const MON_ORDER = Object.fromEntries(MONSTERS.map((m, i) => [m.id, i]));   // dex order
 // bump the last 3 digits by 1 on every change that gets merged (α0.0.001 → α0.0.002 → ...)
-const GAME_VERSION = 'α0.5.003';
+const GAME_VERSION = 'α0.5.004';
 const STATE_VERSION = 6; // v6: growth economy (gold, EXP pots I–III, skill materials I–IV, base, dungeons)
 
 const PLACEHOLDER_CACHE = {};
@@ -4077,7 +4077,7 @@ const UNIVERSAL_PER_SOUL = 5;                           // 5 universal → 1 sou
    レベルの上限を★から切り離す。公開後(awakenLive)は全員 Lv300 まで上がり、★は「能力+10%／段」と星刻だけになる。
    そのかわり、もとのレアリティの最初の上限より上の「レベルの壁」は、ゴールドに加えて覚醒結晶も払って突破する。
    公開前に★で開いていた上限(owned.awakenFree)までの壁は結晶なし(公開後に一度だけ記録する。ensureAwakenMigration) */
-const AWAKEN = { releaseAt: '2026-10-26T12:00:00+09:00' };   // スライムパラダイスの開始と同じ(案)
+const AWAKEN = { releaseAt: '2026-10-19T00:00:00+09:00' };   // イベントに合わせず、α0.5.004 で公開(2026-10-19 ユーザー決定)
 const AWAKEN_DEV = typeof location !== 'undefined' && /[?&]awaken=1\b/.test(location.search || '');
 function awakenLive(){ return AWAKEN_DEV || isReleased(AWAKEN); }
 const AWAKEN_INIT_CAP = { 1: 50, 2: 70, 3: 100, 4: 120, 5: 150 };
@@ -17595,11 +17595,9 @@ const BABEL_FLOORS = {
     { name: '風の通り道', boost: { hp: 0.3, str: 0.18 }, rules: [],
       waves: ['オオコウモリ・キラービー・ストームホーク・ゴースト・カマイタチ', 'カマイタチ・ゴースト・ペガサス・天狗・ワイバーン', 'ハルピュイア・ゼピュロス・シームルグ・グリフォン・アイオロス'],
       win: [0, 'サイクロプス・雷電・ツインヘッドベア・雷獣・ダークメカロイド'], lose: [1, 'ミノタウロス・オーク・コボルト・アルヴィス・ドリュアス'] },
-    { name: '将軍の号令', boss: true, boost: { hp: 0.2, str: 0.12 }, rules: [
-        { side: 'enemy', stat: { str: 0.6 }, label: '敵 STR+60%' },
-        { who: { role: 'tank' }, side: 'ally', dmgTaken: -0.7, stat: { hp: 0.5 }, label: 'タンクの味方 受けるダメージ-70%・最大HP+50%' },
-        { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 1.5, label: 'タンク・サポートの味方 与ダメージ+150%' },
-        { who: { roles: ['attacker', 'shooter', 'trickster'] }, side: 'ally', dmgTaken: 1.5, dmgDealt: -0.5, label: 'アタッカー・シューター・トリックの味方 受けるダメージ+150%・与ダメージ-50%' }],
+    { name: '将軍の号令', boss: true, boost: { hp: 1.1, str: 0.66 }, rules: [
+        { who: { roles: ['tank', 'support'] }, side: 'ally', dmgDealt: 3.0, dmgTaken: -0.5, label: 'タンク・サポートの味方 与ダメージ+300%・受けるダメージ-50%' },
+        { who: { roles: ['attacker', 'shooter', 'trickster'] }, side: 'ally', dmgDealt: -0.8, label: 'タンク・サポート以外の味方 与ダメージ-80%' }],
       waves: ['ゴブリン・ワイルドボア・ニードルラット・ホーンラビット・シルバーウルフ', 'オーク・コボルト・ケンタウロス・ゴブリン・シルバーナイト', 'オークジェネラル・グリズリー・オーガ・シルバーナイト・ケンタウロス'],
       win: [1, 'シルバーナイト・イエティ・エルダートレント・ノッカー・ブルーウィスプ'], lose: [2, 'スルト・オーガ・サイクロプス・ミノタウロス・ワーウルフ'] },
     { name: '水辺の洞', boost: { hp: 1.7, str: 1.02 }, rules: [],
@@ -17614,11 +17612,10 @@ const BABEL_FLOORS = {
     { name: '火の粉の路', boost: { hp: 1.2, str: 0.72 }, rules: [],
       waves: ['鬼火・ヒノコ・フレイムボア・フレイムリザード・マグマスライム', 'マグマゴーレム・ヘルハウンド・ボルケイノタートル・マグマスライム・アカオニ', 'スルト・アグニ・キマイラ・フェニクス・ヘパイストス'],
       win: [1, 'シースライム・クラーケン・リヴァイアサン・セルキー・マーメイド'], lose: [2, 'マンイーター・アラクネ・ドルイド・マイコニド・ブラッドローズ'] },
-    { name: '迷宮の暴れ牛', boss: true, boost: { hp: 0.2, str: 0.12 }, rules: [
-        { side: 'enemy', dmgTaken: -0.9, atk: 'phys', label: '敵 物理攻撃で受けるダメージ-90%' },
-        { side: 'ally', dmgDealt: 1.0, atk: 'mag', label: '味方の魔法攻撃 与ダメージ+100%' }],
+    { name: '迷宮の暴れ牛', boss: true, boost: { hp: 0.1, str: 0.06 }, rules: [
+        { side: 'enemy', dmgTaken: -0.95, atk: 'phys', label: '敵 物理攻撃で受けるダメージ-95%' }],
       waves: ['オーク・コボルト・ジャッカロープ・ノッカー・マッドモール', 'ヒルジャイアント・ロックゴーレム・デススコーピオン・マッドモール・ドリュアス', 'ミノタウロス・アルヴィス・ガーゴイル・土蜘蛛・スコグル'],
-      win: [1, 'アグニ・サラマンダー・ヘルハウンド・ボルケイノタートル・マグマゴーレム'], lose: [2, 'グリズリー・オーガ・ケンタウロス・スルト・ワーウルフ'] },
+      win: [1, 'ノーム・サラマンダー・アグニ・ヘパイストス・セイレーン'], lose: [2, 'グリズリー・オーガ・ケンタウロス・スルト・ワーウルフ'] },
     { name: '岩の谷', boost: { hp: 0.2, str: 0.12 }, rules: [],
       waves: ['オーク・コボルト・ガーゴイル・ノッカー・デススコーピオン', 'ドリュアス・ジャッカロープ・マッドモール・ロックゴーレム・スコグル', 'ノーム・アルヴィス・土蜘蛛・イヌ・フレイ'],
       win: [1, 'フェンリル・ハティ・ワイバーン・シームルグ・アイオロス'], lose: [2, 'サイクロプス・ツインヘッドベア・雷獣・ブラックウルフ・シルバーウルフ'] },
@@ -17771,12 +17768,11 @@ const BABEL_FLOORS = {
     { name: '世界樹の根', boost: { hp: 1.1, str: 0.66 }, rules: [],
       waves: ['ドルイド・モスボア・マンイーター・ブラッドローズ・マンドラゴラ', 'コカトリス・ベヒモス・ハノコ・トレント・モススライム', 'グリーンマン・アラクネ・エルダートレント・モモタロウ・マンイーター'],
       win: [3, 'バハムート・ヘパイストス・ヘルハウンド・牛鬼・アグニ'], lose: [4, 'クラーケン・セルキー・メリュジーヌ・ウンディーネ・ケルピー'] },
-    { name: '死神の大鎌', boss: true, boost: { hp: 1.6, str: 0.96 }, rules: [
-        { side: 'enemy', dmgDealt: 0.6, perFoeDown: true, label: '敵 倒れた味方1体ごとに 与ダメージ+60%' },
-        { who: { species: 'undead' }, side: 'ally', dmgDealt: 2.0, dmgTaken: -0.5, label: 'アンデッドの味方 与ダメージ+200%・受けるダメージ-50%' },
-        { who: { notSpecies: 'undead' }, side: 'ally', dmgTaken: 1.0, label: 'アンデッド以外の味方 受けるダメージ+100%' }],
+    { name: '死神の大鎌', boss: true, boost: { hp: 1.4, str: 0.84 }, rules: [
+        { who: { role: 'trickster' }, side: 'ally', dmgDealt: 2.0, dmgTaken: -0.5, label: 'トリックスターの味方 与ダメージ+200%・受けるダメージ-50%' },
+        { who: { roles: ['attacker', 'shooter', 'tank', 'support'] }, side: 'ally', dmgDealt: -0.6, label: 'トリックスター以外の味方 与ダメージ-60%' }],
       waves: ['スケルトン戦士・スケルトン弓兵・ゾンビ・エインヘリャル・ゴースト', 'マミー・ゴースト・キョンシー・バンシー・エインヘリャル', '死神・デュラハン・ドラウグル・ファラオ・バンシー'],
-      win: [3, '死神・デュラハン・ドラウグル・バンシー・マミー'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
+      win: [3, 'ロキ・フェニクス・ブラッドローズ・ムーンラビット・サキュバス'], lose: [4, 'スルト・ケルベロス・ヘルハウンド・キマイラ・サラマンダー'] },
     { name: '大渦の果て', boost: { hp: 1.1, str: 0.66 }, rules: [],
       waves: ['マーメイド・セルキー・ケルピー・アオオニ・リザードマン', 'クラーケン・リザードマン・ユミル・ポンドフロッグ・河童', 'シースライム・リヴァイアサン・マーメイド・メリュジーヌ・クラーケン'],
       win: [3, 'アラクネ・マンイーター・ブラッドローズ・ドルイド・グリーンマン'], lose: [4, 'ヘルハウンド・キマイラ・スルト・アグニ・サラマンダー'] },
@@ -24551,6 +24547,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
+  { id: 168, version: 'α0.5.004', date: '10/19', title: 'レベルの上限は「覚醒結晶」で開くように', body: '<span class="nt-h">レベルの上限</span><span class="nt-i">・<em>どのモンスターもLv300まで</em>上げられるようになりました。★(星刻)ではレベルの上限は上がりません。</span><span class="nt-i">・★を上げると、これまでどおり<em>基礎ステータス+10%と星刻特性</em>が手に入ります。</span><span class="nt-h">レベルの壁と覚醒結晶</span><span class="nt-i">・レベルの壁(Lv100・120・150・180・200・230・260)で、もとのレアリティの最初の上限(★1 50 / ★2 70 / ★3 100 / ★4 120 / ★5 150)より上の壁は、ゴールドに加えて<em>覚醒結晶</em>で上限解放します。</span><span class="nt-i">・壁を1つ足しました: <em>Lv280</em>。</span><span class="nt-i">・<em>いま★で開いている上限までの壁は、覚醒結晶なし</em>で越えられます(例: ★7なら Lv200 の壁まで)。Lv280 で止まっていたモンスターは、そのまま先へ進めます。</span><span class="nt-h">覚醒結晶の集めかた</span><span class="nt-i">・育成クエストに<em>「限界の門」</em>を追加しました(1回20スタミナ・ステージ1〜5で1〜5個)。</span><span class="nt-i">・イベントショップ: 10個×5回まで。</span><span class="nt-i">・毎週ミッション「育成クエストを15回クリアする」の報酬に、覚醒結晶10個を足しました。</span><span class="nt-h">EXPの泉</span><span class="nt-i">・Lv300まで育てやすいように、<em>EXPの泉</em>のEXPポットを増やしました(ステージ1〜3は1.5倍、ステージ4・5は2倍)。</span>' },
   { id: 167, version: 'α0.5.003', date: '10/12', title: '不具合の修正(ログインボーナス・周回のボーナス・おすすめユーザー)', body: '<span class="nt-i">・<em>ログインボーナス</em>: 受け取らないまま日が変わると、その日の分が飛ばされていました。受け取るまで同じ日の箱が残るようにしました(1日に受け取れるのは1つまで)。</span><span class="nt-i">・<em>イベントの周回(結果だけ)</em>: イベントボーナスを今の編成で数えていたため、ボーナスのない編成で★3を取ったあと、ボーナスの編成に入れ替えて周回できていました。そのステージを<em>★3でクリアしたときの編成のボーナス</em>で数えるようにしました。ボーナスを上げるには、ボーナスの編成で一度★3クリアしてください(戦闘ありの周回は今までどおり、その編成のボーナスです)。</span><span class="nt-i">・<em>フレンドの追加</em>: おすすめユーザーが数人しか出なくなっていたので、最近遊んでいるテイマーから選ぶようにしました。</span>' },
   { id: 166, version: 'α0.5.002', date: '10/8', title: 'モンスターに名前を付けられるように・通報', body: '<span class="nt-i">・持っているモンスターに名前(8文字まで)を付けられるようになりました。モンスターの詳細で、名前の横の「名前を付ける」から。「元に戻す」で図鑑の名前に戻せます。</span><span class="nt-i">・付けた名前は、編成・戦闘・結果の画面に出ます。お助け(貸し出し)やPVPの防衛編成に入れたモンスターの名前は、ほかのプレイヤーにも見えます。</span><span class="nt-i">・フレンドのプロフィールとPVPの相手から、不適切な名前や自己紹介を通報できるようになりました。通報した相手の名前などは、自分の画面では伏せて表示します(設定から元に戻せます)。</span><span class="nt-i">・名前・自己紹介・モンスターの名前に、使えない言葉のチェックを入れました。</span>' },
   { id: 165, version: 'α0.5.001', date: '10/8', title: '編成画面で装備が見やすく', body: '<span class="nt-i">・編成画面の陣形の右上に「キャラ / 装備」の切り替えを足しました。</span><span class="nt-i">・キャラ: それぞれのマスに★とレベルが出ます。</span><span class="nt-i">・装備: それぞれのマスに、付けている遺物と、ルーン4枠の埋まりぐあいが出ます。陣形の下に、編成全体の遺物とルーンの数も出ます。</span><span class="nt-i">・遺物を付けていない子や、空いているルーン枠がある子には<em>「!」</em>が付きます(装備のタブにも出ます)。</span>' },

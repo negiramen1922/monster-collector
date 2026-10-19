@@ -22,7 +22,7 @@ S.stamina = 300;
 
 // 「限界の門」は覚醒結晶の公開(awakenLive)まで出ない(awaken_test.js で見る)
 const kinds = E.dungeonKinds();
-ok('育成クエストは4種類(EXP・ゴールド・霊素・ルーン)', kinds.length === 4, kinds);
+ok('育成クエストは5種類(EXP・ゴールド・霊素・ルーン・限界の門)', kinds.length === 5 && kinds.includes('awaken'), kinds);
 
 kinds.forEach(k => {
   const st = E.findStage(`dg_${k}_0`);

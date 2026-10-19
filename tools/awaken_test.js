@@ -16,6 +16,7 @@ function fresh(){
 const RELEASE = A.AWAKEN.releaseAt;
 
 console.log('--- 1. 公開前(今までどおり) ---');
+A.AWAKEN.releaseAt = '2999-01-01T00:00:00+09:00';   // テストのために公開前にする
 fresh();
 ok('公開前は覚醒結晶の仕組みが動いていない', A.awakenLive() === false);
 ok('レベル上限は★で決まる(★7→200)', A.levelCapOf(api.STATE.owned[ID5]) === 200);
