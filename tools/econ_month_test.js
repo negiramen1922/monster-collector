@@ -48,12 +48,12 @@ const perEvent = stageCr + exCr + misCr + shopTickets * 135;
 ok('1イベント4,040石相当(指示書の4,050)', perEvent === 4040, perEvent);
 
 // 合計と天井
-const abyss = 800, pvpRaid = 0;   // 総力戦・封印戦(月10,000)は未実装
+const abyss = 1200, pvpRaid = 0;   // 総力戦・封印戦(月10,000)は未実装。深淵は 2026-11-02 から 1期600石(75階くらい)×2 = 月1,200(以前は800)
 const month = steady + perEvent * 4 + abyss + pvpRaid;
 const spark = 200 * 135 / (month / 30);
-ok('月の石(総力戦・封印戦なし)は29,560石 → 天井27.4日', Math.round(month) === 29560 && Math.abs(spark - 27.4) < 0.05, { month: Math.round(month), spark: Math.round(spark * 10) / 10 });
+ok('月の石(総力戦・封印戦なし)は29,960石 → 天井27.0日', Math.round(month) === 29960 && Math.abs(spark - 27.0) < 0.05, { month: Math.round(month), spark: Math.round(spark * 10) / 10 });
 const full = month + 10000;
-ok('総力戦・封印戦が入ると39,560石(指示書39,600) → 天井20.5日', Math.abs(200 * 135 / (full / 30) - 20.5) < 0.05, Math.round(200 * 135 / (full / 30) * 10) / 10);
+ok('総力戦・封印戦が入ると39,960石(指示書39,600) → 天井20.3日', Math.abs(200 * 135 / (full / 30) - 20.3) < 0.05, Math.round(200 * 135 / (full / 30) * 10) / 10);
 
 // ⑤ 素材のレート
 ok('黄金の洞窟5段は1⚡あたり1,750G', E.DUNGEONS.gold.rewards[4].gold / 20 === 1750);
