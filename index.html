@@ -4752,6 +4752,7 @@ function ruleHits(r, u, isEnemy){
   if(w.elements && !w.elements.includes(u.element)) return false;   // いずれかの属性
   if(w.family && u.family !== w.family) return false;
   if(w.ref && u.ref !== w.ref) return false;
+  if(w.boss !== undefined && !!u.boss !== w.boss) return false;   // ボスだけ / ボス以外(スライムパラダイスのEX)
   return true;
 }
 function stageRulesOf(stage){ return (stage && stage.rules) || []; }

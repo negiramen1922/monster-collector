@@ -5,8 +5,8 @@
 const load = require('./harness.js');
 // 開始時刻(10/26 12:00)より前だと星刻が付かないので、時計を開催中にしておく
 Date.now = () => new Date('2026-10-28T12:00:00+09:00').getTime();
-// POWER・DMG: HELL の敵の強さ(power)と 敵 与ダメージ を試しに変える(測るときだけ)
-const api = load('game.js', s => s.replace("{ ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,\n    rules:[...SLIME_EX3_RULES,", `{ ex:4, hell:true, lv:300, boss:10, mob:10, sk:10, power:${+(process.env.POWER || 1)},\n    rules:[...SLIME_EX3_RULES,`).replace("{ side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' }]", `{ side:'enemy', dmgDealt:${+(process.env.DMG || 1)}, label:'HELL' }]`) + `;global.__m={ set evLab(v){ evLab = v; }, get evLab(){ return evLab; }, evLabStart, labBestRelic, RELIC_SKILL_MAX, RELIC_MAX_DUPE_USE,
+// EXTRA: HELL に足すステージ効果(JSON の配列)。POWER・DMG: HELL の敵の強さ(power)と 敵 与ダメージ を試しに変える(測るときだけ)
+const api = load('game.js', s => s.replace("{ ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,\n    rules:[...SLIME_EX3_RULES,", `{ ex:4, hell:true, lv:300, boss:10, mob:10, sk:10, power:${+(process.env.POWER || 1)},\n    rules:[...SLIME_EX3_RULES,`).replace("{ side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' }]", `{ side:'enemy', dmgDealt:${+(process.env.DMG || 1)}, label:'HELL' }, ...${process.env.EXTRA || '[]'}]`) + `;global.__m={ set evLab(v){ evLab = v; }, get evLab(){ return evLab; }, evLabStart, labBestRelic, RELIC_SKILL_MAX, RELIC_MAX_DUPE_USE,
   STAGE_BY_ID, MON_BY_ID, MONSTERS, get b(){ return battleUI; } };`);
 const M = global.__m;
 const by = Object.fromEntries(M.MONSTERS.map(m => [m.name, m.id]));
