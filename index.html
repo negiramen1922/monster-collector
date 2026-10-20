@@ -11580,15 +11580,29 @@ EVENT_EX.ex_freyja = [
 ];
 /* スライムパラダイスのEX(EX1〜EX3＋HELL)。各段10体まで(シースライム / キング・アークエンジェル /
    アース・ウィンド・ゴールド・ホーリー・アイアン・ヴェノム・マグマ)。主役以外の★5と、ほかの★4は入れない(スライムだけ)。
-   ステージ効果は段ごとに足す形(EX1の2本は EVENT_EX_RULES.ex_slime、EX2から上は t.rules)。数値は仮。
+   ステージ効果は全段共通の2本(EVENT_EX_RULES.ex_slime)に、段ごとの t.rules を足す形。
    敵のキングスライムは倒れると分裂するので、最終ウェーブは実質7体になる */
-const SLIME_EX2_RULES = [{ side:'enemy', dmgTaken:-0.3, atk:'phys', label:'敵 受ける物理ダメージ-30%' }];
-const SLIME_EX3_RULES = [...SLIME_EX2_RULES,
-  { side:'ally', dmgDealt:0.3, whenTarget:'strDown', label:'攻撃力低下状態の敵へ 与ダメージ+30%' },
-  { side:'enemy', stat:{ hp:0.5 }, label:'敵 最大HP+50%' }];
+// 2026-10-20 ユーザー決定: 敵を上げたうえで、スライム(アモルファス)の効果も大きくする。段が上がるごとに、どの値も下がらない並びにした
+// (合計: 敵(ボス以外)HP +20/+30/+50/+200%・攻撃 +20/+30/+30/+180%、ボスHP +50/+80/+80/+450%・攻撃 +10/+20/+30/+130%、
+//  アモルファスの味方 +75/+75/+75/+150%、水属性の味方 +25/+25/+25/+50%、攻撃力低下の敵へ —/—/+60/+100%)
+const SLIME_EX1_RULES = [
+  { who:{ boss:false }, side:'enemy', stat:{ hp:0.2, str:0.2 }, label:'敵(ボス以外) 最大HP・攻撃力+20%' },
+  { who:{ boss:true }, side:'enemy', stat:{ hp:0.5, str:0.1 }, label:'敵のボス 最大HP+50%・攻撃力+10%' },
+  { who:{ species:'amorphous' }, side:'ally', stat:{ str:0.5, hp:0.5 }, label:'アモルファスの味方 攻撃力・HP さらに+50%(全段の分と合わせて+75%)' }];
+const SLIME_EX2_RULES = [
+  { side:'enemy', dmgTaken:-0.3, atk:'phys', label:'敵 受ける物理ダメージ-30%' },
+  { who:{ boss:false }, side:'enemy', stat:{ hp:0.3, str:0.3 }, label:'敵(ボス以外) 最大HP・攻撃力+30%' },
+  { who:{ boss:true }, side:'enemy', stat:{ hp:0.8, str:0.2 }, label:'敵のボス 最大HP+80%・攻撃力+20%' },
+  SLIME_EX1_RULES[2]];
+const SLIME_EX3_RULES = [
+  SLIME_EX2_RULES[0],
+  { side:'enemy', stat:{ hp:0.5, str:0.3 }, label:'敵 最大HP+50%・攻撃力+30%' },
+  { who:{ boss:true }, side:'enemy', stat:{ hp:0.3 }, label:'敵のボス さらに最大HP+30%(合わせて+80%)' },
+  SLIME_EX1_RULES[2],
+  { side:'ally', dmgDealt:0.6, whenTarget:'strDown', label:'攻撃力低下状態の敵へ 与ダメージ+60%' }];
 const SLIME_FINAL_WAVE = ['m31:back', 'm185:front', 'm189:front', 'm186:back', 'm34:back'];
 EVENT_EX.ex_slime = [
-  { ex:1, lv:80, boss:6, mob:4, sk:8, waves:[
+  { ex:1, lv:80, boss:6, mob:4, sk:8, rules: SLIME_EX1_RULES, waves:[
     ['m36:front', 'm33:front', 'm35:back'],
     ['m187:front', 'm189:front', 'm188:back', 'm34:back'],
     SLIME_FINAL_WAVE] },
@@ -11600,17 +11614,16 @@ EVENT_EX.ex_slime = [
     ['m36:front', 'm33:front', 'm187:front', 'm35:back'],
     ['m187:front', 'm189:front', 'm36:front', 'm188:back', 'm34:back'],
     SLIME_FINAL_WAVE] },
-  // HELL(2026-10-20 ユーザー決定「ウのスタイル」): 敵を上げたうえで、ステージ効果(スライム・水・攻撃力低下)も大きくする。
-  // 測定(slime_measure.js・育ちきり): イベント組 100% / ★5中心1 23%(40戦) / ★5中心2 5% / ★4中心 0%(各20戦)
+  // HELL(2026-10-20 ユーザー決定「ウのスタイル」): EX3 の効果に、敵の上げ幅とスライム・水・攻撃力低下の効果をさらに足す
   { ex:4, hell:true, lv:300, boss:10, mob:10, sk:10,
     rules:[...SLIME_EX3_RULES,
       { who:{ ref:'m31' }, side:'enemy', stat:{ hp:1.0 }, label:'HELL 敵のシースライム 最大HP+100%' },
       { side:'enemy', dmgDealt:1.0, label:'HELL 敵 与ダメージ+100%' },
-      { who:{ boss:false }, side:'enemy', stat:{ hp:1.5, str:1.5 }, label:'HELL 敵(ボス以外) 最大HP・攻撃力+150%' },
-      { who:{ boss:true }, side:'enemy', stat:{ hp:4.0, str:1.0 }, label:'HELL 敵のボス 最大HP+400%・攻撃力+100%' },
-      { who:{ species:'amorphous' }, side:'ally', stat:{ str:1.25, hp:1.25 }, label:'HELL アモルファスの味方 攻撃力・HP さらに+125%(全段の分と合わせて+150%)' },
+      { who:{ boss:false }, side:'enemy', stat:{ hp:1.5, str:1.5 }, label:'HELL 敵(ボス以外) さらに最大HP・攻撃力+150%(合わせてHP+200%・攻撃力+180%)' },
+      { who:{ boss:true }, side:'enemy', stat:{ hp:3.7, str:1.0 }, label:'HELL 敵のボス さらに最大HP+370%・攻撃力+100%(合わせてHP+450%・攻撃力+130%)' },
+      { who:{ species:'amorphous' }, side:'ally', stat:{ str:0.75, hp:0.75 }, label:'HELL アモルファスの味方 攻撃力・HP さらに+75%(合わせて+150%)' },
       { who:{ element:'water' }, side:'ally', stat:{ str:0.25, hp:0.25 }, label:'HELL 水属性の味方 攻撃力・HP さらに+25%(合わせて+50%)' },
-      { side:'ally', dmgDealt:0.7, whenTarget:'strDown', label:'HELL 攻撃力低下状態の敵へ 与ダメージ さらに+70%(合わせて+100%)' }],
+      { side:'ally', dmgDealt:0.4, whenTarget:'strDown', label:'HELL 攻撃力低下状態の敵へ 与ダメージ さらに+40%(合わせて+100%)' }],
     waves:[
     ['m36:front', 'm33:front', 'm187:front', 'm35:back'],
     ['m187:front', 'm189:front', 'm36:front', 'm188:back', 'm34:back'],
@@ -25123,7 +25136,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
   // スライムパラダイスの開幕(2026-10-26 12:00)
-  { id: 45, date: '10/26', at: '2026-10-26T12:00:00+09:00', title: '「スライムパラダイス」開幕! シースライム ピックアップ', art: ['m31', 'm185', 'm186'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/26(月) 12:00 〜 11/9(月) 12:00</em></span><span class="nt-i">・「鬼ヶ島の腕試し」は 10/26(月) 12:00 で終了しました。「豊穣の女神」は 10/27(火) 12:00 まで開催中です。</span><span class="nt-h">ピックアップガチャ</span><span class="nt-i">・<em>シースライム</em>(★5)、同時ピックアップの<em>キングスライム・アークエンジェルスライム</em>(★4)、専用遺物「<em>クラーケンの残滓</em>」の排出率がアップしています。</span><span class="nt-i">・<em>ピックアップ★3</em>: ★3が出たときの半分が<em>アーススライム・ウィンドスライム・ゴールドスライム</em>になります(期間中だけ)。</span><span class="nt-h">新しいスライム</span><span class="nt-i">・<em>キングスライム</em>: 味方をかばい、大きなHPを味方のシールドに分ける。倒れると「ちびスライム」に分かれて戦い続けます。</span><span class="nt-i">・<em>アークエンジェルスライム</em>: 光の矢を何本も降らせ、矢が当たるたびに味方を癒やします。</span><span class="nt-i">・<em>アーススライム</em>: 殴ってきた敵を鈍らせ、のみこんで動けなくします。</span><span class="nt-i">・<em>ウィンドスライム</em>: 味方がスキルや奥義で攻撃すると、その風に乗って一緒に攻撃します。</span><span class="nt-i">・<em>ゴールドスライム</em>: タンクなのに足が速い。守りは固いが、会心には弱い。</span><span class="nt-h">今までのスライムにも星刻特性</span><span class="nt-i">・アクア・モス・マグマ・ホーリー・ヴェノム・アイアンスライムに、★6〜★10の星刻特性が付きました。★10では、味方のスライムにも効く力が目覚めます。</span><span class="nt-h">期間限定クエスト「ぷるぷる島」</span><span class="nt-i">・全10層。推奨Lvは10から400まで上がっていきます。敵はスライムばかりです。</span><span class="nt-i">・最後のウェーブでは、シースライムとキング・アークエンジェル・ゴールド・ホーリースライムが待ち構えています。</span><span class="nt-i">・<em>ゴールドスライムを倒すと、ゴールドがふつうより多く</em>手に入ります(層×200。EX・HELLでは出ません)。</span><span class="nt-i">・各層の初回クリアで星結晶。クエストで「<em>スライムの雫</em>」(メダル)が手に入ります。</span><span class="nt-i">・主役や仲間のソウルは、<em>深い層ほど多く出ます</em>(8〜10層は主役のソウルが一度に1〜3個)。EX・HELLでも出ます。</span><span class="nt-h">EXステージ・HELL</span><span class="nt-i">・<em>EX1</em>(推奨Lv80) / <em>EX2</em>(推奨Lv200) / <em>EX3</em>(推奨Lv300) / <em>HELL</em>(EX3クリアで解放)</span><span class="nt-i">・スタミナを使わない、特別なルールの段です(周回はできません)。初回クリアの星結晶は EX1 100 / EX2 200 / EX3 400 / HELL 500。</span><span class="nt-i">・全段共通: アモルファスの味方・水属性の味方 攻撃力・HP+25%</span><span class="nt-i">・EX2から: 敵 受ける物理ダメージ-30%。<em>魔法の力が試されます。</em></span><span class="nt-i">・EX3から: 攻撃力が下がっている敵へ 与ダメージ+30% / 敵 最大HP+50%</span><span class="nt-i">・HELLではさらに: 敵のシースライム 最大HP+100% / 敵 与ダメージ+100% / 敵(ボス以外) 最大HP・攻撃力+150% / 敵のボス 最大HP+400%・攻撃力+100%。そのかわり、アモルファスの味方 攻撃力・HPは合わせて+150%、水属性の味方は合わせて+50%、攻撃力が下がっている敵へは与ダメージ合わせて+100%。<em>スライムで挑むほど有利です。</em></span><span class="nt-i">・敵のキングスライムは、倒すとちびスライムに分かれます。ちびまで倒しきってください。</span><span class="nt-h">イベントショップ</span><span class="nt-i">・「スライムの雫」で交換できます。</span><span class="nt-i">・シースライムのソウル、キングスライム・アークエンジェルスライムのソウル、遺物「<em>潮だまりのゼリー</em>」(本体1つ・重複4つまで)</span><span class="nt-i">・<em>無形のソウル</em>(50個×5回まで)・<em>無形の共鳴石</em>(20個×3回まで)・<em>覚醒結晶</em>(10個×5回まで)も並びます。</span><span class="nt-i">・召喚券、育成素材、EXPポット、霊素鉱なども交換できます。</span><span class="nt-h">称号とアイコンフレーム</span><span class="nt-i">・「スライムなかま」「ぷるぷるマスター」: イベントミッションで</span><span class="nt-i">・「スライムの勇者」: EX3を★3でクリア</span><span class="nt-i">・「楽園の王者」とイベントのアイコンフレーム: HELLを★3でクリア</span>' },
+  { id: 45, date: '10/26', at: '2026-10-26T12:00:00+09:00', title: '「スライムパラダイス」開幕! シースライム ピックアップ', art: ['m31', 'm185', 'm186'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/26(月) 12:00 〜 11/9(月) 12:00</em></span><span class="nt-i">・「鬼ヶ島の腕試し」は 10/26(月) 12:00 で終了しました。「豊穣の女神」は 10/27(火) 12:00 まで開催中です。</span><span class="nt-h">ピックアップガチャ</span><span class="nt-i">・<em>シースライム</em>(★5)、同時ピックアップの<em>キングスライム・アークエンジェルスライム</em>(★4)、専用遺物「<em>クラーケンの残滓</em>」の排出率がアップしています。</span><span class="nt-i">・<em>ピックアップ★3</em>: ★3が出たときの半分が<em>アーススライム・ウィンドスライム・ゴールドスライム</em>になります(期間中だけ)。</span><span class="nt-h">新しいスライム</span><span class="nt-i">・<em>キングスライム</em>: 味方をかばい、大きなHPを味方のシールドに分ける。倒れると「ちびスライム」に分かれて戦い続けます。</span><span class="nt-i">・<em>アークエンジェルスライム</em>: 光の矢を何本も降らせ、矢が当たるたびに味方を癒やします。</span><span class="nt-i">・<em>アーススライム</em>: 殴ってきた敵を鈍らせ、のみこんで動けなくします。</span><span class="nt-i">・<em>ウィンドスライム</em>: 味方がスキルや奥義で攻撃すると、その風に乗って一緒に攻撃します。</span><span class="nt-i">・<em>ゴールドスライム</em>: タンクなのに足が速い。守りは固いが、会心には弱い。</span><span class="nt-h">今までのスライムにも星刻特性</span><span class="nt-i">・アクア・モス・マグマ・ホーリー・ヴェノム・アイアンスライムに、★6〜★10の星刻特性が付きました。★10では、味方のスライムにも効く力が目覚めます。</span><span class="nt-h">期間限定クエスト「ぷるぷる島」</span><span class="nt-i">・全10層。推奨Lvは10から400まで上がっていきます。敵はスライムばかりです。</span><span class="nt-i">・最後のウェーブでは、シースライムとキング・アークエンジェル・ゴールド・ホーリースライムが待ち構えています。</span><span class="nt-i">・<em>ゴールドスライムを倒すと、ゴールドがふつうより多く</em>手に入ります(層×200。EX・HELLでは出ません)。</span><span class="nt-i">・各層の初回クリアで星結晶。クエストで「<em>スライムの雫</em>」(メダル)が手に入ります。</span><span class="nt-i">・主役や仲間のソウルは、<em>深い層ほど多く出ます</em>(8〜10層は主役のソウルが一度に1〜3個)。EX・HELLでも出ます。</span><span class="nt-h">EXステージ・HELL</span><span class="nt-i">・<em>EX1</em>(推奨Lv80) / <em>EX2</em>(推奨Lv200) / <em>EX3</em>(推奨Lv300) / <em>HELL</em>(EX3クリアで解放)</span><span class="nt-i">・スタミナを使わない、特別なルールの段です(周回はできません)。初回クリアの星結晶は EX1 100 / EX2 200 / EX3 400 / HELL 500。</span><span class="nt-i">・敵は段が上がるごとに強くなりますが、<em>アモルファス(スライム)の味方も大きく強くなります。スライムで挑むほど有利です。</em></span><span class="nt-i">・EX1: 敵(ボス以外) 最大HP・攻撃力+20% / 敵のボス 最大HP+50%・攻撃力+10% / アモルファスの味方 攻撃力・HP+75% / 水属性の味方 攻撃力・HP+25%</span><span class="nt-i">・EX2: 敵(ボス以外) 最大HP・攻撃力+30% / 敵のボス 最大HP+80%・攻撃力+20% / 敵 受ける物理ダメージ-30%(<em>魔法の力が試されます</em>) / アモルファス+75%・水属性+25%</span><span class="nt-i">・EX3: 敵(ボス以外) 最大HP+50%・攻撃力+30% / 敵のボス 最大HP+80%・攻撃力+30% / 敵 受ける物理ダメージ-30% / 攻撃力が下がっている敵へ 与ダメージ+60% / アモルファス+75%・水属性+25%</span><span class="nt-i">・HELL: 敵(ボス以外) 最大HP+200%・攻撃力+180% / 敵のボス 最大HP+450%・攻撃力+130%(敵のシースライムはさらに最大HP+100%) / 敵 与ダメージ+100% / 敵 受ける物理ダメージ-30% / 攻撃力が下がっている敵へ 与ダメージ+100% / アモルファス+150%・水属性+50%</span><span class="nt-i">・敵のキングスライムは、倒すとちびスライムに分かれます。ちびまで倒しきってください。</span><span class="nt-h">イベントショップ</span><span class="nt-i">・「スライムの雫」で交換できます。</span><span class="nt-i">・シースライムのソウル、キングスライム・アークエンジェルスライムのソウル、遺物「<em>潮だまりのゼリー</em>」(本体1つ・重複4つまで)</span><span class="nt-i">・<em>無形のソウル</em>(50個×5回まで)・<em>無形の共鳴石</em>(20個×3回まで)・<em>覚醒結晶</em>(10個×5回まで)も並びます。</span><span class="nt-i">・召喚券、育成素材、EXPポット、霊素鉱なども交換できます。</span><span class="nt-h">称号とアイコンフレーム</span><span class="nt-i">・「スライムなかま」「ぷるぷるマスター」: イベントミッションで</span><span class="nt-i">・「スライムの勇者」: EX3を★3でクリア</span><span class="nt-i">・「楽園の王者」とイベントのアイコンフレーム: HELLを★3でクリア</span>' },
   // スライムパラダイスの予告(開幕の3日前。イベントの終了時刻の変更もここで知らせる)
   { id: 44, date: '10/23', at: '2026-10-23T12:00:00+09:00', title: '次のイベントは「スライムパラダイス」! 10/26(月) 12:00 から', art: ['m31', 'm185', 'm186'], body: '<span class="nt-h">開催予定</span><span class="nt-i">・<em>10/26(月) 12:00 〜 11/9(月) 12:00</em></span><span class="nt-h">ピックアップ</span><span class="nt-i">・主役は<em>シースライム</em>(★5)。同時ピックアップに新しい★4<em>キングスライム</em>・<em>アークエンジェルスライム</em>が登場します。</span><span class="nt-i">・新しい★3<em>アーススライム・ウィンドスライム・ゴールドスライム</em>もガチャに入ります。期間中のピックアップガチャでは、★3が出たときの半分がこの3体になります。</span><span class="nt-i">・これで8属性すべてにスライムがそろいます。</span><span class="nt-h">今までのスライムにも星刻特性</span><span class="nt-i">・アクア・モス・マグマ・ホーリー・ヴェノム・アイアンスライムに、★6〜★10の星刻特性が付きます(10/26 12:00 から)。</span><span class="nt-h">開催中のイベントの終了時刻が変わります</span><span class="nt-i">・「鬼ヶ島の腕試し」: 10/26(月) 23:59 → <em>10/26(月) 12:00</em>(スライムパラダイスと入れ替わり)</span><span class="nt-i">・「豊穣の女神」: 10/26(月) 23:59 → <em>10/27(火) 12:00</em>(1日延びます)</span><span class="nt-i">・メダルはイベントが終わると消えます。早めにショップで交換してください。</span>' },
   // 深淵回廊の報酬の見直しの告知(次のシーズンの1週間前。2026-10-20 ユーザー決定)

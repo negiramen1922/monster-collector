@@ -87,12 +87,22 @@ ok(exS.every(s => s.waves.flat().every(e => E.MON_BY_ID[e.ref].rarity < 5 || e.r
 ok(exS.every(s => s.waves[2].map(e => e.ref).join() === 'm31,m185,m189,m186,m34'), '最終ウェーブ');
 ok(exS[3].requires === 'ev_slime_ex3' && exS.map(s => s.firstClear).join() === '100,200,400,500', 'HELLはEX3クリアで開く・初回の石 100/200/400/500');
 const labels = s => s.rules.map(x => x.label);
-ok(labels(exS[0]).join('|') === 'アモルファスの味方 攻撃力・HP+25%|水属性の味方 攻撃力・HP+25%', 'EX1: 2本', labels(exS[0]));
-ok(exS[1].rules.some(x => x.side === 'enemy' && x.dmgTaken === -0.3 && x.atk === 'phys'), 'EX2: 敵 受ける物理ダメージ-30%');
-ok(exS[2].rules.some(x => x.whenTarget === 'strDown' && x.dmgDealt === 0.3) && exS[2].rules.some(x => x.side === 'enemy' && x.stat && x.stat.hp === 0.5), 'EX3: 攻撃力低下の敵へ+30%・敵 最大HP+50%');
+// 段ごとの合計(どの値も段が上がるごとに下がらない)。base は全段共通の2本
+const sum = (s, f) => s.rules.reduce((a, r) => a + f(r), 0);
+const st = (who, k) => r => r.side === 'enemy' && r.stat && r.stat[k] && (!r.who || (who === 'mob' ? r.who.boss === false : who === 'boss' ? r.who.boss === true : false)) ? r.stat[k] : 0;
+const tot = s => ({ mobHp: sum(s, st('mob', 'hp')), mobStr: sum(s, st('mob', 'str')), bossHp: sum(s, st('boss', 'hp')), bossStr: sum(s, st('boss', 'str')),
+  amo: sum(s, r => r.side === 'ally' && r.who && r.who.species === 'amorphous' ? r.stat.str : 0),
+  water: sum(s, r => r.side === 'ally' && r.who && r.who.element === 'water' ? r.stat.str : 0),
+  strDown: sum(s, r => r.whenTarget === 'strDown' ? r.dmgDealt : 0) });
+const T = exS.map(tot).map(t => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Math.round(v * 100)])));
+ok(JSON.stringify(T) === JSON.stringify([
+  { mobHp: 20, mobStr: 20, bossHp: 50, bossStr: 10, amo: 75, water: 25, strDown: 0 },
+  { mobHp: 30, mobStr: 30, bossHp: 80, bossStr: 20, amo: 75, water: 25, strDown: 0 },
+  { mobHp: 50, mobStr: 30, bossHp: 80, bossStr: 30, amo: 75, water: 25, strDown: 60 },
+  { mobHp: 200, mobStr: 180, bossHp: 450, bossStr: 130, amo: 150, water: 50, strDown: 100 }]), '段ごとの合計(2026-10-20 ユーザー決定の並び)', T);
+ok(T.every((t, i) => i === 0 || Object.keys(t).every(k => t[k] >= T[i - 1][k])), '段が上がっても、どの値も下がらない');
+ok(exS.slice(1).every(s => s.rules.some(x => x.side === 'enemy' && x.dmgTaken === -0.3 && x.atk === 'phys')) && !exS[0].rules.some(x => x.dmgTaken), 'EX2から: 敵 受ける物理ダメージ-30%');
 ok(exS[3].rules.some(x => x.who && x.who.ref === 'm31' && x.stat.hp === 1.0) && exS[3].rules.some(x => x.side === 'enemy' && x.dmgDealt === 1.0), 'HELL: 敵のシースライム 最大HP+100%・敵 与ダメージ+100%');
-ok(exS[3].rules.length === 12 && exS[3].rules.some(x => x.who && x.who.boss === false && x.stat.hp === 1.5 && x.stat.str === 1.5) && exS[3].rules.some(x => x.who && x.who.boss === true && x.stat.hp === 4.0 && x.stat.str === 1.0)
-  && exS[3].rules.some(x => x.who && x.who.species === 'amorphous' && x.stat.str === 1.25) && exS[3].rules.some(x => x.whenTarget === 'strDown' && x.dmgDealt === 0.7), 'HELL(ウ): 雑魚+150%・ボス HP+400%・攻撃+100%、アモルファス・水・攻撃力低下の効果を上乗せ(12本)');
 
 console.log('--- メダル・称号・フレーム・お知らせ ---');
 ok(E.EVENT_MEDAL.ev_slime.name === 'スライムの雫' && E.EVENT_MEDAL.ev_slime.icon === 'medal_slime' && E.ITEM_ICON_LABEL.medal_slime === 'スライムの雫', 'メダル「スライムの雫」');
