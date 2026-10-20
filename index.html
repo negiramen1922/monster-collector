@@ -3650,6 +3650,29 @@ a.set-item{ color:inherit; text-decoration:none; }
 .acct-id{ flex:1; font-size:12px; font-weight:800; letter-spacing:.5px; color:var(--gold); text-align:center; white-space:nowrap; }
 
 
+
+/* 遠征 */
+.exp-modal .panel{ margin:8px 0; padding:10px; }
+.exp-dest-name{ font-weight:700; display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
+.exp-dest-name small{ font-weight:400; opacity:.75; font-size:11px; }
+.exp-daily{ font-size:10px; padding:1px 6px; border-radius:8px; background:var(--accent, #8a6cff); color:#fff; }
+.exp-conds{ display:flex; flex-wrap:wrap; gap:4px; margin:4px 0; font-size:11px; }
+.exp-conds span{ padding:1px 6px; border-radius:6px; background:rgba(255,255,255,.08); }
+.exp-conds span.ok{ background:rgba(110,220,140,.25); }
+.exp-reward{ font-size:12px; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.exp-great{ color:#ffd36a; }
+.exp-sel{ display:flex; gap:4px; margin:6px 0; }
+.exp-sel-slot{ width:44px; height:44px; border-radius:8px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.2); padding:0; }
+.exp-mon{ width:40px; height:40px; object-fit:contain; display:block; }
+.exp-hours{ display:flex; gap:4px; margin:6px 0; }
+.exp-go{ display:flex; justify-content:space-between; align-items:center; gap:6px; margin-top:6px; }
+.exp-slot.empty{ display:flex; justify-content:space-between; align-items:center; }
+.exp-slot.ready{ box-shadow:0 0 0 1px #ffd36a inset; }
+.exp-lv{ display:flex; justify-content:space-between; align-items:center; gap:6px; font-size:12px; }
+.exp-grid{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:4px; }
+.exp-cand{ background:rgba(0,0,0,.2); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:2px; display:flex; flex-direction:column; align-items:center; }
+.exp-cand.on{ border-color:#ffd36a; background:rgba(255,211,106,.15); }
+.exp-cand small{ font-size:10px; opacity:.8; }
 </style>
 </head>
 <body>
@@ -7180,6 +7203,117 @@ function baseState(){
 }
 function facilityUnlocked(key){ const req = FACILITY_UNLOCK[key]; return !req || STATE.clearedStages.includes(req); }
 function facilityLvUnlocked(lv){ const req = FACILITY_LV_UNLOCK[lv]; return !req || STATE.clearedStages.includes(req); }
+/* ---- 遠征(放置報酬)。中身の正は docs/提案資料/遠征案.md ----
+   拠点の「遠征所」から、モンスターを行き先に出して、時間がたつと報酬を受け取る。遠征に出しても戦闘には使える
+   (同じ子を同時に2つの遠征には出せない)。行き先ごとの条件を満たすと大成功(報酬1.5倍)。失敗はない。
+   報酬の量は「中」(2026-10-20 ユーザー決定): 12時間・大成功でスタミナ10ぶん。5枠×1日2回でスタミナ100ぶん。
+   枠は遠征所のLvで増える(案B)。公開日は未定なので、?expedition=1 と試験場でだけ出す */
+const EXPEDITION_RELEASE_AT = null;
+const EXPEDITION_DEV = typeof location !== 'undefined' && /[?&]expedition=1\b/.test(location.search || '');
+function expeditionLive(){ return EXPEDITION_DEV || ANY_LAB || !!(EXPEDITION_RELEASE_AT && Date.now() >= new Date(EXPEDITION_RELEASE_AT).getTime()); }
+const EXPEDITION_UNLOCK = 'q1_10';                 // 霊素工房と同じ
+const EXPEDITION_SLOTS = [0, 3, 3, 4, 4, 5];       // 遠征所のLvごとの枠
+const EXPEDITION_HOURS = [1, 4, 8, 12];
+const EXPEDITION_EFF = { 1: 1.3, 4: 1.15, 8: 1.05, 12: 1 };   // 短いほど1時間あたり少し多い
+const EXPEDITION_GREAT = 1.5;                      // 大成功の倍率(ふつうの成功は大成功の2/3)
+// 12時間・大成功の報酬。ワザ素材は TierI換算65(神話級ハードのボス1周 66.7)
+const expMats = (fam, kind, n1, n2, n3) => Object.fromEntries([[matKey(fam, kind, 1), n1], [matKey(fam, kind, 2), n2], [matKey(fam, kind, 3), n3]].filter(x => x[1]));
+const expElRo = (el, ro) => ({ ...expMats('el', el, 5, 3, 1), ...expMats('ro', ro, 5, 3, 0) });
+const EXPEDITION_DESTS = [
+  { key:'gold',   name:'金色の鉱脈',       n:2, conds:[{ el:'earth', n:1 }, { role:'tank', n:1 }], reward:{ gold:30000 } },
+  { key:'books',  name:'知恵の書庫',       n:2, conds:[{ role:'support', n:1 }, { lv:100, n:2 }], reward:{ items:{ exp3:10 } } },
+  { key:'fire',   name:'炎の古戦場',       n:3, conds:[{ el:'fire', n:2 }], reward:{ items: expElRo('fire', 'attacker') } },
+  { key:'water',  name:'水底の神殿',       n:3, conds:[{ el:'water', n:2 }], reward:{ items: expElRo('water', 'tank') } },
+  { key:'wind',   name:'風の峡谷',         n:3, conds:[{ el:'wind', n:1 }, { role:'shooter', n:1 }], reward:{ items: expElRo('wind', 'shooter') } },
+  { key:'relic',  name:'霊素の洞穴',       n:3, conds:[{ rarity:4, n:2 }], reward:{ items:{ relic_scrap:300, relic_core_1:2 } } },
+  { key:'awaken', name:'限界の門の向こう', n:4, hours:[8, 12], conds:[{ rarity:5, n:1 }, { lv:200, n:3 }], reward:{ items:{ awaken:3 } } },
+  { key:'stars',  name:'星降る丘',         n:5, hours:[12], conds:[{ distinctEl:5 }], reward:{ crystals:15 } },
+];
+// 日替わりの行き先(種族の集落2か所・ロールの訓練場2か所)。毎日 4:00 に入れ替わる
+function expDailyDest(key){
+  const [kind, x] = key.split(':');
+  if(kind === 'sp' && SPECIES_LABEL[x]) return { key, name:`${SPECIES_LABEL[x]}の集落`, daily:true, n:3, conds:[{ sp:x, n:2 }], reward:{ items: expMats('sp', x, 10, 5, 1) } };
+  if(kind === 'ro' && ROLE_LABEL[x]) return { key, name:`${ROLE_LABEL[x]}の訓練場`, daily:true, n:3, conds:[{ role:x, n:2 }], reward:{ items: expMats('ro', x, 10, 5, 1) } };
+  return null;
+}
+function expDailyKeys(dayKey){
+  let h = 0; for(const c of String(dayKey || currentDayKey())) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const pick = (list, n) => { const a = list.slice(), out = []; for(let i = 0; i < n && a.length; i++){ h = (h * 1103515245 + 12345) >>> 0; out.push(a.splice(h % a.length, 1)[0]); } return out; };
+  return [...pick(SPECIES_ORDER, 2).map(x => `sp:${x}`), ...pick(Object.keys(ROLE_LABEL), 2).map(x => `ro:${x}`)];
+}
+function expDestByKey(key){ return EXPEDITION_DESTS.find(d => d.key === key) || expDailyDest(key); }
+function expTodayDests(){ return [...EXPEDITION_DESTS, ...expDailyKeys().map(expDailyDest)]; }
+function expHoursOf(dest){ return dest.hours || EXPEDITION_HOURS; }
+function expState(){
+  if(!STATE.expedition) STATE.expedition = { lv: 1, slots: [] };
+  return STATE.expedition;
+}
+function expSlotCount(){ return EXPEDITION_SLOTS[expState().lv] || 3; }
+function expUnlocked(){ return expeditionLive() && STATE.clearedStages.includes(EXPEDITION_UNLOCK); }
+function expBusyIds(){ return new Set(expState().slots.filter(Boolean).flatMap(s => s.ids)); }
+function expDone(s){ return !!s && Date.now() >= s.at + s.hours * 3600000; }
+// 条件ひとつの説明と、満たしているか
+function expCondText(c){
+  if(c.el) return `${ELEM_LABEL[c.el]}属性 ${c.n}体以上`;
+  if(c.role) return `${ROLE_LABEL[c.role]} ${c.n}体以上`;
+  if(c.sp) return `${SPECIES_LABEL[c.sp]} ${c.n}体以上`;
+  if(c.rarity) return `★${c.rarity}以上(もとのレアリティ) ${c.n}体以上`;
+  if(c.lv) return `Lv${c.lv}以上 ${c.n}体以上`;
+  if(c.distinctEl) return `${c.distinctEl}体とも別の属性`;
+  return '';
+}
+function expCondMet(c, ids){
+  const ms = ids.map(id => MON_BY_ID[id]).filter(Boolean);
+  if(c.distinctEl) return ms.length >= c.distinctEl && new Set(ms.map(m => m.element)).size >= c.distinctEl;
+  const n = ms.filter(m => c.el ? m.element === c.el : c.role ? m.role === c.role : c.sp ? speciesOf(m) === c.sp
+    : c.rarity ? m.rarity >= c.rarity : c.lv ? ((STATE.owned[m.id] || {}).level || 1) >= c.lv : false).length;
+  return n >= c.n;
+}
+function expGreat(dest, ids){ return dest.conds.every(c => expCondMet(c, ids)); }
+// 受け取る量(端数は確率で切り上げ。roll を渡すとその値で決める: テスト用)
+function expScale(dest, hours, great){ return hours / 12 * (EXPEDITION_EFF[hours] || 1) * (great ? 1 : 1 / EXPEDITION_GREAT); }
+function expRound(x, roll){ const f = Math.floor(x); return f + ((roll !== undefined ? roll : Math.random()) < x - f ? 1 : 0); }
+function expRewardOf(dest, hours, great, roll){
+  const k = expScale(dest, hours, great), r = dest.reward, out = { gold: 0, crystals: 0, items: {} };
+  if(r.gold) out.gold = Math.round(r.gold * k / 100) * 100;
+  if(r.crystals) out.crystals = expRound(r.crystals * k, roll);
+  Object.entries(r.items || {}).forEach(([key, n]) => { const v = expRound(n * k, roll); if(v > 0) out.items[key] = v; });
+  return out;
+}
+function expRewardText(rw){
+  return [rw.gold ? goldText(rw.gold) : '', rw.crystals ? `${CRYSTAL_ICON}${rw.crystals}` : '',
+    ...Object.entries(rw.items).map(([k, n]) => `${itemIcon(k)}×${n}`)].filter(Boolean).join(' ');
+}
+function expStart(slot, destKey, ids, hours){
+  const st = expState(), dest = expDestByKey(destKey);
+  if(!expUnlocked() || !dest || slot < 0 || slot >= expSlotCount() || st.slots[slot]) return false;
+  if(!expHoursOf(dest).includes(hours) || ids.length !== dest.n || new Set(ids).size !== ids.length) return false;
+  const busy = expBusyIds();
+  if(ids.some(id => !STATE.owned[id] || busy.has(id))) return false;
+  st.slots[slot] = { dest: destKey, ids: ids.slice(), hours, at: Date.now(), great: expGreat(dest, ids) };
+  saveState();
+  return true;
+}
+function expCollect(slot){
+  const st = expState(), s = st.slots[slot];
+  if(!expDone(s)) return null;
+  const dest = expDestByKey(s.dest);
+  const rw = expRewardOf(dest, s.hours, s.great);
+  if(rw.gold) addGold(rw.gold);
+  if(rw.crystals) STATE.crystals = (STATE.crystals || 0) + rw.crystals;
+  Object.entries(rw.items).forEach(([k, n]) => addItem(k, n));
+  st.slots[slot] = null;
+  saveState();
+  return { dest, great: s.great, reward: rw };
+}
+function expCancel(slot){ const st = expState(); if(!st.slots[slot]) return; st.slots[slot] = null; saveState(); }
+function expUpgradeCost(){ const n = expState().lv + 1; return n <= FACILITY_MAX_LV ? FACILITY_UPGRADE_GOLD[n] : null; }
+function expUpgrade(){
+  const st = expState(), next = st.lv + 1, cost = expUpgradeCost();
+  if(cost === null || !facilityLvUnlocked(next) || (STATE.gold || 0) < cost) return false;
+  STATE.gold -= cost; st.lv = next; saveState();
+  return true;
+}
 function idleAmount(key){
   const f = baseState()[key];
   const ms = Math.min(IDLE_MAX_MS, Date.now() - f.at);
@@ -12312,6 +12446,25 @@ function renderPvpFormEdit(){
 
 let alchemyFam = 'el';
 
+// 拠点の「遠征所」のカード(公開前は出さない)
+function expeditionCard(){
+  if(!expeditionLive()) return '';
+  if(!expUnlocked()) return `<div class="panel facility locked"><div class="fc-head">
+      <span class="fc-ic">${UI_ICON.lock}</span>
+      <div class="fc-body"><div class="fc-name">遠征所</div>
+      <div class="fc-line">メインステージ「${STAGE_BY_ID[EXPEDITION_UNLOCK].name}」をクリアすると解放</div></div>
+    </div></div>`;
+  const st = expState(), slots = st.slots.slice(0, expSlotCount());
+  const ready = slots.filter(expDone).length, running = slots.filter(Boolean).length;
+  return `
+    <div class="panel facility ${ready ? 'ready' : ''}" data-open-expedition="1" role="button">
+      <div class="fc-head"><span class="fc-ic">${UI_ICON.flag || UI_ICON.swords}</span>
+        <div class="fc-body"><div class="fc-name">遠征所<span class="fc-lv">Lv${st.lv}/${FACILITY_MAX_LV}</span></div>
+        <div class="fc-line">${running}/${expSlotCount()}枠が遠征中${ready ? `・<b>${ready}件 受け取れます</b>` : ''}</div></div>
+        <button class="btn btn-sm">開く ›</button>
+      </div>
+    </div>`;
+}
 function renderBase(){
   baseState();
   const facilityCard = key => {
@@ -12386,7 +12539,8 @@ function renderBase(){
     ${facilityCard('mine')}
     ${facilityCard('lab')}
     ${facilityCard('smithy')}
-    ${alchemy}`;
+    ${alchemy}
+    ${expeditionCard()}`;
 }
 
 let shopTab = 'gold';
@@ -12731,6 +12885,106 @@ function itemDetailGo(i){
   else if(g.type === 'base'){ goto('base'); }
   else if(g.type === 'shop'){ shopTab = g.tab || 'gold'; goto('shop'); }
   else if(g.type === 'missions'){ goto('missions'); }
+}
+/* ---- 遠征の画面(拠点から開く。錬金術と同じく画面の上に重ねる) ---- */
+let expUI = null;   // { slot: 空き枠の番号|null, dest: 行き先のkey|null, ids: [], hours }
+function openExpedition(){ expUI = { slot: null, dest: null, ids: [], hours: 12 }; renderExpedition(); }
+function expRemainText(s){ const ms = Math.max(0, s.at + s.hours * 3600000 - Date.now()); return `${Math.floor(ms / 3600000)}時間${Math.floor(ms % 3600000 / 60000)}分`; }
+function renderExpedition(){
+  if(!expUI) return;
+  const u = expUI, st = expState(), n = expSlotCount();
+  const monIc = id => `<img class="exp-mon" src="${imgSrc(id)}" alt="">`;
+  let body;
+  if(u.dest){
+    const dest = expDestByKey(u.dest), busy = expBusyIds();
+    if(!expHoursOf(dest).includes(u.hours)) u.hours = expHoursOf(dest).slice(-1)[0];
+    const owned = Object.keys(STATE.owned).filter(id => MON_BY_ID[id] && !busy.has(id))
+      .sort((a, b) => (MON_BY_ID[b].rarity - MON_BY_ID[a].rarity) || ((STATE.owned[b].level || 1) - (STATE.owned[a].level || 1)));
+    const great = expGreat(dest, u.ids);
+    body = `
+      <div class="panel exp-pick">
+        <div class="exp-dest-name">${dest.name}<small>${dest.n}体で出発</small></div>
+        <div class="exp-conds">${dest.conds.map(c => `<span class="${expCondMet(c, u.ids) ? 'ok' : ''}">${expCondMet(c, u.ids) ? '✓' : '・'} ${expCondText(c)}</span>`).join('')}</div>
+        <div class="exp-sel">${[...Array(dest.n).keys()].map(i => u.ids[i] ? `<button class="exp-sel-slot" data-exp-unpick="${u.ids[i]}">${monIc(u.ids[i])}</button>` : '<span class="exp-sel-slot empty"></span>').join('')}</div>
+        <div class="exp-hours">${expHoursOf(dest).map(h => `<button class="bag-tier-chip ${u.hours === h ? 'on' : ''}" data-exp-hours="${h}">${h}時間</button>`).join('')}</div>
+        <div class="exp-reward">${great ? '<b class="exp-great">大成功</b>' : 'ふつうの成功'}: ${expRewardText(expRewardOf(dest, u.hours, great, 0.5))}</div>
+        <div class="exp-go">
+          <button class="btn btn-ghost btn-sm" data-exp-back="1">行き先を選び直す</button>
+          <button class="btn btn-sm ${u.ids.length === dest.n ? '' : 'btn-ghost'}" data-exp-start="1" ${u.ids.length === dest.n ? '' : 'disabled'}>出発</button>
+        </div>
+      </div>
+      <div class="exp-grid">${owned.map(id => `<button class="exp-cand ${u.ids.includes(id) ? 'on' : ''}" data-exp-pick="${id}">${monIc(id)}<small>Lv${STATE.owned[id].level || 1}</small></button>`).join('') || '<div class="alc-hint">出せるモンスターがいません</div>'}</div>`;
+  }else if(u.slot !== null){
+    body = `<div class="alc-hint">行き先を選んでください(条件を満たすと大成功・報酬1.5倍)</div>
+      ${expTodayDests().map(d => `
+        <div class="panel exp-dest" data-exp-dest="${d.key}" role="button">
+          <div class="exp-dest-name">${d.name}${d.daily ? '<span class="exp-daily">日替わり</span>' : ''}<small>${d.n}体・${expHoursOf(d).join('/')}時間</small></div>
+          <div class="exp-conds">${d.conds.map(c => `<span>${expCondText(c)}</span>`).join('')}</div>
+          <div class="exp-reward">12時間・大成功: ${expRewardText(expRewardOf(d, 12, true, 0.5))}</div>
+        </div>`).join('')}
+      <button class="btn btn-ghost btn-sm" data-exp-cancel-pick="1">‹ 枠の一覧に戻る</button>`;
+  }else{
+    const cost = expUpgradeCost(), next = st.lv + 1, lvLocked = cost !== null && !facilityLvUnlocked(next);
+    body = `
+      ${[...Array(n).keys()].map(i => {
+        const s = st.slots[i];
+        if(!s) return `<div class="panel exp-slot empty"><span>枠${i + 1}: 空き</span><button class="btn btn-sm" data-exp-new="${i}">遠征に出す</button></div>`;
+        const dest = expDestByKey(s.dest), done = expDone(s);
+        return `<div class="panel exp-slot ${done ? 'ready' : ''}">
+          <div class="exp-dest-name">${dest ? dest.name : '?'}<small>${s.hours}時間${s.great ? '・<b class="exp-great">大成功</b>' : ''}</small></div>
+          <div class="exp-sel">${s.ids.map(monIc).join('')}</div>
+          <div class="exp-go">${done ? `<button class="btn btn-sm" data-exp-collect="${i}">受け取る</button>`
+            : `<span class="exp-remain">のこり ${expRemainText(s)}</span><button class="btn btn-ghost btn-sm" data-exp-stop="${i}">やめる</button>`}</div>
+        </div>`;
+      }).join('')}
+      <div class="panel exp-lv"><span>遠征所 Lv${st.lv}/${FACILITY_MAX_LV}・${n}枠</span>${cost === null ? '<span>最大レベルです</span>'
+        : `<button class="btn btn-sm ${lvLocked || (STATE.gold || 0) < cost ? 'btn-ghost' : ''}" data-exp-up="1" ${lvLocked ? 'disabled' : ''}>${lvLocked ? `「${STAGE_BY_ID[FACILITY_LV_UNLOCK[next]].name}」クリアで解放` : `Lv${next}(${EXPEDITION_SLOTS[next]}枠) ${goldText(cost)}`}</button>`}</div>`;
+  }
+  const layer = document.getElementById('modal-layer');
+  layer.innerHTML = `
+    <div class="result-modal bag-modal exp-modal" role="dialog" aria-label="遠征">
+      <div class="bag-top">
+        <button class="btn btn-ghost btn-sm" data-exp-close="1">‹ 戻る</button>
+        <h3>${UI_ICON.flag || UI_ICON.swords} 遠征</h3>
+        <span class="bag-count">${goldText(STATE.gold || 0)}</span>
+      </div>
+      ${body}
+    </div>`;
+  layer.classList.add('show');
+}
+function handleExpClick(t){
+  const u = expUI;
+  if(t.closest('[data-exp-close]')){ expUI = null; closeModal(); render(); return true; }
+  const newEl = t.closest('[data-exp-new]');
+  if(newEl){ u.slot = Number(newEl.dataset.expNew); u.dest = null; u.ids = []; renderExpedition(); return true; }
+  if(t.closest('[data-exp-cancel-pick]')){ u.slot = null; renderExpedition(); return true; }
+  const destEl = t.closest('[data-exp-dest]');
+  if(destEl){ u.dest = destEl.dataset.expDest; u.ids = []; renderExpedition(); return true; }
+  if(t.closest('[data-exp-back]')){ u.dest = null; u.ids = []; renderExpedition(); return true; }
+  const pickEl = t.closest('[data-exp-pick]');
+  if(pickEl){
+    const id = pickEl.dataset.expPick, dest = expDestByKey(u.dest);
+    if(u.ids.includes(id)) u.ids = u.ids.filter(x => x !== id); else if(u.ids.length < dest.n) u.ids.push(id);
+    renderExpedition(); return true;
+  }
+  const unEl = t.closest('[data-exp-unpick]');
+  if(unEl){ u.ids = u.ids.filter(x => x !== unEl.dataset.expUnpick); renderExpedition(); return true; }
+  const hEl = t.closest('[data-exp-hours]');
+  if(hEl){ u.hours = Number(hEl.dataset.expHours); renderExpedition(); return true; }
+  if(t.closest('[data-exp-start]')){
+    if(expStart(u.slot, u.dest, u.ids, u.hours)){ toast(`${expDestByKey(u.dest).name}へ出発した(${u.hours}時間)`); expUI = { slot: null, dest: null, ids: [], hours: u.hours }; }
+    renderExpedition(); return true;
+  }
+  const colEl = t.closest('[data-exp-collect]');
+  if(colEl){
+    const r = expCollect(Number(colEl.dataset.expCollect));
+    if(r) toastHtml(`${r.dest.name}から帰ってきた${r.great ? '(大成功!)' : ''}<br>${expRewardText(r.reward)}`);
+    renderExpedition(); return true;
+  }
+  const stopEl = t.closest('[data-exp-stop]');
+  if(stopEl){ expCancel(Number(stopEl.dataset.expStop)); renderExpedition(); return true; }
+  if(t.closest('[data-exp-up]')){ if(expUpgrade()) toast(`遠征所がLv${expState().lv}になった(${expSlotCount()}枠)`); renderExpedition(); return true; }
+  return true;   // 遠征の画面の中のタップは、ほかの処理に流さない
 }
 /* ---- 錬金術の画面: 作りたい素材(TierII〜IV)を一覧から選ぶと、必要な素材とゴールドが出る ---- */
 let alchemyUI = null;   // { fam, tier: 0|2|3|4, pick: key|null, qty }
@@ -23625,6 +23879,8 @@ function handlePhoneClick(ev){
   const skEl = t.closest('[data-skill-up]');
   if(skEl){ openSkillUpgradeModal(skEl.dataset.skillUp, skEl.dataset.field); return; }
   if(alchemyUI && !itemDetail && t.closest('.alchemy-modal, #modal-layer')){ if(handleAlchemyClick(t)) return; }
+  if(expUI && !itemDetail && t.closest('.exp-modal, #modal-layer')){ if(handleExpClick(t)) return; }
+  if(t.closest('[data-open-expedition]')){ openExpedition(); playSfx('open'); return; }
   if(t.closest('[data-open-alchemy]')){ openAlchemy(); playSfx('open'); return; }
   if(itemDetail){
     if(t.closest('[data-item-detail-close]') || t === document.getElementById('modal-layer')){ closeItemDetail(); return; }
