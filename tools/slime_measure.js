@@ -50,6 +50,8 @@ function fight(stage, party, g){
     mvp: b.party.slice().sort((x, y) => y.report.dealt - x.report.dealt)[0].name };
 }
 const N = +(process.env.N || 30);
+// ADD: 測る段のステージ効果に足す(JSON の配列。EX1〜HELL どの段にも使える)
+if(process.env.ADD) process.argv.slice(2).forEach(k => { const st = M.STAGE_BY_ID[GROW[k].stage]; st.rules = [...st.rules, ...JSON.parse(process.env.ADD)]; });
 const which = process.argv.slice(2).length ? process.argv.slice(2) : ['ex1', 'ex3', 'hell'];
 const only = process.env.PARTY ? process.env.PARTY.split(',') : Object.keys(PARTIES);
 for(const k of which){
