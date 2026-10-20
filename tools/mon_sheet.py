@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
-"""index.html から「モンスター資料」(立ち絵・能力・ワザの一覧ページ)を1枚のHTMLに書き出す。
+"""index.html から「モンスター資料」(立ち絵・能力・ワザの一覧)を書き出す。
 
 モンスターを足したり数値を直したら、これを走らせ直せば資料が最新になる。資料そのものは
 リポジトリに入れない(立ち絵のぶん3MBほどあり、index.htmlと同じ中身が二重になるため)。
 
-使い方: python3 tools/mon_sheet.py [出力先.html]
-        (省略時は /tmp/monster_sheet.html)
+使い方:
+  python3 tools/mon_sheet.py                    # 一式を /tmp/monster_sheet/ に(渡すならこれ)
+  python3 tools/mon_sheet.py -o <出力先>         # 出力先を変える
+  python3 tools/mon_sheet.py -f html -o x.html  # 1つだけ欲しいとき
+
+形式:
+  html  立ち絵つきの1枚ページ。絞り込み・表・1体ずつの詳細(人が見る用)
+  md    同じ中身のテキスト。立ち絵は入らない(ほかのClaudeに読ませる用)
+  json  もとデータそのまま(プログラムで扱う用)
+  csv   基礎値だけの表(表計算に貼る用)
+  art   立ち絵を1枚ずつ .webp で書き出す
+  all   上ぜんぶ + それらをまとめた .zip (既定)
 """
-import sys, re, json, pathlib, subprocess, tempfile, os
+import sys, re, json, pathlib, subprocess, tempfile, os, csv, io, base64, zipfile, datetime
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path('/tmp/monster_sheet.html')
+FORMATS = ['html', 'md', 'json', 'csv', 'art']
 
 # ---- もとデータ: モンスターは game.js 経由(ワザは MONSTER_KITS にあり、mons.json には無い)
 DUMP = r'''
@@ -411,16 +421,155 @@ draw();
 </script>
 '''
 
+# ---- 書き出し ----------------------------------------------------------------
+
+def label(d):
+    """表示名をひく小道具をまとめて返す。科は未設定の子がいるので (科なし) で埋める"""
+    return (d['elemLabel'], d['speciesLabel'], d['roleLabel'],
+            lambda m: m['family'] or '(科なし)')
+
+def counts(mons, key, order=None):
+    c = {}
+    for m in mons:
+        k = key(m) if callable(key) else m[key]
+        c[k] = c.get(k, 0) + 1
+    keys = [k for k in (order or []) if k in c] or sorted(c, key=lambda k: -c[k])
+    return [(k, c[k]) for k in keys]
+
+def write_md(data, path):
+    mons, EL, SL, RL = data['mons'], *label(data)[:3]
+    fam = label(data)[3]
+    o = io.StringIO()
+    w = o.write
+    w(f'# モンスター資料\n\n{data["builtAt"]}現在、全{len(mons)}体。'
+      'index.html のデータから `tools/mon_sheet.py` が書き出したもの。\n\n')
+    w('立ち絵は同じフォルダの `立ち絵/` に、モンスターごとの .webp で入っている'
+      '(このファイルからは参照していない)。\n\n## 全体の数\n\n')
+    for title, key, lab, order in [
+            ('レア度', lambda m: f'★{m["rarity"]}', None, [f'★{r}' for r in (5, 4, 3, 2, 1)]),
+            ('属性', 'element', EL, data['elemOrder']),
+            ('種族', 'species', SL, data['speciesOrder']),
+            ('ロール', 'role', RL, None),
+            ('科', fam, None, None)]:
+        row = counts(mons, key, order)
+        w(f'- **{title}**: ' + ' / '.join(f'{(lab or {}).get(k, k)} {n}' for k, n in row) + '\n')
+    w(f'- **星刻特性つき**: {sum(1 for m in mons if m["perks"])}体\n\n')
+    w('## 読み方\n\n'
+      '基礎値は Lv1・そのモンスターのもとの★のときの値。★1つで HP・STR・防御が+10%、'
+      'Lv1つで+3%(SPDは★で伸びない)。スキル2は★4から使える。'
+      'スキル・奥義のLv上限は10、パッシブは5。\n\n'
+      '属性の相性は、火→草→水→火 と 土→雷→風→土 が1.5倍(逆は0.7倍)、光と闇はおたがいに1.5倍。'
+      '無属性はどの属性に対しても1.0倍で、受けるときも1.0倍。\n\n## 一覧\n')
+    kinds = [('通常', 'normal'), ('スキル1', 'skill1'), ('スキル2', 'skill2'), ('奥義', 'ult')]
+    for m in mons:
+        w(f'\n### {m["id"]} {m["name"]} ★{m["rarity"]} {EL[m["element"]]} '
+          f'{SL[m["species"]]} {RL[m["role"]]} {fam(m)}\n\n')
+        w(f'{m["desc"]} / 傾向 {m["statType"]} / 立ち絵 `{art_name(m)}`\n\n')
+        w(f'HP {m["hp"]} / STR {m["str"]} / 物防 {m["pdef"]} / 魔防 {m["mdef"]} '
+          f'/ SPD {m["spd"]} / ヘイト {m["hate"]}\n\n')
+        for jp, k in kinds:
+            a = m.get(k)
+            if not a:
+                continue
+            tp = {'mag': '魔法', 'phys': '物理'}.get(a.get('atk'), '')
+            cost = f'SP{a["sp"]}' if a.get('sp') else f'CT{a["ct"]}' if a.get('ct') else ''
+            tail = '・'.join(x for x in (tp, cost) if x)
+            w(f'- **{jp}** {a["name"]}' + (f'({tail})' if tail else '') + f' — {a.get("desc", "")}\n')
+        if m.get('passive'):
+            w(f'- **パッシブ** {m["passive"]["name"]} — {m["passive"].get("desc", "")}\n')
+        for pk in m['perks']:
+            w(f'- **星刻★{pk["star"]}** {pk["desc"]}\n')
+    path.write_text(o.getvalue(), encoding='utf-8')
+
+def write_csv(data, path):
+    EL, SL, RL, fam = label(data)
+    with path.open('w', encoding='utf-8-sig', newline='') as f:
+        wr = csv.writer(f)
+        wr.writerow(['No.', '名前', '★', '属性', '種族', 'ロール', '科', '傾向',
+                     'HP', 'STR', '物防', '魔防', 'SPD', 'ヘイト',
+                     '通常', 'スキル1', 'スキル2', '奥義', 'パッシブ', '星刻の段数', '説明'])
+        for m in data['mons']:
+            wz = lambda k: (m.get(k) or {}).get('name', '')
+            wr.writerow([m['id'], m['name'], m['rarity'], EL[m['element']], SL[m['species']],
+                         RL[m['role']], fam(m), m['statType'], m['hp'], m['str'], m['pdef'],
+                         m['mdef'], m['spd'], m['hate'], wz('normal'), wz('skill1'), wz('skill2'),
+                         wz('ult'), wz('passive'), len(m['perks']), m['desc']])
+
+def art_name(m):
+    """立ち絵のファイル名。名前にファイル名で困る字は使われていないが、念のため落とす"""
+    safe = re.sub(r'[\\/:*?"<>|]', '', m['name'])
+    return f'{m["id"]}_{safe}.webp'
+
+def write_art(data, art, into):
+    into.mkdir(parents=True, exist_ok=True)
+    for m in data['mons']:
+        uri = art[m['sprite']]
+        into.joinpath(art_name(m)).write_bytes(base64.b64decode(uri.split(',', 1)[1]))
+    return len(data['mons'])
+
+def write_html(data, art, path):
+    path.write_text(PAGE.replace('__DATA__', json.dumps(data, ensure_ascii=False))
+                        .replace('__ART__', json.dumps(art)), encoding='utf-8')
+
+README = """このフォルダは index.html から `tools/mon_sheet.py` が書き出したものです。
+
+- モンスター資料.md    立ち絵以外のぜんぶ。読ませるならこれ
+- モンスター資料.html  立ち絵つきの1枚ページ。ブラウザで開く
+- monsters.json        もとデータそのまま
+- monsters.csv         基礎値だけの表
+- 立ち絵/              モンスターごとの立ち絵(.webp)
+
+{builtAt}現在、全{n}体。
+"""
+
 def main():
+    args, fmt, out = sys.argv[1:], None, None
+    i = 0
+    while i < len(args):
+        if args[i] in ('-f', '--format'):
+            fmt = args[i + 1]; i += 2
+        elif args[i] in ('-o', '--out'):
+            out = pathlib.Path(args[i + 1]); i += 2
+        else:                      # 出力先だけを渡す形(以前の使い方)も通す
+            out = pathlib.Path(args[i]); i += 1
+    # 形式を言われていないときは、出力先の拡張子から決める。拡張子がなければ一式
+    if fmt is None:
+        fmt = {'.html': 'html', '.md': 'md', '.json': 'json', '.csv': 'csv'}.get(
+            out.suffix.lower() if out else '', 'all')
+    if fmt not in FORMATS + ['all']:
+        raise SystemExit(f'形式は {"・".join(FORMATS + ["all"])} のどれかです: {fmt}')
+
     data = build_data()
-    data['builtAt'] = __import__('datetime').date.today().strftime('%Y年%-m月%-d日')
+    data['builtAt'] = datetime.date.today().strftime('%Y年%-m月%-d日')
     art = sprites_for([m['sprite'] for m in data['mons']])
-    html = (PAGE
-            .replace('__DATA__', json.dumps(data, ensure_ascii=False))
-            .replace('__ART__', json.dumps(art)))
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(html, encoding='utf-8')
-    print(f'{OUT} に書き出しました ({len(html) / 1024 / 1024:.2f} MB / {len(data["mons"])}体)')
+    n = len(data['mons'])
+
+    if fmt != 'all':
+        out = out or pathlib.Path('/tmp/monster_sheet.' + ('' if fmt == 'art' else fmt))
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if fmt == 'html':  write_html(data, art, out)
+        elif fmt == 'md':  write_md(data, out)
+        elif fmt == 'csv': write_csv(data, out)
+        elif fmt == 'art': write_art(data, art, out)
+        else:              out.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding='utf-8')
+        print(f'{out} に書き出しました ({n}体)')
+        return
+
+    d = out or pathlib.Path('/tmp/monster_sheet')
+    d.mkdir(parents=True, exist_ok=True)
+    write_html(data, art, d / 'モンスター資料.html')
+    write_md(data, d / 'モンスター資料.md')
+    write_csv(data, d / 'monsters.csv')
+    (d / 'monsters.json').write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding='utf-8')
+    write_art(data, art, d / '立ち絵')
+    (d / 'README.md').write_text(README.format(builtAt=data['builtAt'], n=n), encoding='utf-8')
+    zp = d.with_suffix('.zip')
+    with zipfile.ZipFile(zp, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(d.rglob('*')):
+            if f.is_file():
+                z.write(f, f.relative_to(d.parent))
+    print(f'{d} に一式を書き出しました ({n}体)')
+    print(f'{zp} にまとめました ({zp.stat().st_size / 1024 / 1024:.2f} MB)')
 
 if __name__ == '__main__':
     main()
