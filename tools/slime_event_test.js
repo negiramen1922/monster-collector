@@ -99,10 +99,10 @@ ok(JSON.stringify(T) === JSON.stringify([
   { mobHp: 20, mobStr: 20, bossHp: 50, bossStr: 10, amo: 75, water: 25, strDown: 0 },
   { mobHp: 30, mobStr: 30, bossHp: 80, bossStr: 20, amo: 75, water: 25, strDown: 0 },
   { mobHp: 50, mobStr: 30, bossHp: 80, bossStr: 30, amo: 75, water: 25, strDown: 60 },
-  { mobHp: 200, mobStr: 180, bossHp: 450, bossStr: 130, amo: 150, water: 50, strDown: 100 }]), '段ごとの合計(2026-10-20 ユーザー決定の並び)', T);
+  { mobHp: 170, mobStr: 150, bossHp: 450, bossStr: 130, amo: 150, water: 50, strDown: 100 }]), '段ごとの合計(2026-10-20 ユーザー決定の並び)', T);
 ok(T.every((t, i) => i === 0 || Object.keys(t).every(k => t[k] >= T[i - 1][k])), '段が上がっても、どの値も下がらない');
 ok(exS.slice(1).every(s => s.rules.some(x => x.side === 'enemy' && x.dmgTaken === -0.3 && x.atk === 'phys')) && !exS[0].rules.some(x => x.dmgTaken), 'EX2から: 敵 受ける物理ダメージ-30%');
-ok(exS[3].rules.some(x => x.who && x.who.ref === 'm31' && x.stat.hp === 1.0) && exS[3].rules.some(x => x.side === 'enemy' && x.dmgDealt === 1.0), 'HELL: 敵のシースライム 最大HP+100%・敵 与ダメージ+100%');
+ok(exS[3].rules.some(x => x.who && x.who.ref === 'm31' && x.stat.hp === 1.0) && exS[3].rules.some(x => x.side === 'enemy' && x.dmgDealt === 0.7), 'HELL: 敵のシースライム 最大HP+100%・敵 与ダメージ+70%');
 
 console.log('--- メダル・称号・フレーム・お知らせ ---');
 ok(E.EVENT_MEDAL.ev_slime.name === 'スライムの雫' && E.EVENT_MEDAL.ev_slime.icon === 'medal_slime' && E.ITEM_ICON_LABEL.medal_slime === 'スライムの雫', 'メダル「スライムの雫」');
