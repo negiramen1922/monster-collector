@@ -1,7 +1,9 @@
 // バベルの本番側: 解放・初回報酬・5階(ステージ効果)と10階(特殊ステージ)。均衡の塔は60階(5の倍数がボス戦)。
 // 使い方: node tools/babel_live_test.js
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__b={EXPLORE_MENU,exploreMenu,nextStageOf,grantStageRewards,babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
+// 秩序・混沌の塔は公開していない(開発者だけ)。仕組みの確認のため、テストでは global.__allTowers で開ける
+global.__allTowers = true;
+const api = load('game.js', s => s.replace("t.key === 'bal' || BABEL_DEV", "t.key === 'bal' || BABEL_DEV || global.__allTowers") + ';global.__b={normalizeState,babelTowersLive,EXPLORE_MENU,exploreMenu,nextStageOf,grantStageRewards,babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
 const B = global.__b;
 // バベルは 10/20 12:00 公開。公開前は開発者(?babel=1)しか入れないので、テストでは公開ずみにする
 const BABEL_ENTRY = B.EXPLORE_MENU.find(t => t.key === 'babel');
@@ -136,5 +138,29 @@ BABEL_ENTRY.releaseAt = '2999-01-01T00:00:00+09:00';
 ok('公開前はバベルが探索に出ない', !B.exploreMenu().some(t => t.key === 'babel'));
 BABEL_ENTRY.releaseAt = BABEL_AT;
 ok('公開は 10/20 12:00', BABEL_AT === '2026-10-20T12:00:00+09:00');
+// 公開するのは均衡の塔だけ(2026-10-20)
+global.__allTowers = false;
+ok('プレイヤーに出す塔は均衡の塔だけ', JSON.stringify(B.babelTowersLive().map(t => t.key)) === '["bal"]');
+// 読み込み直してもバベルのクリア状況が残る(以前は normalizeState で消えていた)
+{
+  api.STATE.babelResetAtOpen = true;
+  api.STATE.clearedStages = ['tu1', 'bb_bal_1', 'bb_bal_2'];
+  B.normalizeState();
+  ok('読み込み直してもバベルのクリア状況が残る', api.STATE.clearedStages.includes('bb_bal_1') && api.STATE.clearedStages.includes('bb_bal_2'), api.STATE.clearedStages);
+}
+// 公開後に一度だけ、公開前のテストで付いたバベルのクリア状況を消す(報酬はそのまま)
+{
+  BABEL_ENTRY.releaseAt = '2026-01-01T00:00:00+09:00';
+  api.STATE.clearedStages = ['tu1', 'bb_bal_1', 'bb_bal_2', 'bb_order_1'];
+  api.STATE.stageStars = { tu1: 3, bb_bal_1: 3 };
+  api.STATE.babelResetAtOpen = false;
+  const c0 = api.STATE.crystals;
+  B.normalizeState();
+  ok('公開後に開くと、バベルのクリア状況だけ消える', JSON.stringify(api.STATE.clearedStages) === '["tu1"]' && !api.STATE.stageStars.bb_bal_1 && api.STATE.stageStars.tu1 === 3 && api.STATE.crystals === c0, api.STATE.clearedStages);
+  api.STATE.clearedStages.push('bb_bal_1');
+  B.normalizeState();
+  ok('消すのは一度だけ(公開後にクリアした階は残る)', api.STATE.clearedStages.includes('bb_bal_1'));
+  BABEL_ENTRY.releaseAt = BABEL_AT;
+}
 console.log(bad ? 'NG' : 'すべて通過');
 process.exit(bad ? 1 : 0);
