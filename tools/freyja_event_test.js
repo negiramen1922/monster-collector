@@ -14,14 +14,14 @@ const NEW = ['m177', 'm178', 'm179', 'm180', 'm181', 'm182', 'm183', 'm184'];
 ok(!!ev && ev.econV2 && ev.pickup === 'm177' && ev.element === 'earth' && ev.terrain === 'field' && ev.stageName === '黄金のフォールクヴァング' && ev.name === '豊穣の女神',
   'イベントの基本(主役・属性・地形・名前)');
 ok(ev.featured.join() === 'm177,m178,m179', '同時ピックアップの★4はフレイ・ヒルディスヴィーニ');
-ok(E.FREYJA_START_AT === '2026-10-13T12:00:00+09:00' && ev.startAt === E.FREYJA_START_AT && ev.endAt === '2026-10-26T23:59:59+09:00', '開始 10/13 12:00・終了 10/26 23:59:59(どちらも仮)');
+ok(E.FREYJA_START_AT === '2026-10-13T12:00:00+09:00' && ev.startAt === E.FREYJA_START_AT && ev.endAt === '2026-10-27T12:00:00+09:00', '開始 10/13 12:00・終了 10/27 12:00(スライムパラダイス・ハロウィンと入れ替わり)');
 ok(NEW.every(id => E.MON_BY_ID[id].releaseAt === ev.startAt) && ['rel_hawk_cloak', 'rel_golden_ear'].every(id => E.RELICS[id].releaseAt === ev.startAt)
   && NEW.every(id => E.MONSTER_PERKS[id] && E.MONSTER_PERKS[id].from === ev.startAt), '新キャラ・新遺物の releaseAt と星刻の from はイベントの startAt と同じ');
 at('2026-10-13T11:59:00+09:00');
 ok(!E.activeEvents().some(e => e.key === 'ev_freyja') && E.activeEvents().some(e => e.key === 'ev_momotaro'), '開始日時の前は開催中に出ない(鬼ヶ島は開催中)');
 at('2026-10-13T12:00:00+09:00');
 ok(E.activeEvents().some(e => e.key === 'ev_freyja') && E.activeEvents().some(e => e.key === 'ev_momotaro'), '開始日時を過ぎると、鬼ヶ島と2本同時に開催中');
-at('2026-10-27T00:00:00+09:00');
+at('2026-10-27T12:00:01+09:00');
 ok(!E.activeEvents().some(e => e.key === 'ev_freyja'), '終了日時のあとは開催中に出ない');
 at('2026-10-14T12:00:00+09:00');
 
