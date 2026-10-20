@@ -6315,7 +6315,9 @@ function normalizeState(){
   syncHelperMon();
   if(Array.isArray(STATE.slots)) STATE.slots = STATE.slots.map(id =>
     id === HELP_SLOT_ID ? (STATE.borrowed ? id : null) : (id && MON_BY_ID[id]) ? id : null);
-  STATE.clearedStages = (STATE.clearedStages || []).filter(id => STAGE_BY_ID[id]);
+  // バベルの階(bb_塔_階)は STAGE_BY_ID に無い(その場で作る)ので、ここで消さない。
+  // 以前は読み込むたびに消えていて、クリア状況が戻り、初回クリアの報酬をもう一度受け取れていた
+  STATE.clearedStages = (STATE.clearedStages || []).filter(id => STAGE_BY_ID[id] || /^bb_(bal|order|chaos)_\d+$/.test(id));
   refreshStamina();
   if(STATE.daily && !STATE.daily.counts) STATE.daily = null; // saves from before missions
   ensureWeekly();
@@ -6332,6 +6334,14 @@ function normalizeState(){
     if(o && !o.base && MON_BY_ID[id]) o.base = MON_BY_ID[id].rarity;
   });
   ensureAwakenMigration();   // 覚醒結晶の公開後、最初に開いたときに一度だけ
+  // バベルの公開(10/20 12:00)後に一度だけ: 公開前のテストで付いたクリア状況を消す(2026-10-20 ユーザー決定)。
+  // 公開前は開発者しか入れなかったので、消えるのはテストの記録だけ(受け取った報酬はそのまま)
+  const babelEntry = EXPLORE_MENU.find(t => t.key === 'babel');
+  if(!STATE.babelResetAtOpen && babelEntry && isReleased(babelEntry) && !ANY_LAB){
+    STATE.clearedStages = (STATE.clearedStages || []).filter(id => !String(id).startsWith('bb_'));
+    Object.keys(STATE.stageStars || {}).forEach(id => { if(id.startsWith('bb_')) delete STATE.stageStars[id]; });
+    STATE.babelResetAtOpen = true;
+  }
   clearEndedEventMedals();   // 終わったイベントのメダル・ショップ・ミッションを片づける
   if(!(STATE.pvpAttackRelicsFrom >= 0 && STATE.pvpAttackRelicsFrom < FORMATION_SETS)) STATE.pvpAttackRelicsFrom = 0;
   if(!(STATE.pvpDefenseRelicsFrom >= 0 && STATE.pvpDefenseRelicsFrom < FORMATION_SETS)) STATE.pvpDefenseRelicsFrom = 0;
@@ -11827,7 +11837,10 @@ function babelPartyProblem(towerKey){
   if(ids.includes(HELP_SLOT_ID)) return 'バベルではお助けモンスターを使えません';
   return '';
 }
+// プレイヤーに出す塔。公開は均衡の塔だけ(2026-10-20 ユーザー決定)。秩序・混沌の塔は ?babel=1 の開発者だけ
+function babelTowersLive(){ return BABEL_TOWERS.filter(t => t.key === 'bal' || BABEL_DEV); }
 function renderBabelTab(){
+  if(!babelTowersLive().some(t => t.key === babelTower)) babelTower = 'bal';
   const tower = BABEL_TOWERS.find(t => t.key === babelTower) || BABEL_TOWERS[0];
   const floor = babelCurrentFloor();
   const fl = BABEL_FLOORS[babelTower][floor - 1];
@@ -11843,7 +11856,7 @@ function renderBabelTab(){
   // 出てくる敵の顔ぶれはメニューに出さない(戦ってみるまでわからない。2026-10-19 ユーザー決定)
   return `
     <div class="panel bb-card">
-      <div class="lab-tabs bb-towers">${BABEL_TOWERS.map(t => {
+      <div class="lab-tabs bb-towers" ${babelTowersLive().length > 1 ? '' : 'hidden'}>${babelTowersLive().map(t => {
         const fc = babelFloorCount(t.key);
         const n = [...Array(fc).keys()].filter(i => babelFloorCleared(t.key, i + 1)).length;
         return `<button class="lab-tab ${t.key === babelTower ? 'on' : ''}" data-babel="tower:${t.key}">${t.name}<small>${n}/${fc} ・ ${t.note}</small></button>`;
@@ -18141,7 +18154,7 @@ function startBattle(stageId, opts){
     if(stage.floor !== ensureAbyss().floor){ toast(`${ensureAbyss().floor}階から挑戦できます`); return; }
   }
   if(stage.type === 'babel'){
-    if(!exploreMenu().some(t => t.key === 'babel')){ toast('バベルの塔はまだ遊べません'); return; }   // 公開前(10/20 12:00)
+    if(!exploreMenu().some(t => t.key === 'babel') || !babelTowersLive().some(t => t.key === stage.babel.tower)){ toast('バベルの塔はまだ遊べません'); return; }   // 公開前(10/20 12:00)・秩序と混沌の塔は未公開
     const ng = babelPartyProblem(stage.babel.tower);
     if(ng){ toast(ng); return; }
     babelPage = null;   // 戻ったときは、戦った階のページを出す
@@ -24130,7 +24143,7 @@ function handlePhoneClick(ev){
   const bbEl = t.closest('[data-babel]');
   if(bbEl){
     const [k, v] = bbEl.dataset.babel.split(':');
-    if(k === 'tower'){ babelTower = v; babelPickFloor = 0; babelPage = null; }
+    if(k === 'tower'){ if(!babelTowersLive().some(t => t.key === v)) return; babelTower = v; babelPickFloor = 0; babelPage = null; }
     else if(k === 'page'){ if(bbEl.disabled) return; babelPage = Number(v); }
     else babelPickFloor = Number(v);
     playSfx('tap'); render(); return;
@@ -24514,7 +24527,7 @@ let pickTarget = null;       // which profile slot the monster picker is filling
 
 // in-game notices. Add to the top of the list when something ships.
 const NOTICES = [
-  { id: 42, date: '10/20', at: '2026-10-20T12:00:00+09:00', title: '「バベルの塔」登場! と育成まわりの調整', art: ['m140', 'm165', 'm113'], body: '<span class="nt-h">バベルの塔</span><span class="nt-i">・探索に<em>「バベルの塔」</em>が登場しました。スタミナを使わず、何度でも挑戦できる塔です。</span><span class="nt-i">・味方は<em>全員Lv200</em>で戦います(手持ちのレベルに関係なく、★・スキルLv・ルーン・遺物はそのまま)。育て方より<em>編成の組み方</em>が試されます。</span><span class="nt-i">・<em>お助けモンスターは使えません</em>。ソウルや「仲間になる」は出ません。</span><span class="nt-h">3つの塔</span><span class="nt-i">・<em>均衡の塔</em>(全60階): すべてのモンスターが使えます。階ごとに敵の属性や種族が寄っているので、有利な属性で組むのが近道です。</span><span class="nt-i">・<em>5の倍数の階はボス戦</em>。ボスの性格に合わせたステージ効果があり、効果に合った編成で挑むと勝ちやすくなります(55階の死神はトリックスターが主役など)。</span><span class="nt-i">・<em>秩序の塔</em>(10階): 天使・人・精霊・機械・巨人だけ。<em>混沌の塔</em>(10階): 獣・魔・不死・粘体・竜だけ。</span><span class="nt-h">報酬(各階の初回クリアのみ)</span><span class="nt-i">・均衡の塔: ふつうの階は星結晶20。ボスの階は星結晶50・ワザ素材BOX・EXPポット・<em>覚醒結晶</em>(30階までは10個、35階からは20個)。</span><span class="nt-i">・秩序の塔・混沌の塔: 星結晶50(5階・10階は100)と、塔ごとの素材。</span><span class="nt-h">育成まわりの調整(10/19 から)</span><span class="nt-i">・<em>レベルの上限が★ではなく「覚醒結晶」で開く</em>ようになりました。どのモンスターもLv300まで上げられます。★を上げると、これまでどおり基礎ステータス+10%と星刻特性が手に入ります。</span><span class="nt-i">・もとのレアリティの最初の上限より上のレベルの壁は、ゴールドに加えて覚醒結晶で上限解放します(いま★で開いている上限までは不要)。Lv280の壁を足しました。</span><span class="nt-i">・覚醒結晶は、育成クエスト<em>「限界の門」</em>・イベントショップ・毎週ミッション・バベルの塔のボスの階で手に入ります。</span><span class="nt-i">・<em>EXPの泉</em>のEXPポットを増やしました(ステージ1〜3は1.5倍、4・5は2倍)。</span>' },
+  { id: 42, date: '10/20', at: '2026-10-20T12:00:00+09:00', title: '「バベルの塔」登場! と育成まわりの調整', art: ['m140', 'm165', 'm113'], body: '<span class="nt-h">バベルの塔</span><span class="nt-i">・探索に<em>「バベルの塔」</em>が登場しました。スタミナを使わず、何度でも挑戦できる塔です。</span><span class="nt-i">・味方は<em>全員Lv200</em>で戦います(手持ちのレベルに関係なく、★・スキルLv・ルーン・遺物はそのまま)。育て方より<em>編成の組み方</em>が試されます。</span><span class="nt-i">・<em>お助けモンスターは使えません</em>。ソウルや「仲間になる」は出ません。</span><span class="nt-h">均衡の塔</span><span class="nt-i">・<em>均衡の塔</em>(全60階): すべてのモンスターが使えます。階ごとに敵の属性や種族が寄っているので、有利な属性で組むのが近道です。</span><span class="nt-i">・<em>5の倍数の階はボス戦</em>。ボスの性格に合わせたステージ効果があり、効果に合った編成で挑むと勝ちやすくなります(55階の死神はトリックスターが主役など)。</span><span class="nt-h">報酬(各階の初回クリアのみ)</span><span class="nt-i">・ふつうの階は星結晶20。ボスの階は星結晶50・ワザ素材BOX・EXPポット・<em>覚醒結晶</em>(30階までは10個、35階からは20個)。</span><span class="nt-h">育成まわりの調整(10/19 から)</span><span class="nt-i">・<em>レベルの上限が★ではなく「覚醒結晶」で開く</em>ようになりました。どのモンスターもLv300まで上げられます。★を上げると、これまでどおり基礎ステータス+10%と星刻特性が手に入ります。</span><span class="nt-i">・もとのレアリティの最初の上限より上のレベルの壁は、ゴールドに加えて覚醒結晶で上限解放します(いま★で開いている上限までは不要)。Lv280の壁を足しました。</span><span class="nt-i">・覚醒結晶は、育成クエスト<em>「限界の門」</em>・イベントショップ・毎週ミッション・バベルの塔のボスの階で手に入ります。</span><span class="nt-i">・<em>EXPの泉</em>のEXPポットを増やしました(ステージ1〜3は1.5倍、4・5は2倍)。</span>' },
   { id: 41, date: '10/13', at: '2026-10-13T12:00:00+09:00', title: '「豊穣の女神」開幕! フレイヤ ピックアップ', art: ['m177', 'm178', 'm179'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/13(火) 12:00 〜 10/26(月) 23:59</em></span><span class="nt-i">・「鬼ヶ島の腕試し」と同時に開催中です。</span><span class="nt-h">ピックアップガチャ</span><span class="nt-i">・<em>フレイヤ</em>(★5)、同時ピックアップの<em>フレイ・ヒルディスヴィーニ</em>(★4)、専用遺物「<em>鷹の羽衣</em>」の排出率がアップしています。</span><span class="nt-h">期間限定クエスト「黄金のフォールクヴァング」</span><span class="nt-i">・全10層。推奨Lvは10から400まで上がっていきます。</span><span class="nt-i">・最後のウェーブでは、フレイヤとワルキューレたちが待ち構えています。</span><span class="nt-i">・各層の初回クリアで星結晶。クエストで「<em>豊穣の麦印</em>」(メダル)が手に入ります。</span><span class="nt-i">・主役や仲間のソウルは、<em>深い層ほど多く出ます</em>(8〜10層は主役のソウルが一度に1〜3個)。EX・HELLでも出ます。</span><span class="nt-h">EXステージ・HELL</span><span class="nt-i">・<em>EX1</em>(推奨Lv80) / <em>EX2</em>(推奨Lv200) / <em>EX3</em>(推奨Lv300) / <em>HELL</em>(EX3クリアで解放)</span><span class="nt-i">・スタミナを使わない、特別なルールの段です(周回はできません)。初回クリアの星結晶は EX1 100 / EX2 200 / EX3 400 / HELL 500。</span><span class="nt-i">・全段共通: 土属性・光属性の味方 攻撃力・HP+25% / セレスティア・エルフの味方 攻撃力+25%</span><span class="nt-i">・EX2から: 敵 物理防御+50。<em>魔法の力が試されます。</em></span><span class="nt-i">・EX3から: 攻撃力が下がっている敵へ 与ダメージ+30% / 味方 シールドがないとき 受けるダメージ+30%</span><span class="nt-i">・HELLではさらに: 敵 最大HP・攻撃力×1.3、与ダメージ+75% / 敵のフレイヤ・フレイ 攻撃力・HP+50%</span><span class="nt-i">・敵のフレイヤは仲間を癒し続けます。長引く前に崩す手を考えて挑んでください。</span><span class="nt-h">イベントショップ</span><span class="nt-i">・「豊穣の麦印」で交換できます。</span><span class="nt-i">・フレイヤのソウル、フレイ・ヒルディスヴィーニのソウル、遺物「<em>黄金の麦穂</em>」(本体1つ・重複4つまで)</span><span class="nt-i">・<em>無形のソウル</em>(50個×5回まで)と<em>無形の共鳴石</em>(20個×3回まで)も並びます。どのモンスター・遺物にも使えます。</span><span class="nt-i">・召喚券、育成素材、EXPポット、霊素鉱なども交換できます。</span><span class="nt-h">称号とアイコンフレーム</span><span class="nt-i">・「館の客人」「黄金の戦士」: イベントミッションで</span><span class="nt-i">・「選ばれし戦士」: EX3を★3でクリア</span><span class="nt-i">・「女神の近衛兵」とイベントのアイコンフレーム: HELLを★3でクリア</span>' },
   { id: 40, date: '10/12', at: '2026-10-12T12:00:00+09:00', title: '「鬼ヶ島の腕試し」開幕! モモタロウ ピックアップ', art: ['m171', 'm172', 'm173', 'm174'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/12(月) 12:00 〜 10/26(月) 23:59</em></span><span class="nt-i">・「嵐呼ぶ神狼」「奈落の王」は、10/12(月) 12:00 で終了しました。</span><span class="nt-h">ピックアップガチャ</span><span class="nt-i">・<em>モモタロウ</em>(★5)、同時ピックアップの<em>イヌ・サル・キジ</em>(★4)、専用遺物「<em>日の丸桃剣</em>」の排出率がアップしています。</span><span class="nt-h">期間限定クエスト「鬼ヶ島」</span><span class="nt-i">・全10層。推奨Lvは10から400まで上がっていきます。</span><span class="nt-i">・敵はウェーブごとに3・3・4・4・5体。最後のウェーブでは、モモタロウとお供たちが待ち構えています。</span><span class="nt-i">・各層の初回クリアで星結晶。クエストで「<em>鬼ヶ島の桃印</em>」(メダル)が手に入ります。</span><span class="nt-i">・主役や仲間のソウルは、<em>深い層ほど多く出ます</em>(8〜10層は主役のソウルが一度に1〜3個)。EX・HELLでも出ます。</span><span class="nt-h">EXステージ・HELL</span><span class="nt-i">・<em>EX1</em>(推奨Lv80) / <em>EX2</em>(推奨Lv200) / <em>EX3</em>(推奨Lv300) / <em>HELL</em>(EX3クリアで解放)</span><span class="nt-i">・スタミナを使わない、特別なルールの段です(周回はできません)。初回クリアの星結晶は EX1 100 / EX2 200 / EX3 400 / HELL 500。</span><span class="nt-i">・全段共通: ヒュームの味方・ビーストの味方 STR・HP+25% / デーモンの味方 STR・HP-25% / 敵 最大HP+50%・物理ダメージ+40% / HPが50%以下の敵へ 与ダメージ+60%</span><span class="nt-i">・HELLではさらに: 敵のモモタロウ 最大HP+100% / 敵 与ダメージ+100% / デーモンの味方 攻撃力-50%</span><span class="nt-i">・推奨Lvは敵のLvの目安です。最後のウェーブは相性のよい仲間で固まっているので、数字より手ごわく感じるかもしれません。勝てないときは、育ててから挑み直してください。</span><span class="nt-h">イベントショップ</span><span class="nt-i">・「鬼ヶ島の桃印」で交換できます。</span><span class="nt-i">・モモタロウのソウル、イヌ・サル・キジのソウル、遺物「<em>日の丸の鉢巻</em>」(本体1つ・重複4つまで)</span><span class="nt-i">・<em>無形のソウル</em>(50個×5回まで)と<em>無形の共鳴石</em>(20個×3回まで)も並びます。どのモンスター・遺物にも使えます。</span><span class="nt-i">・召喚券、育成素材、EXPポット、霊素鉱なども交換できます。</span><span class="nt-h">称号とアイコンフレーム</span><span class="nt-i">・「鬼退治」「日本一の旗持ち」: イベントミッションで</span><span class="nt-i">・「鬼ヶ島の勇者」: EX3を★3でクリア</span><span class="nt-i">・「鬼神越え」とイベントのアイコンフレーム: HELLを★3でクリア</span>' },
   { id: 39, date: '10/10', at: '2026-10-10T12:00:00+09:00', title: '次回イベント予告「豊穣の女神」10/13(火) 12:00 開幕', art: ['m177', 'm178', 'm179'], body: '<span class="nt-h">開催期間</span><span class="nt-i">・<em>10/13(火) 12:00 〜 10/26(月) 23:59</em></span><span class="nt-i">・ピックアップガチャで、<em>フレイヤ</em>(★5)と、同時ピックアップのフレイ・ヒルディスヴィーニ(★4)、専用遺物「鷹の羽衣」の排出率がアップします。</span><span class="nt-i">・イベントショップでは、遺物「黄金の麦穂」をメダルで交換できます。</span><span class="nt-h">ストーリー</span>戦死者の半分を館に迎える女神フレイヤが、館に迎える戦士を選ぶため、腕を試してきます。<span class="nt-h">新しい仲間</span><span class="nt-i">・<b>フレイヤ</b>(★5・土・サポーター) 戦死者の半分を館に迎える、豊穣と愛の女神。剣は取らず、癒しと守りで仲間を支える。</span><span class="nt-i">・<b>フレイ</b>(★4・土・アタッカー) フレイヤの双子の兄で、光のエルフの国の王。手放した勝利の剣の代わりに、鹿の角で戦う。</span><span class="nt-i">・<b>ヒルディスヴィーニ</b>(★4・光・タンク) フレイヤが乗る、ドワーフが作った金の猪。癒されるほど毛並みが輝き、魔法を受け止める。</span><span class="nt-i">・<b>ヒルデ</b>(★3・光・アタッカー) 戦死者を選ぶ剣のワルキューレ。名は「戦い」。弱った敵を見定めて斬る。</span><span class="nt-i">・<b>ブリュンヒルド</b>(★3・光・タンク) 鎧をまとった盾のワルキューレ。物理の攻めはほとんど通さないが、魔法には弱い。</span><span class="nt-i">・<b>スコグル</b>(★3・土・シューター) 「揺るがす者」の名を持つ弓のワルキューレ。矢を重ねて、敵の足を鈍らせる。</span><span class="nt-i">・<b>ゲンドゥル</b>(★3・闇・サポーター) 杖を持つ魔女のワルキューレ。呪いで敵を弱らせ、呪文の歌で仲間を癒す。</span><span class="nt-i">・<b>エインヘリャル</b>(★2・光・アタッカー) 館に迎えられたヴァイキングの戦士の霊。毎日戦って倒れ、夕方には蘇る。</span><span class="nt-h">期間限定クエスト</span><span class="nt-i">・全10層、EX1〜EX3、HELL があります。</span><span class="nt-i">・この戦場では、<em>魔法の力が試されます</em>。</span><span class="nt-i">・くわしい内容は開催時にお知らせします。</span>' },
@@ -24560,7 +24573,7 @@ const NOTICES = [
 // お知らせ画面の「ニュース」タブ(NOTICES、機能紹介寄り)とは別に、バージョンごとの
 // 変更点をそのまま記録する場所。
 const UPDATE_LOG = [
-  { id: 169, version: 'α0.5.005', date: '10/20', at: '2026-10-20T12:00:00+09:00', title: 'バベルの塔', body: '<span class="nt-i">・探索に「バベルの塔」を追加しました(均衡の塔 全60階・秩序の塔 10階・混沌の塔 10階)。スタミナ不要・全員Lv200で、編成で攻略する塔です。</span><span class="nt-i">・各階の初回クリアで星結晶など。均衡の塔のボスの階では覚醒結晶も手に入ります。</span><span class="nt-i">・お助けモンスターは使えません。ソウルや「仲間になる」は出ません。</span>' },
+  { id: 169, version: 'α0.5.005', date: '10/20', at: '2026-10-20T12:00:00+09:00', title: 'バベルの塔', body: '<span class="nt-i">・探索に「バベルの塔」を追加しました(均衡の塔 全60階)。スタミナ不要・全員Lv200で、編成で攻略する塔です。</span><span class="nt-i">・各階の初回クリアで星結晶など。ボスの階では覚醒結晶も手に入ります。</span><span class="nt-i">・お助けモンスターは使えません。ソウルや「仲間になる」は出ません。</span>' },
   { id: 168, version: 'α0.5.004', date: '10/19', title: 'レベルの上限は「覚醒結晶」で開くように', body: '<span class="nt-h">レベルの上限</span><span class="nt-i">・<em>どのモンスターもLv300まで</em>上げられるようになりました。★(星刻)ではレベルの上限は上がりません。</span><span class="nt-i">・★を上げると、これまでどおり<em>基礎ステータス+10%と星刻特性</em>が手に入ります。</span><span class="nt-h">レベルの壁と覚醒結晶</span><span class="nt-i">・レベルの壁(Lv100・120・150・180・200・230・260)で、もとのレアリティの最初の上限(★1 50 / ★2 70 / ★3 100 / ★4 120 / ★5 150)より上の壁は、ゴールドに加えて<em>覚醒結晶</em>で上限解放します。</span><span class="nt-i">・壁を1つ足しました: <em>Lv280</em>。</span><span class="nt-i">・<em>いま★で開いている上限までの壁は、覚醒結晶なし</em>で越えられます(例: ★7なら Lv200 の壁まで)。Lv280 で止まっていたモンスターは、そのまま先へ進めます。</span><span class="nt-h">覚醒結晶の集めかた</span><span class="nt-i">・育成クエストに<em>「限界の門」</em>を追加しました(1回20スタミナ・ステージ1〜5で1〜5個)。</span><span class="nt-i">・イベントショップ: 10個×5回まで。</span><span class="nt-i">・毎週ミッション「育成クエストを15回クリアする」の報酬に、覚醒結晶10個を足しました。</span><span class="nt-h">EXPの泉</span><span class="nt-i">・Lv300まで育てやすいように、<em>EXPの泉</em>のEXPポットを増やしました(ステージ1〜3は1.5倍、ステージ4・5は2倍)。</span>' },
   { id: 167, version: 'α0.5.003', date: '10/12', title: '不具合の修正(ログインボーナス・周回のボーナス・おすすめユーザー)', body: '<span class="nt-i">・<em>ログインボーナス</em>: 受け取らないまま日が変わると、その日の分が飛ばされていました。受け取るまで同じ日の箱が残るようにしました(1日に受け取れるのは1つまで)。</span><span class="nt-i">・<em>イベントの周回(結果だけ)</em>: イベントボーナスを今の編成で数えていたため、ボーナスのない編成で★3を取ったあと、ボーナスの編成に入れ替えて周回できていました。そのステージを<em>★3でクリアしたときの編成のボーナス</em>で数えるようにしました。ボーナスを上げるには、ボーナスの編成で一度★3クリアしてください(戦闘ありの周回は今までどおり、その編成のボーナスです)。</span><span class="nt-i">・<em>フレンドの追加</em>: おすすめユーザーが数人しか出なくなっていたので、最近遊んでいるテイマーから選ぶようにしました。</span>' },
   { id: 166, version: 'α0.5.002', date: '10/8', title: 'モンスターに名前を付けられるように・通報', body: '<span class="nt-i">・持っているモンスターに名前(8文字まで)を付けられるようになりました。モンスターの詳細で、名前の横の「名前を付ける」から。「元に戻す」で図鑑の名前に戻せます。</span><span class="nt-i">・付けた名前は、編成・戦闘・結果の画面に出ます。お助け(貸し出し)やPVPの防衛編成に入れたモンスターの名前は、ほかのプレイヤーにも見えます。</span><span class="nt-i">・フレンドのプロフィールとPVPの相手から、不適切な名前や自己紹介を通報できるようになりました。通報した相手の名前などは、自分の画面では伏せて表示します(設定から元に戻せます)。</span><span class="nt-i">・名前・自己紹介・モンスターの名前に、使えない言葉のチェックを入れました。</span>' },
