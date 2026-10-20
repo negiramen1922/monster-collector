@@ -5,7 +5,7 @@
 const load = require('./harness.js');
 const api = load('game.js', src => src + `;global.__e = {
   get STATE(){ return STATE }, set STATE(v){ STATE = v }, DEFAULT_STATE,
-  NOTICES, UPDATE_LOG, liveNotices, unreadNotices, openOverlay, GAME_VERSION,
+  NOTICES, UPDATE_LOG, liveNotices, liveUpdateLog, unreadNotices, openOverlay, GAME_VERSION,
 };`);
 const E = global.__e;
 const ok = (name, cond, info) => console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
@@ -26,12 +26,12 @@ ok('versionの重複がない', new Set(versions).size === versions.length, vers
 S.noticeSeen = 0;
 S.updateLogSeen = 0;
 // at つきのニュース(掲載時刻より前)は未読に数えない。イベント開始と同時にバッジが出る
-ok('未読件数は掲載中のニュース+UPDATE_LOGの合計', E.unreadNotices() === E.liveNotices().length + E.UPDATE_LOG.length, E.unreadNotices());
+ok('未読件数は掲載中のニュース+掲載中のUPDATE_LOGの合計', E.unreadNotices() === E.liveNotices().length + E.liveUpdateLog().length, E.unreadNotices());
 
 S.noticeSeen = E.NOTICES[0].id; // all news read
-ok('ニュースだけ既読にするとUPDATE_LOG分だけ残る', E.unreadNotices() === E.UPDATE_LOG.length, E.unreadNotices());
+ok('ニュースだけ既読にするとUPDATE_LOG分だけ残る', E.unreadNotices() === E.liveUpdateLog().length, E.unreadNotices());
 
-S.updateLogSeen = E.UPDATE_LOG[0].id; // all updates also read
+S.updateLogSeen = E.liveUpdateLog()[0].id; // all updates also read (公開時刻前のものは数えない)
 ok('両方既読にすると未読0になる', E.unreadNotices() === 0, E.unreadNotices());
 
 // --- openOverlay('notices') marks BOTH lists as seen in one tap, matching the existing
@@ -42,7 +42,7 @@ S.friends = []; // openOverlay('friends') branch not taken here; keep friends-un
 window.__authBackend = { kind: 'local' };
 E.openOverlay('notices');
 ok('お知らせを開くとニュース側が既読になる', S.noticeSeen === E.liveNotices()[0].id, S.noticeSeen);
-ok('お知らせを開くとアップデート内容側も既読になる', S.updateLogSeen === E.UPDATE_LOG[0].id, S.updateLogSeen);
+ok('お知らせを開くとアップデート内容側も既読になる', S.updateLogSeen === E.liveUpdateLog()[0].id, S.updateLogSeen);
 ok('開いた直後は未読0になる', E.unreadNotices() === 0, E.unreadNotices());
 
 console.log('done');

@@ -34,11 +34,11 @@ async def main():
             await pg.wait_for_timeout(400)
 
             # 件数はゲーム側の配列から取る(履歴が増えるたびにテストを直さなくていいように)
-            n_update = await pg.evaluate('() => UPDATE_LOG.length')
+            n_update = await pg.evaluate('() => liveUpdateLog().length')   # 公開時刻前のものは出さない
             n_news = await pg.evaluate('() => liveNotices().length')
             n_draft = await pg.evaluate('() => NOTICES.filter(n => n.draft).length')
             rows = await pg.locator('.nt-row').count()
-            check('アップデート内容が全件出ている', rows == n_update, f'{rows} / {n_update}')
+            check('アップデート内容が(公開時刻を過ぎたものは)全件出ている', rows == n_update, f'{rows} / {n_update}')
             opened = await pg.locator('.nt-row.on').count()
             check('最新の1件だけ開いている', opened == 1, opened)
             bodies = await pg.locator('.nt-row .nt-sub').count()

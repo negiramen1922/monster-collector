@@ -1,8 +1,12 @@
 // バベルの本番側: 解放・初回報酬・5階(ステージ効果)と10階(特殊ステージ)。均衡の塔は60階(5の倍数がボス戦)。
 // 使い方: node tools/babel_live_test.js
 const load = require('./harness.js');
-const api = load('game.js', s => s + ';global.__b={nextStageOf,grantStageRewards,babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
+const api = load('game.js', s => s + ';global.__b={EXPLORE_MENU,exploreMenu,nextStageOf,grantStageRewards,babelStage,BABEL_FLOORS,BABEL_TOWERS,babelFloorReward,babelFloorCleared,babelOpenFloor,babelLastId,babelAllowed,babelPartyProblem,BABEL_CRYSTAL,babelCrystal,babelFloorCount,babelStrength,BABEL_GROW,BABEL_TOWERS,BABEL_LV,BABEL_FLOORS,MONSTERS,MON_BY_ID,MON_BY_NAME,DEFAULT_STATE,startBattle,get battleUI(){return battleUI},stageUnlocked,findStage,speciesOf,BABEL_DEV};');
 const B = global.__b;
+// バベルは 10/20 12:00 公開。公開前は開発者(?babel=1)しか入れないので、テストでは公開ずみにする
+const BABEL_ENTRY = B.EXPLORE_MENU.find(t => t.key === 'babel');
+const BABEL_AT = BABEL_ENTRY.releaseAt;
+BABEL_ENTRY.releaseAt = '2026-01-01T00:00:00+09:00';
 let bad = 0;
 const ok = (name, cond, info) => { bad += cond ? 0 : 1; console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
 
@@ -127,5 +131,10 @@ ok('勝ったら「次の階」(11階→12階)。負けたら無し、60階の�
   for(let i = 0; i < 200; i++) souls += B.grantStageRewards(st, spawned, []).souls.length;
   ok('バベルではソウルも仲間入りも出ない', souls === 0 && Object.keys(api.STATE.owned).length === owned0 && JSON.stringify(api.STATE.pendingSouls || {}) === pend0, souls);
 }
+// 公開前は探索に出ず、出撃もできない
+BABEL_ENTRY.releaseAt = '2999-01-01T00:00:00+09:00';
+ok('公開前はバベルが探索に出ない', !B.exploreMenu().some(t => t.key === 'babel'));
+BABEL_ENTRY.releaseAt = BABEL_AT;
+ok('公開は 10/20 12:00', BABEL_AT === '2026-10-20T12:00:00+09:00');
 console.log(bad ? 'NG' : 'すべて通過');
 process.exit(bad ? 1 : 0);

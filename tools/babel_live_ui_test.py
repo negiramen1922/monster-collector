@@ -37,8 +37,10 @@ async def main():
             await pg.evaluate(SETUP); await pg.wait_for_timeout(300)
             await pg.evaluate("() => { stageTab = 'menu'; goto('battle', { nav: true }); }")
             await pg.wait_for_timeout(400)
-            check('ふつうに開くと探索メニューにバベルが出ない',
-                  await pg.locator('[data-stage-tab="babel"]').count() == 0)
+            # バベルは 10/20 12:00 公開。公開前は出ない、公開後は出る
+            released = await pg.evaluate("() => Date.now() >= new Date('2026-10-20T12:00:00+09:00').getTime()")
+            check('ふつうに開くと、公開前はバベルが出ない・公開後は出る',
+                  await pg.locator('[data-stage-tab="babel"]').count() == (1 if released else 0), released)
             await pg.close()
 
             # ---- 2. ?babel=1 のとき ----
