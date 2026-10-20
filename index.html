@@ -7287,7 +7287,7 @@ const EXPEDITION_DESTS = [
   { key:'wind',   name:'風の峡谷',         n:3, conds:[{ el:'wind', n:1 }, { role:'shooter', n:1 }], reward:{ items: expElRo('wind', 'shooter') } },
   { key:'relic',  name:'霊素の洞穴',       n:3, conds:[{ rarity:4, n:2 }], reward:{ items:{ relic_scrap:300, relic_core_1:2 } } },
   { key:'awaken', name:'限界の門の向こう', n:4, hours:[8, 12], conds:[{ rarity:5, n:1 }, { lv:200, n:3 }], reward:{ items:{ awaken:3 } } },
-  { key:'stars',  name:'星降る丘',         n:5, hours:[12], conds:[{ distinctEl:5 }], reward:{ crystals:15 } },
+  // 星結晶の行き先(星降る丘)は、破格すぎるので外した(2026-10-20 ユーザー決定)
 ];
 // 日替わりの行き先(種族の集落2か所・ロールの訓練場2か所)。毎日 4:00 に入れ替わる
 function expDailyDest(key){

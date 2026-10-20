@@ -19,7 +19,7 @@ fresh();
 
 console.log('--- 公開・解放 ---');
 ok('?expedition=1 で出る(公開日が決まるまでは試験場とこれだけ)', X.expeditionLive() === true);
-ok('行き先は固定8か所', X.EXPEDITION_DESTS.length === 8);
+ok('行き先は固定7か所(星結晶の行き先はなし)', X.EXPEDITION_DESTS.length === 7 && !X.EXPEDITION_DESTS.some(d => d.reward.crystals));
 ok('日替わり4か所(種族2・ロール2)。同じ日は同じ', X.expDailyKeys('2026-10-28').length === 4 && X.expDailyKeys('2026-10-28').join() === X.expDailyKeys('2026-10-28').join()
   && X.expDailyKeys('2026-10-28').filter(k => k.startsWith('sp:')).length === 2);
 ok('日によって入れ替わる', X.expDailyKeys('2026-10-28').join() !== X.expDailyKeys('2026-10-29').join() || X.expDailyKeys('2026-10-29').join() !== X.expDailyKeys('2026-10-30').join());
@@ -36,8 +36,7 @@ ok('1時間は12時間の1/12×1.3(短いほど1時間あたり多い)', g1.gold
 const f12 = X.expRewardOf(fire, 12, true, 0.5);
 const t1 = Object.entries(f12.items).reduce((a, [k, n]) => a + n * (k.endsWith('_3') ? 25 : k.endsWith('_2') ? 5 : 1), 0);
 ok('属性の行き先 12時間・大成功のワザ素材は TierI換算65', t1 === 65, f12.items);
-ok('限界の門の向こうは8・12時間だけ、星降る丘は12時間だけ', X.expDestByKey('awaken').hours.join() === '8,12' && X.expDestByKey('stars').hours.join() === '12');
-ok('星降る丘: 大成功15・ふつう10', X.expRewardOf(X.expDestByKey('stars'), 12, true, 0.5).crystals === 15 && X.expRewardOf(X.expDestByKey('stars'), 12, false, 0.5).crystals === 10);
+ok('限界の門の向こうは8・12時間だけ', X.expDestByKey('awaken').hours.join() === '8,12');
 ok('日替わりの集落は、その種族2体以上で大成功', (() => { const d = X.expDailyDest('sp:beast'); return d && X.expGreat(d, pick(m => m.species === 'beast', 2).concat(others.slice(0, 1))) && !X.expGreat(d, others); })());
 
 console.log('--- 出す・受け取る ---');
