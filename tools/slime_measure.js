@@ -22,6 +22,8 @@ const PARTIES = {
 const GROW = {
   ex1:  { stage: 'ev_slime_ex1', star: 4, lv: 70, sk: 3, pv: 1, relic: 0 },
   ex3:  { stage: 'ev_slime_ex3', star: 5, lv: 250, sk: 10, pv: 3, relic: 80, rsk: 1, rdupe: 0 },
+  // EX2 の育ちは資料に決まりがないので、EX1 と EX3 の間にした(私が決めた): ★5・Lv180・スキルLv6・パッシブLv2・★5遺物 Lv40
+  ex2:  { stage: 'ev_slime_ex2', star: 5, lv: 180, sk: 6, pv: 2, relic: 40, rsk: 1, rdupe: 0 },
   hell: { stage: 'ev_slime_ex4', star: 10, lv: 300, sk: 10, pv: 5, relic: 200, rsk: 'max', rdupe: 'max' },
   // 参考: EX1 を Lv150 で(鬼ヶ島の測定と同じ見方)/ HELL を EX3想定の育ちで(有利な編成なら育ちきっていなくても勝てるか)
   ex1_lv150: { stage: 'ev_slime_ex1', star: 4, lv: 150, sk: 3, pv: 1, relic: 0 },
