@@ -11711,10 +11711,17 @@ const ABYSS_MILESTONE_ROTATION = [
   [{ type:'item', key:'stamina_60', n:2 }],
   [{ type:'item', key:'idle_3', n:1 }],
 ];
+/* 報酬の見直し(2026-10-20 決定。docs/提案資料/深淵回廊_報酬の見直し.md): 11/2 4:00 からのシーズン(4期目)から。
+   石は経済の見直しで「深淵 1期400石(75階くらい)」と見ていたのを 1期600石に(月+400。総力戦・封印戦の未実装ぶん月10,000の中に収まる)。
+   5階ごと 星結晶10→15、25階ごと 100→125。覚醒結晶を足す(10階ごと3個・25階ごと10個) */
+const ABYSS_REWARD_V2_SEASON = 3;
+function abyssRewardV2(){ return abyssSeasonIndex() >= ABYSS_REWARD_V2_SEASON; }
 function abyssFloorReward(floor){
+  const v2 = abyssRewardV2();
   const out = [{ type:'gold', n: 1000 + 100 * floor }, { type:'item', key:'exp2', n: 2 + Math.floor(floor / 10) }];
-  if(floor % 5 === 0) out.push({ type:'crystal', n:10 }, ...ABYSS_MILESTONE_ROTATION[(floor / 5 - 1) % ABYSS_MILESTONE_ROTATION.length]);
-  if(floor % 25 === 0) out.push({ type:'crystal', n:100 }, { type:'item', key:'box_sel_4', n:1 });
+  if(floor % 5 === 0) out.push({ type:'crystal', n: v2 ? 15 : 10 }, ...ABYSS_MILESTONE_ROTATION[(floor / 5 - 1) % ABYSS_MILESTONE_ROTATION.length]);
+  if(v2 && floor % 10 === 0) out.push({ type:'item', key:'awaken', n:3 });
+  if(floor % 25 === 0) out.push({ type:'crystal', n: v2 ? 125 : 100 }, { type:'item', key:'box_sel_4', n:1 }, ...(v2 ? [{ type:'item', key:'awaken', n:10 }] : []));
   return out;
 }
 // 持ち越し: モンスターIDごとにHPの割合・SP・戦闘不能を覚える(新しく入れたモンスターは満タンで出る)

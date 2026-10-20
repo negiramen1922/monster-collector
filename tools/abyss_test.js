@@ -127,5 +127,18 @@ console.log('  参考: Lv100・★5 のパーティで一度に到達した階 =
 S = setup(300, 10); E.ensureAbyss(); reached = 0;
 for(let i = 0; i < 150; i++){ const f = S.abyss.floor; const r = fight('ab_' + f); if(!r || !r.win){ break; } reached = f; }
 console.log('  参考: Lv300・★10(遺物なし)のパーティで一度に到達した階 =', reached, '(敵Lv' + E.abyssStage(reached + 1).rec + ')');
+// 報酬の見直し(11/2 4:00 からのシーズン): 75階までで石 450→600、覚醒結晶 0→51
+{
+  const realNow = Date.now;
+  const tot = F => { let c = 0, aw = 0; for(let f = 1; f <= F; f++) for(const r of E.abyssFloorReward(f)){ if(r.type === 'crystal') c += r.n; if(r.key === 'awaken') aw += r.n; } return [c, aw]; };
+  Date.now = () => realNow() - 365 * 86400000;   // 見直し前のシーズン
+  const before = tot(75);
+  Date.now = () => realNow() + 365 * 86400000;   // 見直し後のシーズン
+  const after = tot(75);
+  Date.now = realNow;
+  const t = (name, cond, info) => { if(!cond) fails++; console.log((cond ? '✅' : '❌') + ' ' + name + '  ' + JSON.stringify(info)); };
+  t('見直し前: 75階までで星結晶450・覚醒結晶なし', before[0] === 450 && before[1] === 0, before);
+  t('見直し後: 75階までで星結晶600・覚醒結晶51', after[0] === 600 && after[1] === 51, after);
+}
 console.log(fails ? `${fails}件失敗` : 'すべて通過');
 process.exit(fails ? 1 : 0);   // 落ちたら node の終了コードにも出す(まとめて走らせたとき見落とすので)
