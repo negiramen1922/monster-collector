@@ -157,15 +157,16 @@ const slotCap = e => isPointStat(e.stat)
   : Math.round(e.pct * capMult * 100);
 const CAP_BY_STAR = { 5:30, 4:25, 3:25, 2:20, 1:20 };
 // 確定データ(docs/design/新規遺物56種.json)がルール表から外れている枠。データのまま実装している
-const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33 };
+// 悪魔の残り火の3つ目はスキル1のCT短縮(割合ではない。値1×遺物スキルLvの倍率を切り捨て)
+const DATA_EXCEPTIONS = { 'rel_dragon_scale:2':33, 'rel_devil_ember:2':200 };
 const off = [];
 Object.values(E.RELICS).forEach(r => r.effects.forEach((e, i) => {
   const want = DATA_EXCEPTIONS[`${r.id}:${i}`] || (e.stat === 'cut' ? 20 : r.channel === 'distributed' ? 15
     : e.cond && e.cond.type === 'mon' ? 33 : CAP_BY_STAR[r.star]);
   if(slotCap(e) !== want) off.push([r.id, e.stat, slotCap(e), want]);
 }));
-ok('全63種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
-ok('遺物は63種(★4の霜嵐の牙飾り・奈落を覗く眼、モモタロウイベの日の丸桃剣・日の丸の鉢巻、フレイヤイベの鷹の羽衣・黄金の麦穂、スライムパラダイスの潮だまりのゼリーを追加。63種)', Object.keys(E.RELICS).length === 63, Object.keys(E.RELICS).length);
+ok('全65種: スキル枠の上限が★ごとのルールどおり', off.length === 0, off);
+ok('遺物は65種(★4の霜嵐の牙飾り・奈落を覗く眼、モモタロウイベの日の丸桃剣・日の丸の鉢巻、フレイヤイベの鷹の羽衣・黄金の麦穂、スライムパラダイスの潮だまりのゼリー、ハロウィンの悪魔の残り火・お菓子のバスケットを追加。65種)', Object.keys(E.RELICS).length === 65, Object.keys(E.RELICS).length);
 ok('全遺物にアイコンがある', Object.values(E.RELICS).every(r => typeof r.icon === 'string' && r.icon.includes('data:image')), Object.values(E.RELICS).filter(r => !r.icon).map(r => r.id));
 const gachaMin = Math.min(...Object.values(E.RELICS).filter(r => r.channel !== 'distributed').flatMap(r => r.effects.filter(e => e.stat !== 'cut').map(slotCap)));
 const distMax = Math.max(...Object.values(E.RELICS).filter(r => r.channel === 'distributed').flatMap(r => r.effects.map(slotCap)));

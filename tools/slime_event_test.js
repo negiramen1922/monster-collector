@@ -27,7 +27,7 @@ ok(!E.activeEvents().some(e => e.key === 'ev_slime') && E.activeEvents().some(e 
 at('2026-10-26T12:00:01+09:00');
 ok(E.activeEvents().map(e => e.key).sort().join() === 'ev_freyja,ev_slime', '10/26 12:00 を過ぎると 豊穣の女神とスライムパラダイス(鬼ヶ島は終わり)');
 at('2026-10-27T12:00:01+09:00');
-ok(E.activeEvents().map(e => e.key).join() === 'ev_slime', '10/27 12:00 を過ぎると豊穣の女神も終わる');
+ok(!E.activeEvents().some(e => e.key === 'ev_freyja') && E.activeEvents().some(e => e.key === 'ev_slime'), '10/27 12:00 を過ぎると豊穣の女神も終わる(ハロウィンと入れ替わり)');
 at('2026-11-09T12:00:01+09:00');
 ok(!E.activeEvents().some(e => e.key === 'ev_slime'), '終了日時のあとは出ない');
 at('2026-10-28T12:00:00+09:00');
@@ -67,12 +67,12 @@ ok(shop.soul_pick.price === 230 && shop.soul_pick.limit === 30 && shop.soul_sub1
 console.log('--- ガチャのピックアップ★3 ---');
 ok(E.featuredOf(ev).join() === 'm31,m185,m186' && E.featured3Of(ev).join() === 'm187,m188,m189', '★3は featured と別の項目(抱き合わせの率・ショップに入らない)');
 api.STATE = E.DEFAULT_STATE();
-at('2026-10-28T12:00:00+09:00');
+at('2026-10-26T18:00:00+09:00');   // ハロウィンが始まる前(始まると、新しく始まったハロウィンのバナーが既定になる)
 const b = E.currentBanner();
 ok(b.key === 'ev_slime' && b.featured3.join() === 'm187,m188,m189', 'バナーにピックアップ★3が載る');
 { const n = 4000; let hit = 0; for(let i = 0; i < n; i++){ if(['m187', 'm188', 'm189'].includes(E.pickMonsterOfRarity(3).id)) hit++; }
   ok(hit / n > 0.45 && hit / n < 0.56, '★3が出たときの約5割がこの3体', hit / n); }
-at('2026-11-10T12:00:00+09:00');
+at('2026-11-09T12:00:01+09:00');
 { let hit = 0; for(let i = 0; i < 2000; i++){ if(['m187', 'm188', 'm189'].includes(E.pickMonsterOfRarity(3).id)) hit++; }
   ok(hit / 2000 < 0.15, '期間が終わったら、ほかの★3と同じ', hit / 2000); }
 at('2026-10-28T12:00:00+09:00');
