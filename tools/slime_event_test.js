@@ -91,6 +91,8 @@ ok(labels(exS[0]).join('|') === 'アモルファスの味方 攻撃力・HP+25%|
 ok(exS[1].rules.some(x => x.side === 'enemy' && x.dmgTaken === -0.3 && x.atk === 'phys'), 'EX2: 敵 受ける物理ダメージ-30%');
 ok(exS[2].rules.some(x => x.whenTarget === 'strDown' && x.dmgDealt === 0.3) && exS[2].rules.some(x => x.side === 'enemy' && x.stat && x.stat.hp === 0.5), 'EX3: 攻撃力低下の敵へ+30%・敵 最大HP+50%');
 ok(exS[3].rules.some(x => x.who && x.who.ref === 'm31' && x.stat.hp === 1.0) && exS[3].rules.some(x => x.side === 'enemy' && x.dmgDealt === 1.0), 'HELL: 敵のシースライム 最大HP+100%・敵 与ダメージ+100%');
+ok(exS[3].rules.length === 12 && exS[3].rules.some(x => x.who && x.who.boss === false && x.stat.hp === 1.5 && x.stat.str === 1.5) && exS[3].rules.some(x => x.who && x.who.boss === true && x.stat.hp === 4.0 && x.stat.str === 1.0)
+  && exS[3].rules.some(x => x.who && x.who.species === 'amorphous' && x.stat.str === 1.25) && exS[3].rules.some(x => x.whenTarget === 'strDown' && x.dmgDealt === 0.7), 'HELL(ウ): 雑魚+150%・ボス HP+400%・攻撃+100%、アモルファス・水・攻撃力低下の効果を上乗せ(12本)');
 
 console.log('--- メダル・称号・フレーム・お知らせ ---');
 ok(E.EVENT_MEDAL.ev_slime.name === 'スライムの雫' && E.EVENT_MEDAL.ev_slime.icon === 'medal_slime' && E.ITEM_ICON_LABEL.medal_slime === 'スライムの雫', 'メダル「スライムの雫」');
