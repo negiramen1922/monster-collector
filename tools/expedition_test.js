@@ -1,7 +1,7 @@
 // 遠征(放置報酬)。docs/提案資料/遠征案.md
 // 使い方: node tools/expedition_test.js
 const load = require('./harness.js');
-const api = load('game.js', s => s.replace("const EXPEDITION_DEV = typeof location", "const EXPEDITION_DEV = true || typeof location") + ';global.__x={EXPEDITION_DESTS,EXPEDITION_SLOTS,expeditionLive,expUnlocked,expState,expSlotCount,expDailyKeys,expDailyDest,expDestByKey,expTodayDests,expCondMet,expGreat,expRewardOf,expStart,expCollect,expCancel,expUpgrade,expBusyIds,DEFAULT_STATE,MON_BY_ID,MONSTERS,getItem,matKey};');
+const api = load('game.js', s => s.replace("const EXPEDITION_DEV = typeof location", "const EXPEDITION_DEV = true || typeof location") + ';global.__x={EXPEDITION_RELEASE_AT,EXPEDITION_DESTS,EXPEDITION_SLOTS,expeditionLive,expUnlocked,expState,expSlotCount,expDailyKeys,expDailyDest,expDestByKey,expTodayDests,expCondMet,expGreat,expRewardOf,expStart,expCollect,expCancel,expUpgrade,expBusyIds,DEFAULT_STATE,MON_BY_ID,MONSTERS,getItem,matKey};');
 const X = global.__x;
 let bad = 0;
 const ok = (name, cond, info) => { bad += cond ? 0 : 1; console.log((cond ? '✅' : '❌') + ' ' + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
@@ -18,7 +18,8 @@ function fresh(){
 fresh();
 
 console.log('--- 公開・解放 ---');
-ok('?expedition=1 で出る(公開日が決まるまでは試験場とこれだけ)', X.expeditionLive() === true);
+ok('?expedition=1 で出る', X.expeditionLive() === true);
+ok('公開は 10/21 12:00(2026-10-21 ユーザー決定)', X.EXPEDITION_RELEASE_AT === '2026-10-21T12:00:00+09:00');
 ok('行き先は固定7か所(星結晶の行き先はなし)', X.EXPEDITION_DESTS.length === 7 && !X.EXPEDITION_DESTS.some(d => d.reward.crystals));
 ok('日替わり4か所(種族2・ロール2)。同じ日は同じ', X.expDailyKeys('2026-10-28').length === 4 && X.expDailyKeys('2026-10-28').join() === X.expDailyKeys('2026-10-28').join()
   && X.expDailyKeys('2026-10-28').filter(k => k.startsWith('sp:')).length === 2);
