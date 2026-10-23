@@ -57,8 +57,8 @@ console.log('--- 遺物・ショップ ---');
 const shop = Object.fromEntries(E.eventShopItems(ev).map(i => [i.sku, i]));
 ok(E.eventRelicOf(ev) === 'rel_tidepool_jelly' && shop.relic_body.price === 200 && shop.relic_body.limit === 1 && shop.relic_dupe.limit === 4, '潮だまりのゼリー: 本体200×1・重複200×4');
 const rl = id => E.RELICS[id].effects.map(e => `${e.stat}:${e.pct}:${e.cond ? e.cond.type + '=' + e.cond.value : '-'}`).join(' ');
-ok(rl('rel_tidepool_jelly') === 'atk:0.125:- skillDmg:0.125:element=water ultDmg:0.125:element=water' && E.RELICS.rel_tidepool_jelly.base.hp === 34.4 && E.RELICS.rel_tidepool_jelly.base.atk === 21.6
-  && E.RELICS.rel_tidepool_jelly.channel === 'event' && E.RELICS.rel_tidepool_jelly.star === 4, '潮だまりのゼリーの中身(STR型E・水属性・channel:event)');
+ok(rl('rel_tidepool_jelly') === 'atk:0.125:- skillDmg:0.125:species=amorphous ultDmg:0.125:species=amorphous' && E.RELICS.rel_tidepool_jelly.base.hp === 34.4 && E.RELICS.rel_tidepool_jelly.base.atk === 21.6
+  && E.RELICS.rel_tidepool_jelly.channel === 'event' && E.RELICS.rel_tidepool_jelly.star === 4, '潮だまりのゼリーの中身(STR型E・アモルファス・channel:event。2026-10-23 ユーザー決定)');
 ok(!E.relicsOfStar(4).some(x => x.id === 'rel_tidepool_jelly'), 'ゼリーはガチャに出ない');
 ok(E.exclusiveRelicForMon('m31') && E.exclusiveRelicForMon('m31').id === 'rel_slime_core', 'シースライムの専用遺物は今のクラーケンの残滓');
 ok(shop.soul_pick.price === 230 && shop.soul_pick.limit === 30 && shop.soul_sub1 && shop.soul_sub2 && !shop.soul_sub3 && shop.uni.price === 310 && shop.reso.price === 430,

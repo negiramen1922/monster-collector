@@ -7986,7 +7986,8 @@ const RELICS = {
     base:{ hp:43.4, atk:29.6 },
     effects:[
       { stat:'atk', pct:0.15, cond:null },
-      { stat:'critRate', pct:0.15, cond:{ type:'role', value:'trickster' } },
+      // 2026-10-23 ユーザー案: 会心率ではなく攻撃力(会心率+15%は与ダメージにすると約+7.5%にしかならない)
+      { stat:'atk', pct:0.15, cond:{ type:'role', value:'trickster' } },
       // スキル1のCT-1(遺物スキルLv10で-2)。値×relicSkillMult(Lv1で1・Lv10で2)を切り捨てる
       { stat:'skill1Ct', pct:1, cond:{ type:'mon', value:'m190' } },
     ] },
@@ -7998,12 +7999,13 @@ const RELICS = {
       { stat:'spGain', pct:0.125, cond:{ type:'element', value:'fire' } },
     ] },
   // ---- スライムパラダイス(releaseAt でイベント開始まで隠す)。中身の正は docs/提案資料/次回イベント案_スライムパラダイス.md(水属性の案) ----
-  rel_tidepool_jelly: { id:'rel_tidepool_jelly', name:'潮だまりのゼリー', star:4, icon:RELIC_ICON.rel_tidepool_jelly, channel:'event', source:'eventShop', releaseAt: SLIME_START_AT, // 水属性(攻め寄り・STR型E)
+  // 2026-10-23 ユーザー決定: 効果2・3の条件は水属性ではなくアモルファス(8属性のスライム全員に効く)
+  rel_tidepool_jelly: { id:'rel_tidepool_jelly', name:'潮だまりのゼリー', star:4, icon:RELIC_ICON.rel_tidepool_jelly, channel:'event', source:'eventShop', releaseAt: SLIME_START_AT, // アモルファス(攻め寄り・STR型E)
     base:{ hp:34.4, atk:21.6 },
     effects:[
       { stat:'atk', pct:0.125, cond:null },
-      { stat:'skillDmg', pct:0.125, cond:{ type:'element', value:'water' } },
-      { stat:'ultDmg', pct:0.125, cond:{ type:'element', value:'water' } },
+      { stat:'skillDmg', pct:0.125, cond:{ type:'species', value:'amorphous' } },
+      { stat:'ultDmg', pct:0.125, cond:{ type:'species', value:'amorphous' } },
     ] },
 };
 const RELIC_RARITY_WEIGHTS = { 1:25, 2:30, 3:32.5, 4:10, 5:2.5 };
