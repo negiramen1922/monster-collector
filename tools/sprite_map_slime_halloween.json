@@ -1,0 +1,17 @@
+{
+ "note": "スライムパラダイス5体・ハロウィン6体の立ち絵(2026-10-23。リポジトリ直下の画像。ユーザーが上げたもの)。キングスライムは2枚あり、25_slime_king_cape(マント)を使った(24_slime_king_blue は使っていない)。tools/add_sprites.py tools/sprite_map_slime_halloween.json で取り込みずみ。",
+ "map": {
+  "キングスライム":           { "file": "25_slime_king_cape.png", "sprite": "185" },
+  "アークエンジェルスライム": { "file": "23_angel_slime.png",     "sprite": "186" },
+  "アーススライム":           { "file": "22_mud_slime.png",       "sprite": "187" },
+  "ウィンドスライム":         { "file": "21_wind_slime.png",      "sprite": "188" },
+  "ゴールドスライム":         { "file": "20_gold_slime.png",      "sprite": "189" },
+  "ジャック・オ・ランタン":   { "file": "19_pumpkin_girl.png",    "sprite": "190" },
+  "ミミック":                 { "file": "18_mimic.png",           "sprite": "191" },
+  "ヴァンパイア":             { "file": "17_vampire.png",         "sprite": "192" },
+  "パンプキンヘッド":         { "file": "16_pumpkin_man.png",     "sprite": "193" },
+  "フランケン":               { "file": "15_frankenstein.png",    "sprite": "194" },
+  "黒猫":                     { "file": "26_black_cat.png",       "sprite": "195" }
+ },
+ "missing": []
+}
