@@ -3,7 +3,7 @@
 const load = require('./harness.js');
 const api = load('game.js', s => s + `;global.__e={EVENTS,STAGE_BY_ID,EVENT_EX,EVENT_EX_RULES,eventShopItems,eventMissions,exStagesOf,eventStagePickupSoul,
   exPickupSoulRate,FRAMES,SLIME_START_AT,SLIME_END_AT,FREYJA_END_AT,activeEvents,RELICS,relicsOfStar,eventRelicOf,exclusiveRelicForMon,MON_BY_ID,MONSTER_PERKS,
-  EVENT_MEDAL,EVENT_TITLES,EVENT_THEME,ITEM_ICON_LABEL,featuredOf,featured3Of,currentBanner,pickMonsterOfRarity,slimeGoldOf,grantStageRewards,sweepSpawned,NOTICES,liveNotices,
+  EVENT_MEDAL,EVENT_TITLES,EVENT_THEME,ITEM_ICON_LABEL,featuredOf,featured3Of,currentBanner,pickMonsterOfRarity,slimeGoldOf,goldSlimePartyGold,grantStageRewards,sweepSpawned,NOTICES,liveNotices,
   get STATE(){return STATE}, set STATE(v){STATE=v}, DEFAULT_STATE};`);
 const E = global.__e;
 let fail = 0;
@@ -52,6 +52,11 @@ ok(E.slimeGoldOf(s10, [{ ref: 'm189', isEnemy: false }]) === 0, '味方のゴー
 api.STATE = E.DEFAULT_STATE(); api.STATE.gold = 0;
 const r = E.grantStageRewards(s10, E.sweepSpawned(s10), []);
 ok(r.gold === (s10.gold || 0) + 2000 && api.STATE.gold >= r.gold, '報酬のゴールドに足される', [r.gold, s10.gold]);
+
+api.STATE = E.DEFAULT_STATE();
+api.STATE.owned.m189 = { star: 3, souls: 0, level: 1, passiveLv: 3 };
+ok(E.goldSlimePartyGold(s10, [{ ref: 'm189' }, { ref: 'm06' }]) === 3000 && E.goldSlimePartyGold(E.STAGE_BY_ID.q1_01, [{ ref: 'm189' }]) === 3000, '味方のゴールドスライム: スタミナを使うステージでゴールド+パッシブLv×1,000');
+ok(exS.every(s => E.goldSlimePartyGold(s, [{ ref: 'm189' }]) === 0) && E.goldSlimePartyGold(s10, [{ ref: 'm06' }]) === 0, 'EX・HELLでは増えない・編成にいなければ増えない');
 
 console.log('--- 遺物・ショップ ---');
 const shop = Object.fromEntries(E.eventShopItems(ev).map(i => [i.sku, i]));
