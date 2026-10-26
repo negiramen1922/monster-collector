@@ -20607,9 +20607,10 @@ const MONSTER_KITS = {
       desc:'敵後衛全体に威力110%の魔法攻撃を行う。被ダメージ増加(+10%)を2ターン付与する' },
     passive: { name:'天使の祝福', desc:'自分の攻撃が1ヒットするたび、HPの割合が一番低い味方を回復する(回復量10%)。1回の行動で5回まで',
       onHitTarget: u => angelBless(u, pv(u, 0.1)) },
-    ult: { name:'エンジェル・レイン', sp:80, atk:'mag', tgt:'all', pow:0.44, hits:5,
-      effects:[{ to:'allies', heal:0.5 }],
-      desc:'敵全体に威力44%の魔法攻撃を5回行う。味方全体を回復する(回復量50%)' },
+    // 2026-10-26 ユーザー決定(案C): 連続攻撃の上限(単発の1.05倍)に収めるため 44%×5 → 36%×5。そのぶん回復 50% → 70%(採点100%)
+    ult: { name:'エンジェル・レイン', sp:80, atk:'mag', tgt:'all', pow:0.36, hits:5,
+      effects:[{ to:'allies', heal:0.7 }],
+      desc:'敵全体に威力36%の魔法攻撃を5回行う。味方全体を回復する(回復量70%)' },
   },
   m187: { // アーススライム(土・タンク・アモルファス) 殴ってきた敵を鈍らせ、のみこんで拘束する
     normal: N('どすん', 0.8),
@@ -21716,17 +21717,17 @@ const MONSTER_PERKS = {
           sideOf(x).filter(present).forEach(a => gainSp(a, 3, 'passive'));
         });
         ownUlt(u).desc += '。この間、攻撃を受けるたびに味方全体のSP+3(1ラウンドに3回まで)'; } },
-    10: { desc:'逃げ足の金色: 1戦闘に1回、HPが0になる攻撃を受けてもHP1で耐え、その次の自分のターンまで受けるダメージを0にする(倒れたことにならない)',
+    // 2026-10-26 ユーザー決定(案A): 「次の自分のターンまでダメージ0」は強すぎるのでなくし、HP1で耐えるだけにした
+    10: { desc:'逃げ足の金色: 1戦闘に1回、HPが0になる攻撃を受けてもHP1で耐える(倒れたことにならない)',
       apply: u => { const pa = ownPassive(u), before = pa.survive;
         pa.survive = x => {
           if(before && before(x)) return true;
           if(x.flags.goldEscape) return false;
-          x.flags.goldEscape = true; x.flags.noDamage = true;
-          logLine(`${nm(x)} はHP1で逃げ切った!次の自分のターンまでダメージを受けない`, 'heal');
+          x.flags.goldEscape = true;
+          logLine(`${nm(x)} はHP1で逃げ切った!`, 'heal');
           return true;
         };
-        addHook(pa, 'onTurnStart', x => { x.flags.noDamage = false; });
-        pa.desc += '。1戦闘に1回、HPが0になる攻撃を受けてもHP1で耐え、次の自分のターンまで受けるダメージを0にする'; } },
+        pa.desc += '。1戦闘に1回、HPが0になる攻撃を受けてもHP1で耐える'; } },
   },
   /* ---- スライムパラダイス: 今までの★1・★2スライム6体(2026-10-15 に作ることが決定。中身は案) ---- */
   m06: { // アクアスライム
@@ -22669,8 +22670,6 @@ function selectAllies(actor, tgt, buffKey){
 
 function hitHp(u, dmg, source, opts){
   const o = opts || {};
-  // ゴールドスライム★10: 踏みとどまったあと、次の自分のターンまで受けるダメージが0
-  if(u.flags && u.flags.noDamage && u.alive){ pushFx(u, null, 'miss', { fx: null }); return 0; }
   let left = o.direct ? dmg : absorbShields(u, dmg, source, !o.dot && !o.reflected);   // 反射のダメージで、また反射しない(カーバンクルどうしで止まらなくなる)
   if(left > 0){
     if(u.hp - left <= 0 && runPassive(u, 'survive')){
