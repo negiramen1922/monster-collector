@@ -20666,8 +20666,9 @@ const MONSTER_KITS = {
     skill2: { name:'トリック・オア・トリート', ct:4, atk:'phys', tgt:'single', pow:0.5, hits:4,
       onHit:[{ debuff:'pdefDown', v:10, turns:2 }, { st:'confuse', turns:1 }],
       desc:'敵単体に威力50%の物理攻撃を4回行う。物理防御低下(-10)を2ターンと混乱(1ターン)を付与する' },
-    passive: { name:'カボチャのランタン', desc:'同じターンのうちに攻撃するほど攻撃力が上がる(1ヒットごとに与ダメージ+5%。ターンが変わると戻る)',
-      dmgBonus: u => lanternHits(u) * pv(u, u.lanternStep || 0.05),
+    // 2026-10-26 ユーザー決定: 1ヒットごとの上がり幅 +5% → +10%(ほかの★5より与ダメージが低かったため。tools/jack_ct_measure.js)
+    passive: { name:'カボチャのランタン', desc:'同じターンのうちに攻撃するほど攻撃力が上がる(1ヒットごとに与ダメージ+10%。ターンが変わると戻る)',
+      dmgBonus: u => lanternHits(u) * pv(u, u.lanternStep || 0.1),
       onHitTarget: u => lanternAdd(u) },
     ult: { name:'ハロウィン・ナイトメア', sp:100, atk:'phys', tgt:'all', pow:0.24, hits:12, run: ctx => jackNightmare(ctx),
       desc:'敵全体に威力24%の物理攻撃を12回行う。敵1体につき1回だけ、20%で混乱(1ターン)を付与する' },
@@ -21857,8 +21858,8 @@ const MONSTER_PERKS = {
     from: HALLOWEEN_START_AT,
     6: { desc:'ナイフ・パレード: 5回 → 6回',
       apply: u => { const a = ownSkill(u, 0); a.hits = 6; a.desc = a.desc.replace('5回', '6回'); } },
-    7: { desc:'カボチャのランタン: 1ヒットごとの上がり幅 +5% → +7%',
-      apply: u => { u.lanternStep = 0.07; const pa = ownPassive(u); pa.desc = pa.desc.replace('+5%', '+7%'); } },
+    7: { desc:'カボチャのランタン: 1ヒットごとの上がり幅 +10% → +17%',
+      apply: u => { u.lanternStep = 0.17; const pa = ownPassive(u); pa.desc = pa.desc.replace('+10%', '+17%'); } },
     8: { desc:'トリック・オア・トリート: 4回 → 5回',
       apply: u => { const a = ownSkill(u, 1); a.hits = 5; a.desc = a.desc.replace('4回', '5回'); } },
     9: { desc:'ハロウィン・ナイトメアのあと、スキル1のCTが0になる',
@@ -22380,7 +22381,7 @@ function curseOnAct(u){
   });
 }
 /* ---- ハロウィンで足した仕組み ---- */
-// ジャックの「カボチャのランタン」: 同じ自分のターンのうちにヒットを重ねるほど、1ヒットごとに与ダメージ+5%(★7で+7%。パッシブLvで伸びる)。
+// ジャックの「カボチャのランタン」: 同じ自分のターンのうちにヒットを重ねるほど、1ヒットごとに与ダメージ+10%(★7で+17%。パッシブLvで伸びる)。
 // ターン(自分の行動の回数)が変わると1ヒット目に戻る
 function lanternHits(u){ return u.flags.lanternTurn === u.turnCount ? (u.flags.lanternN || 0) : 0; }
 function lanternAdd(u){ if(u.flags.lanternTurn !== u.turnCount){ u.flags.lanternTurn = u.turnCount; u.flags.lanternN = 0; } u.flags.lanternN += 1; }

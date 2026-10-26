@@ -37,7 +37,7 @@ console.log('--- ジャック ---');
   ok(u.skills[0].hits === 5 && u.skills[0].ct === 3 && u.ult.hits === 12, 'スキル1は5回・CT3、奥義は12回');
   const before = e.hp; act(u, 'normal', u.normal);
   ok(u.flags.lanternN === 3, '同じターンのヒットを数える(通常攻撃3回)');
-  ok(Math.abs(T.passiveMod(u, 'dmgBonus', e) - 0.15) < 1e-9, '3ヒットのあとは与ダメージ+15%(1ヒットごとに+5%)');
+  ok(Math.abs(T.passiveMod(u, 'dmgBonus', e) - 0.3) < 1e-9, '3ヒットのあとは与ダメージ+30%(1ヒットごとに+10%)');
   u.turnCount += 1;
   ok(T.passiveMod(u, 'dmgBonus', e) === 0, 'ターンが変わると1ヒット目に戻る');
 }
@@ -56,7 +56,7 @@ console.log('--- ジャック ---');
 }
 {
   const { u } = setup(['m190', 'm191'], { star: 10 });
-  ok(u.skills[0].hits === 6 && u.skills[1].hits === 5 && u.lanternStep === 0.07 && u.carnival, '★6 6回 / ★7 +7% / ★8 5回 / ★10 会心でヒット数+1');
+  ok(u.skills[0].hits === 6 && u.skills[1].hits === 5 && u.lanternStep === 0.17 && u.carnival, '★6 6回 / ★7 +17% / ★8 5回 / ★10 会心でヒット数+1');
   const n0 = withRand(0, () => { const B = T.b; const len = B.log.length; T.performAction(u, 'skill', u.skills[0], 0); return B.log.slice(len).join(''); });
   ok(/\+3回/.test(n0), '★10: 会心が出ると、そのスキル1のヒット数が増える(+3回まで)');
 }
