@@ -20663,9 +20663,10 @@ const MONSTER_KITS = {
     normal: { name:'かぼちゃナイフ', atk:'phys', tgt:'single', pow:0.3, hits:3, desc:'敵単体に威力30%の物理攻撃を3回' },
     skill1: { name:'ナイフ・パレード', ct:3, atk:'phys', tgt:'random', pow:0.4, hits:5, run: ctx => jackParade(ctx),
       desc:'ランダムな敵に威力40%の物理攻撃を5回行う' },
+    // 2026-10-26 ユーザー決定: 物理防御低下(-10)をやめて、攻撃力低下(-20%)に入れ替えた(採点114%)
     skill2: { name:'トリック・オア・トリート', ct:4, atk:'phys', tgt:'single', pow:0.5, hits:4,
-      onHit:[{ debuff:'pdefDown', v:10, turns:2 }, { st:'confuse', turns:1 }],
-      desc:'敵単体に威力50%の物理攻撃を4回行う。物理防御低下(-10)を2ターンと混乱(1ターン)を付与する' },
+      onHit:[{ debuff:'strDown', v:0.2, turns:2 }, { st:'confuse', turns:1 }],
+      desc:'敵単体に威力50%の物理攻撃を4回行う。攻撃力低下(-20%)を2ターンと混乱(1ターン)を付与する' },
     // 2026-10-26 ユーザー決定: 1ヒットごとの上がり幅 +5% → +10%(ほかの★5より与ダメージが低かったため。tools/jack_ct_measure.js)
     passive: { name:'カボチャのランタン', desc:'同じターンのうちに攻撃するほど攻撃力が上がる(1ヒットごとに与ダメージ+10%。ターンが変わると戻る)',
       dmgBonus: u => lanternHits(u) * pv(u, u.lanternStep || 0.1),
