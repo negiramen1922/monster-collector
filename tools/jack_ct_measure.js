@@ -5,8 +5,23 @@
 process.chdir(require('path').join(__dirname));
 const load = require('./harness.js');
 Date.now = () => new Date('2026-10-29T12:00:00+09:00').getTime();
-const api = load('game.js', s => s + `;global.__m={ set evLab(v){ evLab = v; }, evLabStart, labBestRelic, RELIC_SKILL_MAX, RELIC_MAX_DUPE_USE, MON_BY_ID, MONSTERS, skillCt, get b(){ return battleUI; } };`);
+const api = load('game.js', s => s + `;global.__m={ MONSTER_KITS, RELICS, dealHits, jackParade, lanternHits, pv, set evLab(v){ evLab = v; }, evLabStart, labBestRelic, RELIC_SKILL_MAX, RELIC_MAX_DUPE_USE, MON_BY_ID, MONSTERS, skillCt, get b(){ return battleUI; } };`);
 const M = global.__m;
+// VAR: 改善案を試す(測るときだけ)。relicSkill=遺物の攻撃力2つをスキル攻撃力に / defDown=スキル1が防御低下の敵に威力+50% / combo=スキル2のあと次のスキル1のヒット数+3
+const VAR = process.env.VAR || '';
+if(VAR.includes('relicSkill')) M.RELICS.rel_devil_ember.effects = M.RELICS.rel_devil_ember.effects.map(e => e.stat === 'atk' ? { ...e, stat: 'skillDmg' } : e);
+const K = M.MONSTER_KITS.m190;
+if(VAR.includes('defDown')) K.skill1 = { ...K.skill1, bonusIf: [{ cond: 'defDown', add: 0.5 }] };
+// lantern10: カボチャのランタンの上がり幅 +5% → +10% / combo2: スキル2のあと次のスキル1は威力+50%
+if(VAR.includes('lantern10')) K.passive = { ...K.passive, dmgBonus: u => M.lanternHits(u) * M.pv(u, (u.lanternStep || 0.05) * 2) };
+if(VAR.includes('combo2')){
+  K.skill2 = { ...K.skill2, run: ctx => { M.dealHits(ctx); ctx.actor.flags.trickNext = true; } };
+  K.skill1 = { ...K.skill1, run: ctx => { const u = ctx.actor; if(u.flags.trickNext){ u.flags.trickNext = false; M.dealHits(ctx, { pow: ctx.act.pow * 1.5 }); } else M.jackParade(ctx); } };
+}
+if(VAR.includes('combo') && !VAR.includes('combo2')){
+  K.skill2 = { ...K.skill2, run: ctx => { M.dealHits(ctx); ctx.actor.flags.trickNext = true; } };
+  K.skill1 = { ...K.skill1, run: ctx => { const u = ctx.actor; if(u.flags.trickNext){ u.flags.trickNext = false; M.dealHits(ctx, { hits: ctx.act.hits + 3 }); } else M.jackParade(ctx); } };
+}
 const by = Object.fromEntries(M.MONSTERS.map(m => [m.name, m.id]));
 const ALLIES = ['タイタン', 'ウンディーネ', 'ホーリードラゴン', 'リヴァイアサン'].map(n => by[n]);
 const N = +(process.env.N || 100);
@@ -17,7 +32,7 @@ const CASES = [
   ['ジャック 遺物なし(CT3)', slot(by['ジャック・オ・ランタン'], { relic: null })],
   ['ジャック 専用遺物 遺物スキルLv1(CT2)', slot(by['ジャック・オ・ランタン'], { relic: 'rel_devil_ember', rsk: 1 })],
   ['ジャック 専用遺物 遺物スキルLv10(CT1)', slot(by['ジャック・オ・ランタン'], { relic: 'rel_devil_ember', rsk: 10 })],
-  ...['九尾の狐', 'バハムート', 'アバドン', 'フェンリル', 'モモタロウ', 'フレイヤ'].filter(n => by[n]).map(n => [n + '(合う★5遺物)', slot(by[n])]),
+  ...(process.env.ONLYJACK ? [] : ['九尾の狐', 'バハムート', 'アバドン', 'フェンリル', 'モモタロウ', 'フレイヤ'].filter(n => by[n]).map(n => [n + '(合う★5遺物)', slot(by[n])])),
 ];
 for(const st of STAGES) for(const [name, s] of CASES){
   let win = 0, dpr = 0, share = 0, rounds = 0, ct = 0;
