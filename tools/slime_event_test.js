@@ -117,12 +117,12 @@ ok(E.EVENT_THEME.ev_slime && E.EVENT_THEME.ev_slime.bg1 === '#062430', '色');
 const fr = E.FRAMES.fr_ev_slime;
 ok(fr && fr.style === 'slime' && fr.badge === 'm31' && fr.how.includes('HELL'), 'イベントの枠はHELLの★3で、シースライム入り');
 at('2026-10-23T11:59:00+09:00');
-ok(!E.liveNotices().some(n => n.id === 44 || n.id === 45), '予告(10/23 12:00)の前はお知らせに出ない');
+ok(!E.liveNotices().some(n => n.id === 49 || n.id === 52), '予告(10/23 12:00)の前はお知らせに出ない');
 at('2026-10-23T12:00:00+09:00');
-ok(E.liveNotices().some(n => n.id === 44) && !E.liveNotices().some(n => n.id === 45), '10/23 12:00 に予告が出る');
+ok(E.liveNotices().some(n => n.id === 49) && !E.liveNotices().some(n => n.id === 52), '10/23 12:00 に予告が出る');
 at('2026-10-26T12:00:00+09:00');
-ok(E.liveNotices().some(n => n.id === 45), '10/26 12:00 に開幕のお知らせが出る');
-const teaser = E.NOTICES.find(n => n.id === 44).body;
+ok(E.liveNotices().some(n => n.id === 52), '10/26 12:00 に開幕のお知らせが出る');
+const teaser = E.NOTICES.find(n => n.id === 49).body;
 ok(teaser.includes('10/26(月) 12:00') && teaser.includes('10/27(火) 12:00'), '予告に、鬼ヶ島・豊穣の女神の終了時刻の変更を書く');
 
 Date.now = realNow; Math.random = realRand;

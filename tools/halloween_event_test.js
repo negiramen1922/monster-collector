@@ -64,11 +64,11 @@ const tt = E.EVENT_TITLES.ev_halloween;
 ok(tt.deep === 'お菓子あつめ' && tt.star === 'いたずら名人' && tt.ex === '仮装行列の王' && tt.hell === '真夜中の主役', '称号');
 ok(E.EVENT_THEME.ev_halloween && E.FRAMES.fr_ev_halloween && E.FRAMES.fr_ev_halloween.style === 'halloween' && E.FRAMES.fr_ev_halloween.badge === 'm190', '色・フレーム(HELL★3・ジャック入り)');
 at('2026-10-24T11:59:00+09:00');
-ok(!E.liveNotices().some(n => n.id === 46 || n.id === 47), '予告(10/24 12:00)の前はお知らせに出ない');
+ok(!E.liveNotices().some(n => n.id === 50 || n.id === 53), '予告(10/24 12:00)の前はお知らせに出ない');
 at('2026-10-24T12:00:00+09:00');
-ok(E.liveNotices().some(n => n.id === 46) && !E.liveNotices().some(n => n.id === 47), '10/24 12:00 に予告');
+ok(E.liveNotices().some(n => n.id === 50) && !E.liveNotices().some(n => n.id === 53), '10/24 12:00 に予告');
 at('2026-10-27T12:00:00+09:00');
-ok(E.liveNotices().some(n => n.id === 47), '10/27 12:00 に開幕のお知らせ');
+ok(E.liveNotices().some(n => n.id === 53), '10/27 12:00 に開幕のお知らせ');
 
 Date.now = realNow;
 console.log(fail ? `${fail}件 失敗` : 'すべて通過');

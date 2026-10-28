@@ -28,11 +28,15 @@ S.updateLogSeen = 0;
 // at つきのニュース(掲載時刻より前)は未読に数えない。イベント開始と同時にバッジが出る
 ok('未読件数は掲載中のニュース+掲載中のUPDATE_LOGの合計', E.unreadNotices() === E.liveNotices().length + E.liveUpdateLog().length, E.unreadNotices());
 
-S.noticeSeen = E.NOTICES[0].id; // all news read
+S.noticeSeen = Math.max(...E.NOTICES.map(n => n.id)); // all news read(既読は「読んだいちばん大きい id」)
 ok('ニュースだけ既読にするとUPDATE_LOG分だけ残る', E.unreadNotices() === E.liveUpdateLog().length, E.unreadNotices());
 
 S.updateLogSeen = E.liveUpdateLog()[0].id; // all updates also read (公開時刻前のものは数えない)
 ok('両方既読にすると未読0になる', E.unreadNotices() === 0, E.unreadNotices());
+// id は公開時刻(at)の順に大きくする。あとから公開するものの id が小さいと、すでに既読あつかいになって未読にも自動表示にもならない(10/21の遠征48のあとに43〜47を出して起きた)
+{ const t = n => n.at ? new Date(n.at).getTime() : 0, bad = [];
+  E.NOTICES.forEach(a => E.NOTICES.forEach(b => { if(t(a) > t(b) && a.id < b.id && b.id >= 48) bad.push(a.id + '<' + b.id); }));
+  ok('ニュースの id は公開時刻の順に大きい(遠征48以降)', !bad.length, bad); }
 
 // --- openOverlay('notices') marks BOTH lists as seen in one tap, matching the existing
 // single-bell-icon UX (no need to visit each tab separately) ---
